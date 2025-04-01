@@ -22,7 +22,7 @@ public class PlayerAnimation : MonoBehaviour
     {
         if (animator != null)
         {
-            animator.SetFloat("verticalSpeed", controller.Movement);
+            animator.SetFloat("motionBlend", controller.MotionBlend, 0.1f, Time.deltaTime);
         }
     }
 
