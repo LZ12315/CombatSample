@@ -22,7 +22,8 @@ public class PhysicsBody : MonoBehaviour
 
     private void Start()
     {
-        groundCheck.OnFallDown.AddListener(OnFallDown);
+        if(groundCheck != null)
+            groundCheck.OnFallDown.AddListener(OnFallDown);
     }
 
     private void FixedUpdate()
@@ -45,7 +46,7 @@ public class PhysicsBody : MonoBehaviour
 
     void Gravity()
     {
-        if (groundCheck.IsGround) return;
+        if (groundCheck == null || groundCheck.IsGround) return;
         
         float gravityForce = Mass * GravityScale * gravityVelocity;
         AddForce(Vector3.down, gravityForce * Time.fixedDeltaTime);
