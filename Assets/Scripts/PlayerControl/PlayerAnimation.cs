@@ -16,6 +16,8 @@ public class PlayerAnimation : MonoBehaviour
     {
         animator = GetComponent<Animator>();
         controller = GetComponentInParent<PlayerController>();
+
+        EventCenter.Instance.AddEventListener("PlayerAttack", Attack);
     }
 
     private void Update()
@@ -24,6 +26,11 @@ public class PlayerAnimation : MonoBehaviour
         {
             animator.SetFloat("motionBlend", controller.MotionBlend, 0.1f, Time.deltaTime);
         }
+    }
+
+    public void Attack()
+    {
+        animator.SetTrigger("Attack");
     }
 
     public void Grab()

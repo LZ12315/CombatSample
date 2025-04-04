@@ -4,9 +4,11 @@ using UnityEngine;
 
 public class CameraController : MonoBehaviour
 {
+    PlayerInputControl inputControl;
     [SerializeField] Transform followTarget;
 
-    [SerializeField] float rotationSpeed = 1f;
+    [SerializeField] float rotationSpeedX = 2f;
+    [SerializeField] float rotationSpeedY = 1f;
     [SerializeField] float followDistance;
 
     [SerializeField] Vector2 frameOffset;
@@ -21,8 +23,9 @@ public class CameraController : MonoBehaviour
     float invertXVal;
     float invertYVal;
 
-    private void Start()
+    private void Awake()
     {
+        inputControl = new PlayerInputControl();
         Cursor.visible = false;
         Cursor.lockState = CursorLockMode.Locked;
 
@@ -32,9 +35,12 @@ public class CameraController : MonoBehaviour
 
     private void Update()
     {
-        rotationX += Input.GetAxis("Mouse Y") * rotationSpeed * invertXVal;
-        rotationY += Input.GetAxis("Mouse X") * rotationSpeed * invertYVal;
+        Vector2 lookInput = inputControl.Player.Look.ReadValue<Vector2>();
+
+        rotationX += lookInput.y * rotationSpeedY * invertXVal * Time.deltaTime;
+        rotationY += lookInput.x * rotationSpeedX * invertYVal * Time.deltaTime;
         rotationX = Mathf.Clamp(rotationX, minVerticalAngle, maxVerticalAngle);
+
         Quaternion targetRotation = Quaternion.Euler(rotationX, rotationY, 0);
 
         Vector3 focusPosition = followTarget.position + (Vector3)frameOffset;
@@ -42,6 +48,20 @@ public class CameraController : MonoBehaviour
         transform.rotation = targetRotation;
     }
 
+    #region ÆäËû
+
     public Quaternion RotationVertical => Quaternion.Euler(0, rotationY, 0);
+
+    private void OnEnable()
+    {
+        inputControl.Enable();
+    }
+
+    private void OnDisable()
+    {
+        inputControl.Disable();
+    }
+
+    #endregion
 
 }
