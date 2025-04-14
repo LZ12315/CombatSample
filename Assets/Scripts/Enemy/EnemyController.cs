@@ -7,44 +7,40 @@ using static UnityEngine.UI.Image;
 
 public class EnemyController : MonoBehaviour
 {
-    [SerializeField] private Animator animator;
+    Animator animator;
+    PhysicsBody physicsCharacter;
+
+    [SerializeField] private float moveSpeed = 5f;
     Transform player;
-    Vector3 moveDir;
 
     void Start()
     {
-        StartCoroutine(Act());
-    }
+        animator = GetComponent<Animator>();
+        physicsCharacter = GetComponent<PhysicsBody>();
 
-    IEnumerator Act()
-    {
-        yield return new WaitForSeconds(1);
-        animator.SetBool("Walk", true);
-        canAct = true;
-
-        moveDir = Vector3.forward;
-        yield return new WaitForSeconds(2);
-
-        moveDir = Vector3.right;
-        yield return new WaitForSeconds(4.5f);
-
-        moveDir = Vector3.forward;
-        yield return new WaitForSeconds(2f);
-
-        canAct = false;
+        player = GameObject.FindWithTag("Player").transform;
     }
 
     private void Update()
     {
-        Quaternion targetRotation = Quaternion.LookRotation(moveDir);
-        transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, Time.deltaTime * 500f);
+        Chase(player);
     }
 
-    bool canAct;
-    private void FixedUpdate()
+    void Chase(Transform target)
     {
-        if (canAct)
-            transform.position += moveDir * 1 * Time.fixedDeltaTime;
+        if (target == null) return;
+
+        Vector3 chaseDir = (target.position - transform.position).normalized;
+
+        Quaternion targetRotation = Quaternion.LookRotation(chaseDir);
+        transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, Time.deltaTime * 500f);
+
+        Vector3 motionStep = chaseDir * moveSpeed;
+        Vector3 velocity = new Vector3(motionStep.x, physicsCharacter.Velocity.y, motionStep.z);
+        physicsCharacter.SetVelocity(velocity);
+
+        if (animator == null) return;
+        animator.SetFloat("motionBlend", 1, 0.1f, Time.deltaTime);
     }
 
 }

@@ -5,7 +5,6 @@ using UnityEngine;
 public class PlayerAnimation : MonoBehaviour
 {
     [SerializeField] Animator animator;
-    [SerializeField] PlayerController controller;
 
     [SerializeField] Transform leftGrabPos;
     [SerializeField] Transform rightGrabPos;
@@ -15,22 +14,6 @@ public class PlayerAnimation : MonoBehaviour
     private void Start()
     {
         animator = GetComponent<Animator>();
-        controller = GetComponentInParent<PlayerController>();
-
-        EventCenter.Instance.AddEventListener("PlayerAttack", Attack);
-    }
-
-    private void Update()
-    {
-        if (animator != null)
-        {
-            animator.SetFloat("motionBlend", controller.MotionBlend, 0.1f, Time.deltaTime);
-        }
-    }
-
-    public void Attack()
-    {
-        animator.SetTrigger("Attack");
     }
 
     public void Grab()
