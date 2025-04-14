@@ -3,12 +3,15 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.XR;
 
 public class PlayerController : MonoBehaviour
 {
     PlayerInputControl inputControl;
     CameraController cameraControl;
     PhysicsBody physicsCharacter;
+    Animator animator;
+    MeleeAttacker meleeAttacker;
 
     [Header("移动参数")]
     [SerializeField] bool canMove = true;
@@ -26,6 +29,8 @@ public class PlayerController : MonoBehaviour
     {
         inputControl = new PlayerInputControl();
         physicsCharacter = GetComponent<PhysicsBody>();
+        meleeAttacker = GetComponent<MeleeAttacker>();
+        animator = GetComponentInChildren<Animator>();
         cameraControl = Camera.main.GetComponent<CameraController>();
     }
 
@@ -34,6 +39,7 @@ public class PlayerController : MonoBehaviour
         GetDir();
         GetSpeed();
         LocalMotion();
+        MotionAnim();
     }
 
     void GetDir()
@@ -55,7 +61,7 @@ public class PlayerController : MonoBehaviour
     Quaternion targetRotation;
     void LocalMotion()
     {
-        if (!canMove)
+        if (meleeAttacker.InAction)
         {
             physicsCharacter.SetVelocity(Vector3.zero);
             return;
@@ -69,16 +75,17 @@ public class PlayerController : MonoBehaviour
         physicsCharacter.SetVelocity(velocity);
     }
 
+    void MotionAnim()
+    {
+        if (animator == null) return;
+        animator.SetFloat("motionBlend", MotionBlend, 0.1f, Time.deltaTime);
+    }
+
     void Jump(InputAction.CallbackContext context)
     {
         physicsCharacter.AddForce(Vector3.up, 100f);
     }
 
-    private void Attack(InputAction.CallbackContext context)
-    {
-        EventCenter.Instance.EventTrigger("PlayerAttack");
-        canMove = false;
-    }
 
     # region 其他
 
@@ -86,14 +93,12 @@ public class PlayerController : MonoBehaviour
     {
         inputControl.Enable();
         inputControl.Player.Jump.started += Jump;
-        inputControl.Player.Fire.started += Attack;
     }
 
     private void OnDisable()
     {
         inputControl.Disable();
         inputControl.Player.Jump.started -= Jump;
-        inputControl.Player.Fire.started -= Attack;
     }
 
     public float MotionBlend => moveDir.magnitude * currentSpeed / runSpeed;
