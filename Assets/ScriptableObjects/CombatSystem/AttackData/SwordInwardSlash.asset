@@ -13,5 +13,6 @@ MonoBehaviour:
   m_Name: SwordInwardSlash
   m_EditorClassIdentifier: 
   <AnimName>k__BackingField: SwordInwardSlash
+  hitBoxType: 1
   <ImpactStartTime>k__BackingField: 0.35
   <ImpactEndTime>k__BackingField: 0.55

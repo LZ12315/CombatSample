@@ -10,9 +10,9 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fbe74f6f869d0df469627773c537bd22, type: 3}
-  m_Name: SwordOutSlash
+  m_Name: CrossPunch
   m_EditorClassIdentifier: 
-  <AnimName>k__BackingField: SwordOutSlash
-  hitBoxType: 1
-  <ImpactStartTime>k__BackingField: 0.25
-  <ImpactEndTime>k__BackingField: 0.35
+  <AnimName>k__BackingField: CrossPunch
+  hitBoxType: 4
+  <ImpactStartTime>k__BackingField: 0.45
+  <ImpactEndTime>k__BackingField: 0.6

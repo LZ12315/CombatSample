@@ -7,22 +7,22 @@ using UnityEngine;
 # region 变量定义
 
 [System.Serializable]
-public struct TransitionStatePair
+public struct TransitionLine
 {
     public Transition TransitionRef;
-    public State StateRef;
+    public State targetStateRef;
 
-    public TransitionStatePair(Transition transition, State state)
+    public TransitionLine(Transition transition, State state)
     {
         TransitionRef = transition ?? throw new ArgumentNullException(nameof(transition));
-        StateRef = state ?? throw new ArgumentNullException(nameof(state));
+        targetStateRef = state ?? throw new ArgumentNullException(nameof(state));
     }
 }
 
 [System.Serializable]
 public struct Transitions
 {
-    public List<TransitionStatePair> transitions;
+    public List<TransitionLine> transitions;
 }
 
 [System.Serializable]
@@ -55,7 +55,7 @@ public class SerializableTransitionMap
         }
     }
 
-    public void AddTransition(State sourceState, TransitionStatePair statePair)
+    public void AddTransition(State sourceState, TransitionLine statePair)
     {
         foreach (var entry in entries) 
         { 
@@ -107,7 +107,7 @@ public class StateMachine : MonoBehaviour
         {
             if(transition.TransitionRef.ToTransition())
             {
-                SetState(transition.StateRef);
+                SetState(transition.targetStateRef);
                 break;
             }
         }
