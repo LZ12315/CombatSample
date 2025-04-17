@@ -2,13 +2,13 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public abstract class State
+public abstract class State<T>:MonoBehaviour
 {
-    GameObject pOwner;
+    T _owner;
 
-    public virtual void OnEnter(GameObject owner)
+    public virtual void OnEnter(T owner)
     {
-        pOwner = owner;
+        _owner = owner;
     }
 
     public virtual void OnUpdate()
