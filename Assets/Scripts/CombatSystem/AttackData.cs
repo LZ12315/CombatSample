@@ -9,7 +9,7 @@ public class AttackData : ScriptableObject
     public string AnimName { get; private set;}
 
     [SerializeField]
-    public Consts.AttackHitBox hitBoxType;
+    public Utils.AttackHitBox hitBoxType;
 
     [field : SerializeField]
     public float ImpactStartTime { get; private set;}
@@ -18,7 +18,7 @@ public class AttackData : ScriptableObject
     public float ImpactEndTime { get; private set;}
 }
 
-public static partial class Consts
+public static partial class Utils
 {
     public enum AttackHitBox
     {

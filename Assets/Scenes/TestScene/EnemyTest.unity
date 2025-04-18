@@ -140,8 +140,8 @@ GameObject:
   - component: {fileID: 365539181}
   - component: {fileID: 365539182}
   - component: {fileID: 365539179}
-  - component: {fileID: 365539178}
   - component: {fileID: 365539183}
+  - component: {fileID: 365539184}
   m_Layer: 0
   m_Name: Enemy
   m_TagString: Untagged
@@ -165,18 +165,6 @@ Transform:
   - {fileID: 2002608473}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &365539178
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 365539176}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: eeebc7bbdaee10440a782a92c1feeb0f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!114 &365539179
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -189,6 +177,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6b64b8420ed787b45b432d70eb615160, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  canMove: 1
+  rotateSpeed: 500
   moveSpeed: 0
 --- !u!143 &365539181
 CharacterController:
@@ -245,6 +235,19 @@ MonoBehaviour:
   swordGamobject: {fileID: 0}
   attacks: []
   <InAction>k__BackingField: 0
+  comboCount: 0
+--- !u!114 &365539184
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 365539176}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 473e4757b79a67544920fe96d6fd034a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &382486426
 GameObject:
   m_ObjectHideFlags: 0
@@ -1006,7 +1009,7 @@ PrefabInstance:
     - target: {fileID: 919132149155446097, guid: 2e3a1d9af0eb5474ea10ce974a975cc9,
         type: 3}
       propertyPath: m_Name
-      value: X Bot
+      value: Model
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: 2e3a1d9af0eb5474ea10ce974a975cc9,
         type: 3}
@@ -1058,6 +1061,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 87d9c843d0a52974988878ad54258d1b, type: 2}
   - {fileID: 11400000, guid: 038721070df670f4585c3056e05e94e9, type: 2}
   <InAction>k__BackingField: 0
+  comboCount: 0
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

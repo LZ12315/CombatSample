@@ -58,7 +58,6 @@ public class PlayerController : MonoBehaviour
             currentSpeed = runSpeed;
     }
 
-    Quaternion targetRotation;
     void LocalMotion()
     {
         if (meleeAttacker.InAction)
@@ -67,7 +66,7 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
-        targetRotation = Quaternion.LookRotation(faceDir);
+        Quaternion targetRotation = Quaternion.LookRotation(faceDir);
         transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, Time.deltaTime * rotateSpeed);
 
         Vector3 motionStep = moveDir * currentSpeed;

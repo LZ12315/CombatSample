@@ -112,7 +112,7 @@ public class MeleeAttacker : MonoBehaviour
         InAction = true;
         animator.CrossFade("Injured", 0.2f);
         yield return null;
-        Debug.Log(gameObject.name);
+
         var animState = animator.GetNextAnimatorStateInfo(1);
         yield return new WaitForSeconds(animState.length * 0.2f);
 
@@ -141,23 +141,23 @@ public class MeleeAttacker : MonoBehaviour
     {
         switch (attackData.hitBoxType)
         {
-            case Consts.AttackHitBox.LeftHand:
+            case Utils.AttackHitBox.LeftHand:
                 if (leftHandCollider != null)
                     leftHandCollider.enabled = true;
                 break;
-            case Consts.AttackHitBox.RightHand:
+            case Utils.AttackHitBox.RightHand:
                 if (rightHandCollider != null)
                     rightHandCollider.enabled = true;
                 break;
-            case Consts.AttackHitBox.LeftFoot:
+            case Utils.AttackHitBox.LeftFoot:
                 if (leftFootCollider != null)
                     leftFootCollider.enabled = true;
                 break;
-            case Consts.AttackHitBox.RightFoot:
+            case Utils.AttackHitBox.RightFoot:
                 if (rightFootCollider != null)
                     rightFootCollider.enabled = true;
                 break;
-            case Consts.AttackHitBox.Sword:
+            case Utils.AttackHitBox.Sword:
                 if (swordCollider != null)
                     swordCollider.enabled = true;
                 break;
