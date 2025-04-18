@@ -6,32 +6,43 @@ using UnityEngine;
 
 public class StateMachine<T>
 {
-    [SerializeField] 
     private SerializableTransitionMap transitionMap = new SerializableTransitionMap();
-    State<T> currentState;
-    Transitions currentTransitions;
 
-    private void Update()
+    T _owner;
+    State<T> currentState;
+
+    public StateMachine(T owner)
+    {
+        _owner = owner;
+    }
+
+    public void ChangeState(State<T> state)
+    {
+        if(currentState != null) 
+            currentState.OnExit();
+        currentState = state;
+        currentState.OnEnter(_owner);
+    }
+
+    public void ExcuteState()
     {
         if (currentState == null) return;
 
+        Transitions currentTransitions;
         transitionMap.AsDictionary.TryGetValue(currentState, out currentTransitions);
+
+        if (currentTransitions.transitions == null) return;
 
         foreach (var transition in currentTransitions.transitions)
         {
             if(transition.TransitionRef.ToTransition())
             {
-                SetState(transition.targetStateRef);
+                ChangeState(transition.targetStateRef);
                 break;
             }
         }
 
         currentState.OnUpdate();
-    }
-
-    void SetState(State<T> state)
-    {
-        currentState = state;
     }
 
     #region 变量定义
