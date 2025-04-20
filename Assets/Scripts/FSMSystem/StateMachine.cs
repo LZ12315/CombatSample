@@ -28,19 +28,19 @@ public class StateMachine<T>
     {
         if (currentState == null) return;
 
-        Transitions currentTransitions;
-        transitionMap.AsDictionary.TryGetValue(currentState, out currentTransitions);
+        //Transitions currentTransitions;
+        //transitionMap.AsDictionary.TryGetValue(currentState, out currentTransitions);
 
-        if (currentTransitions.transitions == null) return;
+        //if (currentTransitions.transitions == null) return;
 
-        foreach (var transition in currentTransitions.transitions)
-        {
-            if(transition.TransitionRef.ToTransition())
-            {
-                ChangeState(transition.targetStateRef);
-                break;
-            }
-        }
+        //foreach (var transition in currentTransitions.transitions)
+        //{
+        //    if(transition.TransitionRef.ToTransition())
+        //    {
+        //        ChangeState(transition.targetStateRef);
+        //        break;
+        //    }
+        //}
 
         currentState.OnUpdate();
     }
