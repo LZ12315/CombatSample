@@ -521,7 +521,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   followTarget: {fileID: 959689697}
-  rotationSpeed: 1
+  rotationSpeedX: 2
+  rotationSpeedY: 1
   followDistance: 5
   frameOffset: {x: 0, y: 3}
   minVerticalAngle: -30
@@ -620,9 +621,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 32b6f99b419752f43b8c4bfd716d548a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  rb: {fileID: 0}
+  canMove: 1
   rotateSpeed: 500
-  moveSpeed: 5
+  walkSpeed: 6
+  runSpeed: 10
 --- !u!54 &959689699
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -1022,7 +1024,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   animator: {fileID: 0}
-  controller: {fileID: 0}
   leftGrabPos: {fileID: 1541839190}
   rightGrabPos: {fileID: 547407040}
 --- !u!1660057539 &9223372036854775807

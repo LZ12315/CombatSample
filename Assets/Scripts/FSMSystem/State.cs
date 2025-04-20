@@ -4,7 +4,7 @@ using UnityEngine;
 
 public abstract class State<T>:MonoBehaviour
 {
-    T _owner;
+    protected T _owner;
 
     public virtual void OnEnter(T owner)
     {

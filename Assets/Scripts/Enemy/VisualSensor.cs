@@ -4,15 +4,28 @@ using UnityEngine;
 
 public class VisualSensor : MonoBehaviour
 {
-    // Start is called before the first frame update
-    void Start()
+    [SerializeField] EnemyController enemyController;
+
+    private void Start()
     {
-        
+        if(enemyController == null)
+            enemyController = GetComponentInParent<EnemyController>();
     }
 
-    // Update is called once per frame
-    void Update()
+    private void OnTriggerEnter(Collider other)
     {
-        
+        var target = other.GetComponent<MeleeAttacker>();
+        if (target == null) return;
+        enemyController.detectTarget.Add(target);
     }
+
+
+    private void OnTriggerExit(Collider other)
+    {
+        var target = other.GetComponent<MeleeAttacker>();
+        if (target == null) return;
+
+        enemyController.detectTarget.Remove(target);
+    }
+
 }
