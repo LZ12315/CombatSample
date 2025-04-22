@@ -180,7 +180,7 @@ SphereCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Radius: 3
+  m_Radius: 6
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!114 &280553528
 MonoBehaviour:
@@ -276,7 +276,7 @@ CharacterController:
   m_StepOffset: 0.3
   m_SkinWidth: 0.08
   m_MinMoveDistance: 0.001
-  m_Center: {x: 0, y: 1.2, z: 0}
+  m_Center: {x: 0, y: 1.1, z: 0}
 --- !u!114 &365539182
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -331,6 +331,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5da80850d713c114d8e4e9f24656defa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  distanceToStop: 6
+  adjustChaseDistance: 1
+  idleTimeRange: {x: 2, y: 5}
+  circleTimeRange: {x: 3, y: 6}
+  circlingSpeed: 30
 --- !u!195 &365539186
 NavMeshAgent:
   m_ObjectHideFlags: 0
@@ -341,7 +346,7 @@ NavMeshAgent:
   m_Enabled: 1
   m_AgentTypeID: 0
   m_Radius: 0.5
-  m_Speed: 3.5
+  m_Speed: 4
   m_Acceleration: 8
   avoidancePriority: 50
   m_AngularSpeed: 120
@@ -350,7 +355,7 @@ NavMeshAgent:
   m_AutoBraking: 1
   m_AutoRepath: 1
   m_Height: 2
-  m_BaseOffset: 0
+  m_BaseOffset: -0.09
   m_WalkableMask: 4294967295
   m_ObstacleAvoidanceType: 4
 --- !u!1 &382486426
@@ -994,17 +999,17 @@ PrefabInstance:
     - target: {fileID: 7283756058995910492, guid: a280257f0a7771c479001e053d416c5f,
         type: 3}
       propertyPath: m_LocalRotation.w
-      value: 1
+      value: -0.004886735
       objectReference: {fileID: 0}
     - target: {fileID: 7283756058995910492, guid: a280257f0a7771c479001e053d416c5f,
         type: 3}
       propertyPath: m_LocalRotation.x
-      value: 0
+      value: -0
       objectReference: {fileID: 0}
     - target: {fileID: 7283756058995910492, guid: a280257f0a7771c479001e053d416c5f,
         type: 3}
       propertyPath: m_LocalRotation.y
-      value: 0
+      value: -0.9999881
       objectReference: {fileID: 0}
     - target: {fileID: 7283756058995910492, guid: a280257f0a7771c479001e053d416c5f,
         type: 3}
@@ -1019,7 +1024,7 @@ PrefabInstance:
     - target: {fileID: 7283756058995910492, guid: a280257f0a7771c479001e053d416c5f,
         type: 3}
       propertyPath: m_LocalEulerAnglesHint.y
-      value: 0
+      value: -180.56
       objectReference: {fileID: 0}
     - target: {fileID: 7283756058995910492, guid: a280257f0a7771c479001e053d416c5f,
         type: 3}
@@ -1212,7 +1217,7 @@ PrefabInstance:
     - target: {fileID: -8679921383154817045, guid: 2e3a1d9af0eb5474ea10ce974a975cc9,
         type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0
+      value: 0.035
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 2e3a1d9af0eb5474ea10ce974a975cc9,
         type: 3}

@@ -19,12 +19,12 @@ public class EnemyController : MonoBehaviour
 
     [field : Header("寻路参数")]
     [field: SerializeField] public float FOV { get; private set; } = 180f;
-    public Transform chaseTarget { get; set; }
+    public Transform Target { get; set; }
     public List<MeleeAttacker> detectTarget { get; set;} = new List<MeleeAttacker>();
     public NavMeshAgent NavMeshAgent { get; set; }
 
     [Header("状态控制")]
-    private Dictionary<Utils.EnemtState, State<EnemyController>> stateDict;
+    private Dictionary<Utils.Enums.EnemtState, State<EnemyController>> stateDict;
     public StateMachine<EnemyController> stateMachine { get; private set;}
 
     void Start()
@@ -56,14 +56,14 @@ public class EnemyController : MonoBehaviour
     void InitStateMachine()
     {
         stateMachine = new StateMachine<EnemyController>(this);
-        stateDict = new Dictionary<Utils.EnemtState, State<EnemyController>>();
+        stateDict = new Dictionary<Utils.Enums.EnemtState, State<EnemyController>>();
 
-        stateDict.Add(Utils.EnemtState.Idle, GetComponent<IdleState>());
-        stateDict.Add(Utils.EnemtState.Chase, GetComponent<ChaseState>());
-        stateMachine.ChangeState(stateDict[Utils.EnemtState.Idle]);
+        stateDict.Add(Utils.Enums.EnemtState.Idle, GetComponent<IdleState>());
+        stateDict.Add(Utils.Enums.EnemtState.CombatMove, GetComponent<CombatMoveState>());
+        stateMachine.ChangeState(stateDict[Utils.Enums.EnemtState.Idle]);
     }
 
-    public void ChangeState(Utils.EnemtState stateKey)
+    public void ChangeState(Utils.Enums.EnemtState stateKey)
     {
         if (stateDict.ContainsKey(stateKey))
             stateMachine.ChangeState(stateDict[stateKey]);
@@ -75,8 +75,12 @@ public class EnemyController : MonoBehaviour
 
 public static partial class Utils
 {
-    public enum EnemtState
+
+    public static partial class Enums
     {
-        None, Idle, Chase
+        public enum EnemtState
+        {
+            None, Idle, CombatMove
+        }
     }
 }
