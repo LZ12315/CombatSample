@@ -8,8 +8,8 @@ public class StateMachine<T>
 {
     private SerializableTransitionMap transitionMap = new SerializableTransitionMap();
 
-    T _owner;
-    State<T> currentState;
+    private T _owner;
+    public State<T> CurrentState { get; private set; }
 
     public StateMachine(T owner)
     {
@@ -18,15 +18,15 @@ public class StateMachine<T>
 
     public void ChangeState(State<T> state)
     {
-        if(currentState != null) 
-            currentState.OnExit();
-        currentState = state;
-        currentState.OnEnter(_owner);
+        if(CurrentState != null) 
+            CurrentState.OnExit();
+        CurrentState = state;
+        CurrentState.OnEnter(_owner);
     }
 
     public void ExcuteState()
     {
-        if (currentState == null) return;
+        if (CurrentState == null) return;
 
         //Transitions currentTransitions;
         //transitionMap.AsDictionary.TryGetValue(currentState, out currentTransitions);
@@ -42,7 +42,7 @@ public class StateMachine<T>
         //    }
         //}
 
-        currentState.OnUpdate();
+        CurrentState.OnUpdate();
     }
 
     #region 变量定义

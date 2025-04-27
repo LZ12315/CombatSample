@@ -5,12 +5,15 @@ using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.InputSystem;
 using static UnityEngine.GraphicsBuffer;
+using static UnityEngine.UI.GridLayoutGroup;
 using static UnityEngine.UI.Image;
 
 public class EnemyController : MonoBehaviour
 {
-    public Animator animator { get; set;}
-    PhysicsBody physicsCharacter;
+    public Animator Animator { get; set;}
+    CharacterBody physicsCharacter;
+    public MeleeAttacker MeleeAttacker {  get; set; }
+    public EnemyInfo Info {  get; set; }
 
     [Header("移动参数")]
     [SerializeField] bool canMove = true;
@@ -24,21 +27,25 @@ public class EnemyController : MonoBehaviour
     public NavMeshAgent NavMeshAgent { get; set; }
 
     [Header("状态控制")]
-    private Dictionary<Utils.Enums.EnemtState, State<EnemyController>> stateDict;
+    private Dictionary<Utils.Enums.EnemyStates, State<EnemyController>> stateDict;
     public StateMachine<EnemyController> stateMachine { get; private set;}
 
     void Start()
     {
-        animator = GetComponentInChildren<Animator>();
-        physicsCharacter = GetComponent<PhysicsBody>();
+        Animator = GetComponentInChildren<Animator>();
+        physicsCharacter = GetComponent<CharacterBody>();
         NavMeshAgent = GetComponent<NavMeshAgent>();
 
+        IDInitialized();
         InitStateMachine();
     }
 
     private void Update()
     {
         stateMachine.ExcuteState();
+
+        Animator.SetFloat("fowardSpeed", physicsCharacter.FowardSpeed, 0.2f, Time.deltaTime);
+        Animator.SetFloat("strafeSpeed", physicsCharacter.StrafSpeed, 0.2f, Time.deltaTime);
     }
 
     void LocalMotion(Vector3 faceDir)
@@ -56,17 +63,35 @@ public class EnemyController : MonoBehaviour
     void InitStateMachine()
     {
         stateMachine = new StateMachine<EnemyController>(this);
-        stateDict = new Dictionary<Utils.Enums.EnemtState, State<EnemyController>>();
+        stateDict = new Dictionary<Utils.Enums.EnemyStates, State<EnemyController>>();
 
-        stateDict.Add(Utils.Enums.EnemtState.Idle, GetComponent<IdleState>());
-        stateDict.Add(Utils.Enums.EnemtState.CombatMove, GetComponent<CombatMoveState>());
-        stateMachine.ChangeState(stateDict[Utils.Enums.EnemtState.Idle]);
+        stateDict.Add(Utils.Enums.EnemyStates.Idle, GetComponent<IdleState>());
+        stateDict.Add(Utils.Enums.EnemyStates.CombatMove, GetComponent<CombatMoveState>());
+        stateDict.Add(Utils.Enums.EnemyStates.Attack, GetComponent<AttackState>());
+        stateMachine.ChangeState(stateDict[Utils.Enums.EnemyStates.Idle]);
     }
 
-    public void ChangeState(Utils.Enums.EnemtState stateKey)
+    public void ChangeState(Utils.Enums.EnemyStates stateKey)
     {
         if (stateDict.ContainsKey(stateKey))
             stateMachine.ChangeState(stateDict[stateKey]);
+    }
+
+    public bool IsInState(Utils.Enums.EnemyStates state)
+    {
+        if (stateMachine.CurrentState == stateDict[state])
+            return true;
+        return false;
+    }
+
+    #endregion
+
+    #region 其他
+
+    void IDInitialized()
+    {
+        string id = System.Guid.NewGuid().ToString();
+        Info = new EnemyInfo(id, this);
     }
 
     #endregion
@@ -78,9 +103,9 @@ public static partial class Utils
 
     public static partial class Enums
     {
-        public enum EnemtState
+        public enum EnemyStates
         {
-            None, Idle, CombatMove
+            None, Idle, CombatMove, Attack
         }
     }
 }

@@ -16,6 +16,7 @@ public class VisualSensor : MonoBehaviour
     {
         var target = other.GetComponent<MeleeAttacker>();
         if (target == null) return;
+
         enemyController.detectTarget.Add(target);
     }
 
