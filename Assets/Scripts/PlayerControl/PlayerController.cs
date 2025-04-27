@@ -9,7 +9,7 @@ public class PlayerController : MonoBehaviour
 {
     PlayerInputControl inputControl;
     CameraController cameraControl;
-    PhysicsBody physicsCharacter;
+    CharacterBody physicsCharacter;
     Animator animator;
     MeleeAttacker meleeAttacker;
 
@@ -28,7 +28,7 @@ public class PlayerController : MonoBehaviour
     private void Awake()
     {
         inputControl = new PlayerInputControl();
-        physicsCharacter = GetComponent<PhysicsBody>();
+        physicsCharacter = GetComponent<CharacterBody>();
         meleeAttacker = GetComponent<MeleeAttacker>();
         animator = GetComponentInChildren<Animator>();
         cameraControl = Camera.main.GetComponent<CameraController>();
@@ -86,18 +86,26 @@ public class PlayerController : MonoBehaviour
     }
 
 
+    private void InvokeAttack(InputAction.CallbackContext context)
+    {
+        meleeAttacker.TryAttack();
+    }
+
+
     # region ÆäËû
 
     private void OnEnable()
     {
         inputControl.Enable();
         inputControl.Player.Jump.started += Jump;
+        inputControl.Player.Fire.started += InvokeAttack;
     }
 
     private void OnDisable()
     {
         inputControl.Disable();
         inputControl.Player.Jump.started -= Jump;
+        inputControl.Player.Fire.started -= InvokeAttack;
     }
 
     public float MotionBlend => moveDir.magnitude * currentSpeed / runSpeed;

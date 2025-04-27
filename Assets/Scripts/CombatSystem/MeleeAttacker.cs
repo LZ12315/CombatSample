@@ -5,7 +5,7 @@ using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-public enum AttackState { None, WindUp, Impact, ColdDown}
+public enum AttackStates { None, WindUp, Impact, ColdDown}
 
 public class MeleeAttacker : MonoBehaviour
 {
@@ -32,23 +32,33 @@ public class MeleeAttacker : MonoBehaviour
         GetAttackComponent();
     }
 
-    AttackState attackState;
+    AttackStates attackState;
     bool doCombo;
     [SerializeField] int comboCount;
+    public void TryAttack()
+    {
+        if (attacks.Count <= 0) return;
+
+        if (!InAction)
+            StartCoroutine(Attack());
+        else if (attackState == AttackStates.Impact || attackState == AttackStates.ColdDown)
+            doCombo = true;
+    }
+
     private void InvokeAttack(InputAction.CallbackContext context)
     {
         if (attacks.Count <= 0) return;
 
         if (!InAction)
             StartCoroutine(Attack());
-        else if(attackState == AttackState.Impact || attackState == AttackState.ColdDown)
+        else if(attackState == AttackStates.Impact || attackState == AttackStates.ColdDown)
             doCombo = true;
     }
 
     IEnumerator Attack()
     {
         InAction = true;
-        attackState = AttackState.WindUp;
+        attackState = AttackStates.WindUp;
 
         AttackData attack = attacks[comboCount];
         animator.CrossFade(attack.AnimName, 0.2f);
@@ -62,21 +72,21 @@ public class MeleeAttacker : MonoBehaviour
             float normalizedTime = timer / animState.length;
             switch (attackState)
             {
-                case AttackState.WindUp:
+                case AttackStates.WindUp:
                     if (normalizedTime >= attack.ImpactStartTime)
                     {
-                        attackState = AttackState.Impact;
+                        attackState = AttackStates.Impact;
                         EnableHitBox(attack);
                     }
                     break;
-                case AttackState.Impact:
+                case AttackStates.Impact:
                     if (normalizedTime >= attack.ImpactEndTime)
                     {
-                        attackState = AttackState.ColdDown;
+                        attackState = AttackStates.ColdDown;
                         DisableAllHitBoxes();
                     }
                     break;
-                case AttackState.ColdDown:
+                case AttackStates.ColdDown:
                     {
                         if(doCombo)
                         {
@@ -94,7 +104,7 @@ public class MeleeAttacker : MonoBehaviour
             yield return null;
         }
 
-        attackState = AttackState.None;
+        attackState = AttackStates.None;
         comboCount = 0;
         InAction = false;
     }
@@ -119,7 +129,7 @@ public class MeleeAttacker : MonoBehaviour
         InAction = false;
     }
 
-    #region 碰撞相关
+    #region 判定相关
 
     void GetAttackComponent()
     {
@@ -171,22 +181,6 @@ public class MeleeAttacker : MonoBehaviour
         if (rightHandCollider != null) rightHandCollider.enabled = false;
         if (leftFootCollider != null) leftFootCollider.enabled = false;
         if (rightFootCollider != null) rightFootCollider.enabled = false;
-    }
-
-    #endregion
-
-    #region 其他
-
-    private void OnEnable()
-    {
-        inputControl.Enable();
-        inputControl.Player.Fire.started += InvokeAttack;
-    }
-
-    private void OnDisable()
-    {
-        inputControl.Disable();
-        inputControl.Player.Fire.started -= InvokeAttack;
     }
 
     #endregion

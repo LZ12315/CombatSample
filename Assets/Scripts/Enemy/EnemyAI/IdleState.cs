@@ -20,7 +20,7 @@ public class IdleState : State<EnemyController>
             if(angle <= _owner.FOV/2)
             {
                 _owner.Target = target.transform;
-                _owner.ChangeState(Utils.Enums.EnemtState.CombatMove);
+                _owner.ChangeState(Utils.Enums.EnemyStates.CombatMove);
                 break;
             }
         }

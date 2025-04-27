@@ -5,18 +5,27 @@ using UnityEngine;
 
 public class CombatMoveState : State<EnemyController>
 {
+    [Header("追逐相关")]
     [SerializeField] private float distanceToStop = 2.5f;
     [SerializeField] private float adjustChaseDistance = 1f;
+    [Header("环绕相关")]
     [SerializeField] private Vector2 idleTimeRange = new Vector2(2,5);
     [SerializeField] private Vector2 circleTimeRange = new Vector2(3, 6);
     [SerializeField] private float circlingSpeed = 20f;
+    [Header("追踪相关")]
+    [SerializeField] private float attackWaitTime = 3f;
 
     Utils.Enums.AICombatStates combatState;
-    float timer = 0;
+    float stateTimer = 0;
+    float attackWaitTimer = 0;
 
     public override void OnEnter(EnemyController owner)
     {
         base.OnEnter(owner);
+
+        if (EnemyManager.Instance != null)
+            EnemyManager.Instance.AddEnemy(_owner.Info);
+        EventCenter.Instance.AddEventListener(_owner.Info.ID + "Attack", ToAttack);
 
         _owner.NavMeshAgent.stoppingDistance = distanceToStop;
         owner.NavMeshAgent.angularSpeed = 120f;
@@ -32,9 +41,9 @@ public class CombatMoveState : State<EnemyController>
 
         if(combatState == Utils.Enums.AICombatStates.Idle)
         {
-            if(timer <= 0)
+            if(stateTimer <= 0)
             {
-                timer = 0;
+                stateTimer = 0;
                 if (Random.Range(0, 2) == 0)
                     ToIdle();
                 else
@@ -53,53 +62,67 @@ public class CombatMoveState : State<EnemyController>
         }
         else if(combatState == Utils.Enums.AICombatStates.Circling)
         {
-            if (timer <= 0)
+            if (stateTimer <= 0)
             {
-                timer = 0;
+                stateTimer = 0;
                 ToIdle();
                 return;
             }
 
-            transform.RotateAround(_owner.Target.transform.position, Vector3.up, circlingSpeed * circlingDir * Time.deltaTime);
+            var vecToTarget = _owner.transform.position - _owner.Target.transform.position;
+            var rotatePos = Quaternion.Euler(0, circlingSpeed * circlingDir * Time.deltaTime, 0) * vecToTarget;
+
+            _owner.NavMeshAgent.Move(rotatePos - vecToTarget); // 无条件移动，而SetDestination会在所处位置与目标位置较近时不运行
+            _owner.transform.rotation = Quaternion.LookRotation(-rotatePos);
         }
 
-        if(timer >= 0)
-            timer -= Time.deltaTime;
+        if(stateTimer >= 0)
+            stateTimer -= Time.deltaTime;
 
-        float currentSpeed = _owner.NavMeshAgent.velocity.magnitude;
-        _owner.animator.SetFloat("motionBlend", currentSpeed / _owner.NavMeshAgent.speed);
+        if (attackWaitTimer < attackWaitTime)
+            attackWaitTimer += Time.deltaTime;
+        else
+            EventCenter.Instance.EventTrigger<EnemyInfo>("EnemyTryAttack", _owner.Info);
     }
 
     public override void OnExit()
     {
+        stateTimer = 0;
+
+        if (EnemyManager.Instance != null)
+            EnemyManager.Instance.RemoveEnemy(_owner.Info);
+
         base.OnExit();
     }
 
     void ToIdle()
     {
         combatState = Utils.Enums.AICombatStates.Idle;
-        timer = Random.Range(idleTimeRange.x, idleTimeRange.y);
+        stateTimer = Random.Range(idleTimeRange.x, idleTimeRange.y);
 
-        _owner.animator.SetBool("combatMode", true);
-        _owner.animator.SetBool("circling", false);
+        _owner.Animator.SetBool("combatMode", true);
     }
 
     private void ToChase()
     {
         combatState = Utils.Enums.AICombatStates.Chase;
-        _owner.animator.SetBool("combatMode", false);
-        _owner.animator.SetBool("circling", false);
+        _owner.Animator.SetBool("combatMode", true);
     }
 
     int circlingDir = 1;
     void ToCircling()
     {
         combatState = Utils.Enums.AICombatStates.Circling;
-        timer = Random.Range(circleTimeRange.x, circleTimeRange.y);
+        stateTimer = Random.Range(circleTimeRange.x, circleTimeRange.y);
         circlingDir = Random.Range(0, 2) == 0 ? 1 : -1;
+        _owner.NavMeshAgent.ResetPath();
 
-        _owner.animator.SetBool("circling", true);
-        _owner.animator.SetFloat("circlingDir", circlingDir);
+        _owner.Animator.SetBool("combatMode", false);
+    }
+
+    void ToAttack()
+    {
+        _owner.ChangeState(Utils.Enums.EnemyStates.Attack);
     }
 
 }
