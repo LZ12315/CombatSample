@@ -9,7 +9,7 @@ public class AttackData : ScriptableObject
     public string AnimName { get; private set;}
 
     [SerializeField]
-    public Utils.AttackHitBox hitBoxType;
+    public Utils.Enums.AttackHitBox hitBoxType;
 
     [field : SerializeField]
     public float ImpactStartTime { get; private set;}
@@ -20,8 +20,12 @@ public class AttackData : ScriptableObject
 
 public static partial class Utils
 {
-    public enum AttackHitBox
+    public static partial class Enums
     {
-        None, Sword, LeftHand, LeftFoot,RightHand, RightFoot
+        public enum AttackHitBox
+        {
+            None, Sword, LeftHand, LeftFoot, RightHand, RightFoot
+        }
     }
+
 }

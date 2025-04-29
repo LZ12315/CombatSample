@@ -1,11 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
-using Unity.VisualScripting;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
-public enum AttackStates { None, WindUp, Impact, ColdDown}
 
 public class MeleeAttacker : MonoBehaviour
 {
@@ -13,7 +9,8 @@ public class MeleeAttacker : MonoBehaviour
     Animator animator;
 
     [Header("武器设置")]
-    [SerializeField] GameObject swordGamobject;
+    [SerializeField] private GameObject swordGamobject;
+    private Dictionary<Utils.Enums.AttackHitBox, Collider> HitBoxColliders = new Dictionary<Utils.Enums.AttackHitBox, Collider>();
     BoxCollider swordCollider;
     Collider leftHandCollider, rightHandCollider, leftFootCollider, rightFootCollider; 
 
@@ -32,33 +29,23 @@ public class MeleeAttacker : MonoBehaviour
         GetAttackComponent();
     }
 
-    AttackStates attackState;
+    Utils.Enums.AttackStates attackState;
     bool doCombo;
-    [SerializeField] int comboCount;
+    int comboCount;
     public void TryAttack()
     {
         if (attacks.Count <= 0) return;
 
         if (!InAction)
             StartCoroutine(Attack());
-        else if (attackState == AttackStates.Impact || attackState == AttackStates.ColdDown)
-            doCombo = true;
-    }
-
-    private void InvokeAttack(InputAction.CallbackContext context)
-    {
-        if (attacks.Count <= 0) return;
-
-        if (!InAction)
-            StartCoroutine(Attack());
-        else if(attackState == AttackStates.Impact || attackState == AttackStates.ColdDown)
+        else if (attackState == Utils.Enums.AttackStates.Impact || attackState == Utils.Enums.AttackStates.ColdDown)
             doCombo = true;
     }
 
     IEnumerator Attack()
     {
         InAction = true;
-        attackState = AttackStates.WindUp;
+        attackState = Utils.Enums.AttackStates.WindUp;
 
         AttackData attack = attacks[comboCount];
         animator.CrossFade(attack.AnimName, 0.2f);
@@ -72,21 +59,21 @@ public class MeleeAttacker : MonoBehaviour
             float normalizedTime = timer / animState.length;
             switch (attackState)
             {
-                case AttackStates.WindUp:
+                case Utils.Enums.AttackStates.WindUp:
                     if (normalizedTime >= attack.ImpactStartTime)
                     {
-                        attackState = AttackStates.Impact;
+                        attackState = Utils.Enums.AttackStates.Impact;
                         EnableHitBox(attack);
                     }
                     break;
-                case AttackStates.Impact:
+                case Utils.Enums.AttackStates.Impact:
                     if (normalizedTime >= attack.ImpactEndTime)
                     {
-                        attackState = AttackStates.ColdDown;
+                        attackState = Utils.Enums.AttackStates.ColdDown;
                         DisableAllHitBoxes();
                     }
                     break;
-                case AttackStates.ColdDown:
+                case Utils.Enums.AttackStates.ColdDown:
                     {
                         if(doCombo)
                         {
@@ -104,7 +91,7 @@ public class MeleeAttacker : MonoBehaviour
             yield return null;
         }
 
-        attackState = AttackStates.None;
+        attackState = Utils.Enums.AttackStates.None;
         comboCount = 0;
         InAction = false;
     }
@@ -129,60 +116,75 @@ public class MeleeAttacker : MonoBehaviour
         InAction = false;
     }
 
-    #region 判定相关
+    #region 碰撞体相关
 
-    void GetAttackComponent()
-    {
-        if (swordGamobject != null)
-        {
-            swordCollider = swordGamobject.GetComponent<BoxCollider>();
-        }
-        if (animator != null)
-        {
-            leftHandCollider = animator.GetBoneTransform(HumanBodyBones.LeftHand)?.GetComponent<Collider>();
-            rightHandCollider = animator.GetBoneTransform(HumanBodyBones.RightHand)?.GetComponent<Collider>();
-            leftFootCollider = animator.GetBoneTransform(HumanBodyBones.LeftFoot)?.GetComponent<Collider>();
-            rightFootCollider = animator.GetBoneTransform(HumanBodyBones.RightFoot)?.GetComponent<Collider>();
-        }
-        DisableAllHitBoxes();
-    }
+    //void GetAttackComponent()
+    //{
+    //    if (swordGamobject != null)
+    //    {
+    //        swordCollider = swordGamobject.GetComponent<BoxCollider>();
+    //    }
+    //    if (animator != null)
+    //    {
+    //        leftHandCollider = animator.GetBoneTransform(HumanBodyBones.LeftHand)?.GetComponent<Collider>();
+    //        rightHandCollider = animator.GetBoneTransform(HumanBodyBones.RightHand)?.GetComponent<Collider>();
+    //        leftFootCollider = animator.GetBoneTransform(HumanBodyBones.LeftFoot)?.GetComponent<Collider>();
+    //        rightFootCollider = animator.GetBoneTransform(HumanBodyBones.RightFoot)?.GetComponent<Collider>();
+    //    }
+    //    DisableAllHitBoxes();
+    //}
 
     void EnableHitBox(AttackData attackData)
     {
-        switch (attackData.hitBoxType)
+        if(HitBoxColliders.ContainsKey(attackData.hitBoxType))
         {
-            case Utils.AttackHitBox.LeftHand:
-                if (leftHandCollider != null)
-                    leftHandCollider.enabled = true;
-                break;
-            case Utils.AttackHitBox.RightHand:
-                if (rightHandCollider != null)
-                    rightHandCollider.enabled = true;
-                break;
-            case Utils.AttackHitBox.LeftFoot:
-                if (leftFootCollider != null)
-                    leftFootCollider.enabled = true;
-                break;
-            case Utils.AttackHitBox.RightFoot:
-                if (rightFootCollider != null)
-                    rightFootCollider.enabled = true;
-                break;
-            case Utils.AttackHitBox.Sword:
-                if (swordCollider != null)
-                    swordCollider.enabled = true;
-                break;
+            if(HitBoxColliders[attackData.hitBoxType] != null)
+                HitBoxColliders[attackData.hitBoxType].enabled = true;
         }
     }
 
     void DisableAllHitBoxes()
     {
-        if (swordCollider != null) swordCollider.enabled = false;
-        if (leftHandCollider != null) leftHandCollider.enabled = false;
-        if (rightHandCollider != null) rightHandCollider.enabled = false;
-        if (leftFootCollider != null) leftFootCollider.enabled = false;
-        if (rightFootCollider != null) rightFootCollider.enabled = false;
+        foreach (var hitbox in HitBoxColliders)
+        {
+            if(hitbox.Value != null)
+                hitbox.Value.enabled = false;
+        }
+    }
+
+    void GetAttackComponent()
+    {
+        if (swordGamobject != null)
+            AddPartCollider(Utils.Enums.AttackHitBox.Sword, swordGamobject.GetComponent<BoxCollider>());
+        if (animator != null)
+        {
+            AddPartCollider(Utils.Enums.AttackHitBox.LeftHand, animator.GetBoneTransform(HumanBodyBones.LeftHand)?.GetComponent<Collider>());
+            AddPartCollider(Utils.Enums.AttackHitBox.RightHand, animator.GetBoneTransform(HumanBodyBones.RightHand)?.GetComponent<Collider>());
+            AddPartCollider(Utils.Enums.AttackHitBox.LeftFoot, animator.GetBoneTransform(HumanBodyBones.LeftFoot)?.GetComponent<Collider>());
+            AddPartCollider(Utils.Enums.AttackHitBox.RightFoot, animator.GetBoneTransform(HumanBodyBones.RightFoot)?.GetComponent<Collider>());
+        }
+        DisableAllHitBoxes();
+    }
+
+    void AddPartCollider(Utils.Enums.AttackHitBox part, Collider collider)
+    {
+        if(HitBoxColliders.ContainsKey(part))
+            HitBoxColliders[part] = collider;
+        else
+            HitBoxColliders.Add(part, collider);
     }
 
     #endregion
 
+}
+
+public static partial class Utils
+{
+    public static partial class Enums
+    {
+        public enum AttackStates 
+        { 
+            None, WindUp, Impact, ColdDown 
+        }
+    }
 }
