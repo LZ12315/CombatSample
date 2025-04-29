@@ -10,9 +10,10 @@ using static UnityEngine.UI.Image;
 
 public class EnemyController : MonoBehaviour
 {
-    public Animator Animator { get; set;}
-    CharacterBody physicsCharacter;
-    public MeleeAttacker MeleeAttacker {  get; set; }
+    public Animator Animator { get; private set; }
+    public CharacterBody PhysicsCharacter { get; private set; }
+    public MeleeAttacker MeleeAttacker { get; private set; }
+    public NavMeshAgent NavMeshAgent { get; private set; }
     public EnemyInfo Info {  get; set; }
 
     [Header("移动参数")]
@@ -24,7 +25,6 @@ public class EnemyController : MonoBehaviour
     [field: SerializeField] public float FOV { get; private set; } = 180f;
     public Transform Target { get; set; }
     public List<MeleeAttacker> detectTarget { get; set;} = new List<MeleeAttacker>();
-    public NavMeshAgent NavMeshAgent { get; set; }
 
     [Header("状态控制")]
     private Dictionary<Utils.Enums.EnemyStates, State<EnemyController>> stateDict;
@@ -33,7 +33,7 @@ public class EnemyController : MonoBehaviour
     void Start()
     {
         Animator = GetComponentInChildren<Animator>();
-        physicsCharacter = GetComponent<CharacterBody>();
+        PhysicsCharacter = GetComponent<CharacterBody>();
         NavMeshAgent = GetComponent<NavMeshAgent>();
 
         IDInitialized();
@@ -44,8 +44,8 @@ public class EnemyController : MonoBehaviour
     {
         stateMachine.ExcuteState();
 
-        Animator.SetFloat("fowardSpeed", physicsCharacter.FowardSpeed, 0.2f, Time.deltaTime);
-        Animator.SetFloat("strafeSpeed", physicsCharacter.StrafSpeed, 0.2f, Time.deltaTime);
+        Animator.SetFloat("fowardSpeed", PhysicsCharacter.FowardSpeed, 0.2f, Time.deltaTime);
+        Animator.SetFloat("strafeSpeed", PhysicsCharacter.StrafSpeed, 0.2f, Time.deltaTime);
     }
 
     void LocalMotion(Vector3 faceDir)
@@ -54,8 +54,8 @@ public class EnemyController : MonoBehaviour
         transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, Time.deltaTime * rotateSpeed);
 
         Vector3 motionStep = faceDir * moveSpeed;
-        Vector3 velocity = new Vector3(motionStep.x, physicsCharacter.Velocity.y, motionStep.z);
-        physicsCharacter.SetVelocity(velocity);
+        Vector3 velocity = new Vector3(motionStep.x, PhysicsCharacter.Velocity.y, motionStep.z);
+        PhysicsCharacter.SetVelocity(velocity);
     }
 
     #region 状态相关
