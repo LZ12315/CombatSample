@@ -5,14 +5,15 @@ using UnityEngine;
 
 public class CombatMoveState : State<EnemyController>
 {
-    [Header("追逐相关")]
+    [Header("待机状态")]
+    [SerializeField] private Vector2 idleTimeRange = new Vector2(2,5);
+    [Header("追逐状态")]
     [SerializeField] private float distanceToStop = 2.5f;
     [SerializeField] private float adjustChaseDistance = 1f;
-    [Header("环绕相关")]
-    [SerializeField] private Vector2 idleTimeRange = new Vector2(2,5);
+    [Header("环绕状态")]
     [SerializeField] private Vector2 circleTimeRange = new Vector2(3, 6);
     [SerializeField] private float circlingSpeed = 20f;
-    [Header("追踪相关")]
+    [Header("攻击切换")]
     [SerializeField] private float attackWaitTime = 3f;
 
     Utils.Enums.AICombatStates combatState;
@@ -30,8 +31,6 @@ public class CombatMoveState : State<EnemyController>
         _owner.NavMeshAgent.stoppingDistance = distanceToStop;
         _owner.NavMeshAgent.angularSpeed = 120f;
         _owner.NavMeshAgent.acceleration = 40f;
-        _owner.NavMeshAgent.updatePosition = false;
-        _owner.NavMeshAgent.updateRotation = false;
     }
 
     public override void OnUpdate()
@@ -61,8 +60,6 @@ public class CombatMoveState : State<EnemyController>
             }
 
             _owner.NavMeshAgent.SetDestination(_owner.Target.position);
-            Vector3 velocity = (_owner.NavMeshAgent.isStopped) ? Vector3.zero : _owner.NavMeshAgent.desiredVelocity.normalized;
-            _owner.LocalMotion(velocity);
         }
         else if(combatState == Utils.Enums.AICombatStates.Circling)
         {
@@ -75,14 +72,10 @@ public class CombatMoveState : State<EnemyController>
 
             var vecToTarget = _owner.transform.position - _owner.Target.transform.position;
             var rotatePos = Quaternion.Euler(0, circlingSpeed * circlingDir * Time.deltaTime, 0) * vecToTarget;
-            _owner.NavMeshAgent.SetDestination(rotatePos - vecToTarget);
 
-            Vector3 desiredDirection = (rotatePos - vecToTarget).normalized;
-            _owner.LocalMotion(desiredDirection);
-
-            //_owner.NavMeshAgent.Move(rotatePos - vecToTarget); // 无条件移动，而SetDestination会在所处位置与目标位置较近时不运行
-
+            _owner.NavMeshAgent.Move(rotatePos - vecToTarget); // 无条件移动，而SetDestination会在所处位置与目标位置较近时不运行
             _owner.transform.rotation = Quaternion.LookRotation(-rotatePos);
+
         }
 
         if(stateTimer >= 0)
@@ -108,7 +101,6 @@ public class CombatMoveState : State<EnemyController>
     {
         combatState = Utils.Enums.AICombatStates.Idle;
         stateTimer = Random.Range(idleTimeRange.x, idleTimeRange.y);
-        _owner.LocalMotion(Vector3.zero);
 
         _owner.Animator.SetBool("combatMode", true);
     }
@@ -122,11 +114,13 @@ public class CombatMoveState : State<EnemyController>
     int circlingDir = 1;
     void ToCircling()
     {
-        combatState = Utils.Enums.AICombatStates.Circling;
-        stateTimer = Random.Range(circleTimeRange.x, circleTimeRange.y);
-        circlingDir = Random.Range(0, 2) == 0 ? 1 : -1;
         _owner.NavMeshAgent.ResetPath();
 
+        float circlingDuration = Random.Range(circleTimeRange.x, circleTimeRange.y);
+        stateTimer = circlingDuration;
+        circlingDir = Random.Range(0, 2) == 0 ? 1 : -1;
+
+        combatState = Utils.Enums.AICombatStates.Circling;
         _owner.Animator.SetBool("combatMode", false);
     }
 
