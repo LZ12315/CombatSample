@@ -234,7 +234,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 305737992}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 75b0af79f463d4740be8a3efdcb80e49, type: 3}
   m_Name: 
@@ -295,7 +295,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   canMove: 1
   rotateSpeed: 500
-  moveSpeed: 0
+  moveSpeed: 4
   <FOV>k__BackingField: 180
 --- !u!143 &365539181
 CharacterController:
@@ -405,7 +405,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5929f8be9f2efa4439e0b192a0435993, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  bodyEnabled: 0
+  bodyEnabled: 1
   Mass: 1
   GravityScale: 1
   physicsVelocity: {x: 0, y: 0, z: 0}
@@ -422,7 +422,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d153c47fe4e5f144dbc2217b6d29f6f1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  attackDistance: 1
+  attackDistance: 1.8
 --- !u!1 &382486426
 GameObject:
   m_ObjectHideFlags: 0
@@ -1332,7 +1332,7 @@ PrefabInstance:
     - target: {fileID: 919132149155446097, guid: 2e3a1d9af0eb5474ea10ce974a975cc9,
         type: 3}
       propertyPath: m_Name
-      value: Model
+      value: EnemyModel
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: 2e3a1d9af0eb5474ea10ce974a975cc9,
         type: 3}

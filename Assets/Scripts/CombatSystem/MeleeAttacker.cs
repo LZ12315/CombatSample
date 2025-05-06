@@ -11,8 +11,6 @@ public class MeleeAttacker : MonoBehaviour
     [Header("武器设置")]
     [SerializeField] private GameObject swordGamobject;
     private Dictionary<Utils.Enums.AttackHitBox, Collider> HitBoxColliders = new Dictionary<Utils.Enums.AttackHitBox, Collider>();
-    BoxCollider swordCollider;
-    Collider leftHandCollider, rightHandCollider, leftFootCollider, rightFootCollider; 
 
     [Header("攻击设置")]
     [SerializeField] private List<AttackData> attacks = new List<AttackData>();
@@ -117,22 +115,6 @@ public class MeleeAttacker : MonoBehaviour
     }
 
     #region 碰撞体相关
-
-    //void GetAttackComponent()
-    //{
-    //    if (swordGamobject != null)
-    //    {
-    //        swordCollider = swordGamobject.GetComponent<BoxCollider>();
-    //    }
-    //    if (animator != null)
-    //    {
-    //        leftHandCollider = animator.GetBoneTransform(HumanBodyBones.LeftHand)?.GetComponent<Collider>();
-    //        rightHandCollider = animator.GetBoneTransform(HumanBodyBones.RightHand)?.GetComponent<Collider>();
-    //        leftFootCollider = animator.GetBoneTransform(HumanBodyBones.LeftFoot)?.GetComponent<Collider>();
-    //        rightFootCollider = animator.GetBoneTransform(HumanBodyBones.RightFoot)?.GetComponent<Collider>();
-    //    }
-    //    DisableAllHitBoxes();
-    //}
 
     void EnableHitBox(AttackData attackData)
     {

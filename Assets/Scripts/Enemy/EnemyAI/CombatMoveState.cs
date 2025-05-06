@@ -28,8 +28,10 @@ public class CombatMoveState : State<EnemyController>
         EventCenter.Instance.AddEventListener(_owner.Info.ID + "Attack", ToAttack);
 
         _owner.NavMeshAgent.stoppingDistance = distanceToStop;
-        owner.NavMeshAgent.angularSpeed = 120f;
-        owner.NavMeshAgent.acceleration = 40f;
+        _owner.NavMeshAgent.angularSpeed = 120f;
+        _owner.NavMeshAgent.acceleration = 40f;
+        _owner.NavMeshAgent.updatePosition = false;
+        _owner.NavMeshAgent.updateRotation = false;
     }
 
     public override void OnUpdate()
@@ -41,7 +43,7 @@ public class CombatMoveState : State<EnemyController>
 
         if(combatState == Utils.Enums.AICombatStates.Idle)
         {
-            if(stateTimer <= 0)
+            if (stateTimer <= 0)
             {
                 stateTimer = 0;
                 if (Random.Range(0, 2) == 0)
@@ -59,6 +61,8 @@ public class CombatMoveState : State<EnemyController>
             }
 
             _owner.NavMeshAgent.SetDestination(_owner.Target.position);
+            Vector3 velocity = (_owner.NavMeshAgent.isStopped) ? Vector3.zero : _owner.NavMeshAgent.desiredVelocity.normalized;
+            _owner.LocalMotion(velocity);
         }
         else if(combatState == Utils.Enums.AICombatStates.Circling)
         {
@@ -71,8 +75,13 @@ public class CombatMoveState : State<EnemyController>
 
             var vecToTarget = _owner.transform.position - _owner.Target.transform.position;
             var rotatePos = Quaternion.Euler(0, circlingSpeed * circlingDir * Time.deltaTime, 0) * vecToTarget;
+            _owner.NavMeshAgent.SetDestination(rotatePos - vecToTarget);
 
-            _owner.NavMeshAgent.Move(rotatePos - vecToTarget); // 无条件移动，而SetDestination会在所处位置与目标位置较近时不运行
+            Vector3 desiredDirection = (rotatePos - vecToTarget).normalized;
+            _owner.LocalMotion(desiredDirection);
+
+            //_owner.NavMeshAgent.Move(rotatePos - vecToTarget); // 无条件移动，而SetDestination会在所处位置与目标位置较近时不运行
+
             _owner.transform.rotation = Quaternion.LookRotation(-rotatePos);
         }
 
@@ -99,6 +108,7 @@ public class CombatMoveState : State<EnemyController>
     {
         combatState = Utils.Enums.AICombatStates.Idle;
         stateTimer = Random.Range(idleTimeRange.x, idleTimeRange.y);
+        _owner.LocalMotion(Vector3.zero);
 
         _owner.Animator.SetBool("combatMode", true);
     }

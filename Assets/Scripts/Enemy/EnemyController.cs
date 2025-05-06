@@ -35,6 +35,7 @@ public class EnemyController : MonoBehaviour
         Animator = GetComponentInChildren<Animator>();
         PhysicsCharacter = GetComponent<CharacterBody>();
         NavMeshAgent = GetComponent<NavMeshAgent>();
+        MeleeAttacker = GetComponent<MeleeAttacker>();
 
         IDInitialized();
         InitStateMachine();
@@ -48,8 +49,10 @@ public class EnemyController : MonoBehaviour
         Animator.SetFloat("strafeSpeed", PhysicsCharacter.StrafSpeed, 0.2f, Time.deltaTime);
     }
 
-    void LocalMotion(Vector3 faceDir)
+    public void LocalMotion(Vector3 faceDir)
     {
+        if (faceDir.magnitude == 0) return;
+
         Quaternion targetRotation = Quaternion.LookRotation(faceDir);
         transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, Time.deltaTime * rotateSpeed);
 
