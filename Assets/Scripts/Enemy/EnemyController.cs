@@ -51,7 +51,11 @@ public class EnemyController : MonoBehaviour
 
     public void LocalMotion(Vector3 faceDir)
     {
-        if (faceDir.magnitude == 0) return;
+        if (faceDir.magnitude == 0)
+        {
+            PhysicsCharacter.SetVelocity(Vector3.zero);
+            return;
+        }
 
         Quaternion targetRotation = Quaternion.LookRotation(faceDir);
         transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, Time.deltaTime * rotateSpeed);
