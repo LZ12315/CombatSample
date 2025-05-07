@@ -8,7 +8,6 @@ public class AttackState : State<EnemyController>
 
     public override void OnEnter(EnemyController owner)
     {
-        Debug.Log("Entered Attack State");
         base.OnEnter(owner);
         _owner.NavMeshAgent.stoppingDistance = attackDistance;
     }
