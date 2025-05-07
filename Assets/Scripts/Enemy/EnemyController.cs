@@ -13,7 +13,7 @@ public class EnemyController : MonoBehaviour
     public Animator Animator { get; private set; }
     public CharacterBody PhysicsCharacter { get; private set; }
     public MeleeAttacker MeleeAttacker { get; private set; }
-    public NavMeshAgent NavMeshAgent { get; private set; }
+    public NavMeshAgent NavAgent { get; private set; }
     public EnemyInfo Info {  get; set; }
 
     [Header("ÒÆ¶¯²ÎÊý")]
@@ -34,7 +34,7 @@ public class EnemyController : MonoBehaviour
     {
         Animator = GetComponentInChildren<Animator>();
         PhysicsCharacter = GetComponent<CharacterBody>();
-        NavMeshAgent = GetComponent<NavMeshAgent>();
+        NavAgent = GetComponent<NavMeshAgent>();
         MeleeAttacker = GetComponent<MeleeAttacker>();
 
         IDInitialized();
@@ -47,6 +47,23 @@ public class EnemyController : MonoBehaviour
 
         Animator.SetFloat("fowardSpeed", PhysicsCharacter.FowardSpeed, 0.2f, Time.deltaTime);
         Animator.SetFloat("strafeSpeed", PhysicsCharacter.StrafSpeed, 0.2f, Time.deltaTime);
+    }
+
+    public void LocalMotion(Vector3 faceDir, float speed)
+    {
+        if (faceDir.magnitude == 0)
+        {
+            Debug.Log("1227e9163891236193");
+            PhysicsCharacter.SetVelocity(Vector3.zero);
+            return;
+        }
+
+        Quaternion targetRotation = Quaternion.LookRotation(faceDir);
+        transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, Time.deltaTime * rotateSpeed);
+
+        Vector3 motionStep = faceDir * speed;
+        Vector3 velocity = new Vector3(motionStep.x, PhysicsCharacter.Velocity.y, motionStep.z);
+        PhysicsCharacter.SetVelocity(velocity);
     }
 
     public void LocalMotion(Vector3 faceDir)

@@ -180,7 +180,7 @@ SphereCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Radius: 6
+  m_Radius: 8
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!114 &280553528
 MonoBehaviour:
@@ -370,7 +370,7 @@ MonoBehaviour:
   adjustChaseDistance: 1
   circleTimeRange: {x: 3, y: 6}
   circlingSpeed: 30
-  attackWaitTime: 0
+  attackWaitTime: 3
 --- !u!195 &365539186
 NavMeshAgent:
   m_ObjectHideFlags: 0
@@ -405,7 +405,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5929f8be9f2efa4439e0b192a0435993, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  bodyEnabled: 0
+  bodyEnabled: 1
   Mass: 1
   GravityScale: 1
   physicsVelocity: {x: 0, y: 0, z: 0}
@@ -1287,7 +1287,7 @@ PrefabInstance:
     - target: {fileID: -8679921383154817045, guid: 2e3a1d9af0eb5474ea10ce974a975cc9,
         type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.035
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 2e3a1d9af0eb5474ea10ce974a975cc9,
         type: 3}
