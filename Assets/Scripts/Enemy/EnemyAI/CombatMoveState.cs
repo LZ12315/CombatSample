@@ -15,10 +15,10 @@ public class CombatMoveState : State<EnemyController>
     [SerializeField] private float circlingSpeed = 20f;
     [Header("攻击切换")]
     [SerializeField] private float attackWaitTime = 3f;
+    private float attackWaitTimer = 0;
 
     Utils.Enums.AICombatStates combatState;
     float stateTimer = 0;
-    float attackWaitTimer = 0;
 
     public override void OnEnter(EnemyController owner)
     {
@@ -28,9 +28,11 @@ public class CombatMoveState : State<EnemyController>
             EnemyManager.Instance.AddEnemy(_owner.Info);
         EventCenter.Instance.AddEventListener(_owner.Info.ID + "Attack", ToAttack);
 
-        _owner.NavMeshAgent.stoppingDistance = distanceToStop;
-        _owner.NavMeshAgent.angularSpeed = 120f;
-        _owner.NavMeshAgent.acceleration = 40f;
+        _owner.NavAgent.stoppingDistance = distanceToStop;
+        _owner.NavAgent.updatePosition = false;
+        _owner.NavAgent.updateRotation = false;
+        _owner.NavAgent.angularSpeed = 120f;
+        _owner.NavAgent.acceleration = 40f;
     }
 
     public override void OnUpdate()
@@ -53,13 +55,16 @@ public class CombatMoveState : State<EnemyController>
         }
         else if(combatState == Utils.Enums.AICombatStates.Chase)
         {
-            if (distance_Target <= distanceToStop + 0.03f)
+            _owner.NavAgent.SetDestination(_owner.Target.position);
+            Vector3 velocity =  _owner.NavAgent.desiredVelocity.normalized;
+            float speed = _owner.NavAgent.speed;
+            _owner.LocalMotion(velocity, speed);
+
+            if (distance_Target <= distanceToStop - 0.03f)
             {
                 ToIdle();
                 return;
             }
-
-            _owner.NavMeshAgent.SetDestination(_owner.Target.position);
         }
         else if(combatState == Utils.Enums.AICombatStates.Circling)
         {
@@ -69,13 +74,16 @@ public class CombatMoveState : State<EnemyController>
                 ToIdle();
                 return;
             }
-
             var vecToTarget = _owner.transform.position - _owner.Target.transform.position;
             var rotatePos = Quaternion.Euler(0, circlingSpeed * circlingDir * Time.deltaTime, 0) * vecToTarget;
 
-            _owner.NavMeshAgent.Move(rotatePos - vecToTarget); // 无条件移动，而SetDestination会在所处位置与目标位置较近时不运行
-            _owner.transform.rotation = Quaternion.LookRotation(-rotatePos);
+            _owner.NavAgent.Move(rotatePos - vecToTarget);
 
+            Vector3 velocity = ((_owner.NavAgent.nextPosition - lastPosition) / Time.deltaTime);
+            _owner.LocalMotion(velocity.normalized, _owner.NavAgent.speed);
+            _owner.transform.rotation = Quaternion.LookRotation(-rotatePos);
+            _owner.NavAgent.nextPosition = _owner.transform.position;
+            lastPosition = _owner.NavAgent.nextPosition;
         }
 
         if(stateTimer >= 0)
@@ -101,6 +109,7 @@ public class CombatMoveState : State<EnemyController>
     {
         combatState = Utils.Enums.AICombatStates.Idle;
         stateTimer = Random.Range(idleTimeRange.x, idleTimeRange.y);
+        _owner.LocalMotion(Vector3.zero);
 
         _owner.Animator.SetBool("combatMode", true);
     }
@@ -112,9 +121,10 @@ public class CombatMoveState : State<EnemyController>
     }
 
     int circlingDir = 1;
+    Vector3 lastPosition = Vector3.zero;
     void ToCircling()
     {
-        _owner.NavMeshAgent.ResetPath();
+        _owner.NavAgent.ResetPath();
 
         float circlingDuration = Random.Range(circleTimeRange.x, circleTimeRange.y);
         stateTimer = circlingDuration;

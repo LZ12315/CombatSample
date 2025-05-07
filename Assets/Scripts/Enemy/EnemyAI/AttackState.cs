@@ -9,12 +9,12 @@ public class AttackState : State<EnemyController>
     public override void OnEnter(EnemyController owner)
     {
         base.OnEnter(owner);
-        _owner.NavMeshAgent.stoppingDistance = attackDistance;
+        _owner.NavAgent.stoppingDistance = attackDistance;
     }
 
     public override void OnUpdate()
     {
-        _owner.NavMeshAgent.SetDestination(_owner.Target.position);
+        _owner.NavAgent.SetDestination(_owner.Target.position);
 
         float distance_Target = Vector3.Distance(_owner.Target.position, _owner.transform.position);
 
