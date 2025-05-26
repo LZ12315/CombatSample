@@ -14,7 +14,6 @@ public class PlayerController : MonoBehaviour
     MeleeAttacker meleeAttacker;
 
     [Header("ÒÆ¶¯²ÎÊý")]
-    [SerializeField] bool canMove = true;
     [SerializeField] float rotateSpeed = 500f;
     [SerializeField] float walkSpeed = 6f;
     [SerializeField] float runSpeed = 10f;

@@ -92,15 +92,14 @@ public class CombatMoveState : State<EnemyController>
         if (attackWaitTimer < attackWaitTime)
             attackWaitTimer += Time.deltaTime;
         else
-            EventCenter.Instance.EventTrigger<EnemyInfo>("EnemyTryAttack", _owner.Info);
+            EnemyManager.Instance.EnemyTryAttack(_owner.Info);
     }
 
     public override void OnExit()
     {
         stateTimer = 0;
 
-        if (EnemyManager.Instance != null)
-            EnemyManager.Instance.RemoveEnemy(_owner.Info);
+        _owner.LocalMotion(Vector3.zero, 0);
 
         base.OnExit();
     }

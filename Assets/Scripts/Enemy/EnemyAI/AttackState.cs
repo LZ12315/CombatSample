@@ -5,6 +5,7 @@ using UnityEngine;
 public class AttackState : State<EnemyController>
 {
     [SerializeField] private float attackDistance = 1f;
+    private bool isAttack = false;
 
     public override void OnEnter(EnemyController owner)
     {
@@ -15,6 +16,9 @@ public class AttackState : State<EnemyController>
     public override void OnUpdate()
     {
         _owner.NavAgent.SetDestination(_owner.Target.position);
+        Vector3 velocity = _owner.NavAgent.desiredVelocity.normalized;
+        float speed = _owner.NavAgent.speed;
+        _owner.LocalMotion(velocity, speed);
 
         float distance_Target = Vector3.Distance(_owner.Target.position, _owner.transform.position);
 
