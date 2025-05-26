@@ -1,8 +1,10 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
+[Serializable]
 public struct EnemyInfo
 {
     public string ID;
@@ -19,8 +21,8 @@ public class EnemyManager : MonoBehaviour
 {
     public static EnemyManager Instance;
 
-    private List<EnemyInfo> enemiesInCombat = new List<EnemyInfo>();
-    private Queue<string> enemiesToAttack = new Queue<string>();
+    [SerializeField] private List<EnemyInfo> enemiesInCombat = new List<EnemyInfo>();
+    private Queue<EnemyInfo> enemiesToAttack = new Queue<EnemyInfo>();
 
     [SerializeField] private Vector2 attackIntervalRandom = new Vector2(3,5);
     private float attackIntervalCounter = 0;
@@ -28,8 +30,7 @@ public class EnemyManager : MonoBehaviour
     private void Awake()
     {
         Instance = this;
-        attackIntervalCounter = Random.Range(attackIntervalRandom.x, attackIntervalRandom.y);
-        EventCenter.Instance.AddEventListener<EnemyInfo>("EnemyTryAttack", o => EnemyTryAttack(o));
+        attackIntervalCounter = UnityEngine.Random.Range(attackIntervalRandom.x, attackIntervalRandom.y);
     }
 
     public void AddEnemy(EnemyInfo enemy)
@@ -44,17 +45,17 @@ public class EnemyManager : MonoBehaviour
             enemiesInCombat.Remove(enemy);
     }
 
-    void EnemyTryAttack(EnemyInfo enemy)
+    public void EnemyTryAttack(EnemyInfo enemy)
     {
-        if (enemiesInCombat.Contains(enemy) && !enemiesToAttack.Contains(enemy.ID))
-            enemiesToAttack.Enqueue(enemy.ID);
+        if (enemiesInCombat.Contains(enemy) && !enemiesToAttack.Contains(enemy))
+            enemiesToAttack.Enqueue(enemy);
     }
 
     private void Update()
     {
-        if (enemiesInCombat.Count == 0) return;
+        if (enemiesToAttack.Count == 0) return;
 
-        if(!enemiesInCombat.Any(enemy => enemy.controller.IsInState(Utils.Enums.EnemyStates.Attack)))
+        if(!enemiesToAttack.Any(enemy => enemy.controller.IsInState(Utils.Enums.EnemyStates.Attack)))
         {
             if (attackIntervalCounter > 0)
                 attackIntervalCounter -= Time.deltaTime;
@@ -62,7 +63,7 @@ public class EnemyManager : MonoBehaviour
             {
                 string eventName = ReleaseAttack() + "Attack";
                 EventCenter.Instance.EventTrigger(eventName);
-                attackIntervalCounter = Random.Range(attackIntervalRandom.x, attackIntervalRandom.y);
+                attackIntervalCounter = UnityEngine.Random.Range(attackIntervalRandom.x, attackIntervalRandom.y);
             }
         }
 
@@ -72,7 +73,7 @@ public class EnemyManager : MonoBehaviour
     {
         if (enemiesToAttack.Count == 0) return null;
 
-        return enemiesToAttack.Dequeue();
+        return enemiesToAttack.Dequeue().ID;
     }
 
 }

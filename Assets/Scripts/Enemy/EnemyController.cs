@@ -17,7 +17,6 @@ public class EnemyController : MonoBehaviour
     public EnemyInfo Info {  get; set; }
 
     [Header("ÒÆ¶¯²ÎÊý")]
-    [SerializeField] bool canMove = true;
     [SerializeField] float rotateSpeed = 500f;
     [SerializeField] float moveSpeed = 6f;
 
@@ -53,7 +52,6 @@ public class EnemyController : MonoBehaviour
     {
         if (faceDir.magnitude == 0)
         {
-            Debug.Log("1227e9163891236193");
             PhysicsCharacter.SetVelocity(Vector3.zero);
             return;
         }
