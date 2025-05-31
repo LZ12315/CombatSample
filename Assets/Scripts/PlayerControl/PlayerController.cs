@@ -18,6 +18,8 @@ public class PlayerController : MonoBehaviour
     [SerializeField] float walkSpeed = 6f;
     [SerializeField] float runSpeed = 10f;
 
+    [Header("输入控制")]
+    private Queue<CommandInfo> inputs = new Queue<CommandInfo>();
 
     Vector2 inputDir = Vector3.zero;
     Vector3 moveDir = Vector3.zero;
@@ -40,6 +42,8 @@ public class PlayerController : MonoBehaviour
         LocalMotion();
         MotionAnim();
     }
+
+    #region 移动相关
 
     void GetDir()
     {
@@ -84,14 +88,21 @@ public class PlayerController : MonoBehaviour
         physicsCharacter.AddForce(Vector3.up, 100f);
     }
 
+    #endregion
+
+    #region 攻击相关
 
     private void InvokeAttack(InputAction.CallbackContext context)
     {
+        //CommandInfo newInfo = new CommandInfo(Time.time);
+        //inputs.Enqueue(newInfo);
+
         meleeAttacker.TryAttack();
     }
 
+    #endregion
 
-    # region 其他
+    #region 其他
 
     private void OnEnable()
     {

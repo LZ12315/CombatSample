@@ -2,6 +2,15 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+struct CommandInfo
+{
+    public float inputTime;
+
+    public CommandInfo(float inputTime)
+    {
+        this.inputTime = inputTime;
+    }
+}
 
 public class MeleeAttacker : MonoBehaviour
 {
@@ -12,9 +21,10 @@ public class MeleeAttacker : MonoBehaviour
     [SerializeField] private GameObject swordGamobject;
     private Dictionary<Utils.Enums.AttackHitBox, Collider> HitBoxColliders = new Dictionary<Utils.Enums.AttackHitBox, Collider>();
 
-    [Header("π•ª˜…Ë÷√")]
-    [SerializeField] private List<AttackData> attacks = new List<AttackData>();
+    [field: Header("π•ª˜…Ë÷√")]
     [field : SerializeField] public bool InAction { get; private set; }
+    public Utils.Enums.AttackStates AttackState {  get; private set; }
+    [SerializeField] private List<AttackData> attacks = new List<AttackData>();
 
     private void Awake()
     {
@@ -27,23 +37,22 @@ public class MeleeAttacker : MonoBehaviour
         GetAttackComponent();
     }
 
-    Utils.Enums.AttackStates attackState;
     bool doCombo;
     int comboCount;
     public void TryAttack()
-    {
+    { 
         if (attacks.Count <= 0) return;
 
         if (!InAction)
             StartCoroutine(Attack());
-        else if (attackState == Utils.Enums.AttackStates.Impact || attackState == Utils.Enums.AttackStates.ColdDown)
+        else if (AttackState == Utils.Enums.AttackStates.Impact || AttackState == Utils.Enums.AttackStates.ColdDown)
             doCombo = true;
     }
 
     IEnumerator Attack()
     {
         InAction = true;
-        attackState = Utils.Enums.AttackStates.WindUp;
+        AttackState = Utils.Enums.AttackStates.WindUp;
 
         AttackData attack = attacks[comboCount];
         animator.CrossFade(attack.AnimName, 0.2f);
@@ -55,19 +64,19 @@ public class MeleeAttacker : MonoBehaviour
         {
             timer += Time.deltaTime;
             float normalizedTime = timer / animState.length;
-            switch (attackState)
+            switch (AttackState)
             {
                 case Utils.Enums.AttackStates.WindUp:
                     if (normalizedTime >= attack.ImpactStartTime)
                     {
-                        attackState = Utils.Enums.AttackStates.Impact;
+                        AttackState = Utils.Enums.AttackStates.Impact;
                         EnableHitBox(attack);
                     }
                     break;
                 case Utils.Enums.AttackStates.Impact:
                     if (normalizedTime >= attack.ImpactEndTime)
                     {
-                        attackState = Utils.Enums.AttackStates.ColdDown;
+                        AttackState = Utils.Enums.AttackStates.ColdDown;
                         DisableAllHitBoxes();
                     }
                     break;
@@ -89,7 +98,7 @@ public class MeleeAttacker : MonoBehaviour
             yield return null;
         }
 
-        attackState = Utils.Enums.AttackStates.None;
+        AttackState = Utils.Enums.AttackStates.Idle;
         comboCount = 0;
         InAction = false;
     }
@@ -166,7 +175,7 @@ public static partial class Utils
     {
         public enum AttackStates 
         { 
-            None, WindUp, Impact, ColdDown 
+            Idle, WindUp, Impact, ColdDown 
         }
     }
 }
