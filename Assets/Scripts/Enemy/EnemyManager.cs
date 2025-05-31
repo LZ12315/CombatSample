@@ -66,7 +66,6 @@ public class EnemyManager : MonoBehaviour
                 attackIntervalCounter = UnityEngine.Random.Range(attackIntervalRandom.x, attackIntervalRandom.y);
             }
         }
-
     }
 
     string ReleaseAttack()

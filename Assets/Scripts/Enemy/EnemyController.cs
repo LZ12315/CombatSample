@@ -50,7 +50,7 @@ public class EnemyController : MonoBehaviour
 
     #region Œª“∆œ‡πÿ
 
-    public void LocalMotion(Vector3 faceDir)
+    public void LocalMotion(Vector3 faceDir, Vector3? moveDir = null, float? speed = null)
     {
         if (MeleeAttacker.InAction)
         {
@@ -59,43 +59,21 @@ public class EnemyController : MonoBehaviour
         }
 
         LocalRotation(faceDir);
-        Vector3 motionStep = faceDir * moveSpeed;
+
+        Vector3 effectiveMoveDir = moveDir ?? faceDir;
+        float effectiveSpeed = speed ?? moveSpeed;
+
+        Vector3 motionStep = effectiveMoveDir * effectiveSpeed;
         Vector3 velocity = new Vector3(motionStep.x, PhysicsCharacter.Velocity.y, motionStep.z);
         PhysicsCharacter.SetVelocity(velocity);
     }
 
-    public void LocalMotion(Vector3 faceDir, float speed)
-    {
-        if (MeleeAttacker.InAction)
-        {
-            PhysicsCharacter.SetVelocity(Vector3.zero);
-            return;
-        }
-
-        LocalRotation(faceDir);
-        Vector3 motionStep = faceDir * speed;
-        Vector3 velocity = new Vector3(motionStep.x, PhysicsCharacter.Velocity.y, motionStep.z);
-        PhysicsCharacter.SetVelocity(velocity);
-    }
-
-    public void LocalMotion(Vector3 faceDir, Vector3 moveDir, float speed)
-    {
-        if (MeleeAttacker.InAction)
-        {
-            PhysicsCharacter.SetVelocity(Vector3.zero);
-            return;
-        }
-        
-        LocalRotation(faceDir);
-        Vector3 motionStep = moveDir * speed;
-        Vector3 velocity = new Vector3(motionStep.x, PhysicsCharacter.Velocity.y, motionStep.z);
-        PhysicsCharacter.SetVelocity(velocity);
-    }
 
     public void LocalRotation(Vector3 faceDir)
     {
         if (faceDir.magnitude == 0) return;
 
+        faceDir.y = 0;
         Quaternion targetRotation = Quaternion.LookRotation(faceDir);
         transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, Time.deltaTime * rotateSpeed);
     }
@@ -112,6 +90,7 @@ public class EnemyController : MonoBehaviour
         stateDict.Add(Utils.Enums.EnemyStates.Idle, GetComponent<IdleState>());
         stateDict.Add(Utils.Enums.EnemyStates.CombatMove, GetComponent<CombatMoveState>());
         stateDict.Add(Utils.Enums.EnemyStates.Attack, GetComponent<AttackState>());
+        stateDict.Add(Utils.Enums.EnemyStates.Retreat, GetComponent<RetreatState>());
         stateMachine.ChangeState(stateDict[Utils.Enums.EnemyStates.Idle]);
     }
 
@@ -149,7 +128,7 @@ public static partial class Utils
     {
         public enum EnemyStates
         {
-            None, Idle, CombatMove, Attack
+            None, Idle, CombatMove, Attack, Retreat
         }
     }
 }
