@@ -15,6 +15,8 @@ public class AttackState : State<EnemyController>
 
     public override void OnUpdate()
     {
+        if (isAttack) return;
+
         _owner.NavAgent.SetDestination(_owner.Target.position);
         Vector3 velocity = _owner.NavAgent.desiredVelocity.normalized;
         float speed = _owner.NavAgent.speed;
@@ -24,8 +26,19 @@ public class AttackState : State<EnemyController>
 
         if (distance_Target <= attackDistance + 0.03f)
         {
-            _owner.MeleeAttacker.TryAttack();
+            StartCoroutine(Attack());
+            _owner.LocalMotion(Vector3.zero);
         }
+    }
+
+    IEnumerator Attack()
+    {
+        isAttack = true;
+        _owner.MeleeAttacker.TryAttack();
+
+        yield return new WaitUntil(() => _owner.MeleeAttacker.AttackState == Utils.Enums.AttackStates.Idle);
+
+        isAttack = false;
     }
 
     public override void OnExit()
