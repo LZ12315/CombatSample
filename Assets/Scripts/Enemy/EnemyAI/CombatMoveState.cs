@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using Unity.VisualScripting;
 using UnityEngine;
 
@@ -28,7 +29,6 @@ public class CombatMoveState : State<EnemyController>
             EnemyManager.Instance.AddEnemy(_owner.Info);
         EventCenter.Instance.AddEventListener(_owner.Info.ID + "Attack", ToAttack);
 
-        //_owner.NavAgent.stoppingDistance = distanceToIdle;
         _owner.NavAgent.updatePosition = false;
         _owner.NavAgent.updateRotation = false;
         _owner.NavAgent.angularSpeed = 120f;
@@ -69,22 +69,6 @@ public class CombatMoveState : State<EnemyController>
                 return;
             }
         }
-        else if(combatState == Utils.Enums.AICombatStates.Circling)
-        {
-            if (stateTimer <= 0)
-            {
-                stateTimer = 0;
-                ToIdle();
-                return;
-            }
-            var vecToTarget = _owner.transform.position - _owner.Target.transform.position;
-            var rotatePos = Quaternion.Euler(0, circlingSpeed * circlingDir * Time.deltaTime, 0) * vecToTarget;
-
-            _owner.NavAgent.Move(rotatePos - vecToTarget);
-
-            Vector3 velocity = ((_owner.NavAgent.nextPosition - lastPosition) / Time.deltaTime);
-            _owner.LocalMotion(-rotatePos, velocity.normalized, _owner.NavAgent.speed);
-        }
 
         if(stateTimer >= 0)
             stateTimer -= Time.deltaTime;
@@ -96,8 +80,34 @@ public class CombatMoveState : State<EnemyController>
 
         //每帧强制将NavAgent位置同步到角色位置 否则出现偏移
         _owner.NavAgent.nextPosition = _owner.transform.position;
-        //同时更新前一步位置 用于之后计算速度 这两步必须放在一起
+    }
+
+    //将NavAgent.Move的相关逻辑放到FixedUpdate中
+    //更大的时间间隔有利于避障路线计算
+    public override void OnFixedUpdate()
+    {
+        //强制更新NavAgent的同时更新前一步位置 用于之后Circling计算速度 这两步必须放在一起
+        _owner.NavAgent.nextPosition = _owner.transform.position;
         lastPosition = _owner.NavAgent.nextPosition;
+
+        if (combatState == Utils.Enums.AICombatStates.Circling)
+        {
+            if (stateTimer <= 0)
+            {
+                stateTimer = 0;
+                ToIdle();
+                return;
+            }
+
+            var vecToTarget = _owner.transform.position - _owner.Target.transform.position;
+            var rotatePos = Quaternion.Euler(0, circlingSpeed * circlingDir * Time.fixedDeltaTime, 0) * vecToTarget;
+
+            _owner.NavAgent.Move(rotatePos - vecToTarget);
+            targetPosition = _owner.NavAgent.nextPosition;
+
+            Vector3 velocity = ((_owner.NavAgent.nextPosition - lastPosition) / Time.deltaTime);
+            _owner.LocalMotion(-rotatePos, velocity.normalized, _owner.NavAgent.speed);
+        }
     }
 
     void ToIdle()
@@ -146,7 +156,24 @@ public class CombatMoveState : State<EnemyController>
         base.OnExit();
     }
 
+    Vector3 targetPosition = Vector3.zero;
+    private void OnDrawGizmos()
+    {
+        Gizmos.color = Color.yellow;
+        float rayLength = 4f;
+
+        if(_owner != null)
+        {
+            Vector3 direction = (targetPosition - _owner.transform.position).normalized;
+            direction.y = 0;
+
+            Gizmos.DrawRay(_owner.transform.position, direction * rayLength);
+
+            Gizmos.DrawWireSphere(targetPosition, 0.5f);
+        }
+    }
 }
+
 
 public static partial class Utils
 {

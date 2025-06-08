@@ -42,10 +42,15 @@ public class EnemyController : MonoBehaviour
 
     private void Update()
     {
-        stateMachine.ExcuteState();
+        stateMachine.StateUpdate();
 
         Animator.SetFloat("fowardSpeed", PhysicsCharacter.FowardSpeed, 0.2f, Time.deltaTime);
         Animator.SetFloat("strafeSpeed", PhysicsCharacter.StrafSpeed, 0.2f, Time.deltaTime);
+    }
+
+    private void FixedUpdate()
+    {
+        stateMachine.StateFixedUpdate();
     }
 
     #region Œª“∆œ‡πÿ
