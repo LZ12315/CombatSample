@@ -105,7 +105,7 @@ public class CombatMoveState : State<EnemyController>
             _owner.NavAgent.Move(rotatePos - vecToTarget);
             targetPosition = _owner.NavAgent.nextPosition;
 
-            Vector3 velocity = ((_owner.NavAgent.nextPosition - lastPosition) / Time.deltaTime);
+            Vector3 velocity = ((_owner.NavAgent.nextPosition - lastPosition) / Time.fixedDeltaTime);
             _owner.LocalMotion(-rotatePos, velocity.normalized, _owner.NavAgent.speed);
         }
     }
