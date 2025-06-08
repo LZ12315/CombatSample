@@ -16,6 +16,11 @@ public abstract class State<T>:MonoBehaviour
 
     }
 
+    public virtual void OnFixedUpdate()
+    {
+
+    }
+
     public virtual void OnExit()
     {
 

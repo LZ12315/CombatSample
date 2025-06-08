@@ -24,7 +24,7 @@ public class StateMachine<T>
         CurrentState.OnEnter(_owner);
     }
 
-    public void ExcuteState()
+    public void StateUpdate()
     {
         if (CurrentState == null) return;
 
@@ -43,6 +43,13 @@ public class StateMachine<T>
         //}
 
         CurrentState.OnUpdate();
+    }
+
+    public void StateFixedUpdate()
+    {
+        if (CurrentState == null) return;
+
+        CurrentState.OnFixedUpdate();
     }
 
     #region 变量定义
