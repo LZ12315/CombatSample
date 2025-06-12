@@ -42,7 +42,7 @@ public class EnemyController : MonoBehaviour
 
     private void Update()
     {
-        stateMachine.StateUpdate();
+        //stateMachine.StateUpdate();
 
         Animator.SetFloat("fowardSpeed", PhysicsCharacter.FowardSpeed, 0.2f, Time.deltaTime);
         Animator.SetFloat("strafeSpeed", PhysicsCharacter.StrafSpeed, 0.2f, Time.deltaTime);
@@ -50,7 +50,7 @@ public class EnemyController : MonoBehaviour
 
     private void FixedUpdate()
     {
-        stateMachine.StateFixedUpdate();
+        //stateMachine.StateFixedUpdate();
     }
 
     #region Œª“∆œ‡πÿ
@@ -89,7 +89,6 @@ public class EnemyController : MonoBehaviour
 
     void InitStateMachine()
     {
-        stateMachine = new StateMachine<EnemyController>(this);
         stateDict = new Dictionary<Utils.Enums.EnemyStates, State<EnemyController>>();
 
         stateDict.Add(Utils.Enums.EnemyStates.Idle, GetComponent<IdleState>());

@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+[CreateAssetMenu(menuName = "FSM/State/EnemyAttack")]
 public class AttackState : State<EnemyController>
 {
     [SerializeField] private float attackDistance = 1f;
@@ -26,7 +27,7 @@ public class AttackState : State<EnemyController>
 
         if (distance_Target <= attackDistance + 0.03f)
         {
-            StartCoroutine(Attack());
+            _owner.StartCoroutine(Attack());
             _owner.LocalMotion(Vector3.zero);
         }
     }

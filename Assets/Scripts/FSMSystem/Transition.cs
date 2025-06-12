@@ -3,9 +3,10 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class Transition
+[System.Serializable]
+public abstract class Transition : ScriptableObject
 {
-    GameObject pOwner;
+    GameObject _owner;
 
     public virtual bool ToTransition()
     {
