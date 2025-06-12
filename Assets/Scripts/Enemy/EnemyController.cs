@@ -24,7 +24,6 @@ public class EnemyController : MonoBehaviour
 
     [field : Header("行为参数")]
     public Transform Target { get; set; }
-    public List<MeleeAttacker> detectTarget { get; set;} = new List<MeleeAttacker>();
 
 
     void Start()
@@ -82,6 +81,11 @@ public class EnemyController : MonoBehaviour
         Debug.LogError("无法切换状态，相关功能仍在完善中");
     }
 
+    /// <summary>
+    /// 待完善！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
+    /// </summary>
+    /// <param name="state"></param>
+    /// <returns></returns>
     public bool IsInState(Utils.Enums.EnemyStates state)
     {
         Debug.LogError("无法查询状态，相关功能仍在完善中");
