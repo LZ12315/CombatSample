@@ -4,6 +4,7 @@ using TMPro;
 using Unity.VisualScripting;
 using UnityEngine;
 
+[CreateAssetMenu(menuName = "FSM/State/EnemyCombatMove")]
 public class CombatMoveState : State<EnemyController>
 {
     [Header("´ý»ú×´Ì¬")]

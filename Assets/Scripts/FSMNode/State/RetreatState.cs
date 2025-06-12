@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+[CreateAssetMenu(menuName = "FSM/State/EnemyRetreat")]
 public class RetreatState : State<EnemyController>
 {
     [SerializeField] private float backwardSpeed = 0.75f;

@@ -2,7 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public abstract class State<T>:MonoBehaviour
+public abstract class State<T> : ScriptableObject
 {
     protected T _owner;
 
