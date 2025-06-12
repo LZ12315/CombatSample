@@ -4,13 +4,18 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [System.Serializable]
-public abstract class Transition : ScriptableObject
+public abstract class Transition<T> : ScriptableObject
 {
-    GameObject _owner;
+    protected T _owner;
 
-    public virtual bool ToTransition()
+    public virtual bool ToTransition(T owner)
     {
-        return false;
+        _owner = owner;
+
+        if(_owner == null) 
+            return false;
+        else 
+            return true;
     }
 }
 

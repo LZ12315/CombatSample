@@ -11,22 +11,6 @@ public class IdleState : State<EnemyController>
         base.OnEnter(owner);
     }
 
-    public override void OnUpdate()
-    {
-        foreach (var target in _owner.detectTarget)
-        {
-            Vector3 dir = (target.transform.position - _owner.transform.position).normalized;
-            float angle = Vector3.Angle(dir, _owner.transform.forward);
-
-            if(angle <= _owner.FOV/2)
-            {
-                _owner.Target = target.transform;
-                _owner.ChangeState(Utils.Enums.EnemyStates.CombatMove);
-                break;
-            }
-        }
-    }
-
     public override void OnExit()
     {
         base.OnExit();

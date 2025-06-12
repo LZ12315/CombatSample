@@ -128,55 +128,6 @@ GameObject:
     type: 3}
   m_PrefabInstance: {fileID: 1196282064}
   m_PrefabAsset: {fileID: 0}
---- !u!1 &142370548
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 142370550}
-  - component: {fileID: 142370551}
-  m_Layer: 0
-  m_Name: EnemyFSMTest
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &142370550
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 142370548}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &142370551
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 142370548}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7f58bc238b463d240a3cc57044a43787, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  stateMachineMap:
-  - sourceState: {fileID: 0}
-    transitionLines:
-    - transition: {fileID: 0}
-      targetState: {fileID: 0}
 --- !u!1 &305737992
 GameObject:
   m_ObjectHideFlags: 0
@@ -1175,8 +1126,26 @@ PrefabInstance:
       propertyPath: m_Name
       value: Enemy
       objectReference: {fileID: 0}
+    - target: {fileID: 8069085659496517845, guid: 96976096f5df8504d8fa97bfb84d8171,
+        type: 3}
+      propertyPath: startState
+      value: 
+      objectReference: {fileID: 11400000, guid: dc9eb8f39a98d1240a153cb14fb47289,
+        type: 2}
+    - target: {fileID: 8069085659496517845, guid: 96976096f5df8504d8fa97bfb84d8171,
+        type: 3}
+      propertyPath: stateMachineMap.Array.data[0].branchName
+      value: Idle->CombatMove
+      objectReference: {fileID: 0}
+    - target: {fileID: 8069085659496517845, guid: 96976096f5df8504d8fa97bfb84d8171,
+        type: 3}
+      propertyPath: stateMachineMap.Array.data[0].transitionLines.Array.data[0].transition
+      value: 
+      objectReference: {fileID: 11400000, guid: 0749ad98d4efbc5438adca6f149fdf65,
+        type: 2}
     m_RemovedComponents: []
-    m_RemovedGameObjects: []
+    m_RemovedGameObjects:
+    - {fileID: 786365508040615387, guid: 96976096f5df8504d8fa97bfb84d8171, type: 3}
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 96976096f5df8504d8fa97bfb84d8171, type: 3}
@@ -1190,4 +1159,3 @@ SceneRoots:
   - {fileID: 305737993}
   - {fileID: 1196282064}
   - {fileID: 1353027051483448498}
-  - {fileID: 142370550}

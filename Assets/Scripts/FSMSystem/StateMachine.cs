@@ -4,8 +4,9 @@ using System.Collections.Generic;
 using Unity.VisualScripting;
 using UnityEngine;
 
-public abstract class StateMachine<T> : MonoBehaviour
+public abstract class StateMachine<T> : MonoBehaviour where T :Component
 {
+    [SerializeField] protected State<T> startState;
     [SerializeField] protected List<TransitionMapBranch> stateMachineMap = new List<TransitionMapBranch>();
 
     protected Dictionary<State<T>, List<TransitionLine>> mapDictionary;
@@ -19,13 +20,23 @@ public abstract class StateMachine<T> : MonoBehaviour
             if (mapDictionary == null)
             {
                 mapDictionary = new Dictionary<State<T>, List<TransitionLine>>();
-                foreach (var entry in stateMachineMap)
+                foreach (var branch in stateMachineMap)
                 {
-                    mapDictionary[entry.sourceState] = entry.transitionLines;
+                    mapDictionary[branch.sourceState] = branch.transitionLines;
                 }
             }
             return mapDictionary;
         }
+    }
+
+    protected virtual void Awake()
+    {
+        if(startState != null)
+            CurrentState = startState;
+        else if (stateMachineMap[0].sourceState != null)
+            CurrentState = stateMachineMap[0].sourceState;
+
+        _owner = GetComponent<T>();
     }
 
     protected virtual void Update()
@@ -35,15 +46,17 @@ public abstract class StateMachine<T> : MonoBehaviour
         List<TransitionLine> currentTransitions;
         AsDictionary.TryGetValue(CurrentState, out currentTransitions);
 
-        if (currentTransitions == null) return;
-
-        foreach (var transition in currentTransitions)
+        if (currentTransitions != null)
         {
-            if (transition.transition.ToTransition())
+            foreach (var transition in currentTransitions)
             {
-                ChangeState(transition.targetState);
-                break;
+                if (transition.transition.ToTransition(_owner))
+                {
+                    ChangeState(transition.targetState);
+                    break;
+                }
             }
+
         }
 
         CurrentState.OnUpdate();
@@ -72,10 +85,10 @@ public abstract class StateMachine<T> : MonoBehaviour
     [System.Serializable]
     public struct TransitionLine
     {
-        public Transition transition;
+        public Transition<T> transition;
         public State<T> targetState;
 
-        public TransitionLine(Transition transition, State<T> state)
+        public TransitionLine(Transition<T> transition, State<T> state)
         {
             this.transition = transition ?? throw new ArgumentNullException(nameof(transition));
             targetState = state ?? throw new ArgumentNullException(nameof(state));
@@ -85,6 +98,7 @@ public abstract class StateMachine<T> : MonoBehaviour
     [System.Serializable]
     public class TransitionMapBranch
     {
+        public string branchName;
         public State<T> sourceState;
         public List<TransitionLine> transitionLines;
     }

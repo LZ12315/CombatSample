@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using Unity.VisualScripting;
@@ -13,6 +14,7 @@ public class EnemyController : MonoBehaviour
     public Animator Animator { get; private set; }
     public CharacterBody PhysicsCharacter { get; private set; }
     public MeleeAttacker MeleeAttacker { get; private set; }
+    public StateMachine<EnemyController> StateMachine { get; private set;}
     public NavMeshAgent NavAgent { get; private set; }
     public EnemyInfo Info {  get; set; }
 
@@ -20,14 +22,10 @@ public class EnemyController : MonoBehaviour
     [SerializeField] float rotateSpeed = 500f;
     [SerializeField] float moveSpeed = 6f;
 
-    [field : Header("寻路参数")]
-    [field: SerializeField] public float FOV { get; private set; } = 180f;
+    [field : Header("行为参数")]
     public Transform Target { get; set; }
     public List<MeleeAttacker> detectTarget { get; set;} = new List<MeleeAttacker>();
 
-    [Header("状态控制")]
-    private Dictionary<Utils.Enums.EnemyStates, State<EnemyController>> stateDict;
-    public StateMachine<EnemyController> stateMachine { get; private set;}
 
     void Start()
     {
@@ -37,20 +35,12 @@ public class EnemyController : MonoBehaviour
         MeleeAttacker = GetComponent<MeleeAttacker>();
 
         IDInitialized();
-        InitStateMachine();
     }
 
     private void Update()
     {
-        //stateMachine.StateUpdate();
-
         Animator.SetFloat("fowardSpeed", PhysicsCharacter.FowardSpeed, 0.2f, Time.deltaTime);
         Animator.SetFloat("strafeSpeed", PhysicsCharacter.StrafSpeed, 0.2f, Time.deltaTime);
-    }
-
-    private void FixedUpdate()
-    {
-        //stateMachine.StateFixedUpdate();
     }
 
     #region 位移相关
@@ -87,27 +77,14 @@ public class EnemyController : MonoBehaviour
 
     #region 状态相关
 
-    void InitStateMachine()
-    {
-        stateDict = new Dictionary<Utils.Enums.EnemyStates, State<EnemyController>>();
-
-        stateDict.Add(Utils.Enums.EnemyStates.Idle, GetComponent<IdleState>());
-        stateDict.Add(Utils.Enums.EnemyStates.CombatMove, GetComponent<CombatMoveState>());
-        stateDict.Add(Utils.Enums.EnemyStates.Attack, GetComponent<AttackState>());
-        stateDict.Add(Utils.Enums.EnemyStates.Retreat, GetComponent<RetreatState>());
-        stateMachine.ChangeState(stateDict[Utils.Enums.EnemyStates.Idle]);
-    }
-
     public void ChangeState(Utils.Enums.EnemyStates stateKey)
     {
-        if (stateDict.ContainsKey(stateKey))
-            stateMachine.ChangeState(stateDict[stateKey]);
+        Debug.LogError("无法切换状态，相关功能仍在完善中");
     }
 
     public bool IsInState(Utils.Enums.EnemyStates state)
     {
-        if (stateMachine.CurrentState == stateDict[state])
-            return true;
+        Debug.LogError("无法查询状态，相关功能仍在完善中");
         return false;
     }
 
