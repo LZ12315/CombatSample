@@ -23,7 +23,7 @@ public class EnemyController : MonoBehaviour
     [SerializeField] float moveSpeed = 6f;
 
     [field : Header("行为参数")]
-    public Transform Target { get; set; }
+    [field:SerializeField] public Transform Target { get; set; }
 
 
     void Start()

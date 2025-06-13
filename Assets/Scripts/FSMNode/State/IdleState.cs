@@ -6,14 +6,14 @@ using static UnityEngine.GraphicsBuffer;
 [CreateAssetMenu(menuName = "FSM/State/EnemyIdle")]
 public class IdleState : State<EnemyController>
 {
-    public override void OnEnter(EnemyController owner)
+    public override void OnStateEnter(EnemyController owner)
     {
-        base.OnEnter(owner);
+        base.OnStateEnter(owner);
     }
 
-    public override void OnExit()
+    public override void OnStateExit()
     {
-        base.OnExit();
+        base.OnStateExit();
     }
 
 }

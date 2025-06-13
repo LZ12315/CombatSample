@@ -7,16 +7,16 @@ public class EventTransition<T> : Transition<T>
     [SerializeField] private string eventName;
     private bool eventTriggered = false;
 
-    public override void OnInit()
+    public override void OnStateEnter(T _owner)
     {
-        base.OnInit();
+        base.OnStateEnter(_owner);
 
         EventCenter.Instance.AddEventListener("EventName", GetEventCallBack);
     }
 
-    public override bool ToTransition(T owner)
+    public override bool ToTransition()
     {
-        base.ToTransition(owner);
+        base.ToTransition();
 
         return eventTriggered;
     }

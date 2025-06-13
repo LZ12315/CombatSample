@@ -7,22 +7,11 @@ using UnityEngine;
 public abstract class StateMachine<T> : MonoBehaviour where T :Component
 {
     [SerializeField] protected State<T> startState;
+    [field:SerializeField] public State<T> CurrentState { get; protected set; }
     [SerializeField] protected List<TransitionMapBranch> stateMachineMap = new List<TransitionMapBranch>();
 
-    protected Dictionary<State<T>, List<TransitionLine>> mapDictionary;
-
     protected T _owner;
-    public State<T> CurrentState 
-    {
-        get
-        {
-            return CurrentState.ActiveNode;
-        } 
-        protected set
-        {
-            CurrentState = value;
-        }
-    }
+    protected Dictionary<State<T>, List<TransitionLine>> mapDictionary;
     public Dictionary<State<T>, List<TransitionLine>> AsDictionary
     {
         get
@@ -41,12 +30,12 @@ public abstract class StateMachine<T> : MonoBehaviour where T :Component
 
     protected virtual void Awake()
     {
+        _owner = GetComponent<T>();
+
         if (startState != null)
             ChangeState(startState);
         else if (stateMachineMap[0].sourceState != null)
             ChangeState(stateMachineMap[0].sourceState);
-
-        _owner = GetComponent<T>();
     }
 
     protected virtual void Update()
@@ -60,8 +49,7 @@ public abstract class StateMachine<T> : MonoBehaviour where T :Component
         {
             foreach (var transitionLine in currentTransitions)
             {
-                Transition<T> transition = transitionLine.transition.CreateRuntimeClone();
-                if (transition.ToTransition(_owner))
+                if (transitionLine.transition.ToTransition())
                 {
                     ChangeState(transitionLine.targetState);
                     break;
@@ -92,28 +80,28 @@ public abstract class StateMachine<T> : MonoBehaviour where T :Component
 
     void ExitState()
     {
-        CurrentState.OnPass();
-        CurrentState.OnExit();
+        CurrentState.OnStateExit();
+
         List<TransitionLine> currentTransitions;
         AsDictionary.TryGetValue(CurrentState, out currentTransitions);
         if (currentTransitions != null)
         {
             foreach (var transitionLine in currentTransitions)
-                transitionLine.transition.OnPass();
+                transitionLine.transition.OnStateExit();
         }
     }
 
     void EnterState(State<T> state)
     {
         CurrentState = state;
-        CurrentState.OnInit();
-        CurrentState.OnEnter(_owner);
+        CurrentState.OnStateEnter(_owner);
+
         List<TransitionLine> currentTransitions;
         AsDictionary.TryGetValue(CurrentState, out currentTransitions);
         if (currentTransitions != null)
         {
             foreach (var transitionLine in currentTransitions)
-                transitionLine.transition.OnInit();
+                transitionLine.transition.OnStateEnter(_owner);
         }
     }
 
