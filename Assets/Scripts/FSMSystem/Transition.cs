@@ -4,18 +4,30 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [System.Serializable]
-public abstract class Transition<T> : ScriptableObject
+public abstract class Transition<T> : FSMNode<T, Transition<T>>
 {
-    protected T _owner;
+    public override void OnInit()
+    {
+        base.OnInit();
+    }
 
     public virtual bool ToTransition(T owner)
     {
         _owner = owner;
 
-        if(_owner == null) 
+        if (owner == null) 
             return false;
         else 
             return true;
     }
+
+    public override Transition<T> CreateRuntimeClone()
+    {
+        Transition<T> clone = Instantiate(this);
+        clone.isClone = true;
+        ActiveNode = clone;
+        return clone;
+    }
+
 }
 
