@@ -4,29 +4,21 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [System.Serializable]
-public abstract class Transition<T> : FSMNode<T, Transition<T>>
+public abstract class Transition<T> : FSMNode<T,Transition<T>>
 {
-    public override void OnInit()
-    {
-        base.OnInit();
-    }
-
-    public virtual bool ToTransition(T owner)
+    public override void OnStateEnter(T owner)
     {
         _owner = owner;
 
-        if (owner == null) 
+        base.OnStateEnter(owner);
+    }
+
+    public virtual bool ToTransition()
+    {
+        if (_owner == null) 
             return false;
         else 
             return true;
-    }
-
-    public override Transition<T> CreateRuntimeClone()
-    {
-        Transition<T> clone = Instantiate(this);
-        clone.isClone = true;
-        ActiveNode = clone;
-        return clone;
     }
 
 }

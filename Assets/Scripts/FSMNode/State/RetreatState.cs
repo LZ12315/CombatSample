@@ -9,9 +9,9 @@ public class RetreatState : State<EnemyController>
     [SerializeField] private float distanceToRetreat = 3f;
     Vector3 lastPosition = Vector3.zero;
 
-    public override void OnEnter(EnemyController owner)
+    public override void OnStateEnter(EnemyController owner)
     {
-        base.OnEnter(owner);
+        base.OnStateEnter(owner);
         _owner.NavAgent.ResetPath();
     }
 
@@ -35,9 +35,9 @@ public class RetreatState : State<EnemyController>
         lastPosition = _owner.NavAgent.nextPosition;
     }
 
-    public override void OnExit()
+    public override void OnStateExit()
     {
-        base.OnExit();
+        base.OnStateExit();
         _owner.NavAgent.ResetPath();
         _owner.LocalMotion(Vector3.zero);
     }

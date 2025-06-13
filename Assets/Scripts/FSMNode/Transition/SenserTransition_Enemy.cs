@@ -11,9 +11,9 @@ public class SenserTransition_Enemy : Transition<EnemyController>
     [SerializeField] private float senceRadius = 3f;
     [SerializeField] private LayerMask targetLayer;
 
-    public override bool ToTransition(EnemyController owner)
+    public override bool ToTransition()
     {
-        base.ToTransition(owner);
+        base.ToTransition();
 
         return TargetSence();
     }

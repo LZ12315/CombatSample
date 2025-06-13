@@ -22,9 +22,9 @@ public class CombatMoveState : State<EnemyController>
     Utils.Enums.AICombatStates combatState;
     float stateTimer = 0;
 
-    public override void OnEnter(EnemyController owner)
+    public override void OnStateEnter(EnemyController owner)
     {
-        base.OnEnter(owner);
+        base.OnStateEnter(owner);
 
         if (EnemyManager.Instance != null)
             EnemyManager.Instance.AddEnemy(_owner.Info);
@@ -147,14 +147,14 @@ public class CombatMoveState : State<EnemyController>
         _owner.ChangeState(Utils.Enums.EnemyStates.Attack);
     }
 
-    public override void OnExit()
+    public override void OnStateExit()
     {
         stateTimer = 0;
         _owner.NavAgent.ResetPath();
         _owner.LocalMotion(Vector3.zero);
         _owner.Animator.SetBool("combatMode", false);
 
-        base.OnExit();
+        base.OnStateExit();
     }
 
     Vector3 targetPosition = Vector3.zero;

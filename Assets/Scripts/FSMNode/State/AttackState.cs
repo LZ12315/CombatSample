@@ -8,9 +8,9 @@ public class AttackState : State<EnemyController>
     [SerializeField] private float attackDistance = 1f;
     private bool isAttack = false;
 
-    public override void OnEnter(EnemyController owner)
+    public override void OnStateEnter(EnemyController owner)
     {
-        base.OnEnter(owner);
+        base.OnStateEnter(owner);
         _owner.NavAgent.stoppingDistance = attackDistance;
     }
 
@@ -43,9 +43,9 @@ public class AttackState : State<EnemyController>
         _owner.ChangeState(Utils.Enums.EnemyStates.Retreat);
     }
 
-    public override void OnExit()
+    public override void OnStateExit()
     {
-        base.OnExit();
+        base.OnStateExit();
         _owner.NavAgent.ResetPath();
         _owner.LocalMotion(Vector3.zero);
     }
