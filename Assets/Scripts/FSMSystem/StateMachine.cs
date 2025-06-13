@@ -12,7 +12,17 @@ public abstract class StateMachine<T> : MonoBehaviour where T :Component
     protected Dictionary<State<T>, List<TransitionLine>> mapDictionary;
 
     protected T _owner;
-    public State<T> CurrentState { get; protected set; }
+    public State<T> CurrentState 
+    {
+        get
+        {
+            return CurrentState.ActiveNode;
+        } 
+        protected set
+        {
+            CurrentState = value;
+        }
+    }
     public Dictionary<State<T>, List<TransitionLine>> AsDictionary
     {
         get
@@ -31,10 +41,10 @@ public abstract class StateMachine<T> : MonoBehaviour where T :Component
 
     protected virtual void Awake()
     {
-        if(startState != null)
-            CurrentState = startState;
+        if (startState != null)
+            ChangeState(startState);
         else if (stateMachineMap[0].sourceState != null)
-            CurrentState = stateMachineMap[0].sourceState;
+            ChangeState(stateMachineMap[0].sourceState);
 
         _owner = GetComponent<T>();
     }
@@ -48,11 +58,12 @@ public abstract class StateMachine<T> : MonoBehaviour where T :Component
 
         if (currentTransitions != null)
         {
-            foreach (var transition in currentTransitions)
+            foreach (var transitionLine in currentTransitions)
             {
-                if (transition.transition.ToTransition(_owner))
+                Transition<T> transition = transitionLine.transition.CreateRuntimeClone();
+                if (transition.ToTransition(_owner))
                 {
-                    ChangeState(transition.targetState);
+                    ChangeState(transitionLine.targetState);
                     break;
                 }
             }
@@ -71,13 +82,39 @@ public abstract class StateMachine<T> : MonoBehaviour where T :Component
 
     public virtual void ChangeState(State<T> state)
     {
-        if (AsDictionary.ContainsKey(state)) return;
+        if (!AsDictionary.ContainsKey(state)) return;
 
-        if(CurrentState != null) 
-            CurrentState.OnExit();
+        if (CurrentState != null)
+            ExitState();
 
+        EnterState(state);
+    }
+
+    void ExitState()
+    {
+        CurrentState.OnPass();
+        CurrentState.OnExit();
+        List<TransitionLine> currentTransitions;
+        AsDictionary.TryGetValue(CurrentState, out currentTransitions);
+        if (currentTransitions != null)
+        {
+            foreach (var transitionLine in currentTransitions)
+                transitionLine.transition.OnPass();
+        }
+    }
+
+    void EnterState(State<T> state)
+    {
         CurrentState = state;
+        CurrentState.OnInit();
         CurrentState.OnEnter(_owner);
+        List<TransitionLine> currentTransitions;
+        AsDictionary.TryGetValue(CurrentState, out currentTransitions);
+        if (currentTransitions != null)
+        {
+            foreach (var transitionLine in currentTransitions)
+                transitionLine.transition.OnInit();
+        }
     }
 
     #region 变量定义
