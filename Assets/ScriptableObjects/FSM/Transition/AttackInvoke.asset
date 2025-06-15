@@ -12,5 +12,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 45ef540e9e02dcc468829152f35ad96a, type: 3}
   m_Name: AttackInvoke
   m_EditorClassIdentifier: 
-  _owner: {fileID: 0}
-  eventName: 
+  eventName: Attack
+  eventTriggered: 0

@@ -12,9 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5da80850d713c114d8e4e9f24656defa, type: 3}
   m_Name: CombatMoveState
   m_EditorClassIdentifier: 
-  idleTimeRange: {x: 3, y: 5}
+  idleTimeRange: {x: 2, y: 5}
   distanceToIdle: 5.5
   adjustChaseDistance: 1.5
   circleTimeRange: {x: 3, y: 6}
   circlingSpeed: 30
-  attackWaitTime: 10
+  attackWaitTime: 6

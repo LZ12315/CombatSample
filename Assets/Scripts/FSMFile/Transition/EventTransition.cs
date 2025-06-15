@@ -3,17 +3,17 @@ using System.Collections.Generic;
 using UnityEngine;
 
 
-[CreateAssetMenu(menuName = "FSM/Transition/Normal/Event",fileName ="EventTransition")]
+[CreateAssetMenu(menuName = "FSM/Transition/Normal/NormalEvent",fileName ="EventTransition")]
 public class EventTransition<T> : Transition<T>
 {
     [SerializeField] protected string eventName;
-    private bool eventTriggered = false;
+    [SerializeField] private bool eventTriggered = false;
 
     public override void OnStateEnter(T owner)
     {
         base.OnStateEnter(owner);
 
-        EventCenter.Instance.AddEventListener("EventName", GetEventCallBack);
+        EventCenter.Instance.AddEventListener(eventName, GetEventCallBack);
     }
 
     public override bool ToTransition()
@@ -23,8 +23,9 @@ public class EventTransition<T> : Transition<T>
         return eventTriggered;
     }
 
-    void GetEventCallBack()
+    protected virtual void GetEventCallBack()
     {
+        Debug.Log(eventName);
         eventTriggered = true;
     }
 
@@ -33,7 +34,7 @@ public class EventTransition<T> : Transition<T>
         base.OnStateExit();
 
         eventTriggered = false;
-        EventCenter.Instance.RemoveEventListener("EventName", GetEventCallBack);
+        EventCenter.Instance.RemoveEventListener(eventName, GetEventCallBack);
     }
 
 }

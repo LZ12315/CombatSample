@@ -12,4 +12,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d153c47fe4e5f144dbc2217b6d29f6f1, type: 3}
   m_Name: AttackState
   m_EditorClassIdentifier: 
-  attackDistance: 2
+  attackDistance: 1.8

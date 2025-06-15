@@ -5,12 +5,13 @@ using UnityEngine;
 [CreateAssetMenu(menuName = "FSM/State/EnemyAttack",fileName = "AttackState")]
 public class AttackState : State<EnemyController>
 {
-    [SerializeField] private float attackDistance = 1f;
+    [SerializeField] private float attackDistance = 1.8f;
     private bool isAttack = false;
 
     public override void OnStateEnter(EnemyController owner)
     {
         base.OnStateEnter(owner);
+        isAttack = false;
         _owner.NavAgent.stoppingDistance = attackDistance;
     }
 
@@ -40,14 +41,15 @@ public class AttackState : State<EnemyController>
         yield return new WaitUntil(() => _owner.MeleeAttacker.AttackState == Utils.Enums.AttackStates.Idle);
 
         isAttack = false;
-        _owner.ChangeState(Utils.Enums.EnemyStates.Retreat);
+        _owner.StateMachine.ChangeState(Utils.Enums.EnemyStates.Retreat);
     }
 
     public override void OnStateExit()
     {
-        base.OnStateExit();
         _owner.NavAgent.ResetPath();
         _owner.LocalMotion(Vector3.zero);
+        isAttack = false;
+        base.OnStateExit();
     }
 
 }

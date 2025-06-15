@@ -14,7 +14,7 @@ public class EnemyController : MonoBehaviour
     public Animator Animator { get; private set; }
     public CharacterBody PhysicsCharacter { get; private set; }
     public MeleeAttacker MeleeAttacker { get; private set; }
-    public StateMachine<EnemyController> StateMachine { get; private set;}
+    public EnemyFSM StateMachine { get; private set;}
     public NavMeshAgent NavAgent { get; private set; }
     public EnemyInfo Info {  get; set; }
 
@@ -32,6 +32,7 @@ public class EnemyController : MonoBehaviour
         PhysicsCharacter = GetComponent<CharacterBody>();
         NavAgent = GetComponent<NavMeshAgent>();
         MeleeAttacker = GetComponent<MeleeAttacker>();
+        StateMachine = GetComponent<EnemyFSM>();
 
         IDInitialized();
     }
@@ -70,26 +71,6 @@ public class EnemyController : MonoBehaviour
         faceDir.y = 0;
         Quaternion targetRotation = Quaternion.LookRotation(faceDir);
         transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, Time.deltaTime * rotateSpeed);
-    }
-
-    #endregion
-
-    #region 状态相关
-
-    public void ChangeState(Utils.Enums.EnemyStates stateKey)
-    {
-        Debug.LogError("无法切换状态，相关功能仍在完善中");
-    }
-
-    /// <summary>
-    /// 待完善！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
-    /// </summary>
-    /// <param name="state"></param>
-    /// <returns></returns>
-    public bool IsInState(Utils.Enums.EnemyStates state)
-    {
-        Debug.LogError("无法查询状态，相关功能仍在完善中");
-        return false;
     }
 
     #endregion

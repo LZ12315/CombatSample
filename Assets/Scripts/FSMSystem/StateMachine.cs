@@ -6,9 +6,9 @@ using UnityEngine;
 
 public abstract class StateMachine<T> : MonoBehaviour where T :Component
 {
-    [SerializeField] protected State<T> startState;
-    [field:SerializeField] public State<T> CurrentState { get; protected set; }
     [SerializeField] protected List<TransitionMapBranch> stateMachineMap = new List<TransitionMapBranch>();
+    [SerializeField] protected State<T> startState;
+    [field: SerializeField] public State<T> CurrentState { get; protected set; }
 
     protected T _owner;
     protected Dictionary<State<T>, List<TransitionLine>> mapDictionary;
@@ -76,6 +76,13 @@ public abstract class StateMachine<T> : MonoBehaviour where T :Component
             ExitState();
 
         EnterState(state);
+    }
+
+    public virtual bool IsInState(Type stateType)
+    {
+        if(stateType == null) return false;
+
+        return CurrentState.GetType() == stateType;   
     }
 
     void ExitState()

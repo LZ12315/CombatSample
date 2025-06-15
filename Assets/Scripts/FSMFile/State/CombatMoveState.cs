@@ -10,13 +10,13 @@ public class CombatMoveState : State<EnemyController>
     [Header("待机状态")]
     [SerializeField] private Vector2 idleTimeRange = new Vector2(2,5);
     [Header("追逐状态")]
-    [SerializeField] private float distanceToIdle = 2.5f;
-    [SerializeField] private float adjustChaseDistance = 1f; //防止角色在Chase与其他状态间反复切换导致不自然行为
+    [SerializeField] private float distanceToIdle = 5.5f;
+    [SerializeField] private float adjustChaseDistance = 1.5f; //防止角色在Chase与其他状态间反复切换导致不自然行为
     [Header("环绕状态")]
     [SerializeField] private Vector2 circleTimeRange = new Vector2(3, 6);
-    [SerializeField] private float circlingSpeed = 20f;
+    [SerializeField] private float circlingSpeed = 30f;
     [Header("攻击切换")]
-    [SerializeField] private float attackWaitTime = 3f;
+    [SerializeField] private float attackWaitTime = 6f;
     private float attackWaitTimer = 0;
 
     Utils.Enums.AICombatStates combatState;
@@ -28,7 +28,6 @@ public class CombatMoveState : State<EnemyController>
 
         if (EnemyManager.Instance != null)
             EnemyManager.Instance.AddEnemy(_owner.Info);
-        //EventCenter.Instance.AddEventListener(_owner.Info.ID + "Attack", ToAttack);
 
         _owner.NavAgent.updatePosition = false;
         _owner.NavAgent.updateRotation = false;
@@ -141,11 +140,6 @@ public class CombatMoveState : State<EnemyController>
         combatState = Utils.Enums.AICombatStates.Circling;
         _owner.Animator.SetBool("combatMode", false);
     }
-
-    //void ToAttack()
-    //{
-    //    _owner.ChangeState(Utils.Enums.EnemyStates.Attack);
-    //}
 
     public override void OnStateExit()
     {
