@@ -6,10 +6,7 @@ public static partial class Utils
 {
     public static partial class Enums
     {
-        public enum A
-        {
-            None = 0
-        }
+
     }
 }
 
