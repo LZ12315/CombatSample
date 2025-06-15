@@ -5,24 +5,19 @@ using UnityEngine;
 [CreateAssetMenu(menuName = "FSM/State/EnemyRetreat", fileName = "RetreatState")]
 public class RetreatState : State<EnemyController>
 {
-    [SerializeField] private float backwardSpeed = 0.75f;
-    [SerializeField] private float distanceToRetreat = 3f;
+    [SerializeField] private float backwardSpeed = 1.75f;
     Vector3 lastPosition = Vector3.zero;
 
     public override void OnStateEnter(EnemyController owner)
     {
         base.OnStateEnter(owner);
+        lastPosition = Vector3.zero;
         _owner.NavAgent.ResetPath();
     }
 
     public override void OnUpdate()
     {
         float distanceToTarget = Vector3.Distance(_owner.transform.position, _owner.Target.position);
-        if(distanceToTarget >= distanceToRetreat)
-        {
-            _owner.ChangeState(Utils.Enums.EnemyStates.CombatMove);
-            return;
-        }
 
         var vectorToTarget = _owner.Target.position - _owner.transform.position;
 
@@ -37,9 +32,9 @@ public class RetreatState : State<EnemyController>
 
     public override void OnStateExit()
     {
-        base.OnStateExit();
         _owner.NavAgent.ResetPath();
         _owner.LocalMotion(Vector3.zero);
+        base.OnStateExit();
     }
 
 }

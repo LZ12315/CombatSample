@@ -12,6 +12,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e7a6b34fe616ad94f927db5a3cb5d725, type: 3}
   m_Name: RetreatDistance
   m_EditorClassIdentifier: 
-  _owner: {fileID: 0}
-  value: 0
-  function: 0
+  value: 5
+  function: 3

@@ -8,8 +8,6 @@ public abstract class Transition<T> : FSMNode<T,Transition<T>>
 {
     public override void OnStateEnter(T owner)
     {
-        _owner = owner;
-
         base.OnStateEnter(owner);
     }
 
