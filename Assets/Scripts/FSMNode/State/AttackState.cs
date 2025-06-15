@@ -2,7 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-[CreateAssetMenu(menuName = "FSM/State/EnemyAttack")]
+[CreateAssetMenu(menuName = "FSM/State/EnemyAttack",fileName = "AttackState")]
 public class AttackState : State<EnemyController>
 {
     [SerializeField] private float attackDistance = 1f;

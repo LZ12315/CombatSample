@@ -4,7 +4,7 @@ using TMPro;
 using Unity.VisualScripting;
 using UnityEngine;
 
-[CreateAssetMenu(menuName = "FSM/State/EnemyCombatMove")]
+[CreateAssetMenu(menuName = "FSM/State/EnemyCombatMove", fileName = "CombatMoveState")]
 public class CombatMoveState : State<EnemyController>
 {
     [Header("´ý»ú×´Ì¬")]
@@ -28,7 +28,7 @@ public class CombatMoveState : State<EnemyController>
 
         if (EnemyManager.Instance != null)
             EnemyManager.Instance.AddEnemy(_owner.Info);
-        EventCenter.Instance.AddEventListener(_owner.Info.ID + "Attack", ToAttack);
+        //EventCenter.Instance.AddEventListener(_owner.Info.ID + "Attack", ToAttack);
 
         _owner.NavAgent.updatePosition = false;
         _owner.NavAgent.updateRotation = false;
@@ -142,10 +142,10 @@ public class CombatMoveState : State<EnemyController>
         _owner.Animator.SetBool("combatMode", false);
     }
 
-    void ToAttack()
-    {
-        _owner.ChangeState(Utils.Enums.EnemyStates.Attack);
-    }
+    //void ToAttack()
+    //{
+    //    _owner.ChangeState(Utils.Enums.EnemyStates.Attack);
+    //}
 
     public override void OnStateExit()
     {

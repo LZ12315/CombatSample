@@ -18,7 +18,7 @@ using UnityEngine;
 public abstract class FSMNode<T, TNode> : ScriptableObject
 where TNode : FSMNode<T, TNode>
 {
-    [SerializeField] protected T _owner;
+    protected T _owner;
 
     public virtual void OnFSMInit()
     {

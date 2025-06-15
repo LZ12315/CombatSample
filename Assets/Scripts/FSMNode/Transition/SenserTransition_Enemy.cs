@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using Unity.VisualScripting;
 using UnityEngine;
 
-[CreateAssetMenu(menuName = "FSM/Transition/Enemy/TargetSenser")]
+[CreateAssetMenu(menuName = "FSM/Transition/Enemy/TargetSenser",fileName ="TargetSenser") ]
 public class SenserTransition_Enemy : Transition<EnemyController>
 {
     [SerializeField] private string targetTypeName;
