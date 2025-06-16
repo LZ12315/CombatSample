@@ -10,5 +10,12 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 473e4757b79a67544920fe96d6fd034a, type: 3}
-  m_Name: IdleState
+  m_Name: GuardState
   m_EditorClassIdentifier: 
+  idleState: 0
+  idleDuration: 3
+  glanceMaxAngle: 10
+  glanceSpeed: 3
+  stareMaxAngle: 10
+  stareTimeOnce: 2
+  stareDuration: 3
