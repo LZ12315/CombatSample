@@ -1076,6 +1076,16 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7435544531972513349, guid: 96976096f5df8504d8fa97bfb84d8171,
         type: 3}
+      propertyPath: lookAtCoolTime
+      value: 0.8
+      objectReference: {fileID: 0}
+    - target: {fileID: 7435544531972513349, guid: 96976096f5df8504d8fa97bfb84d8171,
+        type: 3}
+      propertyPath: lookAtHeatTime
+      value: 0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 7435544531972513349, guid: 96976096f5df8504d8fa97bfb84d8171,
+        type: 3}
       propertyPath: <Head>k__BackingField
       value: 
       objectReference: {fileID: 1511031903}
