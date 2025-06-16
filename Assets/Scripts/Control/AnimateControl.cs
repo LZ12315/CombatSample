@@ -8,8 +8,8 @@ public class AnimateControl : MonoBehaviour
 
     [field: Header("注视设置")]
     [field: SerializeField] public Transform Head { get; private set; }
-    [SerializeField] private float lookAtCoolTime = 0.2f;
-    [SerializeField] private float lookAtHeatTime = 0.2f;
+    [SerializeField] private float lookAtCoolTime = 0.8f;
+    [SerializeField] private float lookAtHeatTime = 0.5f;
 
     public Vector3 LookAtTargetPosition { get; set; }
     public bool Looking { get; set; } = true;
@@ -28,8 +28,8 @@ public class AnimateControl : MonoBehaviour
             Looking = false;
             return;
         }
-        OriginLookDirection = Head.position + transform.forward;
-        LookAtTargetPosition = OriginLookDirection;
+        OriginLookDirection = Head.forward;
+        LookAtTargetPosition = Head.position + OriginLookDirection;
         lookAtPosition = LookAtTargetPosition;
     }
 
@@ -49,12 +49,23 @@ public class AnimateControl : MonoBehaviour
         Vector3 curDir = lookAtPosition - Head.position;
         Vector3 futDir = LookAtTargetPosition - Head.position;
 
-        curDir = Vector3.RotateTowards(curDir, futDir, 6.28f * Time.deltaTime, float.PositiveInfinity);
+        curDir = Vector3.RotateTowards(
+            curDir,
+            futDir,
+            1.57f * Time.deltaTime,
+            float.PositiveInfinity
+        );
         lookAtPosition = Head.position + curDir;
 
         float blendTime = lookAtTargetWeight > lookAtWeight ? lookAtHeatTime : lookAtCoolTime;
         lookAtWeight = Mathf.MoveTowards(lookAtWeight, lookAtTargetWeight, Time.deltaTime / blendTime);
-        animator.SetLookAtWeight(lookAtWeight, 0.2f, 0.5f, 0.7f, 0.5f);
+        animator.SetLookAtWeight(
+            lookAtWeight,
+            bodyWeight: 0.0f,  // 完全禁用身体转动
+            headWeight: 1.0f,   // 满分头部权重
+            eyesWeight: 0.0f,
+            clampWeight: 0.6f  // 限制颈部旋转幅度
+        );
         animator.SetLookAtPosition(lookAtPosition);
     }
 
