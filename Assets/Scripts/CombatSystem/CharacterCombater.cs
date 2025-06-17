@@ -12,27 +12,27 @@ struct CommandInfo
     }
 }
 
-public class MeleeAttacker : MonoBehaviour
+public class CharacterCombater : MonoBehaviour
 {
     PlayerInputControl inputControl;
     Animator animator;
 
     [Header("武器设置")]
-    [SerializeField] private GameObject swordGamobject;
-    private Dictionary<Utils.Enums.AttackHitBox, Collider> HitBoxColliders = new Dictionary<Utils.Enums.AttackHitBox, Collider>();
+    [SerializeField] protected GameObject swordGamobject;
+    protected Dictionary<Utils.Enums.AttackHitBox, Collider> HitBoxColliders = new Dictionary<Utils.Enums.AttackHitBox, Collider>();
 
     [field: Header("攻击设置")]
+    [SerializeField] protected List<AttackData> attacks = new List<AttackData>();
     [field : SerializeField] public bool InAction { get; private set; }
     public Utils.Enums.AttackStates AttackState {  get; private set; }
-    [SerializeField] private List<AttackData> attacks = new List<AttackData>();
 
-    private void Awake()
+    protected void Awake()
     {
         inputControl = new PlayerInputControl();
         animator = GetComponentInChildren<Animator>();
     }
 
-    private void Start()
+    protected virtual void Start()
     {
         GetAttackComponent();
     }
@@ -49,7 +49,7 @@ public class MeleeAttacker : MonoBehaviour
             doCombo = true;
     }
 
-    IEnumerator Attack()
+    protected IEnumerator Attack()
     {
         InAction = true;
         AttackState = Utils.Enums.AttackStates.WindUp;
@@ -104,14 +104,14 @@ public class MeleeAttacker : MonoBehaviour
     }
 
 
-    private void OnTriggerEnter(Collider other)
+    protected void OnTriggerEnter(Collider other)
     {
         if (other.gameObject.tag == "HitBox" && !InAction)
             StartCoroutine(GetAttack());
     }
 
 
-    IEnumerator GetAttack()
+    protected IEnumerator GetAttack()
     {
         InAction = true;
         animator.CrossFade("Injured", 0.2f);
@@ -122,6 +122,8 @@ public class MeleeAttacker : MonoBehaviour
 
         InAction = false;
     }
+
+
 
     #region 碰撞体相关
 
@@ -173,9 +175,9 @@ public static partial class Utils
 {
     public static partial class Enums
     {
-        public enum AttackStates 
-        { 
-            Idle, WindUp, Impact, ColdDown 
+        public enum AttackStates
+        {
+            Idle, WindUp, Impact, ColdDown
         }
     }
 }

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [CreateAssetMenu(menuName = "FSM/Transition/Enemy/IDEvent", fileName = "EventTransition")]
-public class EventTransition_Enemy : EventTransition<EnemyController>
+public class EventTrans_Enemy : EventTransition<EnemyController>
 {
     private string originName;
 

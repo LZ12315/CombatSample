@@ -13,7 +13,7 @@ public class EnemyController : MonoBehaviour
 {
     public Animator Animator { get; private set; }
     public CharacterBody PhysicsCharacter { get; private set; }
-    public MeleeAttacker MeleeAttacker { get; private set; }
+    public CharacterCombater MeleeAttacker { get; private set; }
     public EnemyFSM StateMachine { get; private set;}
     public NavMeshAgent NavAgent { get; private set; }
     public EnemyInfo Info {  get; set; }
@@ -24,6 +24,7 @@ public class EnemyController : MonoBehaviour
 
     [field : Header("行为参数")]
     [field:SerializeField] public Transform Target { get; set; }
+    [field: SerializeField] public List<Transform> PossibleTargets { get; set; }
 
 
     void Start()
@@ -31,7 +32,7 @@ public class EnemyController : MonoBehaviour
         Animator = GetComponentInChildren<Animator>();
         PhysicsCharacter = GetComponent<CharacterBody>();
         NavAgent = GetComponent<NavMeshAgent>();
-        MeleeAttacker = GetComponent<MeleeAttacker>();
+        MeleeAttacker = GetComponent<CharacterCombater>();
         StateMachine = GetComponent<EnemyFSM>();
 
         IDInitialized();
