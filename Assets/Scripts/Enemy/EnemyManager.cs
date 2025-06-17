@@ -21,10 +21,11 @@ public class EnemyManager : MonoBehaviour
 {
     public static EnemyManager Instance;
 
-    [SerializeField] private List<EnemyInfo> enemiesInCombat = new List<EnemyInfo>();
-    private Queue<EnemyInfo> enemiesToAttack = new Queue<EnemyInfo>();
-
+    [Header("团体进攻设置")]
     [SerializeField] private Vector2 attackIntervalRandom = new Vector2(3,5);
+
+    private List<EnemyInfo> enemiesInCombat = new List<EnemyInfo>();
+    private Queue<EnemyInfo> enemiesToAttack = new Queue<EnemyInfo>();
     private float attackIntervalCounter = 0;
 
     private void Awake()

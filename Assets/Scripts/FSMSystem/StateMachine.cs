@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using Unity.VisualScripting;
 using UnityEngine;
 
-public abstract class StateMachine<T> : MonoBehaviour where T :Component
+public abstract class StateMachine<T> : MonoBehaviour where T : class
 {
     [SerializeField] protected List<TransitionMapBranch> stateMachineMap = new List<TransitionMapBranch>();
     [SerializeField] protected State<T> startState;

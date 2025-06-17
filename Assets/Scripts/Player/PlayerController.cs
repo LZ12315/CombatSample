@@ -11,7 +11,7 @@ public class PlayerController : MonoBehaviour
     CameraController cameraControl;
     CharacterBody physicsCharacter;
     Animator animator;
-    MeleeAttacker meleeAttacker;
+    CharacterCombater meleeAttacker;
 
     [Header("ÒÆ¶¯²ÎÊý")]
     [SerializeField] float rotateSpeed = 500f;
@@ -30,7 +30,7 @@ public class PlayerController : MonoBehaviour
     {
         inputControl = new PlayerInputControl();
         physicsCharacter = GetComponent<CharacterBody>();
-        meleeAttacker = GetComponent<MeleeAttacker>();
+        meleeAttacker = GetComponent<CharacterCombater>();
         animator = GetComponentInChildren<Animator>();
         cameraControl = Camera.main.GetComponent<CameraController>();
     }

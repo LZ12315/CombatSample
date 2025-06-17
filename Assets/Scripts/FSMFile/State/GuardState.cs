@@ -5,6 +5,7 @@ using Unity.VisualScripting;
 using UnityEngine;
 using static UnityEngine.GraphicsBuffer;
 
+
 [CreateAssetMenu(menuName = "FSM/State/Enemy/Guard",fileName ="GuardState")]
 public class GuardState : State<EnemyController>
 {
@@ -23,13 +24,21 @@ public class GuardState : State<EnemyController>
     [SerializeField] private int stareTimeOnce;
     [SerializeField] private float stareDuration;
 
+    [Header("视锥设置")]
+    [SerializeField] private float AcqIncreaseSpeed = 10f; // Acq增加速度
+    [SerializeField] private float viewRadius = 10f; // 视锥半径（等同于视距）
+    [SerializeField][Range(0, 180)] private float horizontalAngle = 60f; // 水平张角
+    [SerializeField][Range(0, 90)] private float verticalAngle = 30f; // 垂直张角
+    [SerializeField] private LayerMask targetMask;        // 检测目标层
+    [SerializeField] private LayerMask obstacleMask;      // 阻挡层
+
     private Vector3 lookDirection;
     private IdleActionState IdleState 
     { 
         get => idleState; 
         set
         {
-            EnterIdleMode(value);
+            EnterIdleAction(value);
             idleState = value;
         }
     }
@@ -46,6 +55,7 @@ public class GuardState : State<EnemyController>
 
         animControl = _owner.GetComponentInChildren<AnimateControl>();
 
+        //等到副本机制实现后可以删除
         idleState = IdleActionState.None;
         idleTimeCounter = 0;
         glanceElapsedTime = 0;
@@ -59,20 +69,44 @@ public class GuardState : State<EnemyController>
     {
         base.OnUpdate();
 
-        if(animControl == null) return;
+        IdleAction();
 
-        if(IdleState == IdleActionState.None)
+        foreach (var target in DetectTargets())
         {
-            while(IdleState == IdleActionState.None)
+            PlayerCombater player = target.GetComponent<PlayerCombater>();
+            if (player == null) continue;
+
+            if(!_owner.PossibleTargets.Contains(target))
+                _owner.PossibleTargets.Add(target);
+            player.isAcquisted = true;
+            player.Acquisition += AcqIncreaseSpeed * Time.deltaTime;
+        }
+    }
+
+    public override void OnStateExit()
+    {
+        base.OnStateExit();
+    }
+
+    #region Guard行为
+
+    void IdleAction()
+    {
+
+        if (animControl == null) return;
+
+        if (IdleState == IdleActionState.None)
+        {
+            while (IdleState == IdleActionState.None)
                 IdleState = Utils.GetRandomEnumValue<IdleActionState>();
         }
-        else if(IdleState == IdleActionState.Idle)
+        else if (IdleState == IdleActionState.Idle)
         {
             idleTimeCounter += Time.deltaTime;
-            if(idleTimeCounter >= idleDuration)
+            if (idleTimeCounter >= idleDuration)
                 IdleState = IdleActionState.None;
         }
-        else if(IdleState == IdleActionState.Glance)
+        else if (IdleState == IdleActionState.Glance)
         {
             glanceElapsedTime += Time.deltaTime;
             float progress = Mathf.Clamp01(glanceElapsedTime / (glanceMaxAngle / glanceSpeed));
@@ -91,13 +125,13 @@ public class GuardState : State<EnemyController>
             if (Vector3.Angle(lookDirection, glanceTargetDir) < 0.1f)
                 IdleState = IdleActionState.None;
         }
-        else if(IdleState == IdleActionState.Stare)
+        else if (IdleState == IdleActionState.Stare)
         {
             if (stareCount == stareTimeOnce)
                 IdleState = IdleActionState.None;
 
             stareTimeCounter += Time.deltaTime;
-            if(stareTimeCounter >= stareDuration)
+            if (stareTimeCounter >= stareDuration)
             {
                 stareCount++;
                 stareTimeCounter = 0;
@@ -108,7 +142,7 @@ public class GuardState : State<EnemyController>
         animControl.LookAtTargetPosition = animControl.Head.position + lookDirection * 5f;
     }
 
-    void EnterIdleMode(IdleActionState state)
+    void EnterIdleAction(IdleActionState state)
     {
         switch (state) 
         {
@@ -156,17 +190,79 @@ public class GuardState : State<EnemyController>
         return rotation * horizontalDir;
     }
 
-    public override void OnStateExit()
-    {
-        base.OnStateExit();
-    }
-
     private enum IdleActionState
     {
         None,Idle ,Glance, Stare
     }
 
+    #endregion
+
+    #region 视锥检测
+
+    private List<Transform> DetectTargets()
+    {
+        // 步骤1：获取范围内所有可能目标
+        Collider[] hits = Physics.OverlapSphere(
+            _owner.transform.position,
+            viewRadius,
+            targetMask
+        );
+
+        List<Transform> validTargets = new List<Transform>();
+        foreach (Collider hit in hits)
+        {
+            // 步骤2：三维位置校验
+            Vector3 targetPos = hit.transform.position;
+            if (!IsInConeOptimized(targetPos)) continue;
+
+            // 步骤3：视线阻挡校验
+            if (Physics.Linecast(
+                _owner.transform.position,
+                targetPos,
+                out RaycastHit obstacleHit,
+                obstacleMask))
+            {
+                if (obstacleHit.transform != hit.transform)
+                    continue;
+            }
+
+            validTargets.Add(hit.transform);
+        }
+        return validTargets;
+    }
+
+    private bool IsInConeOptimized(Vector3 targetPos)
+    {
+        Vector3 toTargetDir = (targetPos - _owner.transform.position).normalized;
+        float forwardDot = Vector3.Dot(_owner.transform.forward, toTargetDir);
+
+        // 计算水平投影点积
+        float horizontalDot = Vector3.Dot(
+            ProjectXZ(toTargetDir).normalized,
+            ProjectXZ(_owner.transform.forward).normalized
+        );
+        // horizontalDot ≈ cos(水平角)
+        float minHorizontalDot = Mathf.Cos(horizontalAngle * 0.5f * Mathf.Deg2Rad);
+
+        // 计算垂直投影点积
+        float verticalDot = Vector3.Dot(
+            toTargetDir.normalized,
+            Vector3.up
+        );
+        // verticalDot ≈ sin(垂直角)
+        float maxVerticalDot = Mathf.Sin(verticalAngle * 0.5f * Mathf.Deg2Rad);
+
+        return horizontalDot >= minHorizontalDot
+               && Mathf.Abs(verticalDot) <= maxVerticalDot;
+    }
+
+    // 扩展方法：三维向量投射到XZ平面
+    Vector3 ProjectXZ(Vector3 v) => new Vector3(v.x, 0, v.z);
+
+    #endregion
+
 }
+
 
 public partial class Utils
 {
