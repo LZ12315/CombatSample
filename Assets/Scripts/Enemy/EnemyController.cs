@@ -17,6 +17,7 @@ public class EnemyController : MonoBehaviour
     public EnemyFSM StateMachine { get; private set;}
     public NavMeshAgent NavAgent { get; private set; }
     public EnemyInfo Info {  get; set; }
+    public AnimateControl AnimateControl { get; private set; }
 
     [Header("移动设置")]
     [SerializeField] float rotateSpeed = 500f;
@@ -41,6 +42,7 @@ public class EnemyController : MonoBehaviour
         NavAgent = GetComponent<NavMeshAgent>();
         MeleeAttacker = GetComponent<CharacterCombater>();
         StateMachine = GetComponent<EnemyFSM>();
+        AnimateControl = GetComponentInChildren<AnimateControl>();
 
         IDInitialized();
     }
@@ -109,7 +111,10 @@ public class EnemyController : MonoBehaviour
                 obstacleMask))
             {
                 if (obstacleHit.transform != hit.transform)
+                {
+                    Debug.Log(hit.gameObject.name + "被阻挡！");
                     continue;
+                }
             }
 
             validTargets.Add(hit.transform);
@@ -120,12 +125,12 @@ public class EnemyController : MonoBehaviour
     private bool IsInCone(Vector3 targetPos)
     {
         Vector3 toTargetDir = (targetPos - transform.position).normalized;
-        float forwardDot = Vector3.Dot(transform.forward, toTargetDir);
+        float forwardDot = Vector3.Dot(AnimateControl.LookDirection, toTargetDir);
 
         // 计算水平投影点积
         float horizontalDot = Vector3.Dot(
             ProjectXZ(toTargetDir).normalized,
-            ProjectXZ(transform.forward).normalized
+            ProjectXZ(AnimateControl.LookDirection).normalized
         );
         // horizontalDot ≈ cos(水平角)
         float minHorizontalDot = Mathf.Cos(horizontalAngle * 0.5f * Mathf.Deg2Rad);
@@ -145,7 +150,7 @@ public class EnemyController : MonoBehaviour
     // 扩展方法：三维向量投射到XZ平面
     Vector3 ProjectXZ(Vector3 v) => new Vector3(v.x, 0, v.z);
 
-    void OnDrawGizmosSelected()
+    void OnDrawGizmos()
     {
         // 水平角度线
         DrawAngleGizmo(horizontalAngle, Color.red);
@@ -159,22 +164,24 @@ public class EnemyController : MonoBehaviour
 
     void DrawAngleGizmo(float angle, Color color, bool isVertical = false)
     {
+        if(AnimateControl == null || !AnimateControl.IsLooking) return;
+
         Gizmos.color = color;
 
         Vector3 leftDir = Quaternion.Euler(
             isVertical ? -angle / 2 : 0,
             !isVertical ? -angle / 2 : 0,
             0
-        ) * transform.forward * viewRadius;
+        ) * AnimateControl.LookDirection * viewRadius;
 
         Vector3 rightDir = Quaternion.Euler(
             isVertical ? angle / 2 : 0,
             !isVertical ? angle / 2 : 0,
             0
-        ) * transform.forward * viewRadius;
+        ) * AnimateControl.LookDirection * viewRadius;
 
-        Gizmos.DrawLine(transform.position, transform.position + leftDir);
-        Gizmos.DrawLine(transform.position, transform.position + rightDir);
+        Gizmos.DrawLine(AnimateControl.Head.position, AnimateControl.Head.position + leftDir);
+        Gizmos.DrawLine(AnimateControl.Head.position, AnimateControl.Head.position + rightDir);
     }
 
     #endregion
