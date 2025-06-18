@@ -8,15 +8,41 @@ public class AnimateControl : MonoBehaviour
 
     [field: Header("◊¢ ”…Ë÷√")]
     [field: SerializeField] public Transform Head { get; private set; }
+    [SerializeField] private bool horizontalOnly = true;
     [SerializeField] private float lookAtCoolTime = 0.8f;
     [SerializeField] private float lookAtHeatTime = 0.5f;
 
-    public bool Looking { get; set; } = true;
-    public Vector3 LookDir { get; set; }
-    public Vector3 LookAtTargetPosition { get; set; }
-    public Vector3 OriginLookDirection { get; set; }
+    public bool IsLooking
+    {
+        get
+        {
+            return isLooking;
+        }
+        set
+        {
+            if(value == false)
+                LookDirection = transform.forward;
+            isLooking = value;
+        }
+    }
+    public Vector3 LookDirection
+    {
+        get
+        {
+            if (Head == null || lookAtPosition == null) return Vector3.forward;
+            return (lookAtPosition - Head.transform.position).normalized;
+        }
+        set
+        {
+            Vector3 modifiedDir = value;
+            modifiedDir.y = 0;
+            LookAtTargetPosition = Head.position + modifiedDir * 5f;
+        }
+    }
+    public Vector3 LookAtTargetPosition { get; set; } = Vector3.forward;
 
-    private Vector3 lookAtPosition;
+    private bool isLooking = false;
+    private Vector3 lookAtPosition = Vector3.forward;
     private float lookAtWeight = 0.0f;
 
     void Start()
@@ -26,11 +52,10 @@ public class AnimateControl : MonoBehaviour
 
         if (!Head)
         {
-            Looking = false;
+            IsLooking = false;
             return;
         }
-        OriginLookDirection = Head.forward;
-        LookAtTargetPosition = Head.position + OriginLookDirection;
+        LookAtTargetPosition = Head.position + transform.forward;
         lookAtPosition = LookAtTargetPosition;
     }
 
@@ -45,7 +70,7 @@ public class AnimateControl : MonoBehaviour
         Vector3 modifiedTargetPos = LookAtTargetPosition;
         modifiedTargetPos.y = Head.position.y;
         LookAtTargetPosition = modifiedTargetPos;
-        float lookAtTargetWeight = Looking ? 1.0f : 0.0f;
+        float lookAtTargetWeight = IsLooking ? 1.0f : 0.0f;
 
         Vector3 curDir = lookAtPosition - Head.position;
         Vector3 futDir = LookAtTargetPosition - Head.position;
