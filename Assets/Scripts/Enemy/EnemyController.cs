@@ -89,6 +89,8 @@ public class EnemyController : MonoBehaviour
 
     public List<Transform> DetectTargets()
     {
+        Physics.SyncTransforms();
+
         // 步骤1：获取范围内所有可能目标
         Collider[] hits = Physics.OverlapSphere(
             transform.position,
@@ -103,16 +105,18 @@ public class EnemyController : MonoBehaviour
             Vector3 targetPos = hit.transform.position;
             if (!IsInCone(targetPos)) continue;
 
-            // 步骤3：视线阻挡校验
+            // 步骤3：视线阻挡校验 应使用Linecast 使用其他形状检测会导致穿模
             if (Physics.Linecast(
-                transform.position,
+                AnimateControl.Head.position,
                 targetPos,
                 out RaycastHit obstacleHit,
                 obstacleMask))
             {
                 if (obstacleHit.transform != hit.transform)
                 {
-                    Debug.Log(hit.gameObject.name + "被阻挡！");
+                    // 绘制阻挡示意
+                    Debug.DrawLine(transform.position, obstacleHit.point, Color.red, 2);
+                    Debug.DrawLine(obstacleHit.point, targetPos, Color.yellow, 2);
                     continue;
                 }
             }
@@ -150,21 +154,9 @@ public class EnemyController : MonoBehaviour
     // 扩展方法：三维向量投射到XZ平面
     Vector3 ProjectXZ(Vector3 v) => new Vector3(v.x, 0, v.z);
 
-    void OnDrawGizmos()
-    {
-        // 水平角度线
-        DrawAngleGizmo(horizontalAngle, Color.red);
-        // 垂直角度线
-        DrawAngleGizmo(verticalAngle, Color.green, true);
-
-        // 绘制视距球体
-        Gizmos.color = Color.blue;
-        Gizmos.DrawWireSphere(transform.position, viewRadius);
-    }
-
     void DrawAngleGizmo(float angle, Color color, bool isVertical = false)
     {
-        if(AnimateControl == null || !AnimateControl.IsLooking) return;
+        if(AnimateControl == null) return;
 
         Gizmos.color = color;
 
@@ -192,6 +184,18 @@ public class EnemyController : MonoBehaviour
     {
         string id = System.Guid.NewGuid().ToString();
         Info = new EnemyInfo(id, this);
+    }
+
+    void OnDrawGizmos()
+    {
+        // 水平角度线
+        DrawAngleGizmo(horizontalAngle, Color.red);
+        // 垂直角度线
+        DrawAngleGizmo(verticalAngle, Color.green, true);
+
+        // 绘制视距球体
+        Gizmos.color = Color.blue;
+        Gizmos.DrawWireSphere(transform.position, viewRadius);
     }
 
     #endregion

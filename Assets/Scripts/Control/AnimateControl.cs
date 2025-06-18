@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.InputSystem.Controls;
 
 public class AnimateControl : MonoBehaviour
 {
@@ -12,19 +13,7 @@ public class AnimateControl : MonoBehaviour
     [SerializeField] private float lookAtCoolTime = 0.8f;
     [SerializeField] private float lookAtHeatTime = 0.5f;
 
-    public bool IsLooking
-    {
-        get
-        {
-            return isLooking;
-        }
-        set
-        {
-            if(value == false)
-                LookDirection = transform.forward;
-            isLooking = value;
-        }
-    }
+    public bool IsLooking {  get; set; }
     public Vector3 LookDirection
     {
         get
@@ -41,7 +30,6 @@ public class AnimateControl : MonoBehaviour
     }
     public Vector3 LookAtTargetPosition { get; set; } = Vector3.forward;
 
-    private bool isLooking = false;
     private Vector3 lookAtPosition = Vector3.forward;
     private float lookAtWeight = 0.0f;
 
@@ -62,6 +50,9 @@ public class AnimateControl : MonoBehaviour
     //当该动画层启用IK Pass时 这个回调函数才会被触发
     private void OnAnimatorIK(int layerIndex)
     {
+        if(!IsLooking)
+            LookDirection = Head.forward;
+
         LookIK();
     }
 

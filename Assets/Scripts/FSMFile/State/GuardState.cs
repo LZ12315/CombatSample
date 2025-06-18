@@ -39,7 +39,6 @@ public class GuardState : State<EnemyController>
         }
     }
     private float idleTimeCounter = 0;
-    private Vector3 _currentLookDirection;
     private float glanceElapsedTime = 0;
     private Vector3 glanceTargetDir = Vector3.zero;
     private float stareTimeCounter = 0;
@@ -55,7 +54,6 @@ public class GuardState : State<EnemyController>
         idleState = IdleActionState.None;
         idleTimeCounter = 0;
         glanceElapsedTime = 0;
-        _currentLookDirection = Vector3.zero;
         glanceTargetDir = Vector3.zero;
         stareTimeCounter = 0;
         stareCount = 0;
@@ -74,7 +72,7 @@ public class GuardState : State<EnemyController>
 
             if(!_owner.PossibleTargets.Contains(target))
                 _owner.PossibleTargets.Add(target);
-            Debug.Log("发现Player！");
+            //Debug.Log("发现Player！");
             player.isAcquisted = true;
             player.Acquisition += AcqIncreaseSpeed * Time.deltaTime;
         }
@@ -110,13 +108,11 @@ public class GuardState : State<EnemyController>
 
             // 使用缓动曲线 + sphereical插值
             float easedProgress = Mathf.SmoothStep(0, 1, progress);
-            _currentLookDirection = Vector3.Slerp(
+            lookDirection = Vector3.Slerp(
                 animControl.LookDirection,
                 glanceTargetDir,
                 easedProgress
             );
-
-            lookDirection = _currentLookDirection;
 
             // 使用角度差判断完成状态（避免浮点误差问题）
             if (Vector3.Angle(lookDirection, glanceTargetDir) < 0.1f)
@@ -125,7 +121,10 @@ public class GuardState : State<EnemyController>
         else if (IdleState == IdleActionState.Stare)
         {
             if (stareCount == stareTimeOnce)
+            {
+                stareCount = 0; 
                 IdleState = IdleActionState.None;
+            }
 
             stareTimeCounter += Time.deltaTime;
             if (stareTimeCounter >= stareDuration)
@@ -145,11 +144,11 @@ public class GuardState : State<EnemyController>
         {
             case IdleActionState.Idle:
                 idleTimeCounter = 0;
+                animControl.LookDirection = animControl.Head.forward;
                 animControl.IsLooking = false;
                 break;
             case IdleActionState.Glance:
                 animControl.IsLooking = true;
-                _currentLookDirection = Vector3.zero;
                 glanceElapsedTime = 0;
                 glanceTargetDir = RandomHorizontalGaze(
                     animControl.transform.forward,
@@ -179,7 +178,7 @@ public class GuardState : State<EnemyController>
         var t = Vector3.Cross(Vector3.forward, horizontalDir).y; // 用于角度规范
 
         // 步骤2：真正安全的随机角度生成
-        float randomAngle = UnityEngine.Random.Range(0, maxAngle) * Mathf.Sign(t) * Mathf.Sign(randomDir);
+        float randomAngle = UnityEngine.Random.Range(maxAngle/2, maxAngle) * Mathf.Sign(t) * Mathf.Sign(randomDir);
 
         // 步骤3：应用旋转并疾病分规范化
         Quaternion rotation = Quaternion.AngleAxis(randomAngle, Vector3.up);

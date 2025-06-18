@@ -1,4 +1,5 @@
 SSR. 思考ACq数据是否应保存在PlayerCombater中 是保存在Combater父类中 还是保存在视野残留实体中(这样耦合度低，但要考虑追踪到攻击状态切换的逻辑)
+SR. AnimateControl中 LookDirection在非Looking状态下的归位问题
 S. 向EnemyManager中添加群体共享视野，视野残留的逻辑
 N. 将CombatMoveState的Chase逻辑查分出来 创建为Chase状态（负责追踪目标到可攻击距离）
 N1. 位移补偿逻辑
