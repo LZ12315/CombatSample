@@ -12,6 +12,9 @@ public class GuardState : State<EnemyController>
     private AnimateControl animControl;
     [SerializeField] private IdleActionState idleState;
 
+    [Header("感知参数")]
+    [SerializeField] private float AcqIncreaseSpeed = 10f; // Acq增加速度
+
     [Header("Idle参数")]
     [SerializeField] private float idleDuration;
 
@@ -24,13 +27,6 @@ public class GuardState : State<EnemyController>
     [SerializeField] private int stareTimeOnce;
     [SerializeField] private float stareDuration;
 
-    [Header("视锥设置")]
-    [SerializeField] private float AcqIncreaseSpeed = 10f; // Acq增加速度
-    [SerializeField] private float viewRadius = 10f; // 视锥半径（等同于视距）
-    [SerializeField][Range(0, 180)] private float horizontalAngle = 60f; // 水平张角
-    [SerializeField][Range(0, 90)] private float verticalAngle = 30f; // 垂直张角
-    [SerializeField] private LayerMask targetMask;        // 检测目标层
-    [SerializeField] private LayerMask obstacleMask;      // 阻挡层
 
     private Vector3 lookDirection;
     private IdleActionState IdleState 
@@ -71,7 +67,7 @@ public class GuardState : State<EnemyController>
 
         IdleAction();
 
-        foreach (var target in DetectTargets())
+        foreach (var target in _owner.DetectTargets())
         {
             PlayerCombater player = target.GetComponent<PlayerCombater>();
             if (player == null) continue;
@@ -194,70 +190,6 @@ public class GuardState : State<EnemyController>
     {
         None,Idle ,Glance, Stare
     }
-
-    #endregion
-
-    #region 视锥检测
-
-    private List<Transform> DetectTargets()
-    {
-        // 步骤1：获取范围内所有可能目标
-        Collider[] hits = Physics.OverlapSphere(
-            _owner.transform.position,
-            viewRadius,
-            targetMask
-        );
-
-        List<Transform> validTargets = new List<Transform>();
-        foreach (Collider hit in hits)
-        {
-            // 步骤2：三维位置校验
-            Vector3 targetPos = hit.transform.position;
-            if (!IsInConeOptimized(targetPos)) continue;
-
-            // 步骤3：视线阻挡校验
-            if (Physics.Linecast(
-                _owner.transform.position,
-                targetPos,
-                out RaycastHit obstacleHit,
-                obstacleMask))
-            {
-                if (obstacleHit.transform != hit.transform)
-                    continue;
-            }
-
-            validTargets.Add(hit.transform);
-        }
-        return validTargets;
-    }
-
-    private bool IsInConeOptimized(Vector3 targetPos)
-    {
-        Vector3 toTargetDir = (targetPos - _owner.transform.position).normalized;
-        float forwardDot = Vector3.Dot(_owner.transform.forward, toTargetDir);
-
-        // 计算水平投影点积
-        float horizontalDot = Vector3.Dot(
-            ProjectXZ(toTargetDir).normalized,
-            ProjectXZ(_owner.transform.forward).normalized
-        );
-        // horizontalDot ≈ cos(水平角)
-        float minHorizontalDot = Mathf.Cos(horizontalAngle * 0.5f * Mathf.Deg2Rad);
-
-        // 计算垂直投影点积
-        float verticalDot = Vector3.Dot(
-            toTargetDir.normalized,
-            Vector3.up
-        );
-        // verticalDot ≈ sin(垂直角)
-        float maxVerticalDot = Mathf.Sin(verticalAngle * 0.5f * Mathf.Deg2Rad);
-
-        return horizontalDot >= minHorizontalDot
-               && Mathf.Abs(verticalDot) <= maxVerticalDot;
-    }
-
-    // 扩展方法：三维向量投射到XZ平面
-    Vector3 ProjectXZ(Vector3 v) => new Vector3(v.x, 0, v.z);
 
     #endregion
 

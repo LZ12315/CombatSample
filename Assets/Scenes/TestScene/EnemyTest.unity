@@ -122,12 +122,6 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 23800000, guid: 665fc954ca353724e9dccf57970b14f8, type: 2}
---- !u!1 &99495591 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 736726515195417616, guid: a280257f0a7771c479001e053d416c5f,
-    type: 3}
-  m_PrefabInstance: {fileID: 1196282064}
-  m_PrefabAsset: {fileID: 0}
 --- !u!1 &305737992
 GameObject:
   m_ObjectHideFlags: 0
@@ -172,7 +166,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 75b0af79f463d4740be8a3efdcb80e49, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  enemiesInCombat: []
   attackIntervalRandom: {x: 3, y: 5}
 --- !u!1 &382486426
 GameObject:
@@ -1189,12 +1182,38 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: 677cf0d979ce89a4b9e5f1a5f7aeacae,
         type: 2}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 9170003258126288261, guid: 96976096f5df8504d8fa97bfb84d8171, type: 3}
     m_RemovedGameObjects:
     - {fileID: 786365508040615387, guid: 96976096f5df8504d8fa97bfb84d8171, type: 3}
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 5661126940569074627, guid: 96976096f5df8504d8fa97bfb84d8171,
+        type: 3}
+      insertIndex: 5
+      addedObject: {fileID: 1846034463}
   m_SourcePrefab: {fileID: 100100000, guid: 96976096f5df8504d8fa97bfb84d8171, type: 3}
+--- !u!1 &1846034462 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 5661126940569074627, guid: 96976096f5df8504d8fa97bfb84d8171,
+    type: 3}
+  m_PrefabInstance: {fileID: 1846034461}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1846034463
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1846034462}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 70d9e085ecbccda4389204b16ae49d73, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  swordGamobject: {fileID: 0}
+  attacks: []
+  <InAction>k__BackingField: 0
 --- !u!1 &1895484646 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 6556996396405201016, guid: a280257f0a7771c479001e053d416c5f,
@@ -1237,15 +1256,17 @@ MonoBehaviour:
   m_GameObject: {fileID: 2014964238}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 268032d9614f4214293196aa09caaf81, type: 3}
+  m_Script: {fileID: 11500000, guid: 3e85ae17f5c6fab4eaf4bbca561cbc79, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  swordGamobject: {fileID: 99495591}
+  swordGamobject: {fileID: 0}
+  attacks: []
   <InAction>k__BackingField: 0
-  attacks:
-  - {fileID: 11400000, guid: 6493d7ef7a3d8064f8bf10caf20ec72d, type: 2}
-  - {fileID: 11400000, guid: 87d9c843d0a52974988878ad54258d1b, type: 2}
-  - {fileID: 11400000, guid: 038721070df670f4585c3056e05e94e9, type: 2}
+  AcqFadeSpeed: 5
+  <FullAcq>k__BackingField: 100
+  <isAcquisted>k__BackingField: 0
+  acquisition: 0
+  <Quality>k__BackingField: 0
 --- !u!114 &2014964248
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1431,12 +1452,38 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: 677cf0d979ce89a4b9e5f1a5f7aeacae,
         type: 2}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 9170003258126288261, guid: 96976096f5df8504d8fa97bfb84d8171, type: 3}
     m_RemovedGameObjects:
     - {fileID: 786365508040615387, guid: 96976096f5df8504d8fa97bfb84d8171, type: 3}
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 5661126940569074627, guid: 96976096f5df8504d8fa97bfb84d8171,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1353027051483448500}
   m_SourcePrefab: {fileID: 100100000, guid: 96976096f5df8504d8fa97bfb84d8171, type: 3}
+--- !u!1 &1353027051483448499 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 5661126940569074627, guid: 96976096f5df8504d8fa97bfb84d8171,
+    type: 3}
+  m_PrefabInstance: {fileID: 1353027051483448498}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1353027051483448500
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1353027051483448499}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 70d9e085ecbccda4389204b16ae49d73, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  swordGamobject: {fileID: 0}
+  attacks: []
+  <InAction>k__BackingField: 0
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

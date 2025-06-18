@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: GuardState
   m_EditorClassIdentifier: 
   idleState: 2
+  AcqIncreaseSpeed: 10
   idleDuration: 3
   glanceMaxAngle: 60
   glanceSpeed: 10
