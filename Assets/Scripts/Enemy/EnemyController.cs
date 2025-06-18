@@ -18,13 +18,20 @@ public class EnemyController : MonoBehaviour
     public NavMeshAgent NavAgent { get; private set; }
     public EnemyInfo Info {  get; set; }
 
-    [Header("移动参数")]
+    [Header("移动设置")]
     [SerializeField] float rotateSpeed = 500f;
     [SerializeField] float moveSpeed = 6f;
 
-    [field : Header("行为参数")]
+    [field : Header("行为设置")]
     [field:SerializeField] public Transform Target { get; set; }
     [field: SerializeField] public List<Transform> PossibleTargets { get; set; }
+
+    [Header("视锥参数")]
+    [SerializeField] private float viewRadius = 10f; // 视锥半径（等同于视距）
+    [SerializeField][Range(0, 180)] private float horizontalAngle = 60f; // 水平张角
+    [SerializeField][Range(0, 90)] private float verticalAngle = 30f; // 垂直张角
+    [SerializeField] private LayerMask targetMask;        // 检测目标层
+    [SerializeField] private LayerMask obstacleMask;      // 阻挡层
 
 
     void Start()
@@ -44,7 +51,7 @@ public class EnemyController : MonoBehaviour
         Animator.SetFloat("strafeSpeed", PhysicsCharacter.StrafSpeed, 0.2f, Time.deltaTime);
     }
 
-    #region 位移相关
+    #region 运动相关
 
     public void LocalMotion(Vector3 faceDir, Vector3? moveDir = null, float? speed = null)
     {
@@ -72,6 +79,102 @@ public class EnemyController : MonoBehaviour
         faceDir.y = 0;
         Quaternion targetRotation = Quaternion.LookRotation(faceDir);
         transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, Time.deltaTime * rotateSpeed);
+    }
+
+    #endregion
+
+    #region 感知相关
+
+    public List<Transform> DetectTargets()
+    {
+        // 步骤1：获取范围内所有可能目标
+        Collider[] hits = Physics.OverlapSphere(
+            transform.position,
+            viewRadius,
+            targetMask
+        );
+
+        List<Transform> validTargets = new List<Transform>();
+        foreach (Collider hit in hits)
+        {
+            // 步骤2：三维位置校验
+            Vector3 targetPos = hit.transform.position;
+            if (!IsInCone(targetPos)) continue;
+
+            // 步骤3：视线阻挡校验
+            if (Physics.Linecast(
+                transform.position,
+                targetPos,
+                out RaycastHit obstacleHit,
+                obstacleMask))
+            {
+                if (obstacleHit.transform != hit.transform)
+                    continue;
+            }
+
+            validTargets.Add(hit.transform);
+        }
+        return validTargets;
+    }
+
+    private bool IsInCone(Vector3 targetPos)
+    {
+        Vector3 toTargetDir = (targetPos - transform.position).normalized;
+        float forwardDot = Vector3.Dot(transform.forward, toTargetDir);
+
+        // 计算水平投影点积
+        float horizontalDot = Vector3.Dot(
+            ProjectXZ(toTargetDir).normalized,
+            ProjectXZ(transform.forward).normalized
+        );
+        // horizontalDot ≈ cos(水平角)
+        float minHorizontalDot = Mathf.Cos(horizontalAngle * 0.5f * Mathf.Deg2Rad);
+
+        // 计算垂直投影点积
+        float verticalDot = Vector3.Dot(
+            toTargetDir.normalized,
+            Vector3.up
+        );
+        // verticalDot ≈ sin(垂直角)
+        float maxVerticalDot = Mathf.Sin(verticalAngle * 0.5f * Mathf.Deg2Rad);
+
+        return horizontalDot >= minHorizontalDot
+               && Mathf.Abs(verticalDot) <= maxVerticalDot;
+    }
+
+    // 扩展方法：三维向量投射到XZ平面
+    Vector3 ProjectXZ(Vector3 v) => new Vector3(v.x, 0, v.z);
+
+    void OnDrawGizmosSelected()
+    {
+        // 水平角度线
+        DrawAngleGizmo(horizontalAngle, Color.red);
+        // 垂直角度线
+        DrawAngleGizmo(verticalAngle, Color.green, true);
+
+        // 绘制视距球体
+        Gizmos.color = Color.blue;
+        Gizmos.DrawWireSphere(transform.position, viewRadius);
+    }
+
+    void DrawAngleGizmo(float angle, Color color, bool isVertical = false)
+    {
+        Gizmos.color = color;
+
+        Vector3 leftDir = Quaternion.Euler(
+            isVertical ? -angle / 2 : 0,
+            !isVertical ? -angle / 2 : 0,
+            0
+        ) * transform.forward * viewRadius;
+
+        Vector3 rightDir = Quaternion.Euler(
+            isVertical ? angle / 2 : 0,
+            !isVertical ? angle / 2 : 0,
+            0
+        ) * transform.forward * viewRadius;
+
+        Gizmos.DrawLine(transform.position, transform.position + leftDir);
+        Gizmos.DrawLine(transform.position, transform.position + rightDir);
     }
 
     #endregion

@@ -17,11 +17,10 @@ public class CharacterCombater : MonoBehaviour
     PlayerInputControl inputControl;
     Animator animator;
 
-    [Header("Œ‰∆˜…Ë÷√")]
+    [Header("’Ω∂∑…Ë÷√")]
     [SerializeField] protected GameObject swordGamobject;
     protected Dictionary<Utils.Enums.AttackHitBox, Collider> HitBoxColliders = new Dictionary<Utils.Enums.AttackHitBox, Collider>();
 
-    [field: Header("π•ª˜…Ë÷√")]
     [SerializeField] protected List<AttackData> attacks = new List<AttackData>();
     [field : SerializeField] public bool InAction { get; private set; }
     public Utils.Enums.AttackStates AttackState {  get; private set; }

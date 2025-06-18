@@ -4,12 +4,13 @@ using UnityEngine;
 
 public class PlayerCombater : CharacterCombater
 {
-    [Header("追踪体设置")]
+    [field: Header("追踪体设置")]
     [SerializeField] private float AcqFadeSpeed = 5;
-    private float acquisition = 0;
+    [field: SerializeField] public float FullAcq { get; set; } = 100;
 
     [field: Header("追踪体信息")]
     [field: SerializeField] public bool isAcquisted { get; set; }
+    [SerializeField] private float acquisition = 0;
     public float Acquisition
     {
         get => acquisition;
@@ -22,7 +23,6 @@ public class PlayerCombater : CharacterCombater
         }
     }
     [field: SerializeField] public float Quality { get; set; }
-    [field: SerializeField] public float FullAcq { get; set; } = 100;
 
     protected override void Start()
     {

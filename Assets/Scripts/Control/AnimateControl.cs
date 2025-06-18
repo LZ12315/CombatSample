@@ -11,8 +11,9 @@ public class AnimateControl : MonoBehaviour
     [SerializeField] private float lookAtCoolTime = 0.8f;
     [SerializeField] private float lookAtHeatTime = 0.5f;
 
-    public Vector3 LookAtTargetPosition { get; set; }
     public bool Looking { get; set; } = true;
+    public Vector3 LookDir { get; set; }
+    public Vector3 LookAtTargetPosition { get; set; }
     public Vector3 OriginLookDirection { get; set; }
 
     private Vector3 lookAtPosition;
