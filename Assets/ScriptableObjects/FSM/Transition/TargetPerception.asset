@@ -9,9 +9,11 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e32ec069d20fd174b91e3daa42e10784, type: 3}
-  m_Name: EnemyPerception
+  m_Script: {fileID: 11500000, guid: cb969444a65070a4e9f4dc21e5a0a4da, type: 3}
+  m_Name: TargetPerception
   m_EditorClassIdentifier: 
-  multiChoice: 0
-  transitions:
-  - {fileID: 11400000, guid: 0749ad98d4efbc5438adca6f149fdf65, type: 2}
+  targetTypeName: PlayerController
+  senceRadius: 8
+  targetLayer:
+    serializedVersion: 2
+    m_Bits: 4294967295

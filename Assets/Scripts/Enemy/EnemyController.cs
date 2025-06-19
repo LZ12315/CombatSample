@@ -25,7 +25,8 @@ public class EnemyController : MonoBehaviour
 
     [field : Header("行为设置")]
     [field:SerializeField] public Transform Target { get; set; }
-    [field: SerializeField] public List<Transform> PossibleTargets { get; set; }
+
+    [Header("感知设置")]
 
     [Header("视锥参数")]
     [SerializeField] private float viewRadius = 10f; // 视锥半径（等同于视距）
@@ -87,10 +88,8 @@ public class EnemyController : MonoBehaviour
 
     #region 感知相关
 
-    public List<Transform> DetectTargets()
+    public List<Transform> VisionConeCast()
     {
-        Physics.SyncTransforms();
-
         // 步骤1：获取范围内所有可能目标
         Collider[] hits = Physics.OverlapSphere(
             transform.position,
@@ -105,25 +104,45 @@ public class EnemyController : MonoBehaviour
             Vector3 targetPos = hit.transform.position;
             if (!IsInCone(targetPos)) continue;
 
-            // 步骤3：视线阻挡校验 应使用Linecast 使用其他形状检测会导致穿模
-            if (Physics.Linecast(
-                AnimateControl.Head.position,
-                targetPos,
-                out RaycastHit obstacleHit,
-                obstacleMask))
-            {
-                if (obstacleHit.transform != hit.transform)
-                {
-                    // 绘制阻挡示意
-                    Debug.DrawLine(transform.position, obstacleHit.point, Color.red, 2);
-                    Debug.DrawLine(obstacleHit.point, targetPos, Color.yellow, 2);
-                    continue;
-                }
-            }
+            // 步骤3：视线阻挡校验 
+            if(!IsInSight(AnimateControl.Head.position, targetPos, hit.transform)) continue;
 
             validTargets.Add(hit.transform);
         }
         return validTargets;
+    }
+
+    public bool IsInSight(Vector3 startPos, Vector3 targetPos, Transform target, int sightLineNum = 1, float sightLineOffset = 0.1f)
+    {
+        //重点在于启用这个设置 否则LineCast会穿模
+        Physics.SyncTransforms();
+
+        bool isInSight = false;
+        Vector3 sightPos = startPos;
+        sightPos.y -= (sightLineNum - 1) * sightLineOffset;
+        int num = sightLineNum;
+
+        while (num > 0)
+        {
+            //如果射线检测到了障碍物且障碍物不为target,则target被阻挡
+            //应使用Linecast 使用其他形状检测会导致穿模
+            if (Physics.Linecast(sightPos, targetPos, out RaycastHit obstacleHit, obstacleMask))
+                isInSight = (obstacleHit.transform == target);
+            else
+                isInSight = true;
+
+            if(!isInSight)
+            {
+                //绘制阻挡示意
+                Debug.DrawLine(transform.position, obstacleHit.point, Color.red, 2);
+                Debug.DrawLine(obstacleHit.point, targetPos, Color.yellow, 2);
+            }
+
+            sightPos.y += sightLineOffset;
+            num--;
+        }
+
+        return isInSight;
     }
 
     private bool IsInCone(Vector3 targetPos)

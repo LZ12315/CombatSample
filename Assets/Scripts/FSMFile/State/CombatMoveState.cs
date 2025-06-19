@@ -17,9 +17,9 @@ public class CombatMoveState : State<EnemyController>
     [SerializeField] private float circlingSpeed = 30f;
     [Header("¹¥»÷ÇÐ»»")]
     [SerializeField] private float attackWaitTime = 6f;
-    private float attackWaitTimer = 0;
 
     private CombatActionState combatState;
+    private float attackWaitTimer = 0;
     float stateTimer = 0;
 
     public override void OnStateEnter(EnemyController owner)
@@ -33,6 +33,10 @@ public class CombatMoveState : State<EnemyController>
         _owner.NavAgent.updateRotation = false;
         _owner.NavAgent.angularSpeed = 120f;
         _owner.NavAgent.acceleration = 40f;
+
+        combatState = CombatActionState.Idle;
+        attackWaitTimer = 0;
+        stateTimer = 0;
     }
 
     public override void OnUpdate()

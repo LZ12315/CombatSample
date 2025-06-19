@@ -12,8 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 473e4757b79a67544920fe96d6fd034a, type: 3}
   m_Name: GuardState
   m_EditorClassIdentifier: 
-  idleState: 2
-  AcqIncreaseSpeed: 10
+  idleState: 1
+  AcquisteSpeed: 40
   idleDuration: 3
   glanceMaxAngle: 60
   glanceSpeed: 10

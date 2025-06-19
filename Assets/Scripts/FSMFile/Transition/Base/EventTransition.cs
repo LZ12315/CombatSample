@@ -2,7 +2,6 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-//[CreateAssetMenu(menuName = "FSM/Transition/Common/NormalEvent",fileName ="EventTransition")]
 public abstract class EventTransition<T> : Transition<T>
 {
     [SerializeField] protected string eventName;
@@ -24,7 +23,6 @@ public abstract class EventTransition<T> : Transition<T>
 
     protected virtual void GetEventCallBack()
     {
-        Debug.Log(eventName);
         eventTriggered = true;
     }
 

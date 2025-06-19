@@ -4,35 +4,57 @@ using UnityEngine;
 
 public class PlayerCombater : CharacterCombater
 {
-    [field: Header("追踪体设置")]
+    [field: Header("追踪体参数")]
     [SerializeField] private float AcqFadeSpeed = 5;
-    [field: SerializeField] public float FullAcq { get; set; } = 100;
+    [SerializeField] private float AcqContainsTime = 2;
+    [SerializeField] private float fullAcq { get; set; } = 100;
 
     [field: Header("追踪体信息")]
-    [field: SerializeField] public bool isAcquisted { get; set; }
+    [field: SerializeField] public bool IsAcquised {  get; private set; } = false;
     [SerializeField] private float acquisition = 0;
     public float Acquisition
     {
         get => acquisition;
         set
         {
-            if(value < 0)
+            acquisition = value;
+
+            if(acquisition < 0)
                 acquisition = 0;
-            if(value > FullAcq)
-                acquisition = FullAcq;
+
+            if (acquisition >= fullAcq)
+            {
+                acquisition = fullAcq;
+                IsAcquised = true;
+                acqCunter = AcqContainsTime;
+            }
+
+            if(value > 0)
+            {
+                isAcquisting = true;
+                acqCunter = AcqContainsTime;
+            }
         }
     }
-    [field: SerializeField] public float Quality { get; set; }
+
+    bool isAcquisting = false;
+    float acqCunter = 0;
 
     protected override void Start()
     {
         base.Start();
+
         Acquisition = 0;
     }
 
     private void Update()
     {
-        if(!isAcquisted)
+        if (isAcquisting && acqCunter > 0)
+            acqCunter -= Time.deltaTime;
+        if(acqCunter <= 0)
+            isAcquisting = false;
+
+        if(!isAcquisting)
             Acquisition -= AcqFadeSpeed * Time.deltaTime;
     }
 
