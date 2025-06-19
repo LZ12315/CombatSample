@@ -13,7 +13,17 @@ public class GuardState : State<EnemyController>
     [SerializeField] private IdleActionState idleState;
 
     [Header("感知参数")]
-    [SerializeField] private float AcqIncreaseSpeed = 10f; // Acq增加速度
+    [SerializeField] private float AcquisteSpeed = 10f; // Acq增加速度
+    private Vector3 lookDirection;
+    private IdleActionState IdleState 
+    { 
+        get => idleState; 
+        set
+        {
+            EnterIdleAction(value);
+            idleState = value;
+        }
+    }
 
     [Header("Idle参数")]
     [SerializeField] private float idleDuration;
@@ -28,16 +38,6 @@ public class GuardState : State<EnemyController>
     [SerializeField] private float stareDuration;
 
 
-    private Vector3 lookDirection;
-    private IdleActionState IdleState 
-    { 
-        get => idleState; 
-        set
-        {
-            EnterIdleAction(value);
-            idleState = value;
-        }
-    }
     private float idleTimeCounter = 0;
     private float glanceElapsedTime = 0;
     private Vector3 glanceTargetDir = Vector3.zero;
@@ -65,21 +65,19 @@ public class GuardState : State<EnemyController>
 
         IdleAction();
 
-        foreach (var target in _owner.DetectTargets())
+        foreach (var target in _owner.VisionConeCast())
         {
             PlayerCombater player = target.GetComponent<PlayerCombater>();
             if (player == null) continue;
 
-            if(!_owner.PossibleTargets.Contains(target))
-                _owner.PossibleTargets.Add(target);
-            //Debug.Log("发现Player！");
-            player.isAcquisted = true;
-            player.Acquisition += AcqIncreaseSpeed * Time.deltaTime;
+            _owner.Target = target;
+            player.Acquisition += AcquisteSpeed * Time.deltaTime;
         }
     }
 
     public override void OnStateExit()
     {
+        animControl.IsLooking = false;
         base.OnStateExit();
     }
 
