@@ -107,7 +107,6 @@ public class CombatMoveState : State<EnemyController>
             var rotatePos = Quaternion.Euler(0, circlingSpeed * circlingDir * Time.fixedDeltaTime, 0) * vecToTarget;
 
             _owner.NavAgent.Move(rotatePos - vecToTarget);
-            targetPosition = _owner.NavAgent.nextPosition;
 
             Vector3 velocity = ((_owner.NavAgent.nextPosition - lastPosition) / Time.fixedDeltaTime);
             _owner.LocalMotion(-rotatePos, velocity.normalized, _owner.NavAgent.speed);
@@ -153,23 +152,6 @@ public class CombatMoveState : State<EnemyController>
         _owner.Animator.SetBool("combatMode", false);
 
         base.OnStateExit();
-    }
-
-    Vector3 targetPosition = Vector3.zero;
-    private void OnDrawGizmos()
-    {
-        Gizmos.color = Color.yellow;
-        float rayLength = 4f;
-
-        if(_owner != null)
-        {
-            Vector3 direction = (targetPosition - _owner.transform.position).normalized;
-            direction.y = 0;
-
-            Gizmos.DrawRay(_owner.transform.position, direction * rayLength);
-
-            Gizmos.DrawWireSphere(targetPosition, 0.5f);
-        }
     }
 
     private enum CombatActionState
