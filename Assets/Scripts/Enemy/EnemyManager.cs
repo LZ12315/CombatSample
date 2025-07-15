@@ -24,7 +24,7 @@ public class EnemyManager : MonoBehaviour
     [Header("群体进攻设置")]
     [SerializeField] private Vector2 attackIntervalRandom = new Vector2(3,5);
 
-    private List<EnemyInfo> enemiesInCombat = new List<EnemyInfo>();
+    [field:SerializeField] public List<EnemyInfo> enemiesInCombat { get; private set; } = new List<EnemyInfo>();
     private Queue<EnemyInfo> enemiesToAttack = new Queue<EnemyInfo>();
     private float attackIntervalCounter = 0;
 

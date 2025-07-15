@@ -5,7 +5,7 @@ using Unity.VisualScripting;
 using UnityEngine;
 
 [CreateAssetMenu(menuName = "FSM/Transition/Enemy/TargetPerception",fileName ="TargetPerception") ]
-public class TargetPerceptionCheck : Transition<EnemyController>
+public class TargetPerceptionCheck_Enemy : Transition<EnemyController>
 {
 
 
