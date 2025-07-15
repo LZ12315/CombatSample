@@ -2,7 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class PlayerCombater : CharacterCombater
+public class PlayerCombater : Combater
 {
     [field: Header("×·×ÙÌå²ÎÊı")]
     [SerializeField] private float AcqFadeSpeed = 5;

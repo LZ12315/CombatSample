@@ -12,13 +12,13 @@ struct CommandInfo
     }
 }
 
-public class CharacterCombater : MonoBehaviour
+public class Combater : MonoBehaviour
 {
     PlayerInputControl inputControl;
     Animator animator;
 
     [Header("’Ω∂∑…Ë÷√")]
-    [SerializeField] protected GameObject swordGamobject;
+    [SerializeField] protected GameObject swordObject;
     protected Dictionary<Utils.Enums.AttackHitBox, Collider> HitBoxColliders = new Dictionary<Utils.Enums.AttackHitBox, Collider>();
 
     [SerializeField] protected List<AttackData> attacks = new List<AttackData>();
@@ -105,7 +105,7 @@ public class CharacterCombater : MonoBehaviour
 
     protected void OnTriggerEnter(Collider other)
     {
-        if (other.gameObject.tag == "HitBox" && !InAction)
+        if (other.gameObject.tag == "HitBox")
             StartCoroutine(GetAttack());
     }
 
@@ -146,8 +146,8 @@ public class CharacterCombater : MonoBehaviour
 
     void GetAttackComponent()
     {
-        if (swordGamobject != null)
-            AddPartCollider(Utils.Enums.AttackHitBox.Sword, swordGamobject.GetComponent<BoxCollider>());
+        if (swordObject != null)
+            AddPartCollider(Utils.Enums.AttackHitBox.Sword, swordObject.GetComponent<BoxCollider>());
         if (animator != null)
         {
             AddPartCollider(Utils.Enums.AttackHitBox.LeftHand, animator.GetBoneTransform(HumanBodyBones.LeftHand)?.GetComponent<Collider>());
