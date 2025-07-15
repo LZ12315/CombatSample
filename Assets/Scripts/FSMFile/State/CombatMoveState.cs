@@ -29,11 +29,6 @@ public class CombatMoveState : State<EnemyController>
         if (EnemyManager.Instance != null)
             EnemyManager.Instance.AddEnemy(_owner.Info);
 
-        _owner.NavAgent.updatePosition = false;
-        _owner.NavAgent.updateRotation = false;
-        _owner.NavAgent.angularSpeed = 120f;
-        _owner.NavAgent.acceleration = 40f;
-
         combatState = CombatActionState.Idle;
         attackWaitTimer = 0;
         stateTimer = 0;

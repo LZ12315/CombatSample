@@ -13,8 +13,8 @@ public class IsSoloTransition_Enemy : Transition<EnemyController>
 
     bool IsSolo()
     {
-        if (EnemyManager.Instance == null) 
-            return false;
+        if (EnemyManager.Instance == null)
+            return true;
 
         if (EnemyManager.Instance.enemiesInCombat.Count > 1) 
             return false;

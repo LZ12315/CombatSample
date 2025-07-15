@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Unity.VisualScripting;
 using UnityEngine;
 
 [Serializable]
@@ -19,7 +20,14 @@ public struct EnemyInfo
 
 public class EnemyManager : MonoBehaviour
 {
-    public static EnemyManager Instance;
+    private static EnemyManager instance;
+    public static EnemyManager Instance
+    {
+        get
+        {
+            return instance;
+        }
+    }
 
     [Header("群体进攻设置")]
     [SerializeField] private Vector2 attackIntervalRandom = new Vector2(3,5);
@@ -28,9 +36,9 @@ public class EnemyManager : MonoBehaviour
     private Queue<EnemyInfo> enemiesToAttack = new Queue<EnemyInfo>();
     private float attackIntervalCounter = 0;
 
-    private void Awake()
+    private void Start()
     {
-        Instance = this;
+        instance = this;
         attackIntervalCounter = UnityEngine.Random.Range(attackIntervalRandom.x, attackIntervalRandom.y);
     }
 

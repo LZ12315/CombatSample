@@ -6,11 +6,16 @@ using UnityEngine;
 
 public abstract class StateMachine<T> : MonoBehaviour where T : class
 {
+    protected T _owner;
+
+    [field: Header("FSM Info")]
     [field: SerializeField] public State<T> CurrentState { get; protected set; }
+
+    [Header("FSM…Ë÷√")]
     [SerializeField] protected List<TransitionMapBranch> stateMachineMap = new List<TransitionMapBranch>();
     [SerializeField] protected State<T> startState;
+    [SerializeField] protected State<T> defaultState;
 
-    protected T _owner;
     protected Dictionary<State<T>, List<TransitionLine>> mapDictionary;
     public Dictionary<State<T>, List<TransitionLine>> AsDictionary
     {
@@ -28,7 +33,7 @@ public abstract class StateMachine<T> : MonoBehaviour where T : class
         }
     }
 
-    protected virtual void Awake()
+    protected virtual void Start()
     {
         _owner = GetComponent<T>();
 
@@ -49,6 +54,8 @@ public abstract class StateMachine<T> : MonoBehaviour where T : class
         {
             foreach (var transitionLine in currentTransitions)
             {
+                if(transitionLine.transition == null) continue;
+
                 if (transitionLine.transition.ToTransition())
                 {
                     ChangeState(transitionLine.targetState);
@@ -78,6 +85,24 @@ public abstract class StateMachine<T> : MonoBehaviour where T : class
         EnterState(state);
     }
 
+    public virtual void NextState()
+    {
+        List<TransitionLine> currentTransitions;
+        AsDictionary.TryGetValue(CurrentState, out currentTransitions);
+
+        if (currentTransitions != null)
+        {
+            foreach (var transitionLine in currentTransitions)
+            {
+                if (transitionLine.transition == null || transitionLine.transition.ToTransition())
+                {
+                    ChangeState(transitionLine.targetState);
+                    break;
+                }
+            }
+        }
+    }
+
     public virtual bool IsInState(Type stateType)
     {
         if(stateType == null) return false;
@@ -94,7 +119,8 @@ public abstract class StateMachine<T> : MonoBehaviour where T : class
         if (currentTransitions != null)
         {
             foreach (var transitionLine in currentTransitions)
-                transitionLine.transition.OnStateExit();
+                if (transitionLine.transition != null)
+                    transitionLine.transition.OnStateExit();
         }
     }
 
@@ -108,7 +134,8 @@ public abstract class StateMachine<T> : MonoBehaviour where T : class
         if (currentTransitions != null)
         {
             foreach (var transitionLine in currentTransitions)
-                transitionLine.transition.OnStateEnter(_owner);
+                if(transitionLine.transition != null)
+                    transitionLine.transition.OnStateEnter(_owner);
         }
     }
 
