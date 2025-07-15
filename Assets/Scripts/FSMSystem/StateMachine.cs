@@ -6,9 +6,9 @@ using UnityEngine;
 
 public abstract class StateMachine<T> : MonoBehaviour where T : class
 {
+    [field: SerializeField] public State<T> CurrentState { get; protected set; }
     [SerializeField] protected List<TransitionMapBranch> stateMachineMap = new List<TransitionMapBranch>();
     [SerializeField] protected State<T> startState;
-    [field: SerializeField] public State<T> CurrentState { get; protected set; }
 
     protected T _owner;
     protected Dictionary<State<T>, List<TransitionLine>> mapDictionary;
