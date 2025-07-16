@@ -103,13 +103,6 @@ public abstract class StateMachine<T> : MonoBehaviour where T : class
         }
     }
 
-    public virtual bool IsInState(Type stateType)
-    {
-        if(stateType == null) return false;
-
-        return CurrentState.GetType() == stateType;   
-    }
-
     void ExitState()
     {
         CurrentState.OnStateExit();

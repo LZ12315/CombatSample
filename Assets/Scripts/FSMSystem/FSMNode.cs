@@ -15,6 +15,7 @@ using UnityEngine;
 ///运行时类型安全检查：
 ///通过在基类中约束TNode必须派生自FSMNode<T, TNode>，确保获取的克隆类型合法
 /// </summary>
+
 public abstract class FSMNode<T, TNode> : ScriptableObject
 where TNode : FSMNode<T, TNode>
 {
