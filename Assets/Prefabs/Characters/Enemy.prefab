@@ -1885,11 +1885,12 @@ MonoBehaviour:
   m_GameObject: {fileID: 5661126940569074627}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 70d9e085ecbccda4389204b16ae49d73, type: 3}
+  m_Script: {fileID: 11500000, guid: 2b9b14dc29f7c8a478b4907c0dce0d1b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  swordGamobject: {fileID: 0}
-  attacks: []
+  swordObject: {fileID: 0}
+  attacks:
+  - {fileID: 11400000, guid: 038721070df670f4585c3056e05e94e9, type: 2}
   <InAction>k__BackingField: 0
 --- !u!114 &8069085659496517845
 MonoBehaviour:
@@ -1903,6 +1904,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7f58bc238b463d240a3cc57044a43787, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  <CurrentState>k__BackingField: {fileID: 0}
   stateMachineMap:
   - branchName: Guard->CombatMove
     sourceState: {fileID: 11400000, guid: dc9eb8f39a98d1240a153cb14fb47289, type: 2}
@@ -1923,7 +1925,7 @@ MonoBehaviour:
     - transition: {fileID: 11400000, guid: b8e09170be63cd147b4a9228d03777f2, type: 2}
       targetState: {fileID: 11400000, guid: 677cf0d979ce89a4b9e5f1a5f7aeacae, type: 2}
   startState: {fileID: 11400000, guid: dc9eb8f39a98d1240a153cb14fb47289, type: 2}
-  <CurrentState>k__BackingField: {fileID: 0}
+  defaultState: {fileID: 0}
   FSMSetting: {fileID: 11400000, guid: 9ff29a3712cc8584587d824b9957429c, type: 2}
 --- !u!1 &5676772250831728693
 GameObject:
