@@ -35,6 +35,8 @@ public class CameraController : MonoBehaviour
 
     private void Update()
     {
+        if(followTarget == null) return;
+
         Vector2 lookInput = inputControl.Player.Look.ReadValue<Vector2>();
 
         rotationX += lookInput.y * rotationSpeedY * invertXVal * Time.deltaTime;
