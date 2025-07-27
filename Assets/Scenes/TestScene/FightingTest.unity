@@ -916,10 +916,6 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 8430437223595106808, guid: a280257f0a7771c479001e053d416c5f,
         type: 3}
       insertIndex: 2
-      addedObject: {fileID: 2014964249}
-    - targetCorrespondingSourceObject: {fileID: 8430437223595106808, guid: a280257f0a7771c479001e053d416c5f,
-        type: 3}
-      insertIndex: 3
       addedObject: {fileID: 2014964248}
     - targetCorrespondingSourceObject: {fileID: 8430437223595106808, guid: a280257f0a7771c479001e053d416c5f,
         type: 3}
@@ -948,24 +944,6 @@ Transform:
     type: 3}
   m_PrefabInstance: {fileID: 1196282064}
   m_PrefabAsset: {fileID: 0}
---- !u!95 &1196282066 stripped
-Animator:
-  m_CorrespondingSourceObject: {fileID: 3330998597084317928, guid: a280257f0a7771c479001e053d416c5f,
-    type: 3}
-  m_PrefabInstance: {fileID: 1196282064}
-  m_PrefabAsset: {fileID: 0}
---- !u!114 &1196282067 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 6068393064586612582, guid: a280257f0a7771c479001e053d416c5f,
-    type: 3}
-  m_PrefabInstance: {fileID: 1196282064}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2014964238}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 32b6f99b419752f43b8c4bfd716d548a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1 &1278791869 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 2036122809126990285, guid: a280257f0a7771c479001e053d416c5f,
@@ -1231,27 +1209,6 @@ MonoBehaviour:
   GravityScale: 1
   physicsVelocity: {x: 0, y: 0, z: 0}
   frameVelocity: {x: 0, y: 0, z: 0}
---- !u!320 &2014964249
-PlayableDirector:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2014964238}
-  m_Enabled: 1
-  serializedVersion: 3
-  m_PlayableAsset: {fileID: 11400000, guid: e26f839a7e52e794993330052ed6d628, type: 2}
-  m_InitialState: 1
-  m_WrapMode: 2
-  m_DirectorUpdateMode: 1
-  m_InitialTime: 0
-  m_SceneBindings:
-  - key: {fileID: -4315314933101426833, guid: e26f839a7e52e794993330052ed6d628, type: 2}
-    value: {fileID: 1196282066}
-  - key: {fileID: 9187716091817626314, guid: e26f839a7e52e794993330052ed6d628, type: 2}
-    value: {fileID: 1196282067}
-  m_ExposedReferences:
-    m_References: []
 --- !u!1001 &1353027051483448498
 PrefabInstance:
   m_ObjectHideFlags: 0
