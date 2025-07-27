@@ -23,6 +23,9 @@ public class ActionTransitionClip : PlayableBehaviour
     {
         if(isPlaying) return;
         isPlaying = true;
+
+        controller = info.output.GetUserData() as PlayerController;
+        if(controller == null ) return;
     }
 
     public override void OnBehaviourPause(Playable playable, FrameData info)

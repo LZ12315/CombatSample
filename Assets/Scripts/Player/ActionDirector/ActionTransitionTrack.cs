@@ -8,5 +8,4 @@ using UnityEngine.Timeline;
 public class ActionTransitionTrack : TrackAsset
 { 
 
-
 }
