@@ -5,5 +5,5 @@ using UnityEngine;
 public class Actor : MonoBehaviour
 {
     public ActorLogicInput logicInput;
-    public PlayerController playerController;
+    public ActorMovement actorMovement;
 }
