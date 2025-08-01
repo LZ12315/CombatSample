@@ -64,7 +64,7 @@ public class EnemyManager : MonoBehaviour
     {
         if (enemiesToAttack.Count == 0) return;
 
-        if (!enemiesInCombat.Any(enemy => enemy.controller.StateMachine.IsInState(Utils.Enums.EnemyStates.Attack)))
+        if (!enemiesInCombat.Any(enemy => enemy.controller.StateMachine.IsInState(Enums.EnemyStates.Attack)))
         {
             if (attackIntervalCounter > 0)
                 attackIntervalCounter -= Time.deltaTime;

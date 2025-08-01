@@ -41,7 +41,7 @@ public class AttackState : State<EnemyController>
         isAttack = true;
         _owner.MeleeAttacker.TryAttack();
 
-        yield return new WaitUntil(() => _owner.MeleeAttacker.AttackState == Utils.Enums.AttackStates.Idle);
+        yield return new WaitUntil(() => _owner.MeleeAttacker.AttackState == Enums.AttackStates.Idle);
 
         isAttack = false;
         _owner.StateMachine.NextState();

@@ -5,6 +5,7 @@ using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.InputSystem;
+using CombatSample.Consts;
 
 public class EnemyController : MonoBehaviour
 {
@@ -226,14 +227,10 @@ public class EnemyController : MonoBehaviour
 
 }
 
-public static partial class Utils
+public static partial class Enums
 {
-
-    public static partial class Enums
+    public enum EnemyStates
     {
-        public enum EnemyStates
-        {
-            None, Idle, CombatMove, Attack, Retreat
-        }
+        None, Idle, CombatMove, Attack, Retreat
     }
 }

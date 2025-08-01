@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Playables;
+using UnityEngine.Timeline;
 
 public class ActionTransitionAsset : PlayableAsset
 {
@@ -16,7 +17,10 @@ public class ActionTransitionAsset : PlayableAsset
 
 public class ActionTransitionClip : PlayableBehaviour
 {
-    PlayerController controller;
+    public string displayName = string.Empty;
+    public TimelineAsset action;
+
+    Actor actor;
     bool isPlaying = false;
 
     public override void OnBehaviourPlay(Playable playable, FrameData info)
@@ -24,8 +28,8 @@ public class ActionTransitionClip : PlayableBehaviour
         if(isPlaying) return;
         isPlaying = true;
 
-        controller = info.output.GetUserData() as PlayerController;
-        if(controller == null ) return;
+        actor = info.output.GetUserData() as Actor;
+        if(actor == null ) return;
     }
 
     public override void OnBehaviourPause(Playable playable, FrameData info)

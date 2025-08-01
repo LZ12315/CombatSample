@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using CombatSample.Consts;
 
 struct CommandInfo
 {
@@ -19,11 +20,11 @@ public class Combater : MonoBehaviour
 
     [Header("’Ω∂∑…Ë÷√")]
     [SerializeField] protected GameObject swordObject;
-    protected Dictionary<Utils.Enums.AttackHitBox, Collider> HitBoxColliders = new Dictionary<Utils.Enums.AttackHitBox, Collider>();
+    protected Dictionary<Enums.AttackHitBox, Collider> HitBoxColliders = new Dictionary<Enums.AttackHitBox, Collider>();
 
     [SerializeField] protected List<AttackData> attacks = new List<AttackData>();
     [field : SerializeField] public bool InAction { get; private set; }
-    public Utils.Enums.AttackStates AttackState {  get; private set; }
+    public Enums.AttackStates AttackState {  get; private set; }
 
     protected void Awake()
     {
@@ -44,14 +45,14 @@ public class Combater : MonoBehaviour
 
         if (!InAction)
             StartCoroutine(Attack());
-        else if (AttackState == Utils.Enums.AttackStates.Impact || AttackState == Utils.Enums.AttackStates.ColdDown)
+        else if (AttackState == Enums.AttackStates.Impact || AttackState == Enums.AttackStates.ColdDown)
             doCombo = true;
     }
 
     protected IEnumerator Attack()
     {
         InAction = true;
-        AttackState = Utils.Enums.AttackStates.WindUp;
+        AttackState = Enums.AttackStates.WindUp;
 
         AttackData attack = attacks[comboCount];
         animator.CrossFade(attack.AnimName, 0.2f);
@@ -65,21 +66,21 @@ public class Combater : MonoBehaviour
             float normalizedTime = timer / animState.length;
             switch (AttackState)
             {
-                case Utils.Enums.AttackStates.WindUp:
+                case Enums.AttackStates.WindUp:
                     if (normalizedTime >= attack.ImpactStartTime)
                     {
-                        AttackState = Utils.Enums.AttackStates.Impact;
+                        AttackState = Enums.AttackStates.Impact;
                         EnableHitBox(attack);
                     }
                     break;
-                case Utils.Enums.AttackStates.Impact:
+                case Enums.AttackStates.Impact:
                     if (normalizedTime >= attack.ImpactEndTime)
                     {
-                        AttackState = Utils.Enums.AttackStates.ColdDown;
+                        AttackState = Enums.AttackStates.ColdDown;
                         DisableAllHitBoxes();
                     }
                     break;
-                case Utils.Enums.AttackStates.ColdDown:
+                case Enums.AttackStates.ColdDown:
                     {
                         if(doCombo)
                         {
@@ -97,7 +98,7 @@ public class Combater : MonoBehaviour
             yield return null;
         }
 
-        AttackState = Utils.Enums.AttackStates.Idle;
+        AttackState = Enums.AttackStates.Idle;
         comboCount = 0;
         InAction = false;
     }
@@ -147,18 +148,18 @@ public class Combater : MonoBehaviour
     void GetAttackComponent()
     {
         if (swordObject != null)
-            AddPartCollider(Utils.Enums.AttackHitBox.Sword, swordObject.GetComponent<BoxCollider>());
+            AddPartCollider(Enums.AttackHitBox.Sword, swordObject.GetComponent<BoxCollider>());
         if (animator != null)
         {
-            AddPartCollider(Utils.Enums.AttackHitBox.LeftHand, animator.GetBoneTransform(HumanBodyBones.LeftHand)?.GetComponent<Collider>());
-            AddPartCollider(Utils.Enums.AttackHitBox.RightHand, animator.GetBoneTransform(HumanBodyBones.RightHand)?.GetComponent<Collider>());
-            AddPartCollider(Utils.Enums.AttackHitBox.LeftFoot, animator.GetBoneTransform(HumanBodyBones.LeftFoot)?.GetComponent<Collider>());
-            AddPartCollider(Utils.Enums.AttackHitBox.RightFoot, animator.GetBoneTransform(HumanBodyBones.RightFoot)?.GetComponent<Collider>());
+            AddPartCollider(Enums.AttackHitBox.LeftHand, animator.GetBoneTransform(HumanBodyBones.LeftHand)?.GetComponent<Collider>());
+            AddPartCollider(Enums.AttackHitBox.RightHand, animator.GetBoneTransform(HumanBodyBones.RightHand)?.GetComponent<Collider>());
+            AddPartCollider(Enums.AttackHitBox.LeftFoot, animator.GetBoneTransform(HumanBodyBones.LeftFoot)?.GetComponent<Collider>());
+            AddPartCollider(Enums.AttackHitBox.RightFoot, animator.GetBoneTransform(HumanBodyBones.RightFoot)?.GetComponent<Collider>());
         }
         DisableAllHitBoxes();
     }
 
-    void AddPartCollider(Utils.Enums.AttackHitBox part, Collider collider)
+    void AddPartCollider(Enums.AttackHitBox part, Collider collider)
     {
         if(HitBoxColliders.ContainsKey(part))
             HitBoxColliders[part] = collider;
@@ -170,13 +171,10 @@ public class Combater : MonoBehaviour
 
 }
 
-public static partial class Utils
+public static partial class Enums
 {
-    public static partial class Enums
+    public enum AttackStates
     {
-        public enum AttackStates
-        {
-            Idle, WindUp, Impact, ColdDown
-        }
+        Idle, WindUp, Impact, ColdDown
     }
 }
