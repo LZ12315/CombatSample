@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using CombatSample.Consts;
 
 [CreateAssetMenu(menuName = "CombatSystem/AttackData")]
 public class AttackData : ScriptableObject
@@ -9,7 +10,7 @@ public class AttackData : ScriptableObject
     public string AnimName { get; private set;}
 
     [SerializeField]
-    public Utils.Enums.AttackHitBox hitBoxType;
+    public Enums.AttackHitBox hitBoxType;
 
     [field : SerializeField]
     public float ImpactStartTime { get; private set;}
@@ -18,14 +19,10 @@ public class AttackData : ScriptableObject
     public float ImpactEndTime { get; private set;}
 }
 
-public static partial class Utils
+public static partial class Enums
 {
-    public static partial class Enums
+    public enum AttackHitBox
     {
-        public enum AttackHitBox
-        {
-            None, Sword, LeftHand, LeftFoot, RightHand, RightFoot
-        }
+        None, Sword, LeftHand, LeftFoot, RightHand, RightFoot
     }
-
 }

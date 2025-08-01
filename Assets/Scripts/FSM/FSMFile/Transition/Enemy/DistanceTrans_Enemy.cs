@@ -1,12 +1,13 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using CombatSample.Consts;
 
 [CreateAssetMenu(menuName = "FSM/Transition/Enemy/TargetDistance", fileName = "TargetDistanceTransition")]
 public class DistanceTrans_Enemy : Transition<EnemyController>
 {
     [SerializeField] private float value;
-    [SerializeField] private Utils.Enums.ConditionFunc function;
+    [SerializeField] private Enums.ConditionFunc function;
 
     public override bool ToTransition()
     {
@@ -22,15 +23,15 @@ public class DistanceTrans_Enemy : Transition<EnemyController>
         float distance = Vector3.Distance(_owner.transform.position, target.position);
         switch(function)
         {
-            case Utils.Enums.ConditionFunc.More:
+            case Enums.ConditionFunc.More:
                 return distance > value;
-            case Utils.Enums.ConditionFunc.Less:
+            case Enums.ConditionFunc.Less:
                 return distance < value;
-            case Utils.Enums.ConditionFunc.Equal:
+            case Enums.ConditionFunc.Equal:
                 return distance == value;
-            case Utils.Enums.ConditionFunc.MoreOrEqual:
+            case Enums.ConditionFunc.MoreOrEqual:
                 return distance >= value;
-            case Utils.Enums.ConditionFunc.LessOrEqual:
+            case Enums.ConditionFunc.LessOrEqual:
                 return distance <= value;   
         }
 
@@ -38,13 +39,10 @@ public class DistanceTrans_Enemy : Transition<EnemyController>
     }
 }
 
-public static partial class Utils
+public static partial class Enums
 {
-    public static partial class Enums
+    public enum ConditionFunc
     {
-        public enum ConditionFunc
-        {
-            More, Less, Equal, MoreOrEqual, LessOrEqual
-        }
+        More, Less, Equal, MoreOrEqual, LessOrEqual
     }
 }

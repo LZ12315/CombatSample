@@ -2,11 +2,10 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public static partial class Utils
+namespace CombatSample.Consts
 {
     public static partial class Enums
     {
 
     }
 }
-

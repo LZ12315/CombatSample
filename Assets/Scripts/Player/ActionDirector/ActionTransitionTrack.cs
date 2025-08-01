@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.Timeline;
 
 [TrackClipType(typeof(ActionTransitionAsset))]
-[TrackBindingType(typeof(PlayerController))]
+[TrackBindingType(typeof(Actor))]
 public class ActionTransitionTrack : TrackAsset
 { 
 
