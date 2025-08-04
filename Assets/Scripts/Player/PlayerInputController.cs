@@ -1,7 +1,6 @@
 using Cinemachine;
 using System.Collections;
 using System.Collections.Generic;
-using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -11,7 +10,7 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
     PlayerInputControl actions;
 
     public Actor controlledActor;
-    public CinemachineFreeLook vcam;
+    public CameraController cameraControl;
 
     private void Awake()
     {
@@ -24,6 +23,7 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
 
     private void Start()
     {
+        cameraControl = Camera.main.GetComponent<CameraController>();
         SetControlledActor(FindFirstObjectByType<Actor>());
     }
 
@@ -40,22 +40,22 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
     public void SetControlledActor(Actor controlledActor)
     {
         this.controlledActor = controlledActor;
-        vcam.Follow = controlledActor.transform;
-        vcam.LookAt = controlledActor.transform;
     }
 
     void Update()
     {
         if(controlledActor == null) return;
 
-        //controlledActor.logicInput.InputMove(ConvertFromCameraLocalToWorld(rawMove));
-        controlledActor.logicInput.InputMove(rawMove);
+        Vector3 moveDir = cameraControl.RotationVertical * new Vector3(rawMove.x, 0, rawMove.y);
+        controlledActor.logicInput.InputMove(moveDir, moveDistance);
     }
 
     Vector2 rawMove = Vector2.zero;
+    float moveDistance = 0f;
     public void OnMove(InputAction.CallbackContext context)
     {
         rawMove = context.ReadValue<Vector2>();
+        moveDistance = rawMove.magnitude;
     }
 
     private Vector3 ConvertFromCameraLocalToWorld(Vector2 move)
