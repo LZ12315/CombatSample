@@ -6,10 +6,19 @@ using UnityEngine.Timeline;
 
 public class ActionTransitionAsset : PlayableAsset
 {
+    public bool active = true;
+    public Enums.InputType inputType;
+    public TimelineAsset action;
+
     public override Playable CreatePlayable(PlayableGraph graph, GameObject owner)
     {
         var playable = ScriptPlayable<ActionTransitionClip>.Create(graph);
         ActionTransitionClip clip = playable.GetBehaviour();
+
+        clip.active = active;
+        clip.inputType = inputType;
+        clip.action = action;
+
         return playable;
     }
 
@@ -17,10 +26,10 @@ public class ActionTransitionAsset : PlayableAsset
 
 public class ActionTransitionClip : PlayableBehaviour
 {
-    public string displayName = string.Empty;
+    public bool active;
+    public Enums.InputType inputType;
     public TimelineAsset action;
-
-    Actor actor;
+    Actor actor = null;
     bool isPlaying = false;
 
     public override void OnBehaviourPlay(Playable playable, FrameData info)
@@ -28,14 +37,27 @@ public class ActionTransitionClip : PlayableBehaviour
         if(isPlaying) return;
         isPlaying = true;
 
-        actor = info.output.GetUserData() as Actor;
+        var director = playable.GetGraph().GetResolver() as PlayableDirector;
+        actor = director.GetComponent<Actor>();
         if(actor == null ) return;
+
+        if(active)
+            actor.logicInput.AddEventListener(inputType, OnEventTriggered);
+    }
+
+    protected virtual void OnEventTriggered()
+    {
+        if(!active) return;
+        actor.actionPlayerDirector.PlayAction(action);
     }
 
     public override void OnBehaviourPause(Playable playable, FrameData info)
     {
         if(!isPlaying) return;
         isPlaying = false;
+
+        if(actor != null)
+            actor.logicInput.RemoveEventListener(inputType, OnEventTriggered);
     }
 
 }

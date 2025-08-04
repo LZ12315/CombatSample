@@ -1,9 +1,11 @@
 using System.Collections;
 using System.Collections.Generic;
+using UnityEditor;
 using UnityEditor.Timeline;
 using UnityEngine;
 using UnityEngine.Timeline;
 
+// 这里CustomTimelineEditor限定的目标为TrackAsset
 [CustomTimelineEditor(typeof(ActionTransitionTrack))]
 public class ActionTransitionTrackEditor : TrackEditor
 {
@@ -23,15 +25,21 @@ public class ActionTransitionTrackEditor : TrackEditor
     }
 }
 
-[CustomTimelineEditor(typeof(ActionTransitionTrack))]
+// 这里CustomTimelineEditor限定的目标为PlayableAsset
+[CustomTimelineEditor(typeof(ActionTransitionAsset))]
 class ActionTransitionClipEditor : ClipEditor
 {
+
     public override void OnClipChanged(TimelineClip clip)
     {
-        base.OnClipChanged(clip);
-
         var asset = clip.asset as ActionTransitionAsset;
-        if(asset == null) return;
+        if (asset == null) return;
 
+        var inputType = asset.inputType.ToString();
+        var nextActionName = asset.action != null ? asset.action.name : "无";
+
+        clip.displayName = $"When {inputType} -> {nextActionName}";
+
+        TimelineEditor.Refresh(RefreshReason.ContentsModified);
     }
 }
