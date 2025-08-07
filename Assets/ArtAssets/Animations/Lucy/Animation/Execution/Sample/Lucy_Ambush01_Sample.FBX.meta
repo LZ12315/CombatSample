@@ -1,14 +1,14 @@
 fileFormatVersion: 2
-guid: 8489adf5c71f63446a18e9e31f9d23c6
+guid: d48a87f2140a1be4483cb2bc55c10b76
 ModelImporter:
   serializedVersion: 22200
   internalIDToNameTable:
   - first:
-      74: -8338184655020111442
-    second: Lucy@SKIN_Ver5
+      74: -5807609091073750913
+    second: Lucy_Ambush01_Sample
   externalObjects: {}
   materials:
-    materialImportMode: 0
+    materialImportMode: 2
     materialName: 0
     materialSearch: 1
     materialLocation: 1
@@ -22,11 +22,29 @@ ModelImporter:
     rigImportErrors: 
     rigImportWarnings: 
     animationImportErrors: 
-    animationImportWarnings: "\nClip 'Lucy@SKIN_Ver5' has import animation warnings
-      that might lower retargeting quality:\nNote: Activate translation DOF on avatar
-      to improve retargeting quality.\n\t'upperarm_r' has translation animation that
-      will be discarded.\n\t'calf_l' has translation animation that will be discarded.\n\t'calf_r'
-      has translation animation that will be discarded.\n"
+    animationImportWarnings: "\nClip 'Lucy_Ambush01_Sample' has import animation
+      warnings that might lower retargeting quality:\nNote: Activate translation
+      DOF on avatar to improve retargeting quality.\n\t'spine_01' has translation
+      animation that will be discarded.\n\t'spine_02' has translation animation that
+      will be discarded.\n\t'upperarm_l' has translation animation that will be discarded.\n\t'lowerarm_l'
+      has translation animation that will be discarded.\n\t'upperarm_r' has translation
+      animation that will be discarded.\n\t'lowerarm_r' has translation animation
+      that will be discarded.\n\t'hand_r' has translation animation that will be
+      discarded.\n\t'ring_01_r' has translation animation that will be discarded.\n\t'ring_02_r'
+      has translation animation that will be discarded.\n\t'ring_03_r' has translation
+      animation that will be discarded.\n\t'middle_01_r' has translation animation
+      that will be discarded.\n\t'middle_02_r' has translation animation that will
+      be discarded.\n\t'middle_03_r' has translation animation that will be discarded.\n\t'thumb_01_r'
+      has translation animation that will be discarded.\n\t'thumb_02_r' has translation
+      animation that will be discarded.\n\t'thumb_03_r' has translation animation
+      that will be discarded.\n\t'index_01_r' has translation animation that will
+      be discarded.\n\t'index_02_r' has translation animation that will be discarded.\n\t'index_03_r'
+      has translation animation that will be discarded.\n\t'pinky_01_r' has translation
+      animation that will be discarded.\n\t'pinky_02_r' has translation animation
+      that will be discarded.\n\t'pinky_03_r' has translation animation that will
+      be discarded.\n\t'calf_l' has translation animation that will be discarded.\n\t'calf_r'
+      has translation animation that will be discarded.\n\t'ball_r' has translation
+      animation that will be discarded.\n"
     animationRetargetingWarnings: 
     animationDoRetargetingWarnings: 0
     importAnimatedCustomProperties: 0
@@ -38,7 +56,36 @@ ModelImporter:
     animationWrapMode: 0
     extraExposedTransformPaths: []
     extraUserProperties: []
-    clipAnimations: []
+    clipAnimations:
+    - serializedVersion: 16
+      name: Lucy_Ambush01_Sample
+      takeName: Lucy_Ambush01_Sample
+      internalID: -5807609091073750913
+      firstFrame: 0
+      lastFrame: 450
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 1
+      loopBlend: 0
+      loopBlendOrientation: 1
+      loopBlendPositionY: 1
+      loopBlendPositionXZ: 1
+      keepOriginalOrientation: 1
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 1
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
     isReadable: 0
   meshes:
     lODScreenPercentages: []
@@ -49,9 +96,9 @@ ModelImporter:
     sortHierarchyByName: 1
     importPhysicalCameras: 1
     importVisibility: 1
-    importBlendShapes: 0
+    importBlendShapes: 1
     importCameras: 1
-    importLights: 0
+    importLights: 1
     nodeNameCollisionStrategy: 0
     fileIdsGeneration: 2
     swapUVChannels: 0
@@ -1158,14 +1205,15 @@ ModelImporter:
     feetSpacing: 0
     globalScale: 1
     rootMotionBoneName: 
-    hasTranslationDoF: 1
+    hasTranslationDoF: 0
     hasExtraRoot: 1
     skeletonHasParents: 1
-  lastHumanDescriptionAvatarSource: {instanceID: 0}
+  lastHumanDescriptionAvatarSource: {fileID: 9000000, guid: 8489adf5c71f63446a18e9e31f9d23c6,
+    type: 3}
   autoGenerateAvatarMappingIfUnspecified: 1
   animationType: 3
   humanoidOversampling: 1
-  avatarSetup: 1
+  avatarSetup: 2
   addHumanoidExtraRootOnlyWhenUsingAvatar: 1
   importBlendShapeDeformPercent: 0
   remapMaterialsIfMaterialImportModeIsNone: 0
