@@ -384,12 +384,12 @@ PrefabInstance:
         type: 3}
       propertyPath: m_PlayableAsset
       value: 
-      objectReference: {fileID: 11400000, guid: f75ff7ec019e9d246a518244e04a774a,
+      objectReference: {fileID: -6727222438805328270, guid: 6009959a459e7764a845ffbc39cffe67,
         type: 2}
     - target: {fileID: 3647181986542200228, guid: a4a20f7de8c53684f97be75dd7045953,
         type: 3}
       propertyPath: m_SceneBindings.Array.size
-      value: 2
+      value: 4
       objectReference: {fileID: 0}
     - target: {fileID: 3647181986542200228, guid: a4a20f7de8c53684f97be75dd7045953,
         type: 3}
@@ -401,13 +401,13 @@ PrefabInstance:
         type: 3}
       propertyPath: m_SceneBindings.Array.data[2].key
       value: 
-      objectReference: {fileID: -3895146743622611222, guid: f75ff7ec019e9d246a518244e04a774a,
+      objectReference: {fileID: -9129762027064860335, guid: d678db735f8a6a54987b7233397219d5,
         type: 2}
     - target: {fileID: 3647181986542200228, guid: a4a20f7de8c53684f97be75dd7045953,
         type: 3}
       propertyPath: m_SceneBindings.Array.data[3].key
       value: 
-      objectReference: {fileID: -3895146743622611222, guid: f75ff7ec019e9d246a518244e04a774a,
+      objectReference: {fileID: 6636448727369895916, guid: 6009959a459e7764a845ffbc39cffe67,
         type: 2}
     - target: {fileID: 3647181986542200228, guid: a4a20f7de8c53684f97be75dd7045953,
         type: 3}
@@ -418,12 +418,12 @@ PrefabInstance:
         type: 3}
       propertyPath: m_SceneBindings.Array.data[2].value
       value: 
-      objectReference: {fileID: 154090522}
+      objectReference: {fileID: 1846897384}
     - target: {fileID: 3647181986542200228, guid: a4a20f7de8c53684f97be75dd7045953,
         type: 3}
       propertyPath: m_SceneBindings.Array.data[3].value
       value: 
-      objectReference: {fileID: 154090522}
+      objectReference: {fileID: 1846897384}
     - target: {fileID: 3729715223357292664, guid: a4a20f7de8c53684f97be75dd7045953,
         type: 3}
       propertyPath: m_LocalRotation.w
@@ -529,6 +529,12 @@ PrefabInstance:
       propertyPath: m_LocalRotation.z
       value: 0.95359945
       objectReference: {fileID: 0}
+    - target: {fileID: 4150485468282513386, guid: a4a20f7de8c53684f97be75dd7045953,
+        type: 3}
+      propertyPath: defaultAction
+      value: 
+      objectReference: {fileID: 11400000, guid: d678db735f8a6a54987b7233397219d5,
+        type: 2}
     - target: {fileID: 4261443454828628193, guid: a4a20f7de8c53684f97be75dd7045953,
         type: 3}
       propertyPath: m_LocalPosition.x

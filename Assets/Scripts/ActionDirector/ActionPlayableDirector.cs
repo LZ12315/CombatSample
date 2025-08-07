@@ -10,8 +10,8 @@ public class ActionPlayableDirector : MonoBehaviour
 {
     public PlayableDirector playableDirector;
     public ActorMovement movement;
-    public TimelineAsset defaultAction;
-    TimelineAsset actionPlaying;
+    public ActionTimelineAsset defaultAction;
+    ActionTimelineAsset actionPlaying;
 
     private void Start()
     {
@@ -21,18 +21,21 @@ public class ActionPlayableDirector : MonoBehaviour
         PlayAction(defaultAction);
     }
 
-    public void PlayAction(TimelineAsset action)
+    public void PlayAction(ActionTimelineAsset action)
     {
         movement.ResetRotation();
-        playableDirector.Play(action);
+        playableDirector.Play(action.TimelineAsset);
         actionPlaying = action;
     }
 
     private void OnDirectorStopped(PlayableDirector director)
     {
-        playableDirector.time = 0;
-        playableDirector.Play();
-        //PlayAction(defaultAction);
+        if (actionPlaying.loop)
+            PlayAction(actionPlaying);
+        else if(actionPlaying.next != null)
+            PlayAction(actionPlaying.next);
+        else
+            PlayAction(defaultAction);
     }
 
 }

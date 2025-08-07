@@ -8,7 +8,7 @@ public class ActionTransitionAsset : PlayableAsset
 {
     public bool active = true;
     public Enums.InputType inputType;
-    public TimelineAsset action;
+    public ActionTimelineAsset next;
 
     public override Playable CreatePlayable(PlayableGraph graph, GameObject owner)
     {
@@ -17,7 +17,7 @@ public class ActionTransitionAsset : PlayableAsset
 
         clip.active = active;
         clip.inputType = inputType;
-        clip.action = action;
+        clip.next = next;
 
         return playable;
     }
@@ -28,7 +28,7 @@ public class ActionTransitionClip : PlayableBehaviour
 {
     public bool active;
     public Enums.InputType inputType;
-    public TimelineAsset action;
+    public ActionTimelineAsset next;
     Actor actor = null;
     bool isPlaying = false;
 
@@ -48,7 +48,7 @@ public class ActionTransitionClip : PlayableBehaviour
     protected virtual void OnEventTriggered()
     {
         if(!active) return;
-        actor.actionPlayerDirector.PlayAction(action);
+        actor.actionPlayerDirector.PlayAction(next);
     }
 
     public override void OnBehaviourPause(Playable playable, FrameData info)

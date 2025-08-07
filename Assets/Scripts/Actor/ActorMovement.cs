@@ -8,7 +8,9 @@ public class ActorMovement : MonoBehaviour
     public Actor actor;
     public Animator animator;
     [SerializeField] private float rotateSpeed = 500f;
+
     Quaternion rotation = Quaternion.identity;
+    Vector3 gravityVelocity = Vector3.zero;
 
     public void UpdateTurn(Vector3 direction)
     {
@@ -25,12 +27,22 @@ public class ActorMovement : MonoBehaviour
 
     private void OnAnimatorMove()
     {
-        animator.applyRootMotion = true;
         var deltaPos = animator.deltaPosition;
         var deltaRot = animator.deltaRotation;
         //为何这里要使用LocalRotation
         transform.localRotation = deltaRot * transform.rotation;
         actor.characterController.Move(deltaPos);
+    }
+
+    void PerformGravity()
+    {
+        if (actor.characterController.isGrounded)
+            gravityVelocity = Vector3.zero;
+        else
+        {
+            gravityVelocity += Physics.gravity * Time.deltaTime;
+            actor.characterController.Move(gravityVelocity * Time.deltaTime);
+        }
     }
 
     internal void ResetRotation()

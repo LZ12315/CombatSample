@@ -36,7 +36,7 @@ class ActionTransitionClipEditor : ClipEditor
         if (asset == null) return;
 
         var inputType = asset.inputType.ToString();
-        var nextActionName = asset.action != null ? asset.action.name : "нч";
+        var nextActionName = asset.next != null ? asset.next.name : "нч";
 
         clip.displayName = $"When {inputType} -> {nextActionName}";
 
