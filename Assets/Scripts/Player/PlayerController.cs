@@ -108,14 +108,14 @@ public class PlayerController : MonoBehaviour
     {
         inputControl.Enable();
         inputControl.Player.Jump.started += Jump;
-        inputControl.Player.Fire.started += InvokeAttack;
+        inputControl.Player.LightAttack.started += InvokeAttack;
     }
 
     private void OnDisable()
     {
         inputControl.Disable();
         inputControl.Player.Jump.started -= Jump;
-        inputControl.Player.Fire.started -= InvokeAttack;
+        inputControl.Player.LightAttack.started -= InvokeAttack;
     }
 
     public float MotionBlend => moveDir.magnitude * currentSpeed / runSpeed;

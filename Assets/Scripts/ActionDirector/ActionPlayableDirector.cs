@@ -23,8 +23,8 @@ public class ActionPlayableDirector : MonoBehaviour
 
     public void PlayAction(ActionTimelineAsset action)
     {
-        movement.ResetRotation();
         playableDirector.Play(action.TimelineAsset);
+        //movement.ResetRotation();
         actionPlaying = action;
     }
 
