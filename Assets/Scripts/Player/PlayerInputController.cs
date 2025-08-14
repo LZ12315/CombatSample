@@ -75,14 +75,23 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
 
     public void OnLook(InputAction.CallbackContext context)
     {
-    }
 
-    public void OnFire(InputAction.CallbackContext context)
-    {
     }
 
     public void OnJump(InputAction.CallbackContext context)
     {
+    }
+
+    public void OnLightAttack(InputAction.CallbackContext context)
+    {
+        if (controlledActor == null) return;
+
+        controlledActor.logicInput.InputAction(Enums.InputType.LightAttack);
+    }
+
+    public void OnHeavyAttack(InputAction.CallbackContext context)
+    {
+        controlledActor.logicInput.InputAction(Enums.InputType.HeavyAttack);
     }
 
 }

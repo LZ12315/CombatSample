@@ -10,6 +10,20 @@ public class ActorLogicInput : MonoBehaviour, IEventHolder<Enums.InputType>
     Dictionary<Enums.InputType, EventInfo> inputActionEvents = new ();
     List<Enums.InputType> inputThisFrame = new ();
 
+    private void LateUpdate()
+    {
+        if (inputThisFrame.Count == 0) return;
+
+        Enums.InputType execType = Enums.InputType.None;
+        foreach (var key in inputThisFrame)
+        {
+            if (execType == Enums.InputType.None || key > execType)
+                execType = key;
+        }
+        inputThisFrame.Clear();
+        EventTrigger(execType);
+    }
+
     public void InputMove(Vector3 moveDir, float distance)
     {
         actor.movement.UpdateTurn(moveDir);
@@ -20,18 +34,9 @@ public class ActorLogicInput : MonoBehaviour, IEventHolder<Enums.InputType>
             AddInputThisFrame(Enums.InputType.MoveCancel);
     }
 
-    private void LateUpdate()
+    public void InputAction(Enums.InputType type)
     {
-        if(inputThisFrame.Count == 0) return;
-
-        Enums.InputType execType = Enums.InputType.None;
-        foreach (var key in inputThisFrame)
-        {
-            if(execType == Enums.InputType.None || key > execType)
-                execType = key;
-        }
-        inputThisFrame.Clear();
-        EventTrigger(execType);
+        AddInputThisFrame(type);
     }
 
     #region InputÊÂ¼þ
@@ -110,6 +115,8 @@ public static partial class Enums
     {
         None,
         Move,
-        MoveCancel
+        MoveCancel,
+        LightAttack,
+        HeavyAttack
     }
 }
