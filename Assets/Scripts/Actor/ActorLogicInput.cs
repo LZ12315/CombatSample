@@ -20,8 +20,8 @@ public class ActorLogicInput : MonoBehaviour, IEventHolder<Enums.InputType>
             if (execType == Enums.InputType.None || key > execType)
                 execType = key;
         }
-        inputThisFrame.Clear();
         EventTrigger(execType);
+        inputThisFrame.Clear();
     }
 
     public void InputMove(Vector3 moveDir, float distance)
@@ -116,6 +116,9 @@ public static partial class Enums
         None,
         Move,
         MoveCancel,
+        Dodge,
+        HeavyAttack_Hold,
+        LightAttack_Hold,
         LightAttack,
         HeavyAttack
     }
