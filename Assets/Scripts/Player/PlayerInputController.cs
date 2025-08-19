@@ -12,6 +12,9 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
     public Actor controlledActor;
     public CameraController cameraControl;
 
+    public int ShortPress_Frame = 40;
+    public int Hold_Frame = 120;
+
     private void Awake()
     {
         playerInput = GetComponent<PlayerInput>();
@@ -80,18 +83,51 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
 
     public void OnJump(InputAction.CallbackContext context)
     {
+
     }
 
+    double LightPressStartTime = 0;
     public void OnLightAttack(InputAction.CallbackContext context)
     {
         if (controlledActor == null) return;
 
-        controlledActor.logicInput.InputAction(Enums.InputType.LightAttack);
+        switch (context.phase)
+        {
+            case InputActionPhase.Started:
+                LightPressStartTime = Time.time;
+                break;
+
+            case InputActionPhase.Canceled:
+                int pressFrame = (int)((Time.time - LightPressStartTime) / Time.deltaTime);
+
+                if (pressFrame > 0 && pressFrame <= ShortPress_Frame)
+                    controlledActor.logicInput.InputAction(Enums.InputType.LightAttack);
+                else if (pressFrame >= Hold_Frame)
+                    controlledActor.logicInput.InputAction(Enums.InputType.LightAttack_Hold);
+                break;
+        }
     }
 
+    double heavyPressStartTime = 0;
     public void OnHeavyAttack(InputAction.CallbackContext context)
     {
-        controlledActor.logicInput.InputAction(Enums.InputType.HeavyAttack);
+        if (controlledActor == null) return;
+
+        switch (context.phase)
+        {
+            case InputActionPhase.Started:
+                heavyPressStartTime = Time.time;
+                break;
+
+            case InputActionPhase.Canceled:
+                int pressFrame = (int)((Time.time - heavyPressStartTime) / Time.deltaTime);
+
+                if (pressFrame > 0 && pressFrame <= ShortPress_Frame)
+                    controlledActor.logicInput.InputAction(Enums.InputType.HeavyAttack);
+                else if (pressFrame >= Hold_Frame)
+                    controlledActor.logicInput.InputAction(Enums.InputType.HeavyAttack_Hold);
+                break;
+        }
     }
 
 }

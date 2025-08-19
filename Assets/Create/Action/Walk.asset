@@ -13,7 +13,8 @@ MonoBehaviour:
   m_Name: ActionTransitionAsset(Clone)(Clone)(Clone)(Clone)(Clone)
   m_EditorClassIdentifier: 
   active: 1
-  inputType: 3
+  actTransType: 0
+  inputType: 6
   next: {fileID: 11400000, guid: 2efc6937c552ffa4592259ace32bd072, type: 2}
 --- !u!114 &-6727222438805328270
 MonoBehaviour:
@@ -166,7 +167,8 @@ MonoBehaviour:
   m_Name: ActionTransitionAsset(Clone)(Clone)(Clone)(Clone)(Clone)(Clone)
   m_EditorClassIdentifier: 
   active: 1
-  inputType: 4
+  actTransType: 0
+  inputType: 7
   next: {fileID: 11400000, guid: 2c603e7f864732e4a93093dafb0f1adf, type: 2}
 --- !u!114 &11400000
 MonoBehaviour:
@@ -178,7 +180,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b2fc54e447a68ac499cb315c73175951, type: 3}
-  m_Name: NewWalk
+  m_Name: Walk
   m_EditorClassIdentifier: 
   loop: 1
   next: {fileID: 0}
@@ -272,7 +274,7 @@ MonoBehaviour:
     m_PreExtrapolationMode: 0
     m_PostExtrapolationTime: 0
     m_PreExtrapolationTime: 0
-    m_DisplayName: When MoveCancel -> NewIdle
+    m_DisplayName: When MoveCancel -> Idle
   m_Markers:
     m_Objects: []
 --- !u!114 &4205336430518190112
@@ -288,6 +290,7 @@ MonoBehaviour:
   m_Name: ActionTransitionAsset(Clone)(Clone)
   m_EditorClassIdentifier: 
   active: 1
+  actTransType: 0
   inputType: 2
   next: {fileID: 11400000, guid: d678db735f8a6a54987b7233397219d5, type: 2}
 --- !u!114 &4874103741421659366
