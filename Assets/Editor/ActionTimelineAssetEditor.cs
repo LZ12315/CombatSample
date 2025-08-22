@@ -13,7 +13,7 @@ public class ActionTimelineAssetEditor : Editor
         AssetDatabase.CreateAsset(actionTimeline, path);
         var timeline = CreateInstance<TimelineAsset>();
         timeline.editorSettings.frameRate = TimelineProjectSettings.instance.defaultFrameRate;
-        timeline.name = "EmbededTimeline";
+        timeline.name = actionTimeline.name;
         actionTimeline.SetTimelineAsset(timeline);
         AssetDatabase.AddObjectToAsset(timeline, actionTimeline);
         AssetDatabase.SaveAssets();
@@ -29,7 +29,7 @@ public class ActionTimelineAssetEditor : Editor
         }
     }
 
-    [MenuItem("Assets/Create/Timeline/ActionTimeline", false, -450)]
+    [MenuItem("Assets/Create/CombatSystem/ActionTimeline", false)]
     public static void CreateNewTimeline()
     {
         var icon = EditorGUIUtility.IconContent("TimelineAsset Icon").image as Texture2D;

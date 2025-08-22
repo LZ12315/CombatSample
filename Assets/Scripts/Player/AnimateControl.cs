@@ -45,6 +45,9 @@ public class AnimateControl : MonoBehaviour
         }
         LookAtTargetPosition = Head.position + transform.forward;
         lookAtPosition = LookAtTargetPosition;
+
+        //没什么用 就是为了避免警告
+        bool nothing = horizontalOnly;
     }
 
     //当该动画层启用IK Pass时 这个回调函数才会被触发

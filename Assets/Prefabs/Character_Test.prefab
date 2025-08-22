@@ -2113,6 +2113,11 @@ PrefabInstance:
       objectReference: {fileID: 6271036513442401594}
     - target: {fileID: 3617314882186939484, guid: a299ab9894312a643ac83699cf7e0da3,
         type: 3}
+      propertyPath: animancer
+      value: 
+      objectReference: {fileID: 5661920583769265516}
+    - target: {fileID: 3617314882186939484, guid: a299ab9894312a643ac83699cf7e0da3,
+        type: 3}
       propertyPath: logicInput
       value: 
       objectReference: {fileID: 876052482482885673}
@@ -2204,6 +2209,10 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 5276626400589506912, guid: a299ab9894312a643ac83699cf7e0da3,
         type: 3}
       insertIndex: -1
+      addedObject: {fileID: 5661920583769265516}
+    - targetCorrespondingSourceObject: {fileID: 5276626400589506912, guid: a299ab9894312a643ac83699cf7e0da3,
+        type: 3}
+      insertIndex: -1
       addedObject: {fileID: 6271036513442401594}
   m_SourcePrefab: {fileID: 100100000, guid: a299ab9894312a643ac83699cf7e0da3, type: 3}
 --- !u!1 &392424332184601432 stripped
@@ -2222,7 +2231,7 @@ Animator:
   m_GameObject: {fileID: 392424332184601432}
   m_Enabled: 1
   m_Avatar: {fileID: 9000000, guid: 3a23727f2c258c646b6f946e441b1318, type: 3}
-  m_Controller: {fileID: 9100000, guid: 28cb99ee08d72ed488513f2d1ae54cc3, type: 2}
+  m_Controller: {fileID: 0}
   m_CullingMode: 1
   m_UpdateMode: 0
   m_ApplyRootMotion: 1
@@ -2233,6 +2242,21 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
+--- !u!114 &5661920583769265516
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 392424332184601432}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0ad50f81b1d25c441943c37a89ba23f6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _Animator: {fileID: 8413479826414542425}
+  _Transitions: {fileID: 0}
+  _ActionOnDisable: 0
 --- !u!114 &6271036513442401594
 MonoBehaviour:
   m_ObjectHideFlags: 0
