@@ -27,28 +27,21 @@ public class ActionTransitionAsset : PlayableAsset
 
 }
 
-public class ActionTransitionClip : PlayableBehaviour
+public class ActionTransitionClip : ActionClipBase
 {
     public bool active;
     public Enums.ActTransType actTransType;
     public Enums.InputType inputType;
     public ActionTimelineAsset next;
 
-    Actor actor = null;
-    bool isPlaying = false;
     bool eventWaitForInvoke = false;
 
-    public override void OnBehaviourPlay(Playable playable, FrameData info)
+    protected override void OnClipPlay()
     {
-        if(isPlaying) return;
-        isPlaying = true;
+        base.OnClipPlay();
+        if(!active || actor == null) return;
 
-        var director = playable.GetGraph().GetResolver() as PlayableDirector;
-        actor = director.GetComponent<Actor>();
-        if(actor == null ) return;
-
-        if(active)
-            actor.logicInput.AddEventListener(inputType, OnInputEventTriggered);
+        actor.logicInput.AddEventListener(inputType, OnInputEventTriggered);
     }
 
     protected virtual void OnInputEventTriggered()
@@ -61,19 +54,18 @@ public class ActionTransitionClip : PlayableBehaviour
             eventWaitForInvoke = true;
     }
 
-    public override void OnBehaviourPause(Playable playable, FrameData info)
+    protected override void OnClipPause()
     {
-        if(!isPlaying) return;
-        isPlaying = false;
+        base.OnClipPause();
+        if (!active || actor == null) return;
 
-        if(eventWaitForInvoke && actTransType == Enums.ActTransType.TransitionEnd)
+        if (eventWaitForInvoke && actTransType == Enums.ActTransType.TransitionEnd)
         {
             actor.actionPlayerDirector.PlayAction(next);
             eventWaitForInvoke = false;
         }
 
-        if (actor != null)
-            actor.logicInput.RemoveEventListener(inputType, OnInputEventTriggered);
+        actor.logicInput.RemoveEventListener(inputType, OnInputEventTriggered);
     }
 
     public override void OnGraphStop(Playable playable)

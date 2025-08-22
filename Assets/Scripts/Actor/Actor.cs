@@ -1,3 +1,4 @@
+using Animancer;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -10,4 +11,5 @@ public class Actor : MonoBehaviour
     public ActorMovement movement;
     public ActionPlayableDirector actionPlayerDirector;
     public CharacterController characterController;
+    public AnimancerComponent animancer;
 }
