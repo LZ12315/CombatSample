@@ -29,6 +29,14 @@ public class ActionTransitionTrackEditor : TrackEditor
 [CustomTimelineEditor(typeof(ActionTransitionAsset))]
 class ActionTransitionClipEditor : ClipEditor
 {
+    public override ClipDrawOptions GetClipOptions(TimelineClip clip)
+    {
+        var options = base.GetClipOptions(clip);
+        // …Ë÷√Clip—’…´
+        options.highlightColor = new Color(0.4f, 0.4f, 0.6f);
+
+        return options;
+    }
 
     public override void OnClipChanged(TimelineClip clip)
     {

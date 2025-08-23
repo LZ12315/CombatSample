@@ -6,7 +6,7 @@ using UnityEngine;
 public class Animancer_Test : MonoBehaviour
 {
     public AnimancerComponent animancer;
-    public List<ClipTransition> animationClips = new ();
+    public List<TransitionAsset> animationClips = new ();
 
     private void Start()
     {
@@ -18,6 +18,7 @@ public class Animancer_Test : MonoBehaviour
         foreach (var anim in animationClips)
         {
             animancer.Play(anim);
+            Debug.Log(anim.FadeDuration);
             yield return new WaitForSeconds(1.5f);
         }
     }

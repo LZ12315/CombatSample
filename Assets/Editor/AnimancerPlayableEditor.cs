@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor.Timeline;
 using UnityEngine.Timeline;
+using Animancer;
 
 [CustomTimelineEditor(typeof(AnimancerTrack))]
 public class AnimancerPlayableEditor : TrackEditor
@@ -59,12 +60,13 @@ class AnimancerClipEditor : ClipEditor
     void UpdateAnimancerInfo(TimelineClip clip)
     {
         var asset = clip.asset as AnimancerAsset;
-        if (asset == null) return;
+        if (asset == null || asset.transitionAsset == null) return;
 
-        if (asset.clipTransition.Clip != null)
+        ClipTransition clipTransition = asset.transitionAsset.Transition as ClipTransition;
+        if (clipTransition.Clip != null)
         {
-            clip.displayName = asset.clipTransition.Clip.name;
-            clip.duration = asset.clipTransition.Clip.length;
+            clip.displayName = clipTransition.Clip.name;
+            clip.duration = clipTransition.Clip.length;
         }
     }
 
