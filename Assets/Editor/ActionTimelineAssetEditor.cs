@@ -4,35 +4,47 @@ using UnityEngine;
 using UnityEditor;
 using UnityEditor.Timeline;
 using UnityEngine.Timeline;
+using Animancer;
 
 public class ActionTimelineAssetEditor : Editor
 {
-    public static ActionTimelineAsset CreateActionTimelineAsset(string path)
+    public static ActionTimelineAsset CreateActionAsset(string path)
     {
-        var actionTimeline = CreateInstance<ActionTimelineAsset>();
-        AssetDatabase.CreateAsset(actionTimeline, path);
+        //创建ActionAsset作为载体
+        var actionAsset = CreateInstance<ActionTimelineAsset>();
+        AssetDatabase.CreateAsset(actionAsset, path);
+
+        //创建Timeline
         var timeline = CreateInstance<TimelineAsset>();
         timeline.editorSettings.frameRate = TimelineProjectSettings.instance.defaultFrameRate;
-        timeline.name = actionTimeline.name;
-        actionTimeline.SetTimelineAsset(timeline);
-        AssetDatabase.AddObjectToAsset(timeline, actionTimeline);
+        timeline.name = actionAsset.name;
+
+        //为Timeline创建轨道
+        timeline.CreateTrack<AnimancerTrack>(null, "Animancer Track");
+        timeline.CreateTrack<ActionTransitionTrack>(null, "ActionTransition  Track");
+
+        actionAsset.SetTimelineAsset(timeline);
+        AssetDatabase.AddObjectToAsset(timeline, actionAsset);
+
         AssetDatabase.SaveAssets();
-        return actionTimeline;
+        return actionAsset;
     }
 
-    internal class DoCreateTimeline : UnityEditor.ProjectWindowCallback.EndNameEditAction
+    internal class DoCreateActionTimelineAsset : UnityEditor.ProjectWindowCallback.EndNameEditAction
     {
         public override void Action(int instanceId, string pathName, string resourceFile)
         {
-            var actionTimeline = CreateActionTimelineAsset(pathName);
+            var actionTimeline = CreateActionAsset(pathName);
             ProjectWindowUtil.ShowCreatedAsset(actionTimeline);
         }
     }
 
-    [MenuItem("Assets/Create/CombatSystem/ActionTimeline", false)]
-    public static void CreateNewTimeline()
+    [MenuItem("Assets/Create/CombatSystem/ActionTimelineAsset", false)]
+    public static void CreateActionTimelineAsset()
     {
+        //ScriptableObject
         var icon = EditorGUIUtility.IconContent("TimelineAsset Icon").image as Texture2D;
-        ProjectWindowUtil.StartNameEditingIfProjectWindowExists(0, ScriptableObject.CreateInstance<DoCreateTimeline>(), "New Timeline.asset", icon, null);
+        ProjectWindowUtil.StartNameEditingIfProjectWindowExists(0, ScriptableObject.CreateInstance<DoCreateActionTimelineAsset>(), "New ActionTimelineAsset.asset", icon, null);
     }
+
 }

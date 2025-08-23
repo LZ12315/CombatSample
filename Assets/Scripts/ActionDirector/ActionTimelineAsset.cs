@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.Timeline;
+using Animancer;
 
 [System.Serializable]
 public class ActionTimelineAsset : ScriptableObject

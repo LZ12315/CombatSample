@@ -719,17 +719,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   animancer: {fileID: 1397366750}
   animationClips:
-  - _FadeDuration: 0.25
-    _Speed: 1
-    _Events:
-      _NormalizedTimes: []
-      _Callbacks: []
-      _Names: []
-    _Clip: {fileID: 8943069705949468561, guid: 15804f09329d482408bdcbbee1a71c07, type: 3}
-    _NormalizedStartTime: NaN
-  references:
-    version: 2
-    RefIds: []
+  - {fileID: 11400000, guid: 8a805d94efb80d642a0a82a50fcef61c, type: 2}
+  - {fileID: 11400000, guid: a283b9f32ee01c440872a94117171682, type: 2}
 --- !u!1 &1562606677
 GameObject:
   m_ObjectHideFlags: 0
