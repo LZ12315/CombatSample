@@ -42,7 +42,6 @@ public class ActionTimelineAssetEditor : Editor
     [MenuItem("Assets/Create/CombatSystem/ActionTimelineAsset", false)]
     public static void CreateActionTimelineAsset()
     {
-        //ScriptableObject
         var icon = EditorGUIUtility.IconContent("TimelineAsset Icon").image as Texture2D;
         ProjectWindowUtil.StartNameEditingIfProjectWindowExists(0, ScriptableObject.CreateInstance<DoCreateActionTimelineAsset>(), "New ActionTimelineAsset.asset", icon, null);
     }

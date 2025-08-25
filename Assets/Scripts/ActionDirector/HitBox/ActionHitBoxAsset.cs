@@ -2,6 +2,7 @@ using System;
 using UnityEngine;
 using UnityEngine.Playables;
 using UnityEngine.Timeline;
+using UnityEditor;
 
 [Serializable]
 public class ActionHitBoxConfig
@@ -10,16 +11,6 @@ public class ActionHitBoxConfig
     public Quaternion rotation = Quaternion.identity;
     public float height = 0;
     public float radius = 0;
-
-    // 计算世界空间矩阵
-    public Matrix4x4 GetWorldMatrix(Transform bone)
-    {
-        return Matrix4x4.TRS(
-            bone.TransformPoint(center),
-            bone.rotation * rotation,
-            Vector3.one
-        );
-    }
 }
 
 [Serializable]
@@ -29,17 +20,16 @@ public class ActionHitBoxAsset : PlayableAsset, ITimelineClipAsset
     public ActionHitBoxConfig config = new ActionHitBoxConfig();
 
     [HideInInspector]
-    public CapsuleCollider hitbox;
+    public ActionHitBoxClip behavior;
     public ClipCaps clipCaps => ClipCaps.Blending;
 
     public override Playable CreatePlayable(PlayableGraph graph, GameObject owner)
     {
         var playable = ScriptPlayable<ActionHitBoxClip>.Create(graph);
-        var behavior = playable.GetBehaviour();
+        behavior = playable.GetBehaviour();
 
         behavior.boneTransform = boneTransform.Resolve(graph.GetResolver());
         behavior.config = config;
-        behavior.asset = this; // 用于编辑器引用
 
         return playable;
     }
@@ -49,26 +39,20 @@ public class ActionHitBoxClip : ActionClipBase
 {
     public Transform boneTransform;
     public ActionHitBoxConfig config;
-    public ActionHitBoxAsset asset; // 用于保存数据回写到asset
 
-    private GameObject _hitboxObject;
-    private CapsuleCollider _collider;
+    public GameObject _hitboxObject;
+    public CapsuleCollider hitbox;
 
-    protected override void OnClipPlay ()
+    public override void OnBehaviourPlay(Playable playable, FrameData info)
     {
-        base.OnClipPlay();
+        base.OnBehaviourPlay(playable, info);
         CreateHitbox();
     }
 
-    protected override void OnClipPause()
+    public override void OnBehaviourPause(Playable playable, FrameData info)
     {
-        base.OnClipPause();
+        base.OnBehaviourPause(playable, info);
         DestroyHitbox();
-    }
-
-    public override void ProcessFrame(Playable playable, FrameData info, object playerData)
-    {
-        UpdateHitbox();
     }
 
     private void CreateHitbox()
@@ -77,14 +61,15 @@ public class ActionHitBoxClip : ActionClipBase
 
         _hitboxObject = new GameObject("HitBox");
         _hitboxObject.hideFlags = HideFlags.HideInHierarchy;
-        _collider = _hitboxObject.AddComponent<CapsuleCollider>();
-        _collider.isTrigger = true;
-        asset.hitbox = _collider;
+        hitbox = _hitboxObject.AddComponent<CapsuleCollider>();
+        hitbox.isTrigger = true;
 
-        UpdateHitbox();
+        // 添加更新组件
+        var updater = _hitboxObject.AddComponent<HitBoxUpdater>();
+        updater.Init(this);
     }
 
-    private void UpdateHitbox()
+    public void UpdateHitbox()
     {
         if (_hitboxObject == null || boneTransform == null) return;
 
@@ -92,34 +77,79 @@ public class ActionHitBoxClip : ActionClipBase
         _hitboxObject.transform.position = boneTransform.TransformPoint(config.center);
         _hitboxObject.transform.rotation = boneTransform.rotation * config.rotation;
 
-        if(_collider == null) return;
+        if (hitbox == null) return;
 
         // 更新碰撞体参数
-        _collider.height = config.height;
-        _collider.radius = config.radius;
+        hitbox.height = config.height;
+        hitbox.radius = config.radius;
 
         // 设置胶囊方向（默认为Y轴）
-        _collider.direction = 1; // 1 = Y轴
-
-        
+        hitbox.direction = 1; // 1 = Y轴
     }
 
     private void DestroyHitbox()
     {
         if (_hitboxObject != null)
         {
+            // 先销毁辅助组件
+            var updater = _hitboxObject.GetComponent<HitBoxUpdater>();
+            if (updater != null)
+            {
+                if (Application.isPlaying)
+                    UnityEngine.Object.Destroy(updater);
+                else
+                    UnityEngine.Object.DestroyImmediate(updater);
+            }
+
+            // 然后销毁游戏对象
             if (Application.isPlaying)
-            {
                 UnityEngine.Object.Destroy(_hitboxObject);
-            }
             else
-            {
                 UnityEngine.Object.DestroyImmediate(_hitboxObject);
-            }
+
             _hitboxObject = null;
-            _collider = null;
-            asset.hitbox = null;
+            hitbox = null;
         }
     }
 
+    // 辅助更新组件 用此组件更新HitBox状态 否则相对动画会有一帧偏移
+    [ExecuteInEditMode]
+    private class HitBoxUpdater : MonoBehaviour
+    {
+        private ActionHitBoxClip _clip;
+
+        public void Init(ActionHitBoxClip clip)
+        {
+            _clip = clip;
+        }
+
+        private void OnEnable()
+        {
+        #if UNITY_EDITOR
+            if (!Application.isPlaying)
+            {
+                EditorApplication.update += UpdateInEditMode;
+            }
+        #endif
+        }
+
+        private void OnDisable()
+        {
+        #if UNITY_EDITOR
+            if (!Application.isPlaying)
+            {
+                EditorApplication.update -= UpdateInEditMode;
+            }
+        #endif
+        }
+
+        private void UpdateInEditMode()
+        {
+            if (_clip != null && _clip.isPlaying)
+            {
+                _clip.UpdateHitbox();
+            }
+        }
+    }
 }
+
