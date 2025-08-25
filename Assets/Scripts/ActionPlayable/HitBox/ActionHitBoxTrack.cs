@@ -5,4 +5,4 @@ using UnityEngine.Timeline;
 
 [TrackColor(1f, 0.5f, 0f)]
 [TrackClipType(typeof(ActionHitBoxAsset))]
-public class ActionHitBoxTrack : TrackAsset { }
+public class ActionHitBoxTrack : ActionTrackBase { }

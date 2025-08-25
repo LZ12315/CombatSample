@@ -72,7 +72,7 @@ MonoBehaviour:
   m_Children: []
   m_Clips:
   - m_Version: 1
-    m_Start: 0
+    m_Start: 0.00009999999747378752
     m_ClipIn: 0
     m_Asset: {fileID: 7815349849790022225}
     m_Duration: 1.1334335638021003
@@ -139,7 +139,7 @@ MonoBehaviour:
     m_PreExtrapolationMode: 0
     m_PostExtrapolationTime: 0
     m_PreExtrapolationTime: 0
-    m_DisplayName: "When MoveCancel -> \u65E0"
+    m_DisplayName: When MoveCancel -> Player_Fight_Idle
   m_Markers:
     m_Objects: []
 --- !u!114 &7815349849790022225
@@ -157,7 +157,7 @@ MonoBehaviour:
   active: 1
   actTransType: 0
   inputType: 2
-  next: {fileID: 11400000, guid: a763011d2e71eaf4c9c19fcb2ab5b2f4, type: 2}
+  next: {fileID: 11400000, guid: 982ca7f3c5a0c3e46aad4118a100fea9, type: 2}
 --- !u!114 &8578750562022944297
 MonoBehaviour:
   m_ObjectHideFlags: 1

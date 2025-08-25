@@ -12,7 +12,7 @@ namespace HitBoxEditorNamespace
     /// Editor utility for visualizing and editing HitBoxes in Timeline
     /// </summary>
     [InitializeOnLoad]
-    public static class ActionHitBoxEditor
+    public static class ActionHitBoxPreviewer
     {
         private static bool isInitialized = false;
         private static bool _debugMode = true;
@@ -21,7 +21,7 @@ namespace HitBoxEditorNamespace
         private static Vector2 _debugScrollPos;
         private static readonly GUILayoutOption[] debugWindowOptions = { GUILayout.Width(300), GUILayout.Height(200) };
 
-        static ActionHitBoxEditor()
+        static ActionHitBoxPreviewer()
         {
             Initialize();
         }
@@ -96,16 +96,19 @@ namespace HitBoxEditorNamespace
 
         private static void ProcessHitBoxTracks(TimelineAsset timeline, PlayableDirector director)
         {
+            // 获取当前选中的所有Clip
+            var selectedClips = new HashSet<TimelineClip>(TimelineEditor.selectedClips);
+
             foreach (var track in timeline.GetOutputTracks())
             {
                 if (!(track is ActionHitBoxTrack hitboxTrack)) continue;
-                
+
                 DebugLog($"Processing HitBox track: {hitboxTrack.name}");
-                ProcessHitBoxClips(hitboxTrack, director);
+                ProcessHitBoxClips(hitboxTrack, director, selectedClips);
             }
         }
 
-        private static void ProcessHitBoxClips(TrackAsset hitboxTrack, PlayableDirector director)
+        private static void ProcessHitBoxClips(TrackAsset hitboxTrack, PlayableDirector director, HashSet<TimelineClip> selectedClips)
         {
             foreach (var clip in hitboxTrack.GetClips())
             {
@@ -115,15 +118,35 @@ namespace HitBoxEditorNamespace
                 bool isClipActive = currentTime >= clip.start && currentTime <= clip.end;
                 DebugLog($"Clip: {clip.displayName}, Active: {isClipActive}, Time: {currentTime:F3}");
 
-                if (isClipActive && hitboxAsset.behavior.hitbox != null && _showHandles)
+                if (isClipActive && hitboxAsset.behavior.hitbox != null)
                 {
-                    // 添加timelineClip参数
-                    DrawHitBoxHandles(hitboxAsset.behavior.hitbox, hitboxAsset.behavior, clip);
+                    // 总是绘制胶囊体线框
+                    DrawCapsuleWireframeForClip(hitboxAsset.behavior, clip);
+
+                    // 只绘制选中Clip的Handle
+                    if (_showHandles && selectedClips.Contains(clip))
+                    {
+                        DrawHitBoxHandles(hitboxAsset.behavior.hitbox, hitboxAsset.behavior, clip);
+                    }
                 }
             }
         }
 
-        #region 编辑器绘制
+        private static void DrawCapsuleWireframeForClip(ActionHitBoxClip clip, TimelineClip timelineClip)
+        {
+            if (clip == null || clip.config == null || timelineClip == null) return;
+            if (clip.hitbox == null) return;
+
+            var transform = clip.hitbox.transform;
+            Vector3 center = transform.TransformPoint(clip.config.center);
+            Quaternion rotation = transform.rotation * clip.config.rotation;
+            rotation = NormalizeQuaternion(rotation);
+
+            // 绘制胶囊体线框
+            DrawCapsuleWireframe(center, rotation, clip.config.radius, clip.config.height, clip.hitbox.direction);
+        }
+
+        #region Handle绘制
         private static void DrawHitBoxHandles(CapsuleCollider collider, ActionHitBoxClip clip, TimelineClip timelineClip)
         {
             if (collider == null || clip == null || clip.config == null || timelineClip == null) return;
@@ -131,56 +154,69 @@ namespace HitBoxEditorNamespace
             var transform = collider.transform;
             Vector3 center = transform.TransformPoint(clip.config.center);
             Quaternion rotation = transform.rotation * clip.config.rotation;
+            rotation = NormalizeQuaternion(rotation);
 
             // 获取关联的ActionHitBoxAsset
             var hitboxAsset = timelineClip.asset as ActionHitBoxAsset;
             if (hitboxAsset == null) return;
 
-            // 1. Position handle
-            EditorGUI.BeginChangeCheck();
-            Handles.color = Color.cyan.WithAlpha(0.8f);
-            Vector3 newPosition = Handles.PositionHandle(center, rotation);
+            // 获取当前选中的工具
+            Tool currentTool = Tools.current;
 
-            if (EditorGUI.EndChangeCheck())
+            // 1. Position handle (仅在移动工具选中时显示)
+            if (currentTool == Tool.Move)
             {
-                // 记录ActionHitBoxAsset而不是clip
-                Undo.RecordObject(hitboxAsset, "Move HitBox");
-        
-                // 计算新的中心点位置（局部空间）
-                Vector3 newLocalCenter = transform.InverseTransformPoint(newPosition);
-        
-                // 添加取整功能 - 解决浮点精度问题
-                newLocalCenter = RoundVector3(newLocalCenter, 5);
-        
-                clip.config.center = newLocalCenter;
-        
-                // 标记为脏
-                EditorUtility.SetDirty(hitboxAsset);
-                DebugLog($"HitBox position updated: {newLocalCenter}");
+                EditorGUI.BeginChangeCheck();
+                Handles.color = Color.cyan.WithAlpha(0.8f);
+                Vector3 newPosition = Handles.PositionHandle(center, rotation);
+
+                if (EditorGUI.EndChangeCheck())
+                {
+                    // 记录ActionHitBoxAsset而不是clip
+                    Undo.RecordObject(hitboxAsset, "Move HitBox");
+
+                    // 计算新的中心点位置（局部空间）
+                    Vector3 newLocalCenter = transform.InverseTransformPoint(newPosition);
+
+                    // 添加取整功能 - 解决浮点精度问题
+                    newLocalCenter = RoundVector3(newLocalCenter, 5);
+
+                    clip.config.center = newLocalCenter;
+
+                    // 标记为脏
+                    EditorUtility.SetDirty(hitboxAsset);
+                    DebugLog($"HitBox position updated: {newLocalCenter}");
+                }
             }
 
-            // 2. Rotation handle
-            EditorGUI.BeginChangeCheck();
-            Handles.color = Color.yellow.WithAlpha(0.8f);
-            Quaternion newRotation = Handles.RotationHandle(rotation, center);
-
-            if (EditorGUI.EndChangeCheck())
+            // 2. Rotation handle (仅在旋转工具选中时显示)
+            if (currentTool == Tool.Rotate)
             {
-                Undo.RecordObject(hitboxAsset, "Rotate HitBox");
-        
-                // 计算相对于骨骼的旋转
-                Quaternion relativeRotation = Quaternion.Inverse(transform.rotation) * newRotation;
-        
-                // 添加取整功能 - 解决浮点精度问题
-                relativeRotation = RoundQuaternion(relativeRotation, 5);
-        
-                clip.config.rotation = relativeRotation;
-        
-                EditorUtility.SetDirty(hitboxAsset);
-                DebugLog("HitBox rotation updated");
+                EditorGUI.BeginChangeCheck();
+                Handles.color = Color.yellow.WithAlpha(0.8f);
+                Quaternion newRotation = Handles.RotationHandle(rotation, center);
+
+                if (EditorGUI.EndChangeCheck())
+                {
+                    Undo.RecordObject(hitboxAsset, "Rotate HitBox");
+
+                    // 计算相对于骨骼的旋转
+                    Quaternion relativeRotation = Quaternion.Inverse(transform.rotation) * newRotation;
+
+                    // 标准化四元数
+                    relativeRotation = NormalizeQuaternion(relativeRotation);
+
+                    // 添加取整功能 - 解决浮点精度问题
+                    relativeRotation = RoundQuaternion(relativeRotation, 5);
+
+                    clip.config.rotation = relativeRotation;
+
+                    EditorUtility.SetDirty(hitboxAsset);
+                    DebugLog("HitBox rotation updated");
+                }
             }
 
-            // 3. Radius handle
+            // 3. Radius handle (始终显示)
             EditorGUI.BeginChangeCheck();
             Handles.color = new Color(1, 0.2f, 0.2f, 1f);
             float handleSize = HandleUtility.GetHandleSize(center) * 0.5f;
@@ -192,12 +228,15 @@ namespace HitBoxEditorNamespace
                 center + rotation * Vector3.right * clip.config.radius,
                 rotation,
                 handleSize,
-                (controlID, position, rotation, size, eventType) =>
+                (controlID, position, rot, size, eventType) =>
                 {
+                    // 确保使用的四元数是标准化的
+                    rot = NormalizeQuaternion(rot);
+
                     Handles.color = new Color(1, 0.2f, 0.2f, 0.8f);
-                    Handles.SphereHandleCap(controlID, position, rotation, size * 1.2f, eventType);
+                    Handles.SphereHandleCap(controlID, position, rot, size * 1.2f, eventType);
                     Handles.color = Color.white;
-                    Handles.SphereHandleCap(controlID, position, rotation, size * 0.7f, eventType);
+                    Handles.SphereHandleCap(controlID, position, rot, size * 0.7f, eventType);
                 },
                 0.1f
             );
@@ -211,19 +250,19 @@ namespace HitBoxEditorNamespace
             if (EditorGUI.EndChangeCheck())
             {
                 Undo.RecordObject(hitboxAsset, "Resize HitBox Radius");
-        
+
                 // 添加取整功能 - 解决浮点精度问题
                 newRadius = RoundFloat(newRadius, 5);
-        
+
                 clip.config.radius = Mathf.Max(0.01f, newRadius);
                 EditorUtility.SetDirty(hitboxAsset);
                 DebugLog($"HitBox radius updated: {newRadius:F3}");
             }
 
-            // 4. Height handle
+            // 4. Height handle (始终显示)
             EditorGUI.BeginChangeCheck();
             Handles.color = new Color(0.2f, 1, 0.2f, 1f);
-    
+
             Vector3 direction = GetCapsuleDirectionVector(collider.direction);
             Vector3 heightHandlePos = center + rotation * direction * (clip.config.height / 2);
 
@@ -251,20 +290,35 @@ namespace HitBoxEditorNamespace
             if (EditorGUI.EndChangeCheck())
             {
                 Undo.RecordObject(hitboxAsset, "Resize HitBox Height");
-        
+
                 // 添加取整功能 - 解决浮点精度问题
                 newHeight = RoundFloat(newHeight, 5);
-        
+
                 clip.config.height = Mathf.Max(0.01f, newHeight);
                 EditorUtility.SetDirty(hitboxAsset);
                 DebugLog($"HitBox height updated: {newHeight:F3}");
             }
-
-            // 绘制胶囊体线框（使用config中的值）
-            DrawCapsuleWireframe(center, rotation, clip.config.radius, clip.config.height, collider.direction);
         }
 
-        // 添加取整工具函数
+        // 四元数标准化方法
+        private static Quaternion NormalizeQuaternion(Quaternion q)
+        {
+            float length = Mathf.Sqrt(q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w);
+
+            if (length > Mathf.Epsilon)
+            {
+                return new Quaternion(
+                    q.x / length,
+                    q.y / length,
+                    q.z / length,
+                    q.w / length
+                );
+            }
+
+            return Quaternion.identity;
+        }
+
+        // 取整工具函数
         private static Vector3 RoundVector3(Vector3 vector, int decimals)
         {
             return new Vector3(

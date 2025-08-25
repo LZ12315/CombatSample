@@ -114,7 +114,7 @@ MonoBehaviour:
   m_Children: []
   m_Clips:
   - m_Version: 1
-    m_Start: 0
+    m_Start: 0.00009999999747378752
     m_ClipIn: 0
     m_Asset: {fileID: 7267382915906195336}
     m_Duration: 2.000099999996
@@ -181,29 +181,9 @@ MonoBehaviour:
     m_PreExtrapolationMode: 0
     m_PostExtrapolationTime: 0
     m_PreExtrapolationTime: 0
-    m_DisplayName: "When Move -> \u65E0"
+    m_DisplayName: When Move -> Player_Fight_Walk
   m_Markers:
     m_Objects: []
---- !u!114 &-3551048507436195910
-MonoBehaviour:
-  m_ObjectHideFlags: 1
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fbc57f1d18b830340bd725c3b3f1dfee, type: 3}
-  m_Name: ActionHitBoxAsset
-  m_EditorClassIdentifier: 
-  boneTransform:
-    exposedName: 2d9bc5505cec87544ad3effaa4c7d2db
-    defaultValue: {fileID: 0}
-  config:
-    center: {x: 0, y: 0, z: 0}
-    rotation: {x: 0, y: 0, z: 0, w: 1}
-    height: 0.1
-    radius: 0.1
 --- !u!114 &-1085222572135576680
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -220,7 +200,6 @@ MonoBehaviour:
   m_Tracks:
   - {fileID: -8605371426078775767}
   - {fileID: -8317864423645655921}
-  - {fileID: 2651154378435672671}
   m_FixedDuration: 0
   m_EditorSettings:
     m_Framerate: 60
@@ -255,98 +234,6 @@ MonoBehaviour:
   m_Name: AnimancerAsset(Clone)(Clone)(Clone)(Clone)
   m_EditorClassIdentifier: 
   transitionAsset: {fileID: 11400000, guid: 8a805d94efb80d642a0a82a50fcef61c, type: 2}
---- !u!114 &2651154378435672671
-MonoBehaviour:
-  m_ObjectHideFlags: 1
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 28356919dc596ee47bc138c0f13835ab, type: 3}
-  m_Name: Action Hit Box Track
-  m_EditorClassIdentifier: 
-  m_Version: 3
-  m_AnimClip: {fileID: 0}
-  m_Locked: 0
-  m_Muted: 0
-  m_CustomPlayableFullTypename: 
-  m_Curves: {fileID: 0}
-  m_Parent: {fileID: -1085222572135576680}
-  m_Children: []
-  m_Clips:
-  - m_Version: 1
-    m_Start: 0.0001
-    m_ClipIn: 0
-    m_Asset: {fileID: -3551048507436195910}
-    m_Duration: 5
-    m_TimeScale: 1
-    m_ParentTrack: {fileID: 2651154378435672671}
-    m_EaseInDuration: 0
-    m_EaseOutDuration: 0
-    m_BlendInDuration: -1
-    m_BlendOutDuration: -1
-    m_MixInCurve:
-      serializedVersion: 2
-      m_Curve:
-      - serializedVersion: 3
-        time: 0
-        value: 0
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      - serializedVersion: 3
-        time: 1
-        value: 1
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      m_PreInfinity: 2
-      m_PostInfinity: 2
-      m_RotationOrder: 4
-    m_MixOutCurve:
-      serializedVersion: 2
-      m_Curve:
-      - serializedVersion: 3
-        time: 0
-        value: 1
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      - serializedVersion: 3
-        time: 1
-        value: 0
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      m_PreInfinity: 2
-      m_PostInfinity: 2
-      m_RotationOrder: 4
-    m_BlendInCurveMode: 0
-    m_BlendOutCurveMode: 0
-    m_ExposedParameterNames: []
-    m_AnimationCurves: {fileID: 0}
-    m_Recordable: 0
-    m_PostExtrapolationMode: 0
-    m_PreExtrapolationMode: 0
-    m_PostExtrapolationTime: 0
-    m_PreExtrapolationTime: 0
-    m_DisplayName: ActionHitBoxAsset
-  m_Markers:
-    m_Objects: []
 --- !u!114 &7267382915906195336
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -362,4 +249,4 @@ MonoBehaviour:
   active: 1
   actTransType: 0
   inputType: 1
-  next: {fileID: 11400000, guid: 20464afd97366cc40aa5566bbe270345, type: 2}
+  next: {fileID: 11400000, guid: 68090b2c94456f8449206e63d7f537f7, type: 2}
