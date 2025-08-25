@@ -3,6 +3,9 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Playables;
+using UnityEngine.Timeline;
+
+public abstract class ActionTrackBase : TrackAsset{ }
 
 public abstract class ActionClipBase : PlayableBehaviour
 {
