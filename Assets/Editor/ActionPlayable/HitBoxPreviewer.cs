@@ -1,4 +1,5 @@
 #if UNITY_EDITOR
+
 using UnityEditor;
 using UnityEditor.Timeline;
 using UnityEngine;
@@ -66,6 +67,8 @@ namespace HitBoxEditorNamespace
         {
             if (!_showHandles && !_debugMode) return;
 
+            if (Application.isPlaying) return;
+
             DrawTimelineHitBoxes();
         }
 
@@ -118,7 +121,7 @@ namespace HitBoxEditorNamespace
                 bool isClipActive = currentTime >= clip.start && currentTime <= clip.end;
                 DebugLog($"Clip: {clip.displayName}, Active: {isClipActive}, Time: {currentTime:F3}");
 
-                if (isClipActive && hitboxAsset.behavior.hitbox != null)
+                if (isClipActive && hitboxAsset.behavior._collider != null)
                 {
                     // 总是绘制胶囊体线框
                     DrawCapsuleWireframeForClip(hitboxAsset.behavior, clip);
@@ -126,7 +129,7 @@ namespace HitBoxEditorNamespace
                     // 只绘制选中Clip的Handle
                     if (_showHandles && selectedClips.Contains(clip))
                     {
-                        DrawHitBoxHandles(hitboxAsset.behavior.hitbox, hitboxAsset.behavior, clip);
+                        DrawHitBoxHandles(hitboxAsset.behavior._collider, hitboxAsset.behavior, clip);
                     }
                 }
             }
@@ -134,26 +137,26 @@ namespace HitBoxEditorNamespace
 
         private static void DrawCapsuleWireframeForClip(ActionHitBoxClip clip, TimelineClip timelineClip)
         {
-            if (clip == null || clip.config == null || timelineClip == null) return;
-            if (clip.hitbox == null) return;
+            if (clip == null || clip.hitboxConfig == null || timelineClip == null) return;
+            if (clip._collider == null) return;
 
-            var transform = clip.hitbox.transform;
-            Vector3 center = transform.TransformPoint(clip.config.center);
-            Quaternion rotation = transform.rotation * clip.config.rotation;
+            var transform = clip._collider.transform;
+            Vector3 center = transform.TransformPoint(clip.hitboxConfig.center);
+            Quaternion rotation = transform.rotation * clip.hitboxConfig.rotation;
             rotation = NormalizeQuaternion(rotation);
 
             // 绘制胶囊体线框
-            DrawCapsuleWireframe(center, rotation, clip.config.radius, clip.config.height, clip.hitbox.direction);
+            DrawCapsuleWireframe(center, rotation, clip.hitboxConfig.radius, clip.hitboxConfig.height, clip._collider.direction);
         }
 
         #region Handle绘制
         private static void DrawHitBoxHandles(CapsuleCollider collider, ActionHitBoxClip clip, TimelineClip timelineClip)
         {
-            if (collider == null || clip == null || clip.config == null || timelineClip == null) return;
+            if (collider == null || clip == null || clip.hitboxConfig == null || timelineClip == null) return;
 
             var transform = collider.transform;
-            Vector3 center = transform.TransformPoint(clip.config.center);
-            Quaternion rotation = transform.rotation * clip.config.rotation;
+            Vector3 center = transform.TransformPoint(clip.hitboxConfig.center);
+            Quaternion rotation = transform.rotation * clip.hitboxConfig.rotation;
             rotation = NormalizeQuaternion(rotation);
 
             // 获取关联的ActionHitBoxAsset
@@ -181,7 +184,7 @@ namespace HitBoxEditorNamespace
                     // 添加取整功能 - 解决浮点精度问题
                     newLocalCenter = RoundVector3(newLocalCenter, 5);
 
-                    clip.config.center = newLocalCenter;
+                    clip.hitboxConfig.center = newLocalCenter;
 
                     // 标记为脏
                     EditorUtility.SetDirty(hitboxAsset);
@@ -209,7 +212,7 @@ namespace HitBoxEditorNamespace
                     // 添加取整功能 - 解决浮点精度问题
                     relativeRotation = RoundQuaternion(relativeRotation, 5);
 
-                    clip.config.rotation = relativeRotation;
+                    clip.hitboxConfig.rotation = relativeRotation;
 
                     EditorUtility.SetDirty(hitboxAsset);
                     DebugLog("HitBox rotation updated");
@@ -224,8 +227,8 @@ namespace HitBoxEditorNamespace
 
             // 使用config.radius值
             float newRadius = Handles.ScaleValueHandle(
-                clip.config.radius,
-                center + rotation * Vector3.right * clip.config.radius,
+                clip.hitboxConfig.radius,
+                center + rotation * Vector3.right * clip.hitboxConfig.radius,
                 rotation,
                 handleSize,
                 (controlID, position, rot, size, eventType) =>
@@ -244,7 +247,7 @@ namespace HitBoxEditorNamespace
             // 标签
             GUIStyle labelStyle = new GUIStyle(EditorStyles.boldLabel);
             labelStyle.normal.textColor = new Color(1, 0.3f, 0.3f);
-            Handles.Label(center + rotation * Vector3.right * (clip.config.radius + handleSize * 0.5f),
+            Handles.Label(center + rotation * Vector3.right * (clip.hitboxConfig.radius + handleSize * 0.5f),
                          "Radius", labelStyle);
 
             if (EditorGUI.EndChangeCheck())
@@ -254,7 +257,7 @@ namespace HitBoxEditorNamespace
                 // 添加取整功能 - 解决浮点精度问题
                 newRadius = RoundFloat(newRadius, 5);
 
-                clip.config.radius = Mathf.Max(0.01f, newRadius);
+                clip.hitboxConfig.radius = Mathf.Max(0.01f, newRadius);
                 EditorUtility.SetDirty(hitboxAsset);
                 DebugLog($"HitBox radius updated: {newRadius:F3}");
             }
@@ -264,11 +267,11 @@ namespace HitBoxEditorNamespace
             Handles.color = new Color(0.2f, 1, 0.2f, 1f);
 
             Vector3 direction = GetCapsuleDirectionVector(collider.direction);
-            Vector3 heightHandlePos = center + rotation * direction * (clip.config.height / 2);
+            Vector3 heightHandlePos = center + rotation * direction * (clip.hitboxConfig.height / 2);
 
             // 使用config.height值
             float newHeight = Handles.ScaleValueHandle(
-                clip.config.height,
+                clip.hitboxConfig.height,
                 heightHandlePos,
                 rotation,
                 handleSize,
@@ -294,7 +297,7 @@ namespace HitBoxEditorNamespace
                 // 添加取整功能 - 解决浮点精度问题
                 newHeight = RoundFloat(newHeight, 5);
 
-                clip.config.height = Mathf.Max(0.01f, newHeight);
+                clip.hitboxConfig.height = Mathf.Max(0.01f, newHeight);
                 EditorUtility.SetDirty(hitboxAsset);
                 DebugLog($"HitBox height updated: {newHeight:F3}");
             }
@@ -345,7 +348,7 @@ namespace HitBoxEditorNamespace
             {
                 return 0f;
             }
-    
+
             // 使用Mathf.Round进行四舍五入
             float multiplier = Mathf.Pow(10, decimals);
             return Mathf.Round(value * multiplier) / multiplier;

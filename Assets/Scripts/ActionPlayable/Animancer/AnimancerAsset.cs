@@ -63,9 +63,9 @@ public class AnimancerClip : ActionClipBase
     {
         base.OnClipPause();
 
-        if (animancerState == null) return;
+        if (animancerState == null || !animancerState.IsValid()) return;
 
-        if(clipOver) //Clip播放结束
+        if (clipOver) //Clip播放结束
         {
             animancerState = null;
             pauseTime = 0;
@@ -86,16 +86,13 @@ public class AnimancerClip : ActionClipBase
         else
             clipOver = false;
 
-#if UNITY_EDITOR
-
-        if (animancerState != null)
+        if (!Application.isPlaying && animancerState != null)
         {
             float clipProgress = (float)(playable.GetTime() / playable.GetDuration());
             animancerState.NormalizedTime = clipProgress;
             animancerState.Speed = 0;
         }
 
-#endif
     }
 
 }
