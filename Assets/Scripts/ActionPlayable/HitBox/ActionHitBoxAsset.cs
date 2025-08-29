@@ -3,21 +3,34 @@ using UnityEngine;
 using UnityEngine.Playables;
 using UnityEngine.Timeline;
 using UnityEditor;
+using JetBrains.Annotations;
 
 [Serializable]
 public class ActionHitBoxConfig
 {
     public Vector3 center = Vector3.zero;
     public Quaternion rotation = Quaternion.identity;
-    public float height = 0;
-    public float radius = 0;
+    public float height = 0.5f;
+    public float radius = 0.1f;
 }
 
 [Serializable]
+public class AttackConfig
+{
+    [Header("配置")]
+    public LayerMask targetLayers = 1 << 8;
+    public float _baseDamage = 10f;
+
+    [Header("调试")]
+    public bool _debugMode = true;
+}
+
+
 public class ActionHitBoxAsset : PlayableAsset, ITimelineClipAsset
 {
     public ExposedReference<Transform> boneTransform;
-    public ActionHitBoxConfig config = new ActionHitBoxConfig();
+    public ActionHitBoxConfig hitboxConfig = new ActionHitBoxConfig();
+    public AttackConfig attackConfig = new AttackConfig();
 
     [HideInInspector]
     public ActionHitBoxClip behavior;
@@ -29,7 +42,8 @@ public class ActionHitBoxAsset : PlayableAsset, ITimelineClipAsset
         behavior = playable.GetBehaviour();
 
         behavior.boneTransform = boneTransform.Resolve(graph.GetResolver());
-        behavior.config = config;
+        behavior.hitboxConfig = hitboxConfig;
+        behavior.attackConfig = attackConfig;
 
         return playable;
     }
@@ -38,10 +52,11 @@ public class ActionHitBoxAsset : PlayableAsset, ITimelineClipAsset
 public class ActionHitBoxClip : ActionClipBase
 {
     public Transform boneTransform;
-    public ActionHitBoxConfig config;
+    public ActionHitBoxConfig hitboxConfig;
+    public AttackConfig attackConfig;
 
     public GameObject _hitboxObject;
-    public CapsuleCollider hitbox;
+    public CapsuleCollider _collider;
 
     public override void OnBehaviourPlay(Playable playable, FrameData info)
     {
@@ -61,10 +76,19 @@ public class ActionHitBoxClip : ActionClipBase
 
         _hitboxObject = new GameObject("HitBox");
         _hitboxObject.hideFlags = HideFlags.HideInHierarchy;
-        hitbox = _hitboxObject.AddComponent<CapsuleCollider>();
-        hitbox.isTrigger = true;
 
-        // 添加更新组件
+        // 添加Collider
+        _collider = _hitboxObject.AddComponent<CapsuleCollider>();
+        _collider.isTrigger = true;
+
+        // 若在游戏中 添加Controller
+        if(Application.isPlaying)
+        {
+            var hitbox = _collider.gameObject.AddComponent<AttackHitBox>();
+            hitbox.Init(this);
+        }
+
+        // 添加辅助组件Updater
         var updater = _hitboxObject.AddComponent<HitBoxUpdater>();
         updater.Init(this);
     }
@@ -74,17 +98,17 @@ public class ActionHitBoxClip : ActionClipBase
         if (_hitboxObject == null || boneTransform == null) return;
 
         // 更新位置和旋转
-        _hitboxObject.transform.position = boneTransform.TransformPoint(config.center);
-        _hitboxObject.transform.rotation = boneTransform.rotation * config.rotation;
+        _hitboxObject.transform.position = boneTransform.TransformPoint(hitboxConfig.center);
+        _hitboxObject.transform.rotation = boneTransform.rotation * hitboxConfig.rotation;
 
-        if (hitbox == null) return;
+        if (_collider == null) return;
 
         // 更新碰撞体参数
-        hitbox.height = config.height;
-        hitbox.radius = config.radius;
+        _collider.height = hitboxConfig.height;
+        _collider.radius = hitboxConfig.radius;
 
         // 设置胶囊方向（默认为Y轴）
-        hitbox.direction = 1; // 1 = Y轴
+        _collider.direction = 1; // 1 = Y轴
     }
 
     private void DestroyHitbox()
@@ -108,11 +132,11 @@ public class ActionHitBoxClip : ActionClipBase
                 UnityEngine.Object.DestroyImmediate(_hitboxObject);
 
             _hitboxObject = null;
-            hitbox = null;
+            _collider = null;
         }
     }
 
-    // 辅助更新组件 用此组件更新HitBox状态 否则相对动画会有一帧偏移
+    //辅助更新组件 在编辑模式下更新HitBox状态 否则其相对动画会慢一帧
     [ExecuteInEditMode]
     private class HitBoxUpdater : MonoBehaviour
     {
@@ -123,13 +147,16 @@ public class ActionHitBoxClip : ActionClipBase
             _clip = clip;
         }
 
+        private void Update()
+        {
+            UpdateInEditMode();
+        }
+
         private void OnEnable()
         {
         #if UNITY_EDITOR
             if (!Application.isPlaying)
-            {
                 EditorApplication.update += UpdateInEditMode;
-            }
         #endif
         }
 
@@ -137,9 +164,7 @@ public class ActionHitBoxClip : ActionClipBase
         {
         #if UNITY_EDITOR
             if (!Application.isPlaying)
-            {
                 EditorApplication.update -= UpdateInEditMode;
-            }
         #endif
         }
 

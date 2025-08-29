@@ -11,9 +11,13 @@ public abstract class ActionClipBase : PlayableBehaviour
 {
     protected Actor actor = null;
     protected bool isPlaying = false;
+    public bool IsPlaying => isPlaying;
 
     public override void OnBehaviourPlay(Playable playable, FrameData info)
     {
+        if (!playable.IsValid() || !playable.GetGraph().IsValid())
+            return;
+
         if (isPlaying) return;
         isPlaying = true;
 
@@ -26,6 +30,9 @@ public abstract class ActionClipBase : PlayableBehaviour
 
     public override void OnBehaviourPause(Playable playable, FrameData info)
     {
+        if (!playable.IsValid() || !playable.GetGraph().IsValid())
+            return;
+
         if (!isPlaying) return;
         isPlaying = false;
 
