@@ -23,7 +23,6 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
         playerInput.actions = actions.asset;
         playerInput.notificationBehavior = PlayerNotifications.InvokeCSharpEvents;
         actions.Player.SetCallbacks(this);
-
         // 获取主相机引用
         mainCamera = Camera.main;
     }
@@ -53,6 +52,9 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
         if (controlledActor == null) return;
 
         controlledActor.logicInput.InputMove(CalculateMovementDirection(rawMove), moveDistance);
+
+        freelookCamera.m_XAxis.m_InputAxisValue = rawLook.x;
+        freelookCamera.m_YAxis.m_InputAxisValue = rawLook.y;
     }
 
     Vector3 CalculateMovementDirection(Vector2 input)
@@ -87,14 +89,14 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
         moveDistance = rawMove.magnitude;
     }
 
+    Vector2 rawLook = Vector2.zero;
     public void OnLook(InputAction.CallbackContext context)
     {
-
+        rawLook = context.ReadValue<Vector2>();
     }
 
     public void OnJump(InputAction.CallbackContext context)
     {
-
     }
 
     double LightPressStartTime = 0;
