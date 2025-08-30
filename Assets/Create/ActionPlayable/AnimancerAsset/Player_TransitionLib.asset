@@ -25,7 +25,7 @@ MonoBehaviour:
       _Fade: 0.1
     - _From: 1
       _To: 1
-      _Fade: 0.25
+      _Fade: 0
     _Aliases: []
     _AliasAllTransitions: 0
 --- !u!114 &7745801317053684519

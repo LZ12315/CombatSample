@@ -25,14 +25,52 @@ public class ActorMovement : MonoBehaviour
         transform.rotation = rotation;
     }
 
+    private float _yPositionDeadZone = 0.5f; // 死区阈值（单位：米）
+    private float _accumulatedYDelta; // 累积的Y轴变化量
+    private Vector3 _lastPosition; // 上一帧位置
     private void OnAnimatorMove()
     {
-        var deltaPos = animator.deltaPosition;
-        var deltaRot = animator.deltaRotation;
-        //为何这里要使用LocalRotation
+        Vector3 deltaPos = animator.deltaPosition;
+        Quaternion deltaRot = animator.deltaRotation;
+
+        // 计算当前帧的Y轴变化
+        float currentYDelta = deltaPos.y;
+
+        // 死区处理：累积微小变化，直到超过阈值
+        if (Mathf.Abs(currentYDelta) < _yPositionDeadZone)
+        {
+            // 累积微小变化
+            _accumulatedYDelta += currentYDelta;
+
+            // 检查累积值是否超过阈值
+            if (Mathf.Abs(_accumulatedYDelta) >= _yPositionDeadZone)
+            {
+                // 应用累积的变化（保留符号）
+                deltaPos.y = _accumulatedYDelta;
+                _accumulatedYDelta = 0;
+            }
+            else
+            {
+                // 忽略此帧的Y轴变化
+                deltaPos.y = 0;
+            }
+        }
+        else
+        {
+            // 变化量超过阈值，直接应用
+            _accumulatedYDelta = 0; // 重置累积值
+        }
+
+        // 应用旋转（修正为使用localRotation）
         transform.localRotation = deltaRot * transform.rotation;
+
+        // 移动角色控制器
         actor.characterController.Move(deltaPos);
+
+        // 记录位置用于调试
+        _lastPosition = transform.position;
     }
+
 
     void PerformGravity()
     {
