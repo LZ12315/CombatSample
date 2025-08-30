@@ -10,7 +10,8 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
     PlayerInputControl actions;
 
     public Actor controlledActor;
-    public CameraController cameraControl;
+    public CinemachineFreeLook freelookCamera;
+    private Camera mainCamera;
 
     public int ShortPress_Frame = 40;
     public int Hold_Frame = 120;
@@ -22,11 +23,13 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
         playerInput.actions = actions.asset;
         playerInput.notificationBehavior = PlayerNotifications.InvokeCSharpEvents;
         actions.Player.SetCallbacks(this);
+
+        // 获取主相机引用
+        mainCamera = Camera.main;
     }
 
     private void Start()
     {
-        cameraControl = Camera.main.GetComponent<CameraController>();
         SetControlledActor(FindFirstObjectByType<Actor>());
     }
 
@@ -47,10 +50,33 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
 
     void Update()
     {
-        if(controlledActor == null) return;
+        if (controlledActor == null) return;
 
-        Vector3 moveDir = cameraControl.RotationVertical * new Vector3(rawMove.x, 0, rawMove.y);
-        controlledActor.logicInput.InputMove(moveDir, moveDistance);
+        controlledActor.logicInput.InputMove(CalculateMovementDirection(rawMove), moveDistance);
+    }
+
+    Vector3 CalculateMovementDirection(Vector2 input)
+    {
+        if (mainCamera == null)
+        {
+            // 如果主相机未设置，尝试获取
+            mainCamera = Camera.main;
+            if (mainCamera == null) return Vector3.zero;
+        }
+
+        // 使用主相机的方向`
+        Vector3 cameraForward = mainCamera.transform.forward;
+        cameraForward.y = 0;
+        cameraForward.Normalize();
+
+        Vector3 cameraRight = mainCamera.transform.right;
+        cameraRight.y = 0;
+        cameraRight.Normalize();
+
+        // 将输入方向转换为世界空间方向
+        Vector3 moveDirection = (cameraForward * input.y) + (cameraRight * input.x);
+
+        return moveDirection;
     }
 
     Vector2 rawMove = Vector2.zero;
@@ -59,21 +85,6 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
     {
         rawMove = context.ReadValue<Vector2>();
         moveDistance = rawMove.magnitude;
-    }
-
-    private Vector3 ConvertFromCameraLocalToWorld(Vector2 move)
-    {
-        var cam = Camera.main;
-        var movement = move.magnitude;
-        if (cam != null && movement > 0.1f)
-        {
-            var direction = cam.transform.TransformDirection(new Vector3(rawMove.x, 0, rawMove.y));
-            direction.y = 0;
-            direction.Normalize();
-            return direction;
-        }
-
-        return Vector3.zero;
     }
 
     public void OnLook(InputAction.CallbackContext context)
