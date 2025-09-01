@@ -1,12 +1,13 @@
 using UnityEngine;
 using UnityEngine.Timeline;
-using Animancer;
+using CombatSample.Consts;
 
 [System.Serializable]
 public class ActionTimelineAsset : ScriptableObject
 {
-    public bool loop;
-    public ActionTimelineAsset next;
+    public bool isLoop;
+    public Enums.ActorActionType actionType;
+    public ActionTimelineAsset nextAction;
 
     [SerializeField, HideInInspector]
     private TimelineAsset _timelineAsset;
@@ -17,4 +18,12 @@ public class ActionTimelineAsset : ScriptableObject
         _timelineAsset = timelineAsset; 
     }
 
+}
+
+public partial class Enums
+{
+    public enum ActorActionType
+    {
+        Normal, Combat
+    }
 }

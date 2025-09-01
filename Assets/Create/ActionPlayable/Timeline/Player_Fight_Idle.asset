@@ -273,7 +273,7 @@ MonoBehaviour:
     m_PreExtrapolationMode: 0
     m_PostExtrapolationTime: 0
     m_PreExtrapolationTime: 0
-    m_DisplayName: When LightAttack -> Player_LightAttack_01
+    m_DisplayName: When LightAttack -> Lucy_LightAttack_02 1
   m_Markers:
     m_Objects: []
 --- !u!114 &-3466344600893933243
@@ -291,7 +291,7 @@ MonoBehaviour:
   active: 1
   actTransType: 0
   inputType: 6
-  next: {fileID: 11400000, guid: 2e01f6469b229814d90861aa39595e09, type: 2}
+  next: {fileID: 11400000, guid: d2e13b1e24945c849a4ce70f7066f8c7, type: 2}
 --- !u!114 &-1085222572135576680
 MonoBehaviour:
   m_ObjectHideFlags: 0
