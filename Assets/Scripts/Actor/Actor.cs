@@ -12,4 +12,5 @@ public class Actor : MonoBehaviour
     public ActionPlayableDirector actionPlayerDirector;
     public CharacterController characterController;
     public AnimancerComponent animancer;
+    public ActorCameraControl cameraControl;
 }

@@ -325,7 +325,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b2fc54e447a68ac499cb315c73175951, type: 3}
-  m_Name: Player_Fight_Idle
+  m_Name: Player_Idle
   m_EditorClassIdentifier: 
   loop: 1
   next: {fileID: 0}
@@ -342,7 +342,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 62f4ac90f978b6a479439b7600dd6f03, type: 3}
   m_Name: AnimancerAsset(Clone)(Clone)(Clone)(Clone)
   m_EditorClassIdentifier: 
-  transitionAsset: {fileID: 11400000, guid: e39f5a53a18cfbc498b6e475ccd0d51f, type: 2}
+  transitionAsset: {fileID: 11400000, guid: 8a805d94efb80d642a0a82a50fcef61c, type: 2}
 --- !u!114 &7267382915906195336
 MonoBehaviour:
   m_ObjectHideFlags: 1
