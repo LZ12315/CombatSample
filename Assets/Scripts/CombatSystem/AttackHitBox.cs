@@ -31,7 +31,8 @@ public class AttackHitBox : MonoBehaviour
                 );
 
                 // ¥¶¿Ì…À∫¶
-                damageable.TakeDamage(hitData);
+                if(damageable != null)
+                    damageable.TakeDamage(hitData);
 
                 if (config._debugMode)
                 {
