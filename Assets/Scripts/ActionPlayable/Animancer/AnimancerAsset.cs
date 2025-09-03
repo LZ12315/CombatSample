@@ -13,13 +13,25 @@ public class AnimancerAsset : PlayableAsset
     {
         get
         {
-            if(transitionAsset == null) return base.duration; // 默认值
+            if (transitionAsset == null) return base.duration;
 
-            ClipTransition clipTransition = transitionAsset.Transition as ClipTransition;
-            if (clipTransition.Clip != null)
-                return clipTransition.Clip.length; // 使用动画实际时长
-            else
-                return base.duration;
+            // 支持ClipTransition和DirectionalClipTransition
+            if (transitionAsset.Transition is ClipTransition clipTransition)
+            {
+                if (clipTransition.Clip != null)
+                    return clipTransition.Clip.length;
+            }
+            else if (transitionAsset.Transition is DirectionalClipTransition directionalTransition)
+            {
+                if (directionalTransition.AnimationSet != null &&
+                    directionalTransition.AnimationSet.GetClip(0) != null)
+                {
+                    // 使用第一个方向的长度作为基准
+                    return directionalTransition.AnimationSet.GetClip(0).length;
+                }
+            }
+
+            return base.duration;
         }
     }
 
@@ -40,22 +52,41 @@ public class AnimancerClip : ActionClipBase
 
     private AnimancerState animancerState;
     private float pauseTime;
-    private bool clipOver = false;
+    private int lastDirection = -1;
 
     protected override void OnClipPlay()
     {
         base.OnClipPlay();
 
-        ClipTransition clipTransition = transitionAsset.Transition as ClipTransition;
-        if (clipTransition.Clip == null) return;
+        if(transitionAsset == null) return;
 
-        if (animancerState == null) //刚开始播放
-            animancerState = actor.animancer.Play(clipTransition);
-        else if (!animancerState.IsPlaying) //从暂停恢复
+        // 恢复播放
+        if (animancerState != null && !animancerState.IsPlaying)
         {
             animancerState.Time = pauseTime;
-            animancerState.Speed = 1;
             animancerState.Play();
+        }
+        // 开始播放
+        else
+        {
+            // 处理DirectionalTransition
+            if (transitionAsset.Transition is DirectionalClipTransition directionalTransition)
+            {
+                // 运行时获取角色方向控制Transition
+                if (Application.isPlaying)
+                    HandleDirectionalTransition();
+                // 编辑模式下播放选择的Clip
+                else
+                    animancerState = actor.animancer.Play(directionalTransition.Clip, 0.1f);
+
+                animancerState.Speed = 1;
+            }
+            // 处理ClipTransition
+            else if (transitionAsset.Transition is ClipTransition clipTransition)
+            {
+                animancerState = actor.animancer.Play(clipTransition);
+                animancerState.Speed = 1;
+            }
         }
     }
 
@@ -65,34 +96,74 @@ public class AnimancerClip : ActionClipBase
 
         if (animancerState == null || !animancerState.IsValid()) return;
 
-        if (clipOver) //Clip播放结束
+        if (Application.isPlaying) 
         {
-            animancerState = null;
-            pauseTime = 0;
-        }
-        else //Clip被暂停
-        {
-            pauseTime = animancerState.Time;
             animancerState.IsPlaying = false;
+            pauseTime = animancerState.Time;
             animancerState.Speed = 0;
         }
     }
 
-    public override void ProcessFrame(Playable playable, FrameData info, object playerData)
+    protected override void OnClipFrame(Playable playable)
     {
-        //判断Clip是否结束
-        if (playable.GetTime() >= playable.GetDuration() - 0.0001f)
-            clipOver = true;
-        else
-            clipOver = false;
+        base.OnClipFrame(playable);
 
-        if (!Application.isPlaying && animancerState != null)
+        if(Application.isPlaying)
+            HandleDirectionalTransition();
+
+        if (!Application.isPlaying)
+            ProcessFramEditor(playable);
+    }
+
+    protected override void OnClipFinish()
+    {
+        base.OnClipFinish();
+
+        animancerState = null;
+        pauseTime = 0;
+    }
+
+    int CalculateDirection(Vector2 input)
+    {
+        return (int)DirectionalAnimationSet8.VectorToDirection(input);
+    }
+
+    void HandleDirectionalTransition()
+    {
+        if (transitionAsset.Transition is DirectionalClipTransition directionalTransition)
+        {
+            Vector2 moveInput = actor.logicInput.MoveInput;
+            int moveDirection = CalculateDirection(moveInput);
+
+            if (moveDirection != lastDirection)
+            {
+                directionalTransition.SetDirection(moveDirection);
+
+                animancerState = actor.animancer.Play(directionalTransition.Clip, 0.35f);
+                lastDirection = moveDirection;
+            }
+        }
+    }
+
+    private void ProcessFramEditor(Playable playable)
+    {
+        if (transitionAsset == null) return;
+
+        if (animancerState != null)
         {
             float clipProgress = (float)(playable.GetTime() / playable.GetDuration());
             animancerState.NormalizedTime = clipProgress;
             animancerState.Speed = 0;
         }
 
+        // 更新动画进度
+        if (animancerState != null && animancerState.IsValid())
+        {
+            float progress = (float)(playable.GetTime() / playable.GetDuration());
+            animancerState.NormalizedTime = progress;
+            animancerState.IsPlaying = false; // 暂停状态，手动控制进度
+            animancerState.Speed = 0;
+        }
     }
 
 }

@@ -1,18 +1,5 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!114 &-7795808440293241882
-MonoBehaviour:
-  m_ObjectHideFlags: 1
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 62f4ac90f978b6a479439b7600dd6f03, type: 3}
-  m_Name: AnimancerAsset(Clone)(Clone)
-  m_EditorClassIdentifier: 
-  transitionAsset: {fileID: 11400000, guid: a283b9f32ee01c440872a94117171682, type: 2}
 --- !u!114 &-4644994360984717075
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -125,7 +112,7 @@ MonoBehaviour:
     m_PreExtrapolationMode: 0
     m_PostExtrapolationTime: 0
     m_PreExtrapolationTime: 0
-    m_DisplayName: When LightAttack -> Lucy_LightAttack_02 1
+    m_DisplayName: When LightAttack -> Lucy_LightAttack_01
   m_Markers:
     m_Objects: []
 --- !u!114 &11400000
@@ -144,6 +131,19 @@ MonoBehaviour:
   actionType: 1
   nextAction: {fileID: 0}
   _timelineAsset: {fileID: -4644994360984717075}
+--- !u!114 &525310507661208275
+MonoBehaviour:
+  m_ObjectHideFlags: 1
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 62f4ac90f978b6a479439b7600dd6f03, type: 3}
+  m_Name: AnimancerAsset
+  m_EditorClassIdentifier: 
+  transitionAsset: {fileID: 11400000, guid: fee93a6d1614da0428aebdacd3d34814, type: 2}
 --- !u!114 &729317858048825370
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -292,7 +292,7 @@ MonoBehaviour:
   - m_Version: 1
     m_Start: 0.00009999999747378752
     m_ClipIn: 0
-    m_Asset: {fileID: -7795808440293241882}
+    m_Asset: {fileID: 525310507661208275}
     m_Duration: 1.1333335638046265
     m_TimeScale: 1
     m_ParentTrack: {fileID: 8578750562022944297}
@@ -357,6 +357,6 @@ MonoBehaviour:
     m_PreExtrapolationMode: 0
     m_PostExtrapolationTime: 0
     m_PreExtrapolationTime: 0
-    m_DisplayName: Lucy_Fight_Walk_F_Root
+    m_DisplayName: Lucy_Fight_Walk_FL_Root
   m_Markers:
     m_Objects: []

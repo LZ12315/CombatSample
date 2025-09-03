@@ -37,18 +37,6 @@ public class ActorCameraControl : MonoBehaviour
         InitializeCamera();
     }
 
-    private void Update()
-    {
-        if(state == Enums.PlayerCameraState.Concentrate)
-        {
-            if(_enemy != null)
-            {
-                Vector3 concentrateDir = _enemy.position - transform.position;
-
-            }
-        }
-    }
-
     private void InitializeCamera()
     {
         // 记录初始旋转状态
@@ -147,6 +135,12 @@ public class ActorCameraControl : MonoBehaviour
     public Vector3 CalculateMovementDirection(Vector2 rawMove)
     {
         if (transform == null) return Vector3.zero;
+
+        if(state == Enums.PlayerCameraState.Concentrate)
+        {
+            Vector3 enemyDir = _enemy.position - transform.position;
+            return enemyDir.normalized;
+        }
 
         // 使用相机枢轴点的方向
         Vector3 cameraForward = transform.forward;

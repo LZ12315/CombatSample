@@ -89,7 +89,7 @@ MonoBehaviour:
     m_PreExtrapolationMode: 0
     m_PostExtrapolationTime: 0
     m_PreExtrapolationTime: 0
-    m_DisplayName: Lucy_Fight_Idle_Root
+    m_DisplayName: Lucy_Idle
   m_Markers:
     m_Objects: []
 --- !u!114 &-8317864423645655921
@@ -273,7 +273,7 @@ MonoBehaviour:
     m_PreExtrapolationMode: 0
     m_PostExtrapolationTime: 0
     m_PreExtrapolationTime: 0
-    m_DisplayName: When LightAttack -> Player_LightAttack_01
+    m_DisplayName: "When LightAttack -> \u65E0"
   m_Markers:
     m_Objects: []
 --- !u!114 &-3466344600893933243
