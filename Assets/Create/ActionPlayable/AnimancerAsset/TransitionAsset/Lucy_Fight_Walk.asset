@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c5a8877f26e7a6a43aaf06fade1a064a, type: 3}
-  m_Name: Player_Fight_Walk
+  m_Name: Lucy_Fight_Walk
   m_EditorClassIdentifier: 
   _Transition:
     rid: 7307493344294731781

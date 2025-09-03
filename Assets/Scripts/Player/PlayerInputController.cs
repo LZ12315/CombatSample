@@ -16,7 +16,6 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
 
     // ÊäÈë×´Ì¬ //
     private Vector2 _rawMove = Vector2.zero;
-    private float _moveDistance = 0f;
     private Vector2 _rawLook = Vector2.zero;
 
     // ¹¥»÷×´Ì¬ //
@@ -65,14 +64,12 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
         controlledActor.cameraControl.HandleCameraRotation(_rawLook);
 
         // ´¦Àí½ÇÉ«ÒÆ¶¯
-        Vector3 moveDir = controlledActor.cameraControl.CalculateMovementDirection(_rawMove);
-        controlledActor.logicInput.InputMove(moveDir, _moveDistance);
+        controlledActor.logicInput.InputMove(_rawMove);
     }
 
     public void OnMove(InputAction.CallbackContext context)
     {
         _rawMove = context.ReadValue<Vector2>();
-        _moveDistance = _rawMove.magnitude;
     }
 
     public void OnLook(InputAction.CallbackContext context)

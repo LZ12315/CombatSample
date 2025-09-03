@@ -170,7 +170,7 @@ public class ActionHitBoxClip : ActionClipBase
 
         private void UpdateInEditMode()
         {
-            if (_clip != null && _clip.isPlaying)
+            if (_clip != null && _clip.state == Enums.ActionClipState.Play)
             {
                 _clip.UpdateHitbox();
             }

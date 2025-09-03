@@ -68,8 +68,10 @@ public class ActionTransitionClip : ActionClipBase
         actor.logicInput.RemoveEventListener(inputType, OnInputEventTriggered);
     }
 
-    public override void OnGraphStop(Playable playable)
+    protected override void OnClipFinish()
     {
+        base.OnClipFinish();
+
         if (eventWaitForInvoke && actTransType == Enums.ActTransType.ActionEnd)
         {
             eventWaitForInvoke = false;

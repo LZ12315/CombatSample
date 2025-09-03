@@ -10,6 +10,9 @@ public class ActorLogicInput : MonoBehaviour, IEventHolder<Enums.InputType>
     Dictionary<Enums.InputType, EventInfo> inputActionEvents = new ();
     List<Enums.InputType> inputThisFrame = new ();
 
+    private Vector2 lastMoveInput = Vector2.zero;
+    public Vector2 MoveInput => lastMoveInput;
+
     private void LateUpdate()
     {
         if (inputThisFrame.Count == 0) return;
@@ -24,11 +27,15 @@ public class ActorLogicInput : MonoBehaviour, IEventHolder<Enums.InputType>
         inputThisFrame.Clear();
     }
 
-    public void InputMove(Vector3 moveDir, float distance)
+    public void InputMove(Vector2 moveInput)
     {
+        lastMoveInput = moveInput;
+        Vector3 moveDir = actor.cameraControl.CalculateMovementDirection(moveInput);
         actor.movement.UpdateTurn(moveDir);
 
-        if (distance > 0.1f)
+        float moveDistance = moveInput.magnitude;
+
+        if (moveDistance > 0.1f)
             AddInputThisFrame(Enums.InputType.Move);
         else
             AddInputThisFrame(Enums.InputType.MoveCancel);
