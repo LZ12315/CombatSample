@@ -310,8 +310,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b2fc54e447a68ac499cb315c73175951, type: 3}
   m_Name: Lucy_LightAttack_01
   m_EditorClassIdentifier: 
-  loop: 0
-  next: {fileID: 11400000, guid: 7e89db99ae09b9649a725aa7a13ccf23, type: 2}
+  isLoop: 0
+  actionType: 1
+  nextAction: {fileID: 0}
   _timelineAsset: {fileID: 7415402365377804144}
 --- !u!114 &3214832398013198970
 MonoBehaviour:
@@ -446,8 +447,8 @@ MonoBehaviour:
   hitboxConfig:
     center: {x: 0, y: 0, z: 0}
     rotation: {x: 0, y: 0, z: 0, w: 1}
-    height: 0.5
-    radius: 0.1
+    height: 0.35
+    radius: 0.08
   attackConfig:
     targetLayers:
       serializedVersion: 2
