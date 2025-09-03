@@ -7,6 +7,7 @@ using Cinemachine;
 public class ActorCameraControl : MonoBehaviour
 {
     public CinemachineVirtualCamera virtualCamera;
+    public Transform _enemy;
 
     [Header("相机设置")]
     public bool invertVertical;
@@ -29,11 +30,23 @@ public class ActorCameraControl : MonoBehaviour
     private Vector2 _smoothedLookInput = Vector2.zero; // 输入平滑
     public float inputSmoothing = 6f; // 输入平滑参数
 
-    private Enums.PlayerCameraState state;
+    public Enums.PlayerCameraState state;
 
     private void Start()
     {
         InitializeCamera();
+    }
+
+    private void Update()
+    {
+        if(state == Enums.PlayerCameraState.Concentrate)
+        {
+            if(_enemy != null)
+            {
+                Vector3 concentrateDir = _enemy.position - transform.position;
+
+            }
+        }
     }
 
     private void InitializeCamera()

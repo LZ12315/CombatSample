@@ -140,8 +140,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b2fc54e447a68ac499cb315c73175951, type: 3}
   m_Name: Player_Fight_Walk
   m_EditorClassIdentifier: 
-  loop: 1
-  next: {fileID: 0}
+  isLoop: 1
+  actionType: 1
+  nextAction: {fileID: 0}
   _timelineAsset: {fileID: -4644994360984717075}
 --- !u!114 &729317858048825370
 MonoBehaviour:

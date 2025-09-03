@@ -1,0 +1,16 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ba5505a8dda001c43b49ceb20a35ddfc, type: 3}
+  m_Name: PlayerActionSetting
+  m_EditorClassIdentifier: 
+  idle: {fileID: 11400000, guid: 982ca7f3c5a0c3e46aad4118a100fea9, type: 2}
+  fight_Idle: {fileID: 11400000, guid: 7e89db99ae09b9649a725aa7a13ccf23, type: 2}
