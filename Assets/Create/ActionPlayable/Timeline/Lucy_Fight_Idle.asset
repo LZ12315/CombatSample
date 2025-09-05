@@ -181,7 +181,7 @@ MonoBehaviour:
     m_PreExtrapolationMode: 0
     m_PostExtrapolationTime: 0
     m_PreExtrapolationTime: 0
-    m_DisplayName: When Move -> Player_Fight_Walk
+    m_DisplayName: When Move -> Lucy_Fight_Walk
   m_Markers:
     m_Objects: []
 --- !u!114 &-3839211907483062395
@@ -273,7 +273,7 @@ MonoBehaviour:
     m_PreExtrapolationMode: 0
     m_PostExtrapolationTime: 0
     m_PreExtrapolationTime: 0
-    m_DisplayName: When LightAttack -> Lucy_LightAttack_02 1
+    m_DisplayName: When LightAttack -> Lucy_LightAttack_01
   m_Markers:
     m_Objects: []
 --- !u!114 &-3466344600893933243
@@ -325,7 +325,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b2fc54e447a68ac499cb315c73175951, type: 3}
-  m_Name: Player_Fight_Idle
+  m_Name: Lucy_Fight_Idle
   m_EditorClassIdentifier: 
   isLoop: 1
   actionType: 1
@@ -359,4 +359,4 @@ MonoBehaviour:
   active: 1
   actTransType: 0
   inputType: 1
-  next: {fileID: 11400000, guid: 68090b2c94456f8449206e63d7f537f7, type: 2}
+  next: {fileID: 11400000, guid: 0a3d999f80197b24890d39c6a722b037, type: 2}

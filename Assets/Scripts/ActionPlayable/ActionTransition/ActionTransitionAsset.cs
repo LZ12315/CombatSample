@@ -71,12 +71,15 @@ public class ActionTransitionClip : ActionClipBase
     protected override void OnClipFinish()
     {
         base.OnClipFinish();
+        if (!active || actor == null) return;
 
         if (eventWaitForInvoke && actTransType == Enums.ActTransType.ActionEnd)
         {
             eventWaitForInvoke = false;
             actor.actionPlayerDirector.PlayAction(next);
         }
+
+        actor.logicInput.RemoveEventListener(inputType, OnInputEventTriggered);
     }
 }
 

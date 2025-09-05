@@ -10,7 +10,7 @@ public class ActionPlayableDirector : MonoBehaviour
 {
     public PlayableDirector playableDirector;
     public ActorMovement movement;
-    public ActorActionSetting actionSetting;
+    public ActionTimelineAsset defaultAction;
     ActionTimelineAsset actionPlaying;
 
     private void Start()
@@ -18,7 +18,7 @@ public class ActionPlayableDirector : MonoBehaviour
         playableDirector.extrapolationMode = DirectorWrapMode.None;
         playableDirector.stopped += OnDirectorStopped;
 
-        PlayAction(actionSetting.idle);
+        PlayAction(defaultAction);
     }
 
     public void PlayAction(ActionTimelineAsset action)
@@ -26,7 +26,7 @@ public class ActionPlayableDirector : MonoBehaviour
         if (action == null) return;
 
         playableDirector.Play(action.TimelineAsset);
-        //movement.ResetRotation();
+
         actionPlaying = action;
     }
 
@@ -37,17 +37,7 @@ public class ActionPlayableDirector : MonoBehaviour
         else if(actionPlaying.nextAction != null)
             PlayAction(actionPlaying.nextAction);
         else
-        {
-            switch (actionPlaying.actionType)
-            {
-                case Enums.ActorActionType.Normal:
-                    PlayAction(actionSetting.idle);
-                    break;
-                case Enums.ActorActionType.Combat:
-                    PlayAction(actionSetting.fight_Idle); 
-                    break;
-            }
-        }
+            PlayAction(defaultAction);
     }
 
 }
