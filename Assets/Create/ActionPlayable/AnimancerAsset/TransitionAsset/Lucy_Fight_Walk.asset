@@ -13,12 +13,12 @@ MonoBehaviour:
   m_Name: Lucy_Fight_Walk
   m_EditorClassIdentifier: 
   _Transition:
-    rid: 7307493344294731781
+    rid: 3092552503723819010
   references:
     version: 2
     RefIds:
-    - rid: 7307493344294731781
-      type: {class: ClipTransition, ns: Animancer, asm: Kybernetik.Animancer}
+    - rid: 3092552503723819010
+      type: {class: DirectionalClipTransition, ns: Animancer, asm: Kybernetik.Animancer}
       data:
         _FadeDuration: 0.25
         _Speed: 1
@@ -29,3 +29,5 @@ MonoBehaviour:
         _Clip: {fileID: 2189116569001452754, guid: 373ceb13eb5b7e04294116a71b7ae638,
           type: 3}
         _NormalizedStartTime: 0
+        _AnimationSet: {fileID: 11400000, guid: b783063b1a9f58141b8f317edeb6f0e3,
+          type: 2}

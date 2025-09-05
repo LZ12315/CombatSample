@@ -16,9 +16,6 @@ public abstract class ActionClipBase : PlayableBehaviour
 
     public override void OnBehaviourPlay(Playable playable, FrameData info)
     {
-        if (!playable.IsValid() || !playable.GetGraph().IsValid())
-            return;
-
         if (state == Enums.ActionClipState.Play) return;
         state = Enums.ActionClipState.Play;
 
@@ -31,9 +28,6 @@ public abstract class ActionClipBase : PlayableBehaviour
 
     public override void OnBehaviourPause(Playable playable, FrameData info)
     {
-        if (!playable.IsValid() || !playable.GetGraph().IsValid())
-            return;
-
         if (state != Enums.ActionClipState.Play) return;
         state = Enums.ActionClipState.Pause;
 
@@ -53,18 +47,22 @@ public abstract class ActionClipBase : PlayableBehaviour
 
     protected virtual void OnClipPlay()
     {
+
     }
 
     protected virtual void OnClipPause()
     {
+
     }
 
     protected virtual void OnClipFrame(Playable playable)
     {
+
     }
 
     protected virtual void OnClipFinish()
     {
+
     }
 
 }

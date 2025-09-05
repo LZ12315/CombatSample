@@ -181,117 +181,9 @@ MonoBehaviour:
     m_PreExtrapolationMode: 0
     m_PostExtrapolationTime: 0
     m_PreExtrapolationTime: 0
-    m_DisplayName: When Move -> Player_Fight_Walk
+    m_DisplayName: When Move -> Lucy_Fight_Walk
   m_Markers:
     m_Objects: []
---- !u!114 &-3839211907483062395
-MonoBehaviour:
-  m_ObjectHideFlags: 1
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ead59e83e2922e24da6fd103716f4d85, type: 3}
-  m_Name: Action Transition Track (1)
-  m_EditorClassIdentifier: 
-  m_Version: 3
-  m_AnimClip: {fileID: 0}
-  m_Locked: 0
-  m_Muted: 0
-  m_CustomPlayableFullTypename: 
-  m_Curves: {fileID: 0}
-  m_Parent: {fileID: -1085222572135576680}
-  m_Children: []
-  m_Clips:
-  - m_Version: 1
-    m_Start: 0.00009999999747378752
-    m_ClipIn: 0
-    m_Asset: {fileID: -3466344600893933243}
-    m_Duration: 2.000099999996
-    m_TimeScale: 1
-    m_ParentTrack: {fileID: -3839211907483062395}
-    m_EaseInDuration: 0
-    m_EaseOutDuration: 0
-    m_BlendInDuration: -1
-    m_BlendOutDuration: -1
-    m_MixInCurve:
-      serializedVersion: 2
-      m_Curve:
-      - serializedVersion: 3
-        time: 0
-        value: 0
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      - serializedVersion: 3
-        time: 1
-        value: 1
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      m_PreInfinity: 2
-      m_PostInfinity: 2
-      m_RotationOrder: 4
-    m_MixOutCurve:
-      serializedVersion: 2
-      m_Curve:
-      - serializedVersion: 3
-        time: 0
-        value: 1
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      - serializedVersion: 3
-        time: 1
-        value: 0
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      m_PreInfinity: 2
-      m_PostInfinity: 2
-      m_RotationOrder: 4
-    m_BlendInCurveMode: 0
-    m_BlendOutCurveMode: 0
-    m_ExposedParameterNames: []
-    m_AnimationCurves: {fileID: 0}
-    m_Recordable: 0
-    m_PostExtrapolationMode: 0
-    m_PreExtrapolationMode: 0
-    m_PostExtrapolationTime: 0
-    m_PreExtrapolationTime: 0
-    m_DisplayName: "When LightAttack -> \u65E0"
-  m_Markers:
-    m_Objects: []
---- !u!114 &-3466344600893933243
-MonoBehaviour:
-  m_ObjectHideFlags: 1
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7e16121e222ac9543a73f7aba8deff52, type: 3}
-  m_Name: ActionTransitionAsset(Clone)(Clone)(Clone)
-  m_EditorClassIdentifier: 
-  active: 1
-  actTransType: 0
-  inputType: 6
-  next: {fileID: 11400000, guid: 2e01f6469b229814d90861aa39595e09, type: 2}
 --- !u!114 &-1085222572135576680
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -308,7 +200,6 @@ MonoBehaviour:
   m_Tracks:
   - {fileID: -8605371426078775767}
   - {fileID: -8317864423645655921}
-  - {fileID: -3839211907483062395}
   m_FixedDuration: 0
   m_EditorSettings:
     m_Framerate: 60
@@ -325,7 +216,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b2fc54e447a68ac499cb315c73175951, type: 3}
-  m_Name: Player_Idle
+  m_Name: Lucy_Idle
   m_EditorClassIdentifier: 
   isLoop: 1
   actionType: 0
@@ -359,4 +250,4 @@ MonoBehaviour:
   active: 1
   actTransType: 0
   inputType: 1
-  next: {fileID: 11400000, guid: 68090b2c94456f8449206e63d7f537f7, type: 2}
+  next: {fileID: 11400000, guid: 0a3d999f80197b24890d39c6a722b037, type: 2}

@@ -7,7 +7,6 @@ using Cinemachine;
 public class ActorCameraControl : MonoBehaviour
 {
     public CinemachineVirtualCamera virtualCamera;
-    public Transform _enemy;
 
     [Header("相机设置")]
     public bool invertVertical;
@@ -30,7 +29,7 @@ public class ActorCameraControl : MonoBehaviour
     private Vector2 _smoothedLookInput = Vector2.zero; // 输入平滑
     public float inputSmoothing = 6f; // 输入平滑参数
 
-    public Enums.PlayerCameraState state;
+    private Enums.PlayerCameraState state;
 
     private void Start()
     {
@@ -135,12 +134,6 @@ public class ActorCameraControl : MonoBehaviour
     public Vector3 CalculateMovementDirection(Vector2 rawMove)
     {
         if (transform == null) return Vector3.zero;
-
-        if(state == Enums.PlayerCameraState.Concentrate)
-        {
-            Vector3 enemyDir = _enemy.position - transform.position;
-            return enemyDir.normalized;
-        }
 
         // 使用相机枢轴点的方向
         Vector3 cameraForward = transform.forward;
