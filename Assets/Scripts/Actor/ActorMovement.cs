@@ -14,10 +14,10 @@ public class ActorMovement : MonoBehaviour
 
     public void UpdateTurn(Vector3 direction)
     {
-        if(direction.sqrMagnitude < 0.01f) return;
+        //if(direction.sqrMagnitude < 0.01f) return;
 
-        Quaternion targetRotation = Quaternion.LookRotation(direction, Vector3.up);
-        rotation = Quaternion.RotateTowards(rotation, targetRotation, rotateSpeed * Time.deltaTime);
+        //Quaternion targetRotation = Quaternion.LookRotation(direction, Vector3.up);
+        //rotation = Quaternion.RotateTowards(rotation, targetRotation, rotateSpeed * Time.deltaTime);
     }
 
     private void Update()

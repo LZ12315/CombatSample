@@ -30,11 +30,19 @@ public class ActionPlayableDirector : MonoBehaviour
         actionPlaying = action;
     }
 
+    public void ReplayAction()
+    {
+        if(!actionPlaying) return;
+
+        playableDirector.time = 0;
+        PlayAction(actionPlaying);
+    }
+
     private void OnDirectorStopped(PlayableDirector director)
     {
         if (actionPlaying.isLoop)
-            PlayAction(actionPlaying);
-        else if(actionPlaying.nextAction != null)
+            ReplayAction();
+        else if (actionPlaying.nextAction != null)
             PlayAction(actionPlaying.nextAction);
         else
             PlayAction(defaultAction);
