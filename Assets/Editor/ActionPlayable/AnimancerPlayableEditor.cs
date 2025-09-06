@@ -30,6 +30,11 @@ public class AnimancerPlayableEditor : ActionTrackEditorBase
 [CustomTimelineEditor(typeof(AnimancerAsset))]
 class AnimancerClipEditor : ActionClipEditorBase
 {
+    public override void OnCreate(TimelineClip clip, TrackAsset track, TimelineClip clonedFrom)
+    {
+        UpdateAnimancerInfo(clip);
+    }
+
     public override ClipDrawOptions GetClipOptions(TimelineClip clip)
     {
         var options = base.GetClipOptions(clip);
@@ -41,7 +46,6 @@ class AnimancerClipEditor : ActionClipEditorBase
     public override void OnClipChanged(TimelineClip clip)
     {
         AdjustClipStartTime(clip);
-        UpdateAnimancerInfo(clip);
         TimelineEditor.Refresh(RefreshReason.ContentsModified);
     }
 
