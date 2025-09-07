@@ -71,18 +71,17 @@ public class PhaseAwareAnimancerPlayer
         return normalizedPhase * clip.length;
     }
 
+    // 一般过渡方法（直接切换）
     public void NormalPhaseTransition(AnimationClip clip, float blendTime = 0.15f)
     {
         Play(clip, blendTime);
     }
 
-    // 安全过渡方法 (在脚步落地时切换)
+    // 安全过渡方法（在脚步落地时切换）
     public void SafeTransition(AnimationClip clip, float blendTime = 0.15f)
     {
         if (_phaseTracker.IsTransitionSafe)
-        {
             Play(clip, blendTime);
-        }
         else
         {
             // 延迟到安全点切换

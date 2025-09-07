@@ -71,7 +71,11 @@ public class AnimancerClip : ActionClipBase
         {
             _phaseAwarePlayer = new PhaseAwareAnimancerPlayer(actor.animancer);
             _isDirectionalAnimation = true;
-            //UpdateDirectionalAnimation(); //待解决 动作切换时卡顿
+
+            //方案一 动作循环开始以及切换时卡顿 也就是每次动作播放完卡顿
+            //UpdateDirectionalAnimation();
+
+            //方案二 没有任何问题
             _lastMoveInput = actor.logicInput.MoveInput;
             _currentDirection = CalculateDirection(_lastMoveInput);
             directionalTransition.SetDirection(_currentDirection);
