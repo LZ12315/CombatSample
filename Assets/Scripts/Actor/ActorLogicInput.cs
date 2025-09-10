@@ -41,7 +41,12 @@ public class ActorLogicInput : MonoBehaviour, IEventHolder<Enums.InputType>
             AddInputThisFrame(Enums.InputType.MoveCancel);
     }
 
-    public void InputAction(Enums.InputType type)
+    public void GetInputData(InputData inputData)
+    {
+
+    }
+
+    public void GetInputAction(Enums.InputType type)
     {
         AddInputThisFrame(type);
     }
