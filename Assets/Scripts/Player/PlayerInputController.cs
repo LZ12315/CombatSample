@@ -108,7 +108,7 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
                 }
                 else if (_lightPressFrames >= Hold_Frame)
                 {
-                    controlledActor.logicInput.InputAction(Enums.InputType.LightAttack_Hold);
+                    //controlledActor.logicInput.InputAction(Enums.InputType.LightAttack_Hold);
                 }
                 break;
         }
@@ -134,9 +134,14 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
                 }
                 else if (_heavyPressFrames >= Hold_Frame)
                 {
-                    controlledActor.logicInput.InputAction(Enums.InputType.HeavyAttack_Hold);
+                    //controlledActor.logicInput.InputAction(Enums.InputType.HeavyAttack_Hold);
                 }
                 break;
         }
+    }
+
+    public void OnDodge(InputAction.CallbackContext context)
+    {
+
     }
 }

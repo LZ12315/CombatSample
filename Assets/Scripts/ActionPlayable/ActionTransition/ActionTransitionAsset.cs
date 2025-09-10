@@ -36,9 +36,9 @@ public class ActionTransitionClip : ActionClipBase
 
     bool eventWaitForInvoke = false;
 
-    protected override void OnClipPlay()
+    protected override void OnClipPlay(Playable playable)
     {
-        base.OnClipPlay();
+        base.OnClipPlay(playable);
         if(!active || actor == null) return;
 
         actor.logicInput.AddEventListener(inputType, OnInputEventTriggered);
@@ -59,6 +59,14 @@ public class ActionTransitionClip : ActionClipBase
         base.OnClipPause();
         if (!active || actor == null) return;
 
+        actor.logicInput.RemoveEventListener(inputType, OnInputEventTriggered);
+    }
+
+    protected override void OnClipFinish()
+    {
+        base.OnClipFinish();
+        if (!active || actor == null) return;
+
         if (eventWaitForInvoke && actTransType == Enums.ActTransType.TransitionEnd)
         {
             actor.actionPlayerDirector.PlayAction(next);
@@ -68,19 +76,16 @@ public class ActionTransitionClip : ActionClipBase
         actor.logicInput.RemoveEventListener(inputType, OnInputEventTriggered);
     }
 
-    protected override void OnClipFinish()
+    public override void OnGraphStop(Playable playable)
     {
-        base.OnClipFinish();
-        if (!active || actor == null) return;
 
         if (eventWaitForInvoke && actTransType == Enums.ActTransType.ActionEnd)
         {
             eventWaitForInvoke = false;
             actor.actionPlayerDirector.PlayAction(next);
         }
-
-        actor.logicInput.RemoveEventListener(inputType, OnInputEventTriggered);
     }
+
 }
 
 public static partial class Enums

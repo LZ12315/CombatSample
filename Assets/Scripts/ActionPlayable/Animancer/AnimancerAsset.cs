@@ -48,44 +48,66 @@ public class AnimancerAsset : PlayableAsset
 public class AnimancerClip : ActionClipBase
 {
     public TransitionAsset transitionAsset = null;
+    private AnimancerState animateState;
 
-    // 动画状态管理
-    private AnimancerState _animateState;
-    private bool _isDirectionalAnimation;
-
-    // DirectionTransition配置参数
-    public float _directionChangeThreshold = 0.1f; // 方向变化阈值
-    public float _blendDuration = 0.25f; // 方向切换混合时间
+    // DirectionTransition配置参数 //
+    private float _directionChangeThreshold = 0.1f; // 方向变化阈值
+    private float _blendDuration = 0.25f; // 方向切换混合时间
     private PhaseAwareAnimancerPlayer _phaseAwarePlayer; // 动作相位管理
-    private Vector2 _lastMoveInput = Vector2.zero;
-    private int _currentDirection = -1;
+    private Vector2 _lastMoveInput = Vector2.zero; // 最后输入
+    private int _currentDirection = -1; // 目前Direction
 
-    protected override void OnClipPlay()
+    protected override void OnClipPlay(Playable playable)
     {
-        base.OnClipPlay();
+        base.OnClipPlay(playable);
 
         if (transitionAsset == null) return;
+        Cleanup();
 
+        if (Application.isPlaying)
+            OnPlayModePlay();
+        else
+            OnEditorModePlay(playable);
+    }
+
+    void OnPlayModePlay()
+    {
         // 初始化方向动画
         if (transitionAsset.Transition is DirectionalClipTransition directionalTransition)
         {
             _phaseAwarePlayer = new PhaseAwareAnimancerPlayer(actor.animancer);
-            _isDirectionalAnimation = true;
 
-            //方案一 动作循环开始以及切换时卡顿 也就是每次动作播放完卡顿
-            //UpdateDirectionalAnimation();
-
-            //方案二 没有任何问题
             _lastMoveInput = actor.logicInput.MoveInput;
             _currentDirection = CalculateDirection(_lastMoveInput);
             directionalTransition.SetDirection(_currentDirection);
-            actor.animancer.Play(directionalTransition.Clip, 0.15f);
+            animateState = actor.animancer.Play(directionalTransition.Clip, 0.15f);
         }
-        // 处理普通动画
+        // 初始化普通动画
         else if (transitionAsset.Transition is ClipTransition clipTransition)
         {
-            _animateState = actor.animancer.Play(clipTransition);
-            _isDirectionalAnimation = false;
+            animateState = actor.animancer.Play(clipTransition);
+        }
+    }
+
+    void OnEditorModePlay(Playable playable)
+    {
+        // 初始化方向动画
+        if (transitionAsset.Transition is DirectionalClipTransition directionalTransition)
+        {
+            animateState = actor.animancer.States.GetOrCreate(directionalTransition.Clip);
+
+            double currentTime = playable.GetTime();
+            double duration = playable.GetDuration();
+            double normalizedTime = currentTime / duration;
+            animateState.NormalizedTime = (float)normalizedTime;
+
+            animateState.Speed = 1;
+            actor.animancer.Play(animateState, 0.15f);
+        }
+        // 初始化普通动画
+        else if (transitionAsset.Transition is ClipTransition clipTransition)
+        {
+            animateState = actor.animancer.Play(clipTransition);
         }
     }
 
@@ -93,32 +115,65 @@ public class AnimancerClip : ActionClipBase
     {
         base.OnClipFrame(playable);
 
-        // 如果是方向动画，持续更新
-        if (_isDirectionalAnimation)
+        if (Application.isPlaying)
+            OnPlayModeFrame();
+        else
+            OnEditorModeFrame(playable);
+    }
+
+    void OnPlayModeFrame()
+    {
+        if (transitionAsset.Transition is DirectionalClipTransition)
         {
+            // 如果是方向动画，持续更新
             _phaseAwarePlayer?.Update(Time.deltaTime);
             UpdateDirectionalAnimation();
         }
     }
 
-    protected override void OnClipFinish()
+    void OnEditorModeFrame(Playable playable)
     {
-        base.OnClipFinish();
-        Cleanup();
+        if (animateState == null) return;
+
+        double currentTime = playable.GetTime();
+        double duration = playable.GetDuration();
+        double normalizedTime = currentTime / duration;
+        animateState.NormalizedTime = (float)normalizedTime;
+
+        animateState.Speed = 0;
     }
 
     protected override void OnClipPause()
     {
         base.OnClipPause();
+
         // 暂停时也可以考虑清理资源
+        Cleanup();
+    }
+
+    protected override void OnClipFinish()
+    {
+        base.OnClipFinish();
+
+        if(Application.isPlaying)
+            Cleanup();
+        else
+            OnEditorFinish();
+    }
+
+    void OnEditorFinish()
+    {
+        if (animateState == null) return;
+        animateState.Speed = 0;
+        animateState.NormalizedTime = 0;
+
         Cleanup();
     }
 
     private void Cleanup()
     {
-        _animateState = null;
+        animateState = null;
         _currentDirection = -1;
-        _isDirectionalAnimation = false;
         _phaseAwarePlayer = null;
     }
 
