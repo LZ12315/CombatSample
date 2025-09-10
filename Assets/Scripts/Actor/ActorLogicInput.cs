@@ -30,7 +30,7 @@ public class ActorLogicInput : MonoBehaviour, IEventHolder<Enums.InputType>
     public void InputMove(Vector2 moveInput)
     {
         lastMoveInput = moveInput;
-        Vector3 moveDir = actor.cameraControl.CalculateMovementDirection(moveInput);
+        Vector3 moveDir = actor.cameraControl.CalculateFaceDirection(moveInput);
         actor.movement.UpdateTurn(moveDir);
 
         float moveDistance = moveInput.magnitude;
@@ -124,8 +124,6 @@ public static partial class Enums
         Move,
         MoveCancel,
         Dodge,
-        HeavyAttack_Hold,
-        LightAttack_Hold,
         LightAttack,
         HeavyAttack
     }

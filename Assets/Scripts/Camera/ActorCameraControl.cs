@@ -6,7 +6,7 @@ using Cinemachine;
 
 public class ActorCameraControl : MonoBehaviour
 {
-    public CinemachineVirtualCamera virtualCamera;
+    public CinemachineVirtualCamera personalFollowCamera;
 
     [Header("相机设置")]
     public bool invertVertical;
@@ -148,6 +148,25 @@ public class ActorCameraControl : MonoBehaviour
         return (cameraForward * rawMove.y) + (cameraRight * rawMove.x);
     }
 
+    public Vector3 CalculateFaceDirection(Vector2 rawMove)
+    {
+        if (transform == null) return Vector3.zero;
+
+        // 检查输入是否有效（即 rawMove 不为零向量）
+        if (rawMove.sqrMagnitude > 0.01f) // 使用 sqrMagnitude 避免平方根运算
+        {
+            // 使用相机枢轴点的方向，仅取水平面（Y 轴置零）
+            Vector3 cameraForward = transform.forward;
+            cameraForward.y = 0;
+            cameraForward.Normalize();
+            return cameraForward;
+        }
+
+        // 无输入时返回零向量（角色保持当前朝向）
+        return Vector3.zero;
+    }
+
+
     public void SetCameraState(Enums.PlayerCameraState state)
     {
         this.state = state;
@@ -155,10 +174,10 @@ public class ActorCameraControl : MonoBehaviour
         switch (state) 
         {
             case Enums.PlayerCameraState.Normal:
-                virtualCamera.m_Lens.FieldOfView = 50;
+                personalFollowCamera.m_Lens.FieldOfView = 50;
                 break;
             case Enums.PlayerCameraState.Concentrate:
-                virtualCamera.m_Lens.FieldOfView = 80;
+                personalFollowCamera.m_Lens.FieldOfView = 80;
                 break;
         }
     }

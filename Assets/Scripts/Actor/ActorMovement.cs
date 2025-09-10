@@ -12,13 +12,28 @@ public class ActorMovement : MonoBehaviour
     Quaternion rotation = Quaternion.identity;
     Vector3 gravityVelocity = Vector3.zero;
 
-    public void UpdateTurn(Vector3 direction)
+    public void UpdateTurn(Vector3 moveDirection)
     {
-        //if(direction.sqrMagnitude < 0.01f) return;
+        // 没有有效移动方向时返回
+        if (moveDirection.sqrMagnitude < 0.01f) return;
 
-        //Quaternion targetRotation = Quaternion.LookRotation(direction, Vector3.up);
-        //rotation = Quaternion.RotateTowards(rotation, targetRotation, rotateSpeed * Time.deltaTime);
+        // 计算目标旋转
+        Quaternion targetRotation = Quaternion.LookRotation(moveDirection, Vector3.up);
+
+        // 计算当前旋转与目标旋转的角度差
+        float angleDifference = Quaternion.Angle(rotation, targetRotation);
+
+        // 设置角度阈值（可配置）
+        const float rotationThreshold = 1f; // 1度阈值
+
+        // 如果当前旋转与目标方向一致（在阈值内），则跳过旋转
+        if (angleDifference <= rotationThreshold)
+            return;
+
+        // 执行旋转
+        rotation = Quaternion.RotateTowards(rotation, targetRotation, rotateSpeed * Time.deltaTime);
     }
+
 
     private void Update()
     {

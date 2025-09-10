@@ -290,7 +290,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   active: 1
   actTransType: 0
-  inputType: 6
+  inputType: 4
   next: {fileID: 11400000, guid: d2e13b1e24945c849a4ce70f7066f8c7, type: 2}
 --- !u!114 &-1085222572135576680
 MonoBehaviour:
@@ -327,9 +327,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b2fc54e447a68ac499cb315c73175951, type: 3}
   m_Name: Lucy_Fight_Idle
   m_EditorClassIdentifier: 
-  isLoop: 1
+  isLoop: 0
   actionType: 1
-  nextAction: {fileID: 0}
+  nextAction: {fileID: 11400000, guid: 982ca7f3c5a0c3e46aad4118a100fea9, type: 2}
   _timelineAsset: {fileID: -1085222572135576680}
 --- !u!114 &1778306101409075684
 MonoBehaviour:

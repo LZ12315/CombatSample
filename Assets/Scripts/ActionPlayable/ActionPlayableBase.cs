@@ -23,7 +23,7 @@ public abstract class ActionClipBase : PlayableBehaviour
         actor = director.GetComponent<Actor>();
         if (actor == null) return;
 
-        OnClipPlay();
+        OnClipPlay(playable);
     }
 
     public override void OnBehaviourPause(Playable playable, FrameData info)
@@ -45,7 +45,7 @@ public abstract class ActionClipBase : PlayableBehaviour
         }
     }
 
-    protected virtual void OnClipPlay()
+    protected virtual void OnClipPlay(Playable playable)
     {
 
     }
