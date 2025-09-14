@@ -1,30 +1,19 @@
-using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
-using CombatSample.Consts;
 using System;
 
 public abstract class InputData
 {
-
 }
 
 [Serializable]
 public class InputButtonData : InputData
 {
     public Enums.InputButton inputButton;
-    public Enums.InputState inputState;
+    public Enums.ButtonState buttonState;
 
-    public InputButtonData(Enums.InputButton button = Enums.InputButton.None, Enums.InputState state = Enums.InputState.None)
+    public InputButtonData(Enums.InputButton button = Enums.InputButton.None, Enums.ButtonState state = Enums.ButtonState.None)
     {
         inputButton = button;
-        inputState = state;
-    }
-
-    public void SetValue(Enums.InputButton button, Enums.InputState state)
-    {
-        inputButton = button;
-        inputState = state;
+        buttonState = state;
     }
 }
 
@@ -32,20 +21,21 @@ public class InputButtonData : InputData
 public class InputJoystickData : InputData
 {
     public Enums.InputJoystick inputJoystick;
-    public Enums.InputState inputState;
-    public Enums.JoystickVigor joyStickVigor;
+    public Enums.JoystickVigor joystickVigor;
 
-    public InputJoystickData(Enums.InputJoystick joystick = Enums.InputJoystick.None, Enums.InputState state = Enums.InputState.None)
+    public InputJoystickData(Enums.InputJoystick joystick = Enums.InputJoystick.None, Enums.JoystickVigor vigor = Enums.JoystickVigor.None)
     {
         inputJoystick = joystick;
-        inputState = state;
+        joystickVigor = vigor;
     }
 
-    public void SetValue(Enums.InputJoystick joystick, Enums.InputState state, Enums.JoystickVigor vigor)
+    public bool isSame(InputJoystickData other)
     {
-        inputJoystick = joystick;
-        inputState = state;
-        joyStickVigor = vigor;
+        if (!(other.inputJoystick == inputJoystick)) return false;
+
+        if (!(other.joystickVigor == joystickVigor)) return false;
+
+        return true;
     }
 }
 
@@ -60,6 +50,14 @@ public static partial class Enums
         HeavyAttack
     }
 
+    public enum ButtonState
+    {
+        None,
+        ShortPress,
+        LongPress_Start,
+        LongPress_Cancel
+    }
+
     public enum InputJoystick
     {
         None,
@@ -67,14 +65,6 @@ public static partial class Enums
         South,
         West,
         North,
-    }
-
-    public enum InputState
-    {
-        None,
-        Press,
-        Hold,
-        Release
     }
 
     public enum JoystickVigor
