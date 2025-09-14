@@ -2,11 +2,11 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using CombatSample.Consts;
-using System.Security.Cryptography;
 using System;
 
 public abstract class InputData
 {
+
 }
 
 [Serializable]
@@ -28,10 +28,12 @@ public class InputButtonData : InputData
     }
 }
 
+[Serializable]
 public class InputJoystickData : InputData
 {
     public Enums.InputJoystick inputJoystick;
     public Enums.InputState inputState;
+    public Enums.JoystickVigor joyStickVigor;
 
     public InputJoystickData(Enums.InputJoystick joystick = Enums.InputJoystick.None, Enums.InputState state = Enums.InputState.None)
     {
@@ -39,21 +41,16 @@ public class InputJoystickData : InputData
         inputState = state;
     }
 
-    public void SetValue(Enums.InputJoystick joystick, Enums.InputState state)
+    public void SetValue(Enums.InputJoystick joystick, Enums.InputState state, Enums.JoystickVigor vigor)
     {
         inputJoystick = joystick;
         inputState = state;
+        joyStickVigor = vigor;
     }
 }
 
 public static partial class Enums
 {
-    public enum InputDataType
-    {
-        InputButton,
-        InputJoystick
-    }
-
     public enum InputButton
     {
         None,
@@ -69,14 +66,21 @@ public static partial class Enums
         East,
         South,
         West,
-        North
+        North,
     }
 
     public enum InputState
     {
         None,
-        ShortPress,
+        Press,
         Hold,
         Release
+    }
+
+    public enum JoystickVigor
+    {
+        None,
+        Light,
+        Hard
     }
 }
