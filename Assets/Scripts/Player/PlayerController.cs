@@ -107,14 +107,12 @@ public class PlayerController : MonoBehaviour
     private void OnEnable()
     {
         inputControl.Enable();
-        inputControl.Player.Jump.started += Jump;
         inputControl.Player.LightAttack.started += InvokeAttack;
     }
 
     private void OnDisable()
     {
         inputControl.Disable();
-        inputControl.Player.Jump.started -= Jump;
         inputControl.Player.LightAttack.started -= InvokeAttack;
     }
 
