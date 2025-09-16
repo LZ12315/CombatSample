@@ -5,6 +5,12 @@ using CombatSample.Consts;
 using System;
 using UnityEngine.InputSystem;
 
+public class SkillCommand
+{
+    public ActionTimelineAsset actionToPlay;
+    public InputCommand command;
+}
+
 [Serializable]
 public class InputCommand
 {
