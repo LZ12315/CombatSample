@@ -64,7 +64,7 @@ public class JoystickCheckSettingDrawer : PropertyDrawer
         // 绘制下拉按钮
         var dropdownRect = new Rect(position.x, position.y, position.width, EditorGUIUtility.singleLineHeight);
         var buttonContent = new GUIContent($"{label}: {GetSelectedText(selected, options)}");
-        
+
         if (EditorGUI.DropdownButton(dropdownRect, buttonContent, FocusType.Keyboard))
         {
             dropdownStates[key] = !dropdownStates[key];
@@ -77,29 +77,29 @@ public class JoystickCheckSettingDrawer : PropertyDrawer
             float menuHeight = EditorGUIUtility.singleLineHeight * enumValues.Count;
             var menuRect = new Rect(position.x, position.y + EditorGUIUtility.singleLineHeight,
                                    position.width, menuHeight);
-            
+
             // 存储菜单位置用于点击检测
             dropdownRects[key] = menuRect;
-            
+
             // 绘制菜单背景
             GUI.Box(menuRect, "");
-            
+
             // 绘制菜单项
             for (int i = 0; i < enumValues.Count; i++)
             {
                 var itemRect = new Rect(menuRect.x, menuRect.y + i * EditorGUIUtility.singleLineHeight,
                                        menuRect.width, EditorGUIUtility.singleLineHeight);
-                
+
                 EditorGUI.BeginChangeCheck();
                 bool newValue = EditorGUI.ToggleLeft(itemRect, options[i], selected[i]);
-                
+
                 if (EditorGUI.EndChangeCheck())
                 {
                     selected[i] = newValue;
-                    
+
                     // 更新列表
                     listProp.ClearArray();
-                    
+
                     for (int j = 0; j < selected.Length; j++)
                     {
                         if (selected[j])
@@ -108,16 +108,16 @@ public class JoystickCheckSettingDrawer : PropertyDrawer
                             listProp.GetArrayElementAtIndex(listProp.arraySize - 1).intValue = enumValues[j];
                         }
                     }
-                    
+
                     // 立即应用修改
                     listProp.serializedObject.ApplyModifiedProperties();
                 }
             }
-            
+
             // 返回菜单高度（包括按钮和菜单）
             return EditorGUIUtility.singleLineHeight + menuHeight;
         }
-        
+
         // 返回按钮高度
         return EditorGUIUtility.singleLineHeight;
     }
@@ -132,18 +132,18 @@ public class JoystickCheckSettingDrawer : PropertyDrawer
                 selectedItems.Add(options[i]);
             }
         }
-        
+
         return selectedItems.Count > 0 ? string.Join(", ", selectedItems) : "None";
     }
-    
+
     public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
     {
         float height = 0;
-        
+
         // 检查是否有下拉菜单打开
         var inputJoysticksProp = property.FindPropertyRelative("inputJoysticks");
         var joystickVigorsProp = property.FindPropertyRelative("joystickVigors");
-        
+
         // 摇杆下拉菜单高度
         string joysticksKey = $"{inputJoysticksProp.propertyPath}_{typeof(Enums.InputJoystick).Name}";
         if (dropdownStates.ContainsKey(joysticksKey) && dropdownStates[joysticksKey])
@@ -155,7 +155,7 @@ public class JoystickCheckSettingDrawer : PropertyDrawer
         {
             height += EditorGUIUtility.singleLineHeight;
         }
-        
+
         // 力度下拉菜单高度
         string vigorsKey = $"{joystickVigorsProp.propertyPath}_{typeof(Enums.JoystickVigor).Name}";
         if (dropdownStates.ContainsKey(vigorsKey) && dropdownStates[vigorsKey])
@@ -167,10 +167,10 @@ public class JoystickCheckSettingDrawer : PropertyDrawer
         {
             height += EditorGUIUtility.singleLineHeight;
         }
-        
+
         // 添加间距
         height += EditorGUIUtility.standardVerticalSpacing;
-        
+
         return height;
     }
 }

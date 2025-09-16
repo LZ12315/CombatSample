@@ -64,7 +64,7 @@ public class ButtonCheckSettingDrawer : PropertyDrawer
         // 绘制下拉按钮
         var dropdownRect = new Rect(position.x, position.y, position.width, EditorGUIUtility.singleLineHeight);
         var buttonContent = new GUIContent($"{label}: {GetSelectedText(selected, options)}");
-        
+
         if (EditorGUI.DropdownButton(dropdownRect, buttonContent, FocusType.Keyboard))
         {
             dropdownStates[key] = !dropdownStates[key];
@@ -77,29 +77,29 @@ public class ButtonCheckSettingDrawer : PropertyDrawer
             float menuHeight = EditorGUIUtility.singleLineHeight * enumValues.Count;
             var menuRect = new Rect(position.x, position.y + EditorGUIUtility.singleLineHeight,
                                    position.width, menuHeight);
-            
+
             // 存储菜单位置用于点击检测
             dropdownRects[key] = menuRect;
-            
+
             // 绘制菜单背景
             GUI.Box(menuRect, "");
-            
+
             // 绘制菜单项
             for (int i = 0; i < enumValues.Count; i++)
             {
                 var itemRect = new Rect(menuRect.x, menuRect.y + i * EditorGUIUtility.singleLineHeight,
                                        menuRect.width, EditorGUIUtility.singleLineHeight);
-                
+
                 EditorGUI.BeginChangeCheck();
                 bool newValue = EditorGUI.ToggleLeft(itemRect, options[i], selected[i]);
-                
+
                 if (EditorGUI.EndChangeCheck())
                 {
                     selected[i] = newValue;
-                    
+
                     // 更新列表
                     listProp.ClearArray();
-                    
+
                     for (int j = 0; j < selected.Length; j++)
                     {
                         if (selected[j])
@@ -108,16 +108,16 @@ public class ButtonCheckSettingDrawer : PropertyDrawer
                             listProp.GetArrayElementAtIndex(listProp.arraySize - 1).intValue = enumValues[j];
                         }
                     }
-                    
+
                     // 立即应用修改
                     listProp.serializedObject.ApplyModifiedProperties();
                 }
             }
-            
+
             // 返回菜单高度（包括按钮和菜单）
             return EditorGUIUtility.singleLineHeight + menuHeight;
         }
-        
+
         // 返回按钮高度
         return EditorGUIUtility.singleLineHeight;
     }
@@ -132,18 +132,18 @@ public class ButtonCheckSettingDrawer : PropertyDrawer
                 selectedItems.Add(options[i]);
             }
         }
-        
+
         return selectedItems.Count > 0 ? string.Join(", ", selectedItems) : "None";
     }
-    
+
     public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
     {
         float height = 0;
-        
+
         // 检查是否有下拉菜单打开
         var inputButtonsProp = property.FindPropertyRelative("inputButtons");
         var inputStateProp = property.FindPropertyRelative("inputState");
-        
+
         // 按钮下拉菜单高度
         string buttonsKey = $"{inputButtonsProp.propertyPath}_{typeof(Enums.InputButton).Name}";
         if (dropdownStates.ContainsKey(buttonsKey) && dropdownStates[buttonsKey])
@@ -155,7 +155,7 @@ public class ButtonCheckSettingDrawer : PropertyDrawer
         {
             height += EditorGUIUtility.singleLineHeight;
         }
-        
+
         // 状态下拉菜单高度
         string statesKey = $"{inputStateProp.propertyPath}_{typeof(Enums.ButtonState).Name}";
         if (dropdownStates.ContainsKey(statesKey) && dropdownStates[statesKey])
@@ -167,10 +167,10 @@ public class ButtonCheckSettingDrawer : PropertyDrawer
         {
             height += EditorGUIUtility.singleLineHeight;
         }
-        
+
         // 添加间距
         height += EditorGUIUtility.standardVerticalSpacing;
-        
+
         return height;
     }
 }

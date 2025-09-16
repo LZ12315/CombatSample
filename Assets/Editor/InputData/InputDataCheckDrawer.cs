@@ -15,9 +15,12 @@ public class InputDataCheckDrawer : PropertyDrawer
         // 获取属性
         var dataCheckProp = property.FindPropertyRelative("dataCheck");
 
+        // 关键修复：使用自定义标签而不是默认的 "Element x"
+        GUIContent customLabel = new GUIContent("");
+
         // 绘制折叠菜单
         position.height = EditorGUIUtility.singleLineHeight;
-        property.isExpanded = EditorGUI.Foldout(position, property.isExpanded, label);
+        property.isExpanded = EditorGUI.Foldout(position, property.isExpanded, customLabel);
         position.y += EditorGUIUtility.singleLineHeight + EditorGUIUtility.standardVerticalSpacing;
 
         if (property.isExpanded)
@@ -68,7 +71,8 @@ public class InputDataCheckDrawer : PropertyDrawer
                 var height = EditorGUI.GetPropertyHeight(dataCheckProp, true);
                 var dataRect = new Rect(position.x, position.y, position.width, height);
 
-                EditorGUI.PropertyField(dataRect, dataCheckProp, new GUIContent("Data Check"), true);
+                // 使用 GUIContent.none 隐藏内部标签
+                EditorGUI.PropertyField(dataRect, dataCheckProp, GUIContent.none, true);
 
                 position.y += height + EditorGUIUtility.standardVerticalSpacing;
             }
@@ -89,7 +93,7 @@ public class InputDataCheckDrawer : PropertyDrawer
 
         // 关键修复：使用正确的属性名
         var dataCheckProp = property.FindPropertyRelative("dataCheck");
-        
+
         // 添加 null 检查
         if (dataCheckProp != null && dataCheckProp.managedReferenceValue != null)
         {

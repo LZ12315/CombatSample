@@ -37,9 +37,11 @@ public class InputCommandEditor : Editor
             return EditorGUI.GetPropertyHeight(element, true);
         };
 
-        // 绘制列表元素
+        // 关键修复：完全隐藏 "Element x" 标识
         dataChecksList.drawElementCallback = (Rect rect, int index, bool isActive, bool isFocused) => {
             var element = dataChecksProp.GetArrayElementAtIndex(index);
+
+            // 使用 GUIContent.none 隐藏标签
             EditorGUI.PropertyField(rect, element, GUIContent.none, true);
         };
 
@@ -48,26 +50,26 @@ public class InputCommandEditor : Editor
             int index = list.serializedProperty.arraySize;
             list.serializedProperty.arraySize++;
             list.index = index;
-            
+
             var element = list.serializedProperty.GetArrayElementAtIndex(index);
             var dataCheckProp = element.FindPropertyRelative("dataCheck");
-            
-            // 创建新的实例，避免共享引用
+
+            // 创建新的实例 - 默认创建按钮检查设置
             dataCheckProp.managedReferenceValue = new ButtonCheckSetting();
-            
+
             // 立即应用修改
             element.serializedObject.ApplyModifiedProperties();
         };
-        
+
         // 添加元素背景色
         dataChecksList.drawElementBackgroundCallback = (Rect rect, int index, bool isActive, bool isFocused) => {
             if (Event.current.type == EventType.Repaint)
             {
                 // 交替行背景色
-                Color bgColor = index % 2 == 0 
-                    ? new Color(0.85f, 0.85f, 0.85f, 1f) 
+                Color bgColor = index % 2 == 0
+                    ? new Color(0.85f, 0.85f, 0.85f, 1f)
                     : new Color(0.75f, 0.75f, 0.75f, 1f);
-                
+
                 EditorGUI.DrawRect(rect, bgColor);
             }
         };
@@ -76,15 +78,15 @@ public class InputCommandEditor : Editor
     public override void OnInspectorGUI()
     {
         serializedObject.Update();
-        
+
         // 绘制其他属性
         EditorGUILayout.PropertyField(waitTimeProp);
-        
+
         EditorGUILayout.Space();
-        
+
         // 绘制自定义列表
         dataChecksList.DoLayoutList();
-        
+
         serializedObject.ApplyModifiedProperties();
     }
 }
