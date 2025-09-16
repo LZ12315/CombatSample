@@ -5,8 +5,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System;
 
-[CustomPropertyDrawer(typeof(ButtonCheckSetting))]
-public class ButtonCheckSettingDrawer : PropertyDrawer
+[CustomPropertyDrawer(typeof(ButtonInputCondition))]
+public class ButtonInputConditionDrawer : PropertyDrawer
 {
     public static Dictionary<string, bool> dropdownStates = new Dictionary<string, bool>();
     public static Dictionary<string, Rect> dropdownRects = new Dictionary<string, Rect>();
