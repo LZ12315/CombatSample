@@ -42,6 +42,8 @@ public class ActionTransitionClip : ActionClipBase
     {
         base.OnClipPlay(playable);
         if(!active || actor == null) return;
+
+        actor.logicInput.AddTransitionEvent(o => PlayNextAction(o));
     }
 
 
