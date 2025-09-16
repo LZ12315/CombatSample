@@ -5,8 +5,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System;
 
-[CustomPropertyDrawer(typeof(JoystickCheckSetting))]
-public class JoystickCheckSettingDrawer : PropertyDrawer
+[CustomPropertyDrawer(typeof(JoystickInputCondition))]
+public class JoystickInputConditionDrawer : PropertyDrawer
 {
     public static Dictionary<string, bool> dropdownStates = new Dictionary<string, bool>();
     public static Dictionary<string, Rect> dropdownRects = new Dictionary<string, Rect>();

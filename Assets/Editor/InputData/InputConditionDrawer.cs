@@ -5,8 +5,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System;
 
-[CustomPropertyDrawer(typeof(InputDataCheck))]
-public class InputDataCheckDrawer : PropertyDrawer
+[CustomPropertyDrawer(typeof(InputCondition))]
+public class InputConditionDrawer : PropertyDrawer
 {
     public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
     {
@@ -35,24 +35,24 @@ public class InputDataCheckDrawer : PropertyDrawer
             EditorGUI.BeginChangeCheck();
             {
                 // 检查当前是否是按钮数据
-                bool isButtonData = dataCheckProp.managedReferenceValue is ButtonCheckSetting;
+                bool isButtonData = dataCheckProp.managedReferenceValue is ButtonInputCondition;
 
                 EditorGUI.BeginDisabledGroup(isButtonData);
                 if (GUI.Button(buttonRect1, "Button Input"))
                 {
                     // 创建新实例，避免共享引用
-                    dataCheckProp.managedReferenceValue = new ButtonCheckSetting();
+                    dataCheckProp.managedReferenceValue = new ButtonInputCondition();
                 }
                 EditorGUI.EndDisabledGroup();
 
                 // 检查当前是否是摇杆数据
-                bool isJoystickData = dataCheckProp.managedReferenceValue is JoystickCheckSetting;
+                bool isJoystickData = dataCheckProp.managedReferenceValue is JoystickInputCondition;
 
                 EditorGUI.BeginDisabledGroup(isJoystickData);
                 if (GUI.Button(buttonRect2, "Joystick Input"))
                 {
                     // 创建新实例，避免共享引用
-                    dataCheckProp.managedReferenceValue = new JoystickCheckSetting();
+                    dataCheckProp.managedReferenceValue = new JoystickInputCondition();
                 }
                 EditorGUI.EndDisabledGroup();
             }

@@ -13,7 +13,7 @@ public class ActorLogicInput : MonoBehaviour
 
     private void Update()
     {
-        UpdateInputCommand(Time.deltaTime);
+        UpdateCommand(Time.deltaTime);
     }
 
     public void InputMove(Vector2 moveInput)
@@ -34,36 +34,28 @@ public class ActorLogicInput : MonoBehaviour
 
         for (int i = 0; i < skillCommands.Count; i++)
         {
-            skillCommands[i].command.GetInputData(inputData);
 
-            if (skillCommands[i].command.IsCommandComplished())
-                InvokeTransitionEvent(skillCommands[i].actionToPlay);
         }
     }
 
     #region InputÊÂ¼þ
 
     private EventInfo<ActionTimelineAsset> actionTransitionEvent = new();
-    private List<SkillCommand> skillCommands = new ();
+    private List<ActionCommand> skillCommands = new ();
 
-    public void AddSkillCommand(SkillCommand command)
+    public void AddCommand(InputSequence command)
     {
-        if(skillCommands.Contains(command))
-            skillCommands.Add(command);
+
     }
 
-    void UpdateInputCommand(double deltaTime)
+    void UpdateCommand(double deltaTime)
     {
-        if(skillCommands.Count == 0) return;
 
-        for (int i = 0; i < skillCommands.Count; i++)
-            skillCommands[i].command.CommandUpdate(deltaTime);
     }
 
-    public void RemoveInputCommand(SkillCommand command)
+    public void RemoveCommand(InputSequence command)
     {
-        if (skillCommands.Contains(command))
-            skillCommands.Remove(command);
+
     }
 
     public void AddTransitionEvent(UnityAction<ActionTimelineAsset> action)

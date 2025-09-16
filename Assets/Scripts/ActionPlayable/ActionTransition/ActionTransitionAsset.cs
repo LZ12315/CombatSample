@@ -11,7 +11,7 @@ public class ActionTransitionAsset : PlayableAsset
     public bool active = true;
     public Enums.ActTransType transitionType;
     public ActionTimelineAsset nextAction;
-    public InputCommand inputCommand = new ();
+    public InputSequence inputSequence = new ();
 
     public override Playable CreatePlayable(PlayableGraph graph, GameObject owner)
     {
@@ -21,7 +21,7 @@ public class ActionTransitionAsset : PlayableAsset
         clip.active = active;
         clip.transitionType = transitionType;
         clip.nextAction = nextAction;
-        clip.inputCommand = inputCommand;
+        clip.inputSequence = inputSequence;
 
         return playable;
     }
@@ -33,7 +33,7 @@ public class ActionTransitionClip : ActionClipBase
     public bool active = true;
     public Enums.ActTransType transitionType;
     public ActionTimelineAsset nextAction;
-    public InputCommand inputCommand;
+    public InputSequence inputSequence;
 
     bool actionWaitToPlay = false;
     ActionTimelineAsset actionToPlay;

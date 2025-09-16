@@ -3,8 +3,8 @@ using UnityEditor;
 using UnityEngine;
 using UnityEditorInternal;
 
-[CustomEditor(typeof(InputCommand))]
-public class InputCommandEditor : Editor
+[CustomEditor(typeof(InputSequence))]
+public class InputSequenceEditor : Editor
 {
     private ReorderableList dataChecksList;
     private SerializedProperty dataChecksProp;
@@ -55,7 +55,7 @@ public class InputCommandEditor : Editor
             var dataCheckProp = element.FindPropertyRelative("dataCheck");
 
             // 创建新的实例 - 默认创建按钮检查设置
-            dataCheckProp.managedReferenceValue = new ButtonCheckSetting();
+            dataCheckProp.managedReferenceValue = new ButtonInputCondition();
 
             // 立即应用修改
             element.serializedObject.ApplyModifiedProperties();

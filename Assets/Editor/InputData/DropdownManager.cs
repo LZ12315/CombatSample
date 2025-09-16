@@ -25,7 +25,7 @@ public class DropdownManager : EditorWindow
             bool clickedOutsideAll = true;
 
             // 检查按钮下拉菜单
-            foreach (var rect in ButtonCheckSettingDrawer.dropdownRects.Values)
+            foreach (var rect in ButtonInputConditionDrawer.dropdownRects.Values)
             {
                 if (rect.Contains(Event.current.mousePosition))
                 {
@@ -37,7 +37,7 @@ public class DropdownManager : EditorWindow
             // 检查摇杆下拉菜单
             if (clickedOutsideAll)
             {
-                foreach (var rect in JoystickCheckSettingDrawer.dropdownRects.Values)
+                foreach (var rect in JoystickInputConditionDrawer.dropdownRects.Values)
                 {
                     if (rect.Contains(Event.current.mousePosition))
                     {
@@ -50,14 +50,14 @@ public class DropdownManager : EditorWindow
             // 如果点击了所有下拉菜单外部，关闭所有下拉菜单
             if (clickedOutsideAll)
             {
-                foreach (var key in ButtonCheckSettingDrawer.dropdownStates.Keys.ToList())
+                foreach (var key in ButtonInputConditionDrawer.dropdownStates.Keys.ToList())
                 {
-                    ButtonCheckSettingDrawer.dropdownStates[key] = false;
+                    ButtonInputConditionDrawer.dropdownStates[key] = false;
                 }
                 
-                foreach (var key in JoystickCheckSettingDrawer.dropdownStates.Keys.ToList())
+                foreach (var key in JoystickInputConditionDrawer.dropdownStates.Keys.ToList())
                 {
-                    JoystickCheckSettingDrawer.dropdownStates[key] = false;
+                    JoystickInputConditionDrawer.dropdownStates[key] = false;
                 }
                 
                 // 重绘所有窗口

@@ -5,57 +5,21 @@ using CombatSample.Consts;
 using System;
 using UnityEngine.InputSystem;
 
-public class SkillCommand
-{
-    public ActionTimelineAsset actionToPlay;
-    public InputCommand command;
-}
-
 [Serializable]
-public class InputCommand
+public class InputSequence
 {
     public int waitTime = 40;
-    public List<InputDataCheck> dataChecks = new List<InputDataCheck>();
-
-    private double waitCounter = 0;
-    private int checkIndex = 0;
-
-    public void Init()
-    {
-        checkIndex = 0;
-        waitCounter = 0;
-    }
-
-    public void CommandUpdate(double deltaTime)
-    {
-        waitCounter += deltaTime;
-    }
-
-    public void GetInputData(InputData inputData)
-    {
-        if (dataChecks.Count == 0) return;
-
-        if(IsCommandComplished()) return;
-
-        if (dataChecks[checkIndex].CheckInputData(inputData))
-            checkIndex++;
-    }
-
-    public bool IsCommandComplished()
-    {
-        return checkIndex == dataChecks.Count;
-    }
-
+    public List<InputCondition> dataChecks = new List<InputCondition>();
 }
 
 [Serializable]
-public class InputDataCheck
+public class InputCondition
 {
     [SerializeReference]
-    public InputCheckSetting dataCheck;
+    public InputConditionBase dataCheck;
 
-    public void CheckButtonData() => dataCheck = new ButtonCheckSetting();
-    public void CheckJoystickData() => dataCheck = new JoystickCheckSetting();
+    public void CheckButtonData() => dataCheck = new ButtonInputCondition();
+    public void CheckJoystickData() => dataCheck = new JoystickInputCondition();
 
     public bool CheckInputData(InputData input)
     {
@@ -64,7 +28,7 @@ public class InputDataCheck
 }
 
 [Serializable]
-public abstract class InputCheckSetting
+public abstract class InputConditionBase
 {
     public virtual bool CheckInput(InputData input)
     {
@@ -73,7 +37,7 @@ public abstract class InputCheckSetting
 }
 
 [Serializable]
-public class ButtonCheckSetting : InputCheckSetting
+public class ButtonInputCondition : InputConditionBase
 {
     public List<Enums.InputButton> inputButtons = new ();
     public List<Enums.ButtonState> inputState = new();
@@ -111,7 +75,7 @@ public class ButtonCheckSetting : InputCheckSetting
 }
 
 [Serializable]
-public class JoystickCheckSetting : InputCheckSetting
+public class JoystickInputCondition : InputConditionBase
 {
     public List<Enums.InputJoystick> inputJoysticks = new ();
     public List<Enums.JoystickVigor> joystickVigors = new ();
