@@ -105,9 +105,21 @@ MonoBehaviour:
   m_Name: ActionTransitionAsset
   m_EditorClassIdentifier: 
   active: 1
-  actTransType: 1
-  inputType: 4
-  next: {fileID: 11400000, guid: 0860a4e2e82391c47b5f04137c30baf1, type: 2}
+  transitionType: 1
+  nextAction: {fileID: 0}
+  inputCommand:
+    waitTime: 40
+    dataChecks:
+    - dataCheck:
+        rid: 3092552741339529220
+  references:
+    version: 2
+    RefIds:
+    - rid: 3092552741339529220
+      type: {class: ButtonCheckSetting, ns: , asm: Assembly-CSharp}
+      data:
+        inputButtons: 03000000
+        inputState: 01000000
 --- !u!114 &-5459435919647742859
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -144,9 +156,21 @@ MonoBehaviour:
   m_Name: ActionTransitionAsset(Clone)
   m_EditorClassIdentifier: 
   active: 1
-  actTransType: 0
-  inputType: 4
-  next: {fileID: 11400000, guid: 0860a4e2e82391c47b5f04137c30baf1, type: 2}
+  transitionType: 0
+  nextAction: {fileID: 0}
+  inputCommand:
+    waitTime: 40
+    dataChecks:
+    - dataCheck:
+        rid: 3092552741339529219
+  references:
+    version: 2
+    RefIds:
+    - rid: 3092552741339529219
+      type: {class: ButtonCheckSetting, ns: , asm: Assembly-CSharp}
+      data:
+        inputButtons: 03000000
+        inputState: 01000000
 --- !u!114 &11400000
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -252,7 +276,7 @@ MonoBehaviour:
     m_PreExtrapolationMode: 0
     m_PostExtrapolationTime: 0
     m_PreExtrapolationTime: 0
-    m_DisplayName: When LightAttack -> Lucy_LightAttack_04
+    m_DisplayName: 'Translate when : TransitionEnd'
   - m_Version: 1
     m_Start: 0.5166666666666667
     m_ClipIn: 0
@@ -321,7 +345,7 @@ MonoBehaviour:
     m_PreExtrapolationMode: 0
     m_PostExtrapolationTime: 0
     m_PreExtrapolationTime: 0
-    m_DisplayName: When LightAttack -> Lucy_LightAttack_04
+    m_DisplayName: 'Translate when : Immediate'
   m_Markers:
     m_Objects: []
 --- !u!114 &6803270646908285371

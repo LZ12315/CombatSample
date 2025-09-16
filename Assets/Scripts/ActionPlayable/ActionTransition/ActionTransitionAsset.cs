@@ -9,19 +9,19 @@ using UnityEngine.Timeline;
 public class ActionTransitionAsset : PlayableAsset
 {
     public bool active = true;
-    public Enums.ActTransType actTransType;
-    public Enums.InputType inputType;
-    public ActionTimelineAsset next;
+    public Enums.ActTransType transitionType;
+    public ActionTimelineAsset nextAction;
+    public InputCommand inputCommand = new ();
 
     public override Playable CreatePlayable(PlayableGraph graph, GameObject owner)
     {
         var playable = ScriptPlayable<ActionTransitionClip>.Create(graph);
         ActionTransitionClip clip = playable.GetBehaviour();
 
-        clip.actTransType = actTransType;
         clip.active = active;
-        clip.inputType = inputType;
-        clip.next = next;
+        clip.transitionType = transitionType;
+        clip.nextAction = nextAction;
+        clip.inputCommand = inputCommand;
 
         return playable;
     }
@@ -30,37 +30,25 @@ public class ActionTransitionAsset : PlayableAsset
 
 public class ActionTransitionClip : ActionClipBase
 {
-    public bool active;
-    public Enums.ActTransType actTransType;
-    public Enums.InputType inputType;
-    public ActionTimelineAsset next;
+    public bool active = true;
+    public Enums.ActTransType transitionType;
+    public ActionTimelineAsset nextAction;
+    public InputCommand inputCommand;
 
-    bool eventWaitForInvoke = false;
+    bool actionWaitToPlay = false;
+    ActionTimelineAsset actionToPlay;
 
     protected override void OnClipPlay(Playable playable)
     {
         base.OnClipPlay(playable);
         if(!active || actor == null) return;
-
-        actor.logicInput.AddEventListener(inputType, OnInputEventTriggered);
     }
 
-    protected virtual void OnInputEventTriggered()
-    {
-        if(!active) return;
-
-        if(actTransType == Enums.ActTransType.Immediate)
-            actor.actionPlayerDirector.PlayAction(next);
-        else
-            eventWaitForInvoke = true;
-    }
 
     protected override void OnClipPause()
     {
         base.OnClipPause();
         if (!active || actor == null) return;
-
-        actor.logicInput.RemoveEventListener(inputType, OnInputEventTriggered);
     }
 
     protected override void OnClipFinish()
@@ -68,22 +56,38 @@ public class ActionTransitionClip : ActionClipBase
         base.OnClipFinish();
         if (!active || actor == null) return;
 
-        if (eventWaitForInvoke && actTransType == Enums.ActTransType.TransitionEnd)
+        if (actionWaitToPlay && transitionType == Enums.ActTransType.TransitionEnd)
         {
-            actor.actionPlayerDirector.PlayAction(next);
-            eventWaitForInvoke = false;
-        }
+            actionWaitToPlay = false;
 
-        actor.logicInput.RemoveEventListener(inputType, OnInputEventTriggered);
+            if(actionToPlay != null)
+                actor.actionPlayerDirector.PlayAction(actionToPlay);
+        }
     }
 
     public override void OnGraphStop(Playable playable)
     {
-
-        if (eventWaitForInvoke && actTransType == Enums.ActTransType.ActionEnd)
+        if (actionWaitToPlay && transitionType == Enums.ActTransType.ActionEnd)
         {
-            eventWaitForInvoke = false;
-            actor.actionPlayerDirector.PlayAction(next);
+            actionWaitToPlay = false;
+
+            if (actionToPlay != null)
+                actor.actionPlayerDirector.PlayAction(actionToPlay);
+        }
+    }
+
+    private void PlayNextAction(ActionTimelineAsset actionToPlay)
+    {
+        if(!active) return;
+        actionWaitToPlay = true;
+        this.actionToPlay = actionToPlay;
+
+        if (actionWaitToPlay && transitionType == Enums.ActTransType.Immediate)
+        {
+            actionWaitToPlay = false;
+
+            if (actionToPlay != null)
+                actor.actionPlayerDirector.PlayAction(actionToPlay);
         }
     }
 

@@ -73,6 +73,7 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
     {
         InputButtonData buttonInput = new InputButtonData(button, state);
 
+        controlledActor.logicInput.GetInputData(buttonInput);
         Debug.Log("ButtonInput: " +  buttonInput.inputButton + " " + buttonInput.buttonState);
     }
 
@@ -87,6 +88,7 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
         }
 
         lastJoystickInput = joystickInput;
+        controlledActor.logicInput.GetInputData(joystickInput);
         Debug.Log("JoyStickInput: " + joystickInput.inputJoystick + " " + joystickInput.joystickVigor);
     }
 

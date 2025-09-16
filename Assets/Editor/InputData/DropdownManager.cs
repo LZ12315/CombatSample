@@ -14,14 +14,18 @@ public class DropdownManager : EditorWindow
 
     static void Update()
     {
+        // 检查事件是否为空
+        if (Event.current == null)
+            return;
+
         // 检查是否点击了屏幕任意位置
-        if (Event.current != null && Event.current.type == EventType.MouseDown)
+        if (Event.current.type == EventType.MouseDown)
         {
             // 检查是否点击了任何下拉菜单外部
             bool clickedOutsideAll = true;
-            
+
             // 检查按钮下拉菜单
-            foreach (var rect in InputButtonDataCheckDrawer.dropdownRects.Values)
+            foreach (var rect in ButtonCheckSettingDrawer.dropdownRects.Values)
             {
                 if (rect.Contains(Event.current.mousePosition))
                 {
@@ -29,11 +33,11 @@ public class DropdownManager : EditorWindow
                     break;
                 }
             }
-            
+
             // 检查摇杆下拉菜单
             if (clickedOutsideAll)
             {
-                foreach (var rect in InputJoystickDataCheckDrawer.dropdownRects.Values)
+                foreach (var rect in JoystickCheckSettingDrawer.dropdownRects.Values)
                 {
                     if (rect.Contains(Event.current.mousePosition))
                     {
@@ -42,18 +46,18 @@ public class DropdownManager : EditorWindow
                     }
                 }
             }
-            
+
             // 如果点击了所有下拉菜单外部，关闭所有下拉菜单
             if (clickedOutsideAll)
             {
-                foreach (var key in InputButtonDataCheckDrawer.dropdownStates.Keys.ToList())
+                foreach (var key in ButtonCheckSettingDrawer.dropdownStates.Keys.ToList())
                 {
-                    InputButtonDataCheckDrawer.dropdownStates[key] = false;
+                    ButtonCheckSettingDrawer.dropdownStates[key] = false;
                 }
                 
-                foreach (var key in InputJoystickDataCheckDrawer.dropdownStates.Keys.ToList())
+                foreach (var key in JoystickCheckSettingDrawer.dropdownStates.Keys.ToList())
                 {
-                    InputJoystickDataCheckDrawer.dropdownStates[key] = false;
+                    JoystickCheckSettingDrawer.dropdownStates[key] = false;
                 }
                 
                 // 重绘所有窗口
