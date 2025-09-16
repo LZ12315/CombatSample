@@ -30,40 +30,40 @@ public class ActorLogicInput : MonoBehaviour
 
     public void GetInputData(InputData inputData)
     {
-        if (commands.Count == 0) return;
+        if (skillCommands.Count == 0) return;
 
-        for (int i = 0; i < commands.Count; i++)
+        for (int i = 0; i < skillCommands.Count; i++)
         {
-            commands[i].GetInputData(inputData);
+            skillCommands[i].command.GetInputData(inputData);
 
-            if (commands[i].IsCommandComplished())
-                InvokeTransitionEvent(commands[i].);
+            if (skillCommands[i].command.IsCommandComplished())
+                InvokeTransitionEvent(skillCommands[i].actionToPlay);
         }
     }
 
     #region InputÊÂ¼þ
 
     private EventInfo<ActionTimelineAsset> actionTransitionEvent = new();
-    private List<InputCommand> commands = new ();
+    private List<SkillCommand> skillCommands = new ();
 
-    public void AddInputCommand(InputCommand command)
+    public void AddSkillCommand(SkillCommand command)
     {
-        if(commands.Contains(command))
-            commands.Add(command);
+        if(skillCommands.Contains(command))
+            skillCommands.Add(command);
     }
 
     void UpdateInputCommand(double deltaTime)
     {
-        if(commands.Count == 0) return;
+        if(skillCommands.Count == 0) return;
 
-        for (int i = 0; i < commands.Count; i++)
-            commands[i].CommandUpdate(deltaTime);
+        for (int i = 0; i < skillCommands.Count; i++)
+            skillCommands[i].command.CommandUpdate(deltaTime);
     }
 
-    public void RemoveInputCommand(InputCommand command)
+    public void RemoveInputCommand(SkillCommand command)
     {
-        if (commands.Contains(command))
-            commands.Remove(command);
+        if (skillCommands.Contains(command))
+            skillCommands.Remove(command);
     }
 
     public void AddTransitionEvent(UnityAction<ActionTimelineAsset> action)
