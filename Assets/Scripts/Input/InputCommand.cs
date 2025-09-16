@@ -11,7 +11,19 @@ public class InputCommand
     public int waitTime = 40;
     public List<InputDataCheck> dataChecks = new List<InputDataCheck>();
 
+    private double waitCounter = 0;
     private int checkIndex = 0;
+
+    public void Init()
+    {
+        checkIndex = 0;
+        waitCounter = 0;
+    }
+
+    public void CommandUpdate(double deltaTime)
+    {
+        waitCounter += deltaTime;
+    }
 
     public void GetInputData(InputData inputData)
     {

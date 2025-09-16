@@ -150,12 +150,12 @@ public class EventCenter
     }
 
 
-    public void EventTrigger<T>(string eventName, T info)
+    public void EventTrigger<T>(string eventName, T parameter)
     {
         if (GetEventInfo<T>(eventName) != null)
         {
             EventInfo<T> eventInfo = GetEventInfo<T>(eventName);
-            eventInfo.Invoke(info);
+            eventInfo.Invoke(parameter);
         }
         else
         {

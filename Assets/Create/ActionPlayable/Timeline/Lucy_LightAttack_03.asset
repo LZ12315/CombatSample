@@ -160,17 +160,10 @@ MonoBehaviour:
   nextAction: {fileID: 0}
   inputCommand:
     waitTime: 40
-    dataChecks:
-    - dataCheck:
-        rid: 3092552741339529219
+    dataChecks: []
   references:
     version: 2
-    RefIds:
-    - rid: 3092552741339529219
-      type: {class: ButtonCheckSetting, ns: , asm: Assembly-CSharp}
-      data:
-        inputButtons: 03000000
-        inputState: 01000000
+    RefIds: []
 --- !u!114 &11400000
 MonoBehaviour:
   m_ObjectHideFlags: 0

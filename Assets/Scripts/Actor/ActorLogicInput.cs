@@ -4,14 +4,17 @@ using UnityEngine;
 using CombatSample.Consts;
 using UnityEngine.Events;
 
-public class ActorLogicInput : MonoBehaviour, IEventHolder<string>
+public class ActorLogicInput : MonoBehaviour
 {
     public Actor actor;
-    Dictionary<string, EventInfo> inputActionEvents = new ();
 
     private Vector2 lastMoveInput = Vector2.zero;
     public Vector2 MoveInput => lastMoveInput;
 
+    private void Update()
+    {
+        UpdateInputCommand(Time.deltaTime);
+    }
 
     public void InputMove(Vector2 moveInput)
     {
@@ -20,69 +23,62 @@ public class ActorLogicInput : MonoBehaviour, IEventHolder<string>
         actor.movement.UpdateTurn(moveDir);
     }
 
+    public void InputLook(Vector2 LookInput)
+    {
+        actor.cameraControl.HandleCameraRotation(LookInput);
+    }
+
     public void GetInputData(InputData inputData)
     {
+        if (commands.Count == 0) return;
 
+        for (int i = 0; i < commands.Count; i++)
+        {
+            commands[i].GetInputData(inputData);
+
+            if (commands[i].IsCommandComplished())
+                InvokeTransitionEvent(commands[i].);
+        }
     }
 
     #region Input事件
 
-    public Dictionary<string, EventInfo> EventDic => inputActionEvents;
+    private EventInfo<ActionTimelineAsset> actionTransitionEvent = new();
+    private List<InputCommand> commands = new ();
 
-    public EventInfo GetEventInfo(string key)
+    public void AddInputCommand(InputCommand command)
     {
-        if (inputActionEvents.ContainsKey(key))
-        {
-            if (inputActionEvents[key] != null)
-            {
-                EventInfo eventInfo = inputActionEvents[key];
-
-                if (eventInfo != null)
-                    return eventInfo;
-                else
-                    Debug.LogError("eventDic 中 " + key.ToString() + " 对应的值不是 EventInfo 类型！");
-            }
-            else
-                Debug.LogError("eventDic 中 " + key.ToString() + " 对应的值为null！");
-        }
-        return null;
+        if(commands.Contains(command))
+            commands.Add(command);
     }
 
-    public void AddEventListener(string key, UnityAction action)
+    void UpdateInputCommand(double deltaTime)
     {
-        if (GetEventInfo(key) != null)
-        {
-            EventInfo eventInfo = GetEventInfo(key);
-            eventInfo.AddAction(action);
-        }
-        else
-        {
-            EventInfo eventInfo = new EventInfo();
-            eventInfo.AddAction(action);
-            inputActionEvents.Add(key, eventInfo);
-        }
+        if(commands.Count == 0) return;
+
+        for (int i = 0; i < commands.Count; i++)
+            commands[i].CommandUpdate(deltaTime);
     }
 
-    public void EventTrigger(string key)
+    public void RemoveInputCommand(InputCommand command)
     {
-        if (GetEventInfo(key) != null)
-        {
-            EventInfo eventInfo = GetEventInfo(key);
-            eventInfo?.Invoke();
-        }
+        if (commands.Contains(command))
+            commands.Remove(command);
     }
 
-    public void RemoveEventListener(string key, UnityAction action)
+    public void AddTransitionEvent(UnityAction<ActionTimelineAsset> action)
     {
-        if (GetEventInfo(key) != null)
-        {
-            EventInfo eventInfo = GetEventInfo(key);
-            eventInfo.RemoveAction(action);
-        }
-        else
-        {
-            Debug.LogWarning("eventDic 中 " + key.ToString() + " 对应的值为 null！");
-        }
+        actionTransitionEvent.AddAction(action);
+    }
+
+    void InvokeTransitionEvent(ActionTimelineAsset parameter)
+    {
+        actionTransitionEvent.Invoke(parameter);
+    }
+
+    public void RemoveTransitionEvent(UnityAction<ActionTimelineAsset> action)
+    {
+        actionTransitionEvent.RemoveAction(action);
     }
 
     #endregion
