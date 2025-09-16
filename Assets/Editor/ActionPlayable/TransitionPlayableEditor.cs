@@ -33,10 +33,9 @@ class ActionTransitionClipEditor : ActionClipEditorBase
     void SetClipDisplayName(TimelineClip clip)
     {
         var asset = clip.asset as ActionTransitionAsset;
-        var inputType = asset.inputType.ToString();
-        var nextActionName = asset.next != null ? asset.next.name : "нч";
+        var transitionType = asset.transitionType.ToString();
 
-        clip.displayName = $"When {inputType} -> {nextActionName}";
+        clip.displayName = $"Translate when : {transitionType}";
     }
 
 }

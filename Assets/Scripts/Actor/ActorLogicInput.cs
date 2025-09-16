@@ -4,41 +4,20 @@ using UnityEngine;
 using CombatSample.Consts;
 using UnityEngine.Events;
 
-public class ActorLogicInput : MonoBehaviour, IEventHolder<Enums.InputType>
+public class ActorLogicInput : MonoBehaviour, IEventHolder<string>
 {
     public Actor actor;
-    Dictionary<Enums.InputType, EventInfo> inputActionEvents = new ();
-    List<Enums.InputType> inputThisFrame = new ();
+    Dictionary<string, EventInfo> inputActionEvents = new ();
 
     private Vector2 lastMoveInput = Vector2.zero;
     public Vector2 MoveInput => lastMoveInput;
 
-    private void LateUpdate()
-    {
-        if (inputThisFrame.Count == 0) return;
-
-        Enums.InputType execType = Enums.InputType.None;
-        foreach (var key in inputThisFrame)
-        {
-            if (execType == Enums.InputType.None || key > execType)
-                execType = key;
-        }
-        EventTrigger(execType);
-        inputThisFrame.Clear();
-    }
 
     public void InputMove(Vector2 moveInput)
     {
         lastMoveInput = moveInput;
         Vector3 moveDir = actor.cameraControl.CalculateFaceDirection(moveInput);
         actor.movement.UpdateTurn(moveDir);
-
-        float moveDistance = moveInput.magnitude;
-
-        if (moveDistance > 0.1f)
-            AddInputThisFrame(Enums.InputType.Move);
-        else
-            AddInputThisFrame(Enums.InputType.MoveCancel);
     }
 
     public void GetInputData(InputData inputData)
@@ -46,16 +25,11 @@ public class ActorLogicInput : MonoBehaviour, IEventHolder<Enums.InputType>
 
     }
 
-    public void GetInputAction(Enums.InputType type)
-    {
-        AddInputThisFrame(type);
-    }
-
     #region InputÊÂ¼þ
 
-    public Dictionary<Enums.InputType, EventInfo> EventDic => inputActionEvents;
+    public Dictionary<string, EventInfo> EventDic => inputActionEvents;
 
-    public EventInfo GetEventInfo(Enums.InputType key)
+    public EventInfo GetEventInfo(string key)
     {
         if (inputActionEvents.ContainsKey(key))
         {
@@ -74,9 +48,8 @@ public class ActorLogicInput : MonoBehaviour, IEventHolder<Enums.InputType>
         return null;
     }
 
-    public void AddEventListener(Enums.InputType key, UnityAction action)
+    public void AddEventListener(string key, UnityAction action)
     {
-        var holder = (IEventHolder<Enums.InputType>)this;
         if (GetEventInfo(key) != null)
         {
             EventInfo eventInfo = GetEventInfo(key);
@@ -90,12 +63,7 @@ public class ActorLogicInput : MonoBehaviour, IEventHolder<Enums.InputType>
         }
     }
 
-    void AddInputThisFrame(Enums.InputType key)
-    {
-        inputThisFrame.Add(key);
-    }
-
-    public void EventTrigger(Enums.InputType key)
+    public void EventTrigger(string key)
     {
         if (GetEventInfo(key) != null)
         {
@@ -104,7 +72,7 @@ public class ActorLogicInput : MonoBehaviour, IEventHolder<Enums.InputType>
         }
     }
 
-    public void RemoveEventListener(Enums.InputType key, UnityAction action)
+    public void RemoveEventListener(string key, UnityAction action)
     {
         if (GetEventInfo(key) != null)
         {
@@ -119,17 +87,4 @@ public class ActorLogicInput : MonoBehaviour, IEventHolder<Enums.InputType>
 
     #endregion
 
-}
-
-public static partial class Enums
-{
-    public enum InputType
-    {
-        None,
-        Move,
-        MoveCancel,
-        Dodge,
-        LightAttack,
-        HeavyAttack
-    }
 }

@@ -3,16 +3,17 @@ using UnityEditor;
 using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
+using System;
 
-[CustomPropertyDrawer(typeof(InputCommand))]
-public class InputCommandDrawer : PropertyDrawer
+[CustomPropertyDrawer(typeof(InputDataCheck))]
+public class InputDataCheckDrawer : PropertyDrawer
 {
     public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
     {
         EditorGUI.BeginProperty(position, label, property);
 
         // 获取属性
-        var inputDataProp = property.FindPropertyRelative("inputData");
+        var dataCheckProp = property.FindPropertyRelative("dataCheck");
 
         // 绘制折叠菜单
         position.height = EditorGUIUtility.singleLineHeight;
@@ -31,43 +32,43 @@ public class InputCommandDrawer : PropertyDrawer
             EditorGUI.BeginChangeCheck();
             {
                 // 检查当前是否是按钮数据
-                bool isButtonData = inputDataProp.managedReferenceValue is InputButtonDataCheck;
+                bool isButtonData = dataCheckProp.managedReferenceValue is ButtonCheckSetting;
 
                 EditorGUI.BeginDisabledGroup(isButtonData);
                 if (GUI.Button(buttonRect1, "Button Input"))
                 {
                     // 创建新实例，避免共享引用
-                    inputDataProp.managedReferenceValue = new InputButtonDataCheck();
+                    dataCheckProp.managedReferenceValue = new ButtonCheckSetting();
                 }
                 EditorGUI.EndDisabledGroup();
 
                 // 检查当前是否是摇杆数据
-                bool isJoystickData = inputDataProp.managedReferenceValue is InputJoystickDataCheck;
+                bool isJoystickData = dataCheckProp.managedReferenceValue is JoystickCheckSetting;
 
                 EditorGUI.BeginDisabledGroup(isJoystickData);
                 if (GUI.Button(buttonRect2, "Joystick Input"))
                 {
                     // 创建新实例，避免共享引用
-                    inputDataProp.managedReferenceValue = new InputJoystickDataCheck();
+                    dataCheckProp.managedReferenceValue = new JoystickCheckSetting();
                 }
                 EditorGUI.EndDisabledGroup();
             }
             if (EditorGUI.EndChangeCheck())
             {
                 // 立即应用修改
-                inputDataProp.serializedObject.ApplyModifiedProperties();
+                dataCheckProp.serializedObject.ApplyModifiedProperties();
             }
 
             position.y += EditorGUIUtility.singleLineHeight + EditorGUIUtility.standardVerticalSpacing;
 
             // 绘制具体数据
-            if (inputDataProp.managedReferenceValue != null)
+            if (dataCheckProp.managedReferenceValue != null)
             {
-                var dataProp = property.FindPropertyRelative("inputData");
-                var height = EditorGUI.GetPropertyHeight(dataProp, true);
+                // 关键修复：使用 dataCheckProp 而不是再查找一次
+                var height = EditorGUI.GetPropertyHeight(dataCheckProp, true);
                 var dataRect = new Rect(position.x, position.y, position.width, height);
 
-                EditorGUI.PropertyField(dataRect, dataProp, new GUIContent("Input Data"), true);
+                EditorGUI.PropertyField(dataRect, dataCheckProp, new GUIContent("Data Check"), true);
 
                 position.y += height + EditorGUIUtility.standardVerticalSpacing;
             }
@@ -86,10 +87,13 @@ public class InputCommandDrawer : PropertyDrawer
         var height = EditorGUIUtility.singleLineHeight * 2; // 基础高度（折叠标签和按钮）
         height += EditorGUIUtility.standardVerticalSpacing * 2;
 
-        var inputDataProp = property.FindPropertyRelative("inputData");
-        if (inputDataProp.managedReferenceValue != null)
+        // 关键修复：使用正确的属性名
+        var dataCheckProp = property.FindPropertyRelative("dataCheck");
+        
+        // 添加 null 检查
+        if (dataCheckProp != null && dataCheckProp.managedReferenceValue != null)
         {
-            height += EditorGUI.GetPropertyHeight(inputDataProp, true);
+            height += EditorGUI.GetPropertyHeight(dataCheckProp, true);
         }
 
         return height;
