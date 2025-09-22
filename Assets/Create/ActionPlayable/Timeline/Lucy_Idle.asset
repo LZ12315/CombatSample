@@ -15,7 +15,7 @@ MonoBehaviour:
   m_Version: 3
   m_AnimClip: {fileID: 0}
   m_Locked: 0
-  m_Muted: 0
+  m_Muted: 1
   m_CustomPlayableFullTypename: 
   m_Curves: {fileID: 0}
   m_Parent: {fileID: -1085222572135576680}
@@ -146,38 +146,38 @@ MonoBehaviour:
   transitionType: 0
   actionCommands:
   - priority: 0
-    actionToPlay: {fileID: 11400000, guid: a7e681807f4a98f4db85f24b388b0d44, type: 2}
-    sequence:
-      waitTime: 40
-      dataChecks:
-      - dataCheck:
-          rid: 3092552835994222739
-    waitTime: 0
-    waitCounter: 0
-    checkIndex: 0
-  - priority: 0
     actionToPlay: {fileID: 11400000, guid: d2e13b1e24945c849a4ce70f7066f8c7, type: 2}
     sequence:
       waitTime: 40
       dataChecks:
       - dataCheck:
-          rid: 3092552835994222740
+          rid: 3092552879400551272
+    waitTime: 0
+    waitCounter: 0
+    checkIndex: 0
+  - priority: 0
+    actionToPlay: {fileID: 11400000, guid: a7e681807f4a98f4db85f24b388b0d44, type: 2}
+    sequence:
+      waitTime: 40
+      dataChecks:
+      - dataCheck:
+          rid: 3092552879400551273
     waitTime: 0
     waitCounter: 0
     checkIndex: 0
   references:
     version: 2
     RefIds:
-    - rid: 3092552835994222739
-      type: {class: JoystickInputCondition, ns: , asm: Assembly-CSharp}
-      data:
-        inputJoysticks: 01000000020000000300000004000000
-        joystickVigors: 02000000
-    - rid: 3092552835994222740
+    - rid: 3092552879400551272
       type: {class: ButtonInputCondition, ns: , asm: Assembly-CSharp}
       data:
         inputButtons: 03000000
         inputState: 01000000
+    - rid: 3092552879400551273
+      type: {class: JoystickInputCondition, ns: , asm: Assembly-CSharp}
+      data:
+        inputJoysticks: 01000000020000000300000004000000
+        joystickVigors: 02000000
 --- !u!114 &1778306101409075684
 MonoBehaviour:
   m_ObjectHideFlags: 1

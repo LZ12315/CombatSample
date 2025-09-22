@@ -60,7 +60,7 @@ public class ActionTransitionClip : ActionClipBase
     {
         base.OnClipFinish(isNormal);
         if (!active || actor == null) return;
-        Debug.Log(isNormal);
+
         if (isNormal)
         {
             if(actionWaitToPlay && transitionType == Enums.ActTransType.TransitionEnd)

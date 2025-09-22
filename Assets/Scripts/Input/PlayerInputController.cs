@@ -10,7 +10,7 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
     PlayerInput playerInput;
     PlayerInputControl actions;
     public Actor controlledActor;
-
+    public float timeScale = 0.1f;
     [Header(" ‰»Î…Ë÷√")]
     [SerializeField] int ShortPress_Frame = 40;
     [SerializeField] int LongPress_Frame = 120;
@@ -36,6 +36,7 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
     private void Start()
     {
         SetControlledActor(FindFirstObjectByType<Actor>());
+        Time.timeScale = timeScale;
     }
 
     private void OnEnable()
