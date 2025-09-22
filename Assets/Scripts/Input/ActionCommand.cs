@@ -1,36 +1,57 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using CombatSample.Consts;
+using System;
 
-public class ActionCommand : MonoBehaviour
+[Serializable]
+public class ActionCommand
 {
+    public Enums.ActionPriority priority;
     public ActionTimelineAsset actionToPlay;
-    public InputSequence command;
+    public InputSequence sequence;
 
-    private double waitCounter = 0;
-    private int checkIndex = 0;
+    [HideInInspector] public int waitTime = 0;
+    [HideInInspector] public int waitCounter = 0;
+    [HideInInspector] public int checkIndex = 0;
 
-    public ActionCommand(ActionTimelineAsset actionToPlay, InputSequence command)
+    public ActionCommand(ActionTimelineAsset actionToPlay, InputSequence sequence, Enums.ActionPriority priority)
     {
         this.actionToPlay = actionToPlay;
-        this.command = command;
-        checkIndex = 0;
-        waitCounter = 0;
+        this.sequence = sequence;
+        this.priority = priority;
+        waitTime = sequence.waitTime;
     }
 
-    public void CommandUpdate(double deltaTime)
+    public void Update()
     {
-        waitCounter += deltaTime;
+        if(waitCounter <= 0) return;
+
+        waitCounter--;
+        if(waitCounter == 0)
+        {
+            checkIndex = 0;
+            waitCounter = 0;
+        }
     }
 
-    public void GetInputData(InputData inputData)
+    public bool Matches(InputData inputData)
     {
+        bool isMatch = sequence.dataChecks[checkIndex].CheckInputData(inputData);
 
+        return isMatch;
     }
 
-    public bool IsCommandComplished()
+    public bool IsLast => checkIndex == sequence.dataChecks.Count - 1;
+
+}
+
+public partial class Enums
+{
+    public enum ActionPriority
     {
-        return checkIndex == command.dataChecks.Count;
+        Normal,
+        Combo,
+        Special
     }
-
 }

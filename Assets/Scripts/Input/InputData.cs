@@ -10,7 +10,7 @@ public class InputButtonData : InputData
     public Enums.InputButton inputButton;
     public Enums.ButtonState buttonState;
 
-    public InputButtonData(Enums.InputButton button = Enums.InputButton.None, Enums.ButtonState state = Enums.ButtonState.None)
+    public InputButtonData(Enums.InputButton button = Enums.InputButton.Idle, Enums.ButtonState state = Enums.ButtonState.Idle)
     {
         inputButton = button;
         buttonState = state;
@@ -23,7 +23,7 @@ public class InputJoystickData : InputData
     public Enums.InputJoystick inputJoystick;
     public Enums.JoystickVigor joystickVigor;
 
-    public InputJoystickData(Enums.InputJoystick joystick = Enums.InputJoystick.None, Enums.JoystickVigor vigor = Enums.JoystickVigor.None)
+    public InputJoystickData(Enums.InputJoystick joystick = Enums.InputJoystick.Idle, Enums.JoystickVigor vigor = Enums.JoystickVigor.Idle)
     {
         inputJoystick = joystick;
         joystickVigor = vigor;
@@ -43,7 +43,7 @@ public static partial class Enums
 {
     public enum InputButton
     {
-        None,
+        Idle,
         Dodge,
         Defence,
         LightAttack,
@@ -52,7 +52,7 @@ public static partial class Enums
 
     public enum ButtonState
     {
-        None,
+        Idle,
         ShortPress,
         LongPress_Start,
         LongPress_Cancel
@@ -60,7 +60,7 @@ public static partial class Enums
 
     public enum InputJoystick
     {
-        None,
+        Idle,
         East,
         South,
         West,
@@ -69,7 +69,7 @@ public static partial class Enums
 
     public enum JoystickVigor
     {
-        None,
+        Idle,
         Light,
         Hard
     }
