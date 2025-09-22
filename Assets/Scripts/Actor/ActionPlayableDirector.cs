@@ -30,7 +30,7 @@ public class ActionPlayableDirector : MonoBehaviour
         if (action == null || playableDirector == null) return;
 
         //停止当前正在播放的任何Timeline
-        //playableDirector.Stop(); // 这会立即停止播放并重置所有内部状态
+        playableDirector.Stop(); // 这会立即停止播放并重置所有内部状态
 
         EventCenter.Instance.EventTrigger<PlayableDirector>(Parameters.ActionTransitionEvent, playableDirector);
         playableDirector.playableAsset = action.TimelineAsset;
@@ -48,10 +48,7 @@ public class ActionPlayableDirector : MonoBehaviour
         if(actionPlaying == null) return;
 
         if (actionPlaying.isLoop)
-        {
-            playableDirector.time = 0;
             PlayAction(actionPlaying);
-        }
         else if (actionPlaying.nextAction != null)
             PlayAction(actionPlaying.nextAction);
         else

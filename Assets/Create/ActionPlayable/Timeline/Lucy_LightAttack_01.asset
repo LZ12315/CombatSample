@@ -28,7 +28,7 @@ MonoBehaviour:
   m_Version: 3
   m_AnimClip: {fileID: 0}
   m_Locked: 0
-  m_Muted: 0
+  m_Muted: 1
   m_CustomPlayableFullTypename: 
   m_Curves: {fileID: 0}
   m_Parent: {fileID: 7415402365377804144}
@@ -118,7 +118,7 @@ MonoBehaviour:
   m_Name: Lucy_LightAttack_01
   m_EditorClassIdentifier: 
   isLoop: 0
-  actionType: 1
+  actionType: 0
   nextAction: {fileID: 0}
   _timelineAsset: {fileID: 7415402365377804144}
 --- !u!114 &3214832398013198970
@@ -136,7 +136,7 @@ MonoBehaviour:
   m_Version: 3
   m_AnimClip: {fileID: 0}
   m_Locked: 0
-  m_Muted: 0
+  m_Muted: 1
   m_CustomPlayableFullTypename: 
   m_Curves: {fileID: 0}
   m_Parent: {fileID: 7415402365377804144}
@@ -229,7 +229,7 @@ MonoBehaviour:
   transitionType: 1
   actionCommands:
   - priority: 1
-    actionToPlay: {fileID: 11400000, guid: 982ca7f3c5a0c3e46aad4118a100fea9, type: 2}
+    actionToPlay: {fileID: 11400000, guid: 1a1a5bc48854a834185c2ac6978f5162, type: 2}
     sequence:
       waitTime: 40
       dataChecks:
@@ -294,7 +294,7 @@ MonoBehaviour:
     m_Start: 0.03999999910593033
     m_ClipIn: 0
     m_Asset: {fileID: 5980510517056250661}
-    m_Duration: 1.1100000008940696
+    m_Duration: 1.2000007629394531
     m_TimeScale: 1
     m_ParentTrack: {fileID: 7920181557854250099}
     m_EaseInDuration: 0

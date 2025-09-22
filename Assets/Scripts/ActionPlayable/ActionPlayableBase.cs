@@ -94,7 +94,6 @@ public abstract class ActionClipBase : PlayableBehaviour
 
     public void OnGraphSwitch(PlayableDirector director)
     {
-        Debug.Log("GraphSwitch");
         isGraphSwitch = true;
     }
 
