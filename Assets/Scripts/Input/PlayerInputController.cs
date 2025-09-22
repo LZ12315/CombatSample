@@ -74,7 +74,6 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
         InputButtonData buttonInput = new InputButtonData(button, state);
 
         controlledActor.logicInput.GetInputData(buttonInput);
-        Debug.Log("ButtonInput: " +  buttonInput.inputButton + " " + buttonInput.buttonState);
     }
 
     void SendJoystickInputData(Enums.InputJoystick joystick, Enums.JoystickVigor vigor)
@@ -89,7 +88,8 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
 
         lastJoystickInput = joystickInput;
         controlledActor.logicInput.GetInputData(joystickInput);
-        Debug.Log("JoyStickInput: " + joystickInput.inputJoystick + " " + joystickInput.joystickVigor);
+
+        //Debug.Log(joystickInput.inputJoystick + "   " + joystickInput.joystickVigor);
     }
 
     #region 获取Input
@@ -107,7 +107,7 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
                 SendJoystickInputData(CastVectorToDirection(rawMove), Enums.JoystickVigor.Light);
         }
         else
-            SendJoystickInputData(CastVectorToDirection(rawMove), Enums.JoystickVigor.None);
+            SendJoystickInputData(CastVectorToDirection(rawMove), Enums.JoystickVigor.Idle);
     }
 
     public void OnLook(InputAction.CallbackContext context)
@@ -230,7 +230,7 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
     Enums.InputJoystick CastVectorToDirection(Vector2 input)
     {
         if (input.sqrMagnitude < 0.1f)
-            return Enums.InputJoystick.None;
+            return Enums.InputJoystick.Idle;
 
         // 归一化输入向量以确保方向准确
         Vector2 normalized = input.normalized;

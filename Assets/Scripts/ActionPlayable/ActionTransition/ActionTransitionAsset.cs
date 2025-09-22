@@ -5,13 +5,16 @@ using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.Playables;
 using UnityEngine.Timeline;
+using CombatSample.Consts;
 
 public class ActionTransitionAsset : PlayableAsset
 {
+    [Header("Transition…Ë÷√")]
     public bool active = true;
     public Enums.ActTransType transitionType;
-    public ActionTimelineAsset nextAction;
-    public InputSequence inputSequence = new ();
+
+    [Header(" ‰»ÎºÏ≤È")]
+    public List<ActionCommand> actionCommands = new ();
 
     public override Playable CreatePlayable(PlayableGraph graph, GameObject owner)
     {
@@ -20,8 +23,7 @@ public class ActionTransitionAsset : PlayableAsset
 
         clip.active = active;
         clip.transitionType = transitionType;
-        clip.nextAction = nextAction;
-        clip.inputSequence = inputSequence;
+        clip.actionCommands = actionCommands;
 
         return playable;
     }
@@ -32,50 +34,44 @@ public class ActionTransitionClip : ActionClipBase
 {
     public bool active = true;
     public Enums.ActTransType transitionType;
-    public ActionTimelineAsset nextAction;
-    public InputSequence inputSequence;
+
+    public List<ActionCommand> actionCommands;
 
     bool actionWaitToPlay = false;
-    ActionTimelineAsset actionToPlay;
+    ActionTimelineAsset actionToPlay = null;
 
     protected override void OnClipPlay(Playable playable)
     {
         base.OnClipPlay(playable);
         if(!active || actor == null) return;
 
+        foreach (var command in actionCommands)
+            actor.logicInput.AddActionCommand(command);
         actor.logicInput.AddTransitionEvent(o => PlayNextAction(o));
     }
-
 
     protected override void OnClipPause()
     {
         base.OnClipPause();
-        if (!active || actor == null) return;
+        CleanUp();
     }
 
-    protected override void OnClipFinish()
+    protected override void OnClipFinish(bool isNormal)
     {
-        base.OnClipFinish();
+        base.OnClipFinish(isNormal);
         if (!active || actor == null) return;
-
-        if (actionWaitToPlay && transitionType == Enums.ActTransType.TransitionEnd)
+        Debug.Log(isNormal);
+        if (isNormal)
         {
-            actionWaitToPlay = false;
+            if(actionWaitToPlay && transitionType == Enums.ActTransType.TransitionEnd)
+            {
+                actionWaitToPlay = false;
 
-            if(actionToPlay != null)
-                actor.actionPlayerDirector.PlayAction(actionToPlay);
+                if (actionToPlay != null)
+                    actor.actionPlayerDirector.PlayAction(actionToPlay);
+            }
         }
-    }
-
-    public override void OnGraphStop(Playable playable)
-    {
-        if (actionWaitToPlay && transitionType == Enums.ActTransType.ActionEnd)
-        {
-            actionWaitToPlay = false;
-
-            if (actionToPlay != null)
-                actor.actionPlayerDirector.PlayAction(actionToPlay);
-        }
+        CleanUp();
     }
 
     private void PlayNextAction(ActionTimelineAsset actionToPlay)
@@ -93,6 +89,16 @@ public class ActionTransitionClip : ActionClipBase
         }
     }
 
+    void CleanUp()
+    {
+        foreach (var command in actionCommands)
+            actor.logicInput.RemoveActionCommand(command);
+
+        actor.logicInput.RemoveTransitionEvent(o => PlayNextAction(o));
+        actionWaitToPlay = false;
+        actionToPlay = null;
+    }
+
 }
 
 public static partial class Enums
@@ -101,6 +107,5 @@ public static partial class Enums
     {
         Immediate,
         TransitionEnd,
-        ActionEnd
     }
 }

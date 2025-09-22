@@ -8,8 +8,14 @@ using UnityEngine.InputSystem;
 [Serializable]
 public class InputSequence
 {
-    public int waitTime = 40;
-    public List<InputCondition> dataChecks = new List<InputCondition>();
+    public int waitTime;
+    public List<InputCondition> dataChecks;
+
+    public InputSequence()
+    {
+        waitTime = 40;
+        dataChecks = new List<InputCondition>();
+    }
 }
 
 [Serializable]
@@ -87,6 +93,10 @@ public class JoystickInputCondition : InputConditionBase
 
         if (input is InputJoystickData joyStickData)
         {
+            if (joyStickData.joystickVigor == Enums.JoystickVigor.Idle &&
+                joystickVigors.Contains(Enums.JoystickVigor.Idle))
+                return true;
+
             foreach (var joystick in inputJoysticks)
             {
                 if (joystick == joyStickData.inputJoystick)
