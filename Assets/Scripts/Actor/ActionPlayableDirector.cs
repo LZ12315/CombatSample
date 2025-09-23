@@ -22,14 +22,14 @@ public class ActionPlayableDirector : MonoBehaviour
 
     private void OnDestroy()
     {
-        _timelineEventManager.ClearAllSubscriptions();
+        //_timelineEventManager.ClearAllSubscriptions();
     }
 
     public void PlayAction(ActionTimelineAsset action)
     {
         if (action == null || playableDirector == null) return;
 
-        RaiseTransitionEvent(playableDirector);
+        //RaiseTransitionEvent(playableDirector);
 
         //停止当前正在播放的任何Timeline
         playableDirector.Stop(); // 这会立即停止播放并重置所有内部状态
@@ -61,26 +61,26 @@ public class ActionPlayableDirector : MonoBehaviour
         }
     }
 
-    #region Timeline切换事件
+    //#region Timeline切换事件
 
-    private GenericEventManager<PlayableDirector> _timelineEventManager = new GenericEventManager<PlayableDirector>();
+    //private GenericEventManager<PlayableDirector> _timelineEventManager = new GenericEventManager<PlayableDirector>();
 
-    public void RegisterForTimelineEvent(object registrant, Action<PlayableDirector> callback)
-    {
-        _timelineEventManager.Subscribe(registrant, callback);
-    }
+    //public void RegisterForTimelineEvent(object registrant, Action<PlayableDirector> callback)
+    //{
+    //    _timelineEventManager.Subscribe(registrant, callback);
+    //}
 
-    public void UnregisterFromTimelineEvent(object registrant)
-    {
-        _timelineEventManager.Unsubscribe(registrant);
-    }
+    //public void UnregisterFromTimelineEvent(object registrant)
+    //{
+    //    _timelineEventManager.Unsubscribe(registrant);
+    //}
 
-    void RaiseTransitionEvent(PlayableDirector playabledirector)
-    {
-        _timelineEventManager.Publish(playabledirector);
-    }
+    //void RaiseTransitionEvent(PlayableDirector playabledirector)
+    //{
+    //   _timelineEventManager.Publish(playabledirector);
+    //}
 
-    #endregion
+    //#endregion
 
 }
 

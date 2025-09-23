@@ -151,9 +151,9 @@ public class AnimancerClip : ActionClipBase
         Cleanup();
     }
 
-    protected override void OnClipFinish(bool isNormal)
+    protected override void OnClipFinish()
     {
-        base.OnClipFinish(isNormal);
+        base.OnClipFinish();
 
         if(Application.isPlaying)
             Cleanup();
