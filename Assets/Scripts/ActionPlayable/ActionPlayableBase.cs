@@ -28,10 +28,9 @@ public abstract class ActionClipBase : PlayableBehaviour
 
     }
 
-    protected virtual void OnClipFinish(bool isNormal)
+    protected virtual void OnClipFinish()
     {
         state = Enums.ActionClipState.None;
-        isGraphSwitch = false;
     }
 
     #region 方法继承
@@ -48,46 +47,28 @@ public abstract class ActionClipBase : PlayableBehaviour
         actor = director.GetComponent<Actor>();
         if (actor == null) return;
 
-        actor.actionPlayerDirector.RegisterForTimelineEvent(this, OnPlayableGraphSwitch);
         OnClipPlay(playable);
     }
 
-    bool isGraphSwitch = false;
     public override void OnBehaviourPause(Playable playable, FrameData info)
     {
         if (state != Enums.ActionClipState.Play) return;
 
-        //禁止OnClipPause方法在Clip刚开始时被调用
-        if (playable.GetTime() <= 0.1f) return;
-
-        if (playable.GetTime() >= playable.GetDuration() - 0.0001f)
+        if (playable.GetTime() >= playable.GetDuration() - 0.01f)
         {
             state = Enums.ActionClipState.Finish;
-            OnClipFinish(true);
-            actor.actionPlayerDirector.UnregisterFromTimelineEvent(this);
-        }
-        else if (isGraphSwitch)
-        {
-            state = Enums.ActionClipState.Finish;
-            OnClipFinish(false);
-            actor.actionPlayerDirector.UnregisterFromTimelineEvent(this);
+            OnClipFinish();
         }
         else
         {
             state = Enums.ActionClipState.Pause;
             OnClipPause();
         }
-
     }
 
     public override void ProcessFrame(Playable playable, FrameData info, object playerData)
     {
         OnClipUpdate(playable);
-    }
-
-    public void OnPlayableGraphSwitch(PlayableDirector director)
-    {
-        isGraphSwitch = true;
     }
 
     #endregion

@@ -15,14 +15,14 @@ MonoBehaviour:
   m_Version: 3
   m_AnimClip: {fileID: 0}
   m_Locked: 0
-  m_Muted: 1
+  m_Muted: 0
   m_CustomPlayableFullTypename: 
   m_Curves: {fileID: 0}
   m_Parent: {fileID: -16759456676080290}
   m_Children: []
   m_Clips:
   - m_Version: 1
-    m_Start: 0.03333299979567528
+    m_Start: 0.00009999999747378752
     m_ClipIn: 0
     m_Asset: {fileID: -7202225386282278582}
     m_Duration: 2
@@ -127,6 +127,13 @@ MonoBehaviour:
       dataChecks:
       - dataCheck:
           rid: 3092552883680051243
+  - priority: 0
+    actionToPlay: {fileID: 11400000, guid: a7e681807f4a98f4db85f24b388b0d44, type: 2}
+    sequence:
+      waitTime: 40
+      dataChecks:
+      - dataCheck:
+          rid: 3092552897262256458
   references:
     version: 2
     RefIds:
@@ -135,6 +142,11 @@ MonoBehaviour:
       data:
         inputButtons: 03000000
         inputState: 01000000
+    - rid: 3092552897262256458
+      type: {class: JoystickInputCondition, ns: , asm: Assembly-CSharp}
+      data:
+        inputJoysticks: 01000000020000000300000004000000
+        joystickVigors: 02000000
 --- !u!114 &-16759456676080290
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -195,7 +207,7 @@ MonoBehaviour:
   m_Children: []
   m_Clips:
   - m_Version: 1
-    m_Start: 0.03333299979567528
+    m_Start: 0.00009999999747378752
     m_ClipIn: 0
     m_Asset: {fileID: -769667559911577311}
     m_Duration: 2

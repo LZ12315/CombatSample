@@ -55,24 +55,28 @@ public class ActionTransitionClip : ActionClipBase
 
         foreach (var setting in actionCommandSettings)
             actor.logicInput.AddShortdatedCommand(setting.actionToPlay, setting.sequence, setting.priority);
-
         actor.logicInput.RegisterForTransitionEvent(this, PlayNextAction);
     }
 
-    protected override void OnClipFinish(bool isNormal)
+    protected override void OnClipPause()
     {
-        base.OnClipFinish(isNormal);
+        base.OnClipPause();
         if (!active || actor == null) return;
 
-        if (isNormal)
-        {
-            if(actionWaitToPlay && transitionType == Enums.ActTransType.TransitionEnd)
-            {
-                actionWaitToPlay = false;
+        CleanUp();
+    }
 
-                if (actionToPlay != null)
-                    actor.actionPlayerDirector.PlayAction(actionToPlay);
-            }
+    protected override void OnClipFinish()
+    {
+        base.OnClipFinish();
+        if (!active || actor == null) return;
+
+        if (actionWaitToPlay && transitionType == Enums.ActTransType.TransitionEnd)
+        {
+            actionWaitToPlay = false;
+
+            if (actionToPlay != null)
+                actor.actionPlayerDirector.PlayAction(actionToPlay);
         }
         CleanUp();
     }

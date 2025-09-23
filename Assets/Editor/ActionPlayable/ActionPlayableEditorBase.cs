@@ -45,8 +45,8 @@ public class ActionClipEditorBase : ClipEditor
     //否则会导致逻辑错误: OnBehavior等方法被错误触发
     protected void AdjustClipStartTime(TimelineClip clip)
     {
-        if (clip.start < 0.033333f)
-            clip.start = 0.033333f;
+        if (clip.start < 0.0001f)
+            clip.start = 0.0001f;
     }
 
 }

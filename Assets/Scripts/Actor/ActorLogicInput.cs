@@ -38,7 +38,7 @@ public class ActorLogicInput : MonoBehaviour
     #region Input¥¶¿Ì
 
     private List<ActionCommand> actionCommands_Standing = new ();
-    [SerializeField] private List<ActionCommand> actionCommands_ShortDated = new();
+    private List<ActionCommand> actionCommands_ShortDated = new();
 
     public void GetInputData(InputData inputData)
     {

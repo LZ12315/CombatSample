@@ -244,6 +244,13 @@ MonoBehaviour:
       dataChecks:
       - dataCheck:
           rid: 3092552883680051246
+  - priority: 0
+    actionToPlay: {fileID: 11400000, guid: 0a3d999f80197b24890d39c6a722b037, type: 2}
+    sequence:
+      waitTime: 40
+      dataChecks:
+      - dataCheck:
+          rid: 3092552897262256459
   references:
     version: 2
     RefIds:
@@ -252,6 +259,11 @@ MonoBehaviour:
       data:
         inputButtons: 03000000
         inputState: 01000000
+    - rid: 3092552897262256459
+      type: {class: JoystickInputCondition, ns: , asm: Assembly-CSharp}
+      data:
+        inputJoysticks: 01000000020000000300000004000000
+        joystickVigors: 02000000
 --- !u!114 &9205420726548979122
 MonoBehaviour:
   m_ObjectHideFlags: 1
