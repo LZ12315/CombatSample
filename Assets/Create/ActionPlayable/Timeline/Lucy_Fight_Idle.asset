@@ -218,7 +218,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b2fc54e447a68ac499cb315c73175951, type: 3}
   m_Name: Lucy_Fight_Idle
   m_EditorClassIdentifier: 
-  isLoop: 1
+  isLoop: 0
   actionType: 0
   nextAction: {fileID: 0}
   _timelineAsset: {fileID: -2294153292775594250}

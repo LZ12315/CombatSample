@@ -54,31 +54,25 @@ public class ActionTransitionClip : ActionClipBase
         if(!active || actor == null) return;
 
         foreach (var setting in actionCommandSettings)
-            actor.logicInput.AddShortdatedCommand(setting.actionToPlay, setting.sequence, setting.priority);
+            actor.logicInput.AddShortdatedHandler(setting.actionToPlay, setting.sequence, setting.priority);
         actor.logicInput.RegisterForTransitionEvent(this, PlayNextAction);
     }
 
-    protected override void OnClipPause()
+    protected override void OnClipFinish(bool isNormal)
     {
-        base.OnClipPause();
+        base.OnClipFinish(isNormal);
         if (!active || actor == null) return;
 
-        CleanUp();
-    }
-
-    protected override void OnClipFinish()
-    {
-        base.OnClipFinish();
-        if (!active || actor == null) return;
-
-        if (actionWaitToPlay && transitionType == Enums.ActTransType.TransitionEnd)
+        if(isNormal)
         {
-            actionWaitToPlay = false;
+            if (actionWaitToPlay && transitionType == Enums.ActTransType.TransitionEnd)
+            {
+                actionWaitToPlay = false;
 
-            if (actionToPlay != null)
-                actor.actionPlayerDirector.PlayAction(actionToPlay);
+                if (actionToPlay != null)
+                    actor.actionPlayerDirector.PlayAction(actionToPlay);
+            }
         }
-        CleanUp();
     }
 
     private void PlayNextAction(ActionTimelineAsset actionToPlay)
@@ -96,8 +90,10 @@ public class ActionTransitionClip : ActionClipBase
         }
     }
 
-    void CleanUp()
+    protected override void CleanUp()
     {
+        base.CleanUp();
+
         actor.logicInput.ClearShortdatedCommand();
         actor.logicInput.UnregisterFromTransitionEvent(this);
 

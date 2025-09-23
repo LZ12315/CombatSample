@@ -8,4 +8,5 @@ public class ActorActionSetting : ScriptableObject
 {
     public ActionTimelineAsset idle;
     public ActionTimelineAsset fight_Idle;
+    public List<ActorSkill> specialSkills;
 }

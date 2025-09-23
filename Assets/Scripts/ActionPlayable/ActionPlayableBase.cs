@@ -13,32 +13,25 @@ public abstract class ActionClipBase : PlayableBehaviour
     protected Actor actor = null;
     protected Enums.ActionClipState state = Enums.ActionClipState.None;
 
-    protected virtual void OnClipPlay(Playable playable)
-    {
+    protected virtual void OnClipPlay(Playable playable) { }
 
-    }
+    protected virtual void OnClipUpdate(Playable playable) { }
 
-    protected virtual void OnClipUpdate(Playable playable)
-    {
+    protected virtual void OnClipPause() { }
 
-    }
+    protected virtual void OnClipFinish(bool isNormal) { }
 
-    protected virtual void OnClipPause()
-    {
-
-    }
-
-    protected virtual void OnClipFinish()
+    protected virtual void CleanUp()
     {
         state = Enums.ActionClipState.None;
+        actor.actionPlayerDirector.UnregisterFromTimelineEvent(this);
     }
 
     #region ·½·¨¼Ì³Ð
 
     public override void OnBehaviourPlay(Playable playable, FrameData info)
     {
-        if (state == Enums.ActionClipState.Play)
-            return;
+        if (state == Enums.ActionClipState.Play) return;
         state = Enums.ActionClipState.Play;
 
         var director = playable.GetGraph().GetResolver() as PlayableDirector;
@@ -47,6 +40,7 @@ public abstract class ActionClipBase : PlayableBehaviour
         actor = director.GetComponent<Actor>();
         if (actor == null) return;
 
+        actor.actionPlayerDirector.RegisterForTimelineEvent(this, OnGraphSwitch);
         OnClipPlay(playable);
     }
 
@@ -57,13 +51,23 @@ public abstract class ActionClipBase : PlayableBehaviour
         if (playable.GetTime() >= playable.GetDuration() - 0.01f)
         {
             state = Enums.ActionClipState.Finish;
-            OnClipFinish();
+            OnClipFinish(true);
+            CleanUp();
         }
         else
         {
             state = Enums.ActionClipState.Pause;
             OnClipPause();
         }
+    }
+
+    public virtual void OnGraphSwitch(PlayableDirector playableDirector)
+    {
+        if (state != Enums.ActionClipState.Play) return;
+
+        state = Enums.ActionClipState.Finish;
+        OnClipFinish(false);
+        CleanUp();
     }
 
     public override void ProcessFrame(Playable playable, FrameData info, object playerData)
