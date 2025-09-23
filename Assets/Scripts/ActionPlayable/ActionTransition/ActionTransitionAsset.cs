@@ -7,6 +7,14 @@ using UnityEngine.Playables;
 using UnityEngine.Timeline;
 using CombatSample.Consts;
 
+[Serializable]
+public struct ActionCommandSetting
+{
+    public Enums.ActionPriority priority;
+    public ActionTimelineAsset actionToPlay;
+    public InputSequence sequence;
+}
+
 public class ActionTransitionAsset : PlayableAsset
 {
     [Header("Transition…Ë÷√")]
@@ -14,7 +22,7 @@ public class ActionTransitionAsset : PlayableAsset
     public Enums.ActTransType transitionType;
 
     [Header(" ‰»ÎºÏ≤È")]
-    public List<ActionCommand> actionCommands = new ();
+    public List<ActionCommandSetting> actionCommandSettings = new ();
 
     public override Playable CreatePlayable(PlayableGraph graph, GameObject owner)
     {
@@ -23,7 +31,7 @@ public class ActionTransitionAsset : PlayableAsset
 
         clip.active = active;
         clip.transitionType = transitionType;
-        clip.actionCommands = actionCommands;
+        clip.actionCommandSettings = actionCommandSettings;
 
         return playable;
     }
@@ -35,7 +43,7 @@ public class ActionTransitionClip : ActionClipBase
     public bool active = true;
     public Enums.ActTransType transitionType;
 
-    public List<ActionCommand> actionCommands;
+    public List<ActionCommandSetting> actionCommandSettings;
 
     bool actionWaitToPlay = false;
     ActionTimelineAsset actionToPlay = null;
@@ -45,15 +53,10 @@ public class ActionTransitionClip : ActionClipBase
         base.OnClipPlay(playable);
         if(!active || actor == null) return;
 
-        foreach (var command in actionCommands)
-            actor.logicInput.AddActionCommand(command);
-        actor.logicInput.AddTransitionEvent(o => PlayNextAction(o));
-    }
+        foreach (var setting in actionCommandSettings)
+            actor.logicInput.AddShortdatedCommand(setting.actionToPlay, setting.sequence, setting.priority);
 
-    protected override void OnClipPause()
-    {
-        base.OnClipPause();
-        CleanUp();
+        actor.logicInput.RegisterForTransitionEvent(this, PlayNextAction);
     }
 
     protected override void OnClipFinish(bool isNormal)
@@ -91,10 +94,9 @@ public class ActionTransitionClip : ActionClipBase
 
     void CleanUp()
     {
-        foreach (var command in actionCommands)
-            actor.logicInput.RemoveActionCommand(command);
+        actor.logicInput.ClearShortdatedCommand();
+        actor.logicInput.UnregisterFromTransitionEvent(this);
 
-        actor.logicInput.RemoveTransitionEvent(o => PlayNextAction(o));
         actionWaitToPlay = false;
         actionToPlay = null;
     }
