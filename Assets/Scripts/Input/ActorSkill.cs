@@ -4,9 +4,8 @@ using UnityEngine;
 using CombatSample.Consts;
 
 [CreateAssetMenu(menuName = "CombatSystem/Skill")]
-public class ActorAbility : ScriptableObject
+public class ActorSkill : ScriptableObject
 {
-    public string abilityName;
     public Enums.ActionPriority priority;
     public ActionTimelineAsset action;
     public InputSequence inputSequence;

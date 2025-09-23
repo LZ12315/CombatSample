@@ -52,7 +52,7 @@ public class AnimancerClip : ActionClipBase
 
     // DirectionTransition配置参数 //
     private float _directionChangeThreshold = 0.1f; // 方向变化阈值
-    private float _blendDuration = 0.35f; // 方向切换混合时间 可能越大越自然
+    private float _blendDuration = 0.25f; // 方向切换混合时间 可能越大越自然
     private PhaseAwareAnimancerPlayer _phaseAwarePlayer; // 动作相位管理类
     private Vector2 _lastMoveInput = Vector2.zero; // 最后输入
     private int _currentDirection = -1; // 目前Direction
@@ -62,7 +62,7 @@ public class AnimancerClip : ActionClipBase
         base.OnClipPlay(playable);
 
         if (transitionAsset == null) return;
-        Cleanup();
+        CleanUp();
 
         if (Application.isPlaying)
             OnPlayModePlay();
@@ -147,17 +147,17 @@ public class AnimancerClip : ActionClipBase
     {
         base.OnClipPause();
 
-        // 暂停时也可以考虑清理资源
-        Cleanup();
+        // 暂停时也可以考虑清理资源 但不要用默认清理逻辑(CleanUp方法)
+        animateState = null;
+        _currentDirection = -1;
+        _phaseAwarePlayer = null;
     }
 
-    protected override void OnClipFinish()
+    protected override void OnClipFinish(bool isNromal)
     {
-        base.OnClipFinish();
+        base.OnClipFinish(isNromal);
 
-        if(Application.isPlaying)
-            Cleanup();
-        else
+        if(!Application.isPlaying)
             OnEditorFinish();
     }
 
@@ -166,12 +166,12 @@ public class AnimancerClip : ActionClipBase
         if (animateState == null) return;
         animateState.Speed = 0;
         animateState.NormalizedTime = 0;
-
-        Cleanup();
     }
 
-    private void Cleanup()
+    protected override void CleanUp()
     {
+        base.CleanUp();
+
         animateState = null;
         _currentDirection = -1;
         _phaseAwarePlayer = null;

@@ -5,7 +5,7 @@ using CombatSample.Consts;
 using System;
 
 [Serializable]
-public class ActionCommand
+public class CommandStateHandler
 {
     public Enums.ActionPriority priority;
     public ActionTimelineAsset actionToPlay;
@@ -15,7 +15,7 @@ public class ActionCommand
     [HideInInspector] public int waitCounter = 0;
     [HideInInspector] public int checkIndex = 0;
 
-    public ActionCommand(ActionTimelineAsset actionToPlay, InputSequence sequence, Enums.ActionPriority priority)
+    public CommandStateHandler(ActionTimelineAsset actionToPlay, InputSequence sequence, Enums.ActionPriority priority)
     {
         this.actionToPlay = actionToPlay;
         this.sequence = sequence;

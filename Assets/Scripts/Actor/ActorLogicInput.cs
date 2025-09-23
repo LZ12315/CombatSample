@@ -13,9 +13,14 @@ public class ActorLogicInput : MonoBehaviour
     private Vector2 lastMoveInput = Vector2.zero;
     public Vector2 MoveInput => lastMoveInput;
 
+    private void Start()
+    {
+        AddStandingHandler();
+    }
+
     protected virtual void LateUpdate()
     {
-        UpdateActionCommand();
+        UpdateActionCommands();
     }
 
     private void OnDestroy()
@@ -37,15 +42,15 @@ public class ActorLogicInput : MonoBehaviour
 
     #region Input¥¶¿Ì
 
-    private List<ActionCommand> actionCommands_Standing = new ();
-    private List<ActionCommand> actionCommands_ShortDated = new();
+    private List<CommandStateHandler> handlers_Standing = new ();
+    private List<CommandStateHandler> handlers_ShortDated = new();
 
     public void GetInputData(InputData inputData)
     {
-        List<ActionCommand> actionCommands = actionCommands_Standing.Concat(actionCommands_ShortDated).ToList();
+        List<CommandStateHandler> actionCommands = handlers_Standing.Concat(handlers_ShortDated).ToList();
         if (actionCommands.Count == 0) return;
 
-        List<ActionCommand> commandsReady = new List<ActionCommand>();
+        List<CommandStateHandler> commandsReady = new List<CommandStateHandler>();
         for (int i = 0; i < actionCommands.Count; i++)
         {
             if (!actionCommands[i].Matches(inputData)) continue;
@@ -70,24 +75,30 @@ public class ActorLogicInput : MonoBehaviour
         RaiseTransitionEvent(commandsReady[0].actionToPlay);
     }
 
-    public void AddStandingCommand(ActionTimelineAsset actionToPlay, InputSequence sequence, Enums.ActionPriority priority)
+    void AddStandingHandler()
     {
-        ActionCommand actionCommand = new ActionCommand(actionToPlay, sequence, priority);
-        if (actionCommand == null) return;
+        if (actor.actionPlayerDirector.actionSetting == null) return;
+        List<ActorSkill> skills = actor.actionPlayerDirector.actionSetting.specialSkills;
 
-        actionCommands_Standing.Add(actionCommand);
+        foreach (var skill in skills)
+        {
+            CommandStateHandler actionCommand = new CommandStateHandler(skill.action, skill.inputSequence, skill.priority);
+            if (actionCommand == null) continue;
+            handlers_Standing.Add(actionCommand);
+        }
     }
 
-    public void AddShortdatedCommand(ActionTimelineAsset actionToPlay, InputSequence sequence, Enums.ActionPriority priority)
+    public void AddShortdatedHandler(ActionTimelineAsset actionToPlay, InputSequence sequence, Enums.ActionPriority priority)
     {
-        ActionCommand actionCommand = new ActionCommand(actionToPlay, sequence, priority);
+        CommandStateHandler actionCommand = new CommandStateHandler(actionToPlay, sequence, priority);
         if (actionCommand == null) return;
-        actionCommands_ShortDated.Add(actionCommand);
+
+        handlers_ShortDated.Add(actionCommand);
     }
 
-    void UpdateActionCommand()
+    void UpdateActionCommands()
     {
-        List<ActionCommand> actionCommands = actionCommands_Standing.Concat(actionCommands_ShortDated).ToList();
+        List<CommandStateHandler> actionCommands = handlers_Standing.Concat(handlers_ShortDated).ToList();
         if (actionCommands.Count == 0) return;
 
         for (int i = 0; i < actionCommands.Count; i++)
@@ -96,7 +107,7 @@ public class ActorLogicInput : MonoBehaviour
 
     public void ClearShortdatedCommand()
     {
-        actionCommands_ShortDated.Clear();
+        handlers_ShortDated.Clear();
     }
 
     #endregion
