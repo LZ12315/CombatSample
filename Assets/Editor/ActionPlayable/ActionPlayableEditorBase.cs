@@ -43,11 +43,10 @@ public class ActionClipEditorBase : ClipEditor
 {
     //防止Clip起始时间过于靠近0
     //否则会导致逻辑错误: OnBehavior等方法被错误触发
-    //因此自动向右偏移0.04f 也就是2.4帧
     protected void AdjustClipStartTime(TimelineClip clip)
     {
-        if (clip.start <= 0.05f)
-            clip.start = 0.04f;
+        if (clip.start < 0.033333f)
+            clip.start = 0.033333f;
     }
 
 }

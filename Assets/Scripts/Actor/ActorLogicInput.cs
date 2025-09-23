@@ -3,17 +3,24 @@ using System.Collections.Generic;
 using UnityEngine;
 using CombatSample.Consts;
 using UnityEngine.Events;
+using System.Linq;
+using System;
 
 public class ActorLogicInput : MonoBehaviour
 {
     public Actor actor;
 
-    [SerializeField] private Vector2 lastMoveInput = Vector2.zero;
+    private Vector2 lastMoveInput = Vector2.zero;
     public Vector2 MoveInput => lastMoveInput;
 
     protected virtual void LateUpdate()
     {
         UpdateActionCommand();
+    }
+
+    private void OnDestroy()
+    {
+        _transitionEventManager.ClearAllSubscriptions();
     }
 
     public void InputMove(Vector2 moveInput)
@@ -30,10 +37,12 @@ public class ActorLogicInput : MonoBehaviour
 
     #region Input处理
 
-    public List<ActionCommand> actionCommands = new ();
+    private List<ActionCommand> actionCommands_Standing = new ();
+    [SerializeField] private List<ActionCommand> actionCommands_ShortDated = new();
 
     public void GetInputData(InputData inputData)
     {
+        List<ActionCommand> actionCommands = actionCommands_Standing.Concat(actionCommands_ShortDated).ToList();
         if (actionCommands.Count == 0) return;
 
         List<ActionCommand> commandsReady = new List<ActionCommand>();
@@ -58,47 +67,57 @@ public class ActorLogicInput : MonoBehaviour
         if (commandsReady.Count == 0) return;
 
         commandsReady.Sort((a, b) => b.priority.CompareTo(a.priority));
-        InvokeTransitionEvent(commandsReady[0].actionToPlay);
+        RaiseTransitionEvent(commandsReady[0].actionToPlay);
     }
 
-    public void AddActionCommand(ActionCommand actionCommand)
+    public void AddStandingCommand(ActionTimelineAsset actionToPlay, InputSequence sequence, Enums.ActionPriority priority)
     {
-        actionCommands.Add(actionCommand);
+        ActionCommand actionCommand = new ActionCommand(actionToPlay, sequence, priority);
+        if (actionCommand == null) return;
+
+        actionCommands_Standing.Add(actionCommand);
+    }
+
+    public void AddShortdatedCommand(ActionTimelineAsset actionToPlay, InputSequence sequence, Enums.ActionPriority priority)
+    {
+        ActionCommand actionCommand = new ActionCommand(actionToPlay, sequence, priority);
+        if (actionCommand == null) return;
+        actionCommands_ShortDated.Add(actionCommand);
     }
 
     void UpdateActionCommand()
     {
+        List<ActionCommand> actionCommands = actionCommands_Standing.Concat(actionCommands_ShortDated).ToList();
         if (actionCommands.Count == 0) return;
 
         for (int i = 0; i < actionCommands.Count; i++)
             actionCommands[i].Update();
     }
 
-    public void RemoveActionCommand(ActionCommand command)
+    public void ClearShortdatedCommand()
     {
-        if (actionCommands.Contains(command))
-            actionCommands.Remove(command);
+        actionCommands_ShortDated.Clear();
     }
 
     #endregion
 
-    #region Action传递
+    #region Action事件
 
-    private EventInfo<ActionTimelineAsset> actionTransitionEvent = new();
+    private GenericEventManager<ActionTimelineAsset> _transitionEventManager = new GenericEventManager<ActionTimelineAsset>();
 
-    public void AddTransitionEvent(UnityAction<ActionTimelineAsset> action)
+    public void RegisterForTransitionEvent(object registrant, Action<ActionTimelineAsset> callback)
     {
-        actionTransitionEvent.AddAction(action);
+        _transitionEventManager.Subscribe(registrant, callback);
     }
 
-    void InvokeTransitionEvent(ActionTimelineAsset parameter)
+    public void UnregisterFromTransitionEvent(object registrant)
     {
-        actionTransitionEvent.Invoke(parameter);
+        _transitionEventManager.Unsubscribe(registrant);
     }
 
-    public void RemoveTransitionEvent(UnityAction<ActionTimelineAsset> action)
+    void RaiseTransitionEvent(ActionTimelineAsset actionTimelineAsset)
     {
-        actionTransitionEvent.RemoveAction(action);
+        _transitionEventManager.Publish(actionTimelineAsset);
     }
 
     #endregion

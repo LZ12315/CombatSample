@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!114 &-8605371426078775767
+--- !u!114 &-3719419774364681183
 MonoBehaviour:
   m_ObjectHideFlags: 1
   m_CorrespondingSourceObject: {fileID: 0}
@@ -18,16 +18,16 @@ MonoBehaviour:
   m_Muted: 0
   m_CustomPlayableFullTypename: 
   m_Curves: {fileID: 0}
-  m_Parent: {fileID: -1085222572135576680}
+  m_Parent: {fileID: -2294153292775594250}
   m_Children: []
   m_Clips:
   - m_Version: 1
-    m_Start: 0.00009999999747378752
+    m_Start: 0.03999999910593033
     m_ClipIn: 0
-    m_Asset: {fileID: 1778306101409075684}
+    m_Asset: {fileID: 9205420726548979122}
     m_Duration: 2
     m_TimeScale: 1
-    m_ParentTrack: {fileID: -8605371426078775767}
+    m_ParentTrack: {fileID: -3719419774364681183}
     m_EaseInDuration: 0
     m_EaseOutDuration: 0
     m_BlendInDuration: -1
@@ -92,57 +92,9 @@ MonoBehaviour:
     m_DisplayName: Lucy_Fight_Idle_Root
   m_Markers:
     m_Objects: []
---- !u!114 &-3282014204861173163
+--- !u!114 &-2294153292775594250
 MonoBehaviour:
   m_ObjectHideFlags: 1
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7e16121e222ac9543a73f7aba8deff52, type: 3}
-  m_Name: ActionTransitionAsset(Clone)(Clone)
-  m_EditorClassIdentifier: 
-  active: 1
-  transitionType: 0
-  actionCommands:
-  - priority: 0
-    actionToPlay: {fileID: 11400000, guid: d2e13b1e24945c849a4ce70f7066f8c7, type: 2}
-    sequence:
-      waitTime: 40
-      dataChecks:
-      - dataCheck:
-          rid: 3092552835994222740
-    waitTime: 0
-    waitCounter: 0
-    checkIndex: 0
-  - priority: 0
-    actionToPlay: {fileID: 11400000, guid: 0a3d999f80197b24890d39c6a722b037, type: 2}
-    sequence:
-      waitTime: 40
-      dataChecks:
-      - dataCheck:
-          rid: 3092552835994222743
-    waitTime: 0
-    waitCounter: 0
-    checkIndex: 0
-  references:
-    version: 2
-    RefIds:
-    - rid: 3092552835994222740
-      type: {class: ButtonInputCondition, ns: , asm: Assembly-CSharp}
-      data:
-        inputButtons: 03000000
-        inputState: 01000000
-    - rid: 3092552835994222743
-      type: {class: JoystickInputCondition, ns: , asm: Assembly-CSharp}
-      data:
-        inputJoysticks: 01000000020000000300000004000000
-        joystickVigors: 02000000
---- !u!114 &-1085222572135576680
-MonoBehaviour:
-  m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
@@ -150,48 +102,19 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: bfda56da833e2384a9677cd3c976a436, type: 3}
-  m_Name: Player_Fight_Idle
+  m_Name: Lucy_Fight_Idle
   m_EditorClassIdentifier: 
   m_Version: 0
   m_Tracks:
-  - {fileID: -8605371426078775767}
-  - {fileID: 3119447593514114998}
+  - {fileID: -3719419774364681183}
+  - {fileID: -99790489257235355}
   m_FixedDuration: 0
   m_EditorSettings:
     m_Framerate: 60
     m_ScenePreview: 1
   m_DurationMode: 0
   m_MarkerTrack: {fileID: 0}
---- !u!114 &11400000
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b2fc54e447a68ac499cb315c73175951, type: 3}
-  m_Name: Lucy_Fight_Idle
-  m_EditorClassIdentifier: 
-  isLoop: 0
-  actionType: 1
-  nextAction: {fileID: 11400000, guid: 982ca7f3c5a0c3e46aad4118a100fea9, type: 2}
-  _timelineAsset: {fileID: -1085222572135576680}
---- !u!114 &1778306101409075684
-MonoBehaviour:
-  m_ObjectHideFlags: 1
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 62f4ac90f978b6a479439b7600dd6f03, type: 3}
-  m_Name: AnimancerAsset(Clone)(Clone)(Clone)(Clone)
-  m_EditorClassIdentifier: 
-  transitionAsset: {fileID: 11400000, guid: e39f5a53a18cfbc498b6e475ccd0d51f, type: 2}
---- !u!114 &3119447593514114998
+--- !u!114 &-99790489257235355
 MonoBehaviour:
   m_ObjectHideFlags: 1
   m_CorrespondingSourceObject: {fileID: 0}
@@ -201,7 +124,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ead59e83e2922e24da6fd103716f4d85, type: 3}
-  m_Name: Action Transition Track
+  m_Name: ActionTransition Track
   m_EditorClassIdentifier: 
   m_Version: 3
   m_AnimClip: {fileID: 0}
@@ -209,16 +132,16 @@ MonoBehaviour:
   m_Muted: 0
   m_CustomPlayableFullTypename: 
   m_Curves: {fileID: 0}
-  m_Parent: {fileID: -1085222572135576680}
+  m_Parent: {fileID: -2294153292775594250}
   m_Children: []
   m_Clips:
   - m_Version: 1
-    m_Start: 0.00009999999747378752
+    m_Start: 0.03999999910593033
     m_ClipIn: 0
-    m_Asset: {fileID: -3282014204861173163}
+    m_Asset: {fileID: 6246910902963233050}
     m_Duration: 2
     m_TimeScale: 1
-    m_ParentTrack: {fileID: 3119447593514114998}
+    m_ParentTrack: {fileID: -99790489257235355}
     m_EaseInDuration: 0
     m_EaseOutDuration: 0
     m_BlendInDuration: -1
@@ -283,3 +206,62 @@ MonoBehaviour:
     m_DisplayName: 'Translate when : Immediate'
   m_Markers:
     m_Objects: []
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b2fc54e447a68ac499cb315c73175951, type: 3}
+  m_Name: Lucy_Fight_Idle
+  m_EditorClassIdentifier: 
+  isLoop: 1
+  actionType: 0
+  nextAction: {fileID: 0}
+  _timelineAsset: {fileID: -2294153292775594250}
+--- !u!114 &6246910902963233050
+MonoBehaviour:
+  m_ObjectHideFlags: 1
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7e16121e222ac9543a73f7aba8deff52, type: 3}
+  m_Name: ActionTransitionAsset
+  m_EditorClassIdentifier: 
+  active: 1
+  transitionType: 0
+  actionCommandSettings:
+  - priority: 0
+    actionToPlay: {fileID: 11400000, guid: 621bc18676a2c5145b6c4765fd6b77d3, type: 2}
+    sequence:
+      waitTime: 40
+      dataChecks:
+      - dataCheck:
+          rid: 3092552883680051246
+  references:
+    version: 2
+    RefIds:
+    - rid: 3092552883680051246
+      type: {class: ButtonInputCondition, ns: , asm: Assembly-CSharp}
+      data:
+        inputButtons: 03000000
+        inputState: 01000000
+--- !u!114 &9205420726548979122
+MonoBehaviour:
+  m_ObjectHideFlags: 1
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 62f4ac90f978b6a479439b7600dd6f03, type: 3}
+  m_Name: AnimancerAsset(Clone)(Clone)(Clone)(Clone)(Clone)(Clone)
+  m_EditorClassIdentifier: 
+  transitionAsset: {fileID: 11400000, guid: e39f5a53a18cfbc498b6e475ccd0d51f, type: 2}

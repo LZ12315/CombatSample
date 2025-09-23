@@ -12,5 +12,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ba5505a8dda001c43b49ceb20a35ddfc, type: 3}
   m_Name: PlayerActionSetting
   m_EditorClassIdentifier: 
-  idle: {fileID: 11400000, guid: 982ca7f3c5a0c3e46aad4118a100fea9, type: 2}
-  fight_Idle: {fileID: 11400000, guid: 7e89db99ae09b9649a725aa7a13ccf23, type: 2}
+  idle: {fileID: 11400000, guid: 69459a040219c3c479a2b9188223232e, type: 2}
+  fight_Idle: {fileID: 11400000, guid: 8a6e3d7a666089641a0ba9268ea79ebf, type: 2}

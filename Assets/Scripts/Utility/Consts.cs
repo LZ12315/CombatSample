@@ -11,6 +11,6 @@ namespace CombatSample.Consts
 
     public static partial class Parameters
     {
-        public static string ActionTransitionEvent = "TransToNextAction";
+
     }
 }
