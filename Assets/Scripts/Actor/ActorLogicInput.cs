@@ -11,7 +11,7 @@ public class ActorLogicInput : MonoBehaviour
     public Actor actor;
 
     private Vector2 lastMoveInput = Vector2.zero;
-    public Vector2 ValidMoveInput => lastMoveInput;
+    public Vector2 MoveInput => lastMoveInput;
 
     private void Start()
     {
@@ -30,10 +30,7 @@ public class ActorLogicInput : MonoBehaviour
 
     public void InputMove(Vector2 moveInput)
     {
-        float moveDistance = moveInput.magnitude;
-        if(moveDistance > 0)
-            lastMoveInput = moveInput;
-
+        lastMoveInput = moveInput;
         Vector3 moveDir = actor.cameraControl.CalculateFaceDirection(moveInput);
         actor.movement.UpdateTurn(moveDir);
     }
