@@ -192,7 +192,7 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
         foreach (var pair in buttonCounters)
         {
             var counter = pair.Value;
-            if (!counter.active) return;
+            if (!counter.active) continue;
 
             counter.count++;
 
