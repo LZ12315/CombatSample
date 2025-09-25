@@ -23,8 +23,6 @@ MonoBehaviour:
         rid: 3092552899361243142
     - dataCheck:
         rid: 3092552899361243143
-    - dataCheck:
-        rid: 3092552946655166515
   references:
     version: 2
     RefIds:
@@ -43,8 +41,3 @@ MonoBehaviour:
       data:
         inputButtons: 04000000
         inputState: 0100000002000000
-    - rid: 3092552946655166515
-      type: {class: ButtonInputCondition, ns: , asm: Assembly-CSharp}
-      data:
-        inputButtons: 
-        inputState: 

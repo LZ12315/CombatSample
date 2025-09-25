@@ -52,7 +52,7 @@ public class AnimancerClip : ActionClipBase
 
     // DirectionTransition配置参数 //
     private float _directionChangeThreshold = 0.1f; // 方向变化阈值
-    private float _blendDuration = 0.15f; // 方向切换混合时间 可能越大越自然 但也越不跟手
+    private float _blendDuration = 0.25f; // 方向切换混合时间 可能越大越自然
     private PhaseAwareAnimancerPlayer _phaseAwarePlayer; // 动作相位管理类
     private Vector2 _lastMoveInput = Vector2.zero; // 最后输入
     private int _currentDirection = -1; // 目前Direction
@@ -77,7 +77,7 @@ public class AnimancerClip : ActionClipBase
         {
             _phaseAwarePlayer = new PhaseAwareAnimancerPlayer(actor.animancer);
 
-            _lastMoveInput = actor.logicInput.ValidMoveInput;
+            _lastMoveInput = actor.logicInput.MoveInput;
             _currentDirection = CalculateDirection(_lastMoveInput);
             directionalTransition.SetDirection(_currentDirection);
             animateState = actor.animancer.Play(directionalTransition.Clip, 0.15f);
@@ -181,7 +181,7 @@ public class AnimancerClip : ActionClipBase
     {
         var directionalTransition = transitionAsset.Transition as DirectionalClipTransition;
 
-        Vector2 moveInput = actor.logicInput.ValidMoveInput;
+        Vector2 moveInput = actor.logicInput.MoveInput;
 
         // 检查输入是否有显著变化或者是否为强制更新
         if (!forceUpdate && Vector2.Distance(moveInput, _lastMoveInput) < _directionChangeThreshold)

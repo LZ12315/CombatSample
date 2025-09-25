@@ -8,26 +8,13 @@ using UnityEngine.InputSystem;
 [Serializable]
 public class InputSequence
 {
-    [SerializeField] int _waitTime = 40; // 使用字段初始化器
-    [SerializeField] List<InputCondition> _dataChecks = new List<InputCondition>();
+    public int waitTime;
+    public List<InputCondition> dataChecks;
 
-    public int waitTime
+    public InputSequence()
     {
-        get => _waitTime;
-        set => _waitTime = value;
-    }
-
-    public List<InputCondition> dataChecks
-    {
-        get => _dataChecks;
-        set => _dataChecks = value;
-    }
-
-    // 添加默认值初始化方法
-    public void InitializeDefaults()
-    {
-        _waitTime = 40;
-        _dataChecks = new List<InputCondition>();
+        waitTime = 40;
+        dataChecks = new List<InputCondition>();
     }
 }
 
@@ -35,7 +22,7 @@ public class InputSequence
 public class InputCondition
 {
     [SerializeReference]
-    public InputConditionBase dataCheck = new ButtonInputCondition();
+    public InputConditionBase dataCheck;
 
     public void CheckButtonData() => dataCheck = new ButtonInputCondition();
     public void CheckJoystickData() => dataCheck = new JoystickInputCondition();

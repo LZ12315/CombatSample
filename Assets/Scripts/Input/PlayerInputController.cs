@@ -10,7 +10,7 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
     PlayerInput playerInput;
     PlayerInputControl actions;
     public Actor controlledActor;
-
+    public float timeScale = 0.1f;
     [Header(" ‰»Î…Ë÷√")]
     [SerializeField] int ShortPress_Frame = 40;
     [SerializeField] int LongPress_Frame = 120;
@@ -36,6 +36,7 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
     private void Start()
     {
         SetControlledActor(FindFirstObjectByType<Actor>());
+        Time.timeScale = timeScale;
     }
 
     private void OnEnable()
@@ -117,18 +118,7 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
 
     public void OnDodge(InputAction.CallbackContext context)
     {
-        if (controlledActor == null) return;
 
-        switch (context.phase)
-        {
-            case InputActionPhase.Started:
-                InvokeButtonCounter(Enums.InputButton.Dodge);
-                break;
-
-            case InputActionPhase.Canceled:
-                IntrigueButtonCounter(Enums.InputButton.Dodge);
-                break;
-        }
     }
 
     public void OnLightAttack(InputAction.CallbackContext context)
@@ -188,9 +178,7 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
     void InvokeButtonCounter(Enums.InputButton button)
     {
         if(buttonCounters.ContainsKey(button))
-        {
             buttonCounters[button].Start();
-        }
         else
         {
             ButtonInputCounter counter = new ButtonInputCounter();
@@ -204,8 +192,7 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
         foreach (var pair in buttonCounters)
         {
             var counter = pair.Value;
-
-            if (!counter.active) continue;
+            if (!counter.active) return;
 
             counter.count++;
 
