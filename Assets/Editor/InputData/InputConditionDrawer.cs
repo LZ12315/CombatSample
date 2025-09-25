@@ -4,7 +4,7 @@ using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
 using System;
-
+using UnityEditorInternal;
 [CustomPropertyDrawer(typeof(InputCondition))]
 public class InputConditionDrawer : PropertyDrawer
 {
@@ -14,6 +14,13 @@ public class InputConditionDrawer : PropertyDrawer
 
         // 获取属性
         var dataCheckProp = property.FindPropertyRelative("dataCheck");
+
+        // 关键修复：确保dataCheck不为空
+        if (dataCheckProp.managedReferenceValue == null)
+        {
+            dataCheckProp.managedReferenceValue = new ButtonInputCondition();
+            property.serializedObject.ApplyModifiedProperties();
+        }
 
         // 关键修复：使用自定义标签而不是默认的 "Element x"
         GUIContent customLabel = new GUIContent("");
@@ -103,4 +110,5 @@ public class InputConditionDrawer : PropertyDrawer
         return height;
     }
 }
+
 #endif
