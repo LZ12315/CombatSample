@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 792b68e1016432c489292a0c3a78cec5, type: 3}
-  m_Name: Lucy_RoundKick
+  m_Name: Lucy_Shoryuken
   m_EditorClassIdentifier: 
   priority: 2
   action: {fileID: 0}
@@ -18,26 +18,33 @@ MonoBehaviour:
     waitTime: 40
     dataChecks:
     - dataCheck:
-        rid: 3092552899361243140
+        rid: 8149641967460417592
     - dataCheck:
-        rid: 3092552899361243142
+        rid: 8149641967460417590
     - dataCheck:
-        rid: 3092552899361243143
+        rid: 8149641967460417593
+    - dataCheck:
+        rid: 8149641967460417596
   references:
     version: 2
     RefIds:
-    - rid: 3092552899361243140
-      type: {class: JoystickInputCondition, ns: , asm: Assembly-CSharp}
+    - rid: 8149641967460417590
+      type: {class: ButtonInputCondition, ns: , asm: Assembly-CSharp}
       data:
-        inputJoysticks: 02000000
-        joystickVigors: 02000000
-    - rid: 3092552899361243142
+        inputButtons: 00000000
+        inputState: 00000000
+    - rid: 8149641967460417592
       type: {class: JoystickInputCondition, ns: , asm: Assembly-CSharp}
       data:
         inputJoysticks: 04000000
         joystickVigors: 02000000
-    - rid: 3092552899361243143
+    - rid: 8149641967460417593
+      type: {class: JoystickInputCondition, ns: , asm: Assembly-CSharp}
+      data:
+        inputJoysticks: 04000000
+        joystickVigors: 02000000
+    - rid: 8149641967460417596
       type: {class: ButtonInputCondition, ns: , asm: Assembly-CSharp}
       data:
-        inputButtons: 04000000
+        inputButtons: 03000000
         inputState: 0100000002000000
