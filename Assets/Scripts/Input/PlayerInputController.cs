@@ -15,7 +15,6 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
     [SerializeField] int ShortPress_Frame = 40;
     [SerializeField] int LongPress_Frame = 120;
 
-    [SerializeField] float joystick_DeadZone = 0.1f;
     [SerializeField] float joystickHard_Distance = 0.6f;
 
     // 输入状态 //
@@ -60,8 +59,8 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
     {
         if (controlledActor == null) return;
 
-        // 更新InputCounter
-        UpdateButtonCounter();
+        // 更新Input
+        UpdateInput();
 
         // 更新Camera视角
         controlledActor.logicInput.InputLook(rawLook);
@@ -75,17 +74,13 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
         InputButtonData buttonInput = new InputButtonData(button, state);
 
         controlledActor.logicInput.GetInputData(buttonInput);
+
+        //Debug.Log(buttonInput.inputButton + "   " + buttonInput.buttonState);
     }
 
     void SendJoystickInputData(Enums.InputJoystick joystick, Enums.JoystickVigor vigor)
     {
         InputJoystickData joystickInput = new InputJoystickData(joystick, vigor);
-
-        if (lastJoystickInput != null)
-        {
-            if(joystickInput.isSame(lastJoystickInput))
-                return;
-        }
 
         lastJoystickInput = joystickInput;
         controlledActor.logicInput.GetInputData(joystickInput);
@@ -100,15 +95,20 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
         rawMove = context.ReadValue<Vector2>();
         float distance = rawMove.sqrMagnitude;
 
-        if (distance >= joystick_DeadZone)
+        switch (context.phase)
         {
-            if(distance >= joystickHard_Distance)
-                SendJoystickInputData(CastVectorToDirection(rawMove), Enums.JoystickVigor.Hard);
-            else
-                SendJoystickInputData(CastVectorToDirection(rawMove), Enums.JoystickVigor.Light);
+            case InputActionPhase.Started:
+                if (distance >= joystickHard_Distance)
+                    SendJoystickInputData(CastVectorToDirection(rawMove), Enums.JoystickVigor.Hard);
+                else
+                    SendJoystickInputData(CastVectorToDirection(rawMove), Enums.JoystickVigor.Light);
+                break;
+
+            case InputActionPhase.Canceled:
+                SendJoystickInputData(CastVectorToDirection(rawMove), Enums.JoystickVigor.Idle);
+                break;
         }
-        else
-            SendJoystickInputData(CastVectorToDirection(rawMove), Enums.JoystickVigor.Idle);
+
     }
 
     public void OnLook(InputAction.CallbackContext context)
@@ -118,7 +118,18 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
 
     public void OnDodge(InputAction.CallbackContext context)
     {
+        if (controlledActor == null) return;
 
+        switch (context.phase)
+        {
+            case InputActionPhase.Started:
+                InvokeButtonCounter(Enums.InputButton.Dodge);
+                break;
+
+            case InputActionPhase.Canceled:
+                IntrigueButtonCounter(Enums.InputButton.Dodge);
+                break;
+        }
     }
 
     public void OnLightAttack(InputAction.CallbackContext context)
@@ -187,7 +198,7 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
         }
     }
 
-    void UpdateButtonCounter()
+    void UpdateInput()
     {
         foreach (var pair in buttonCounters)
         {
@@ -209,6 +220,9 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
                 continue;
             }
         }
+
+        if(lastJoystickInput != null)
+            controlledActor.logicInput.GetInputData(lastJoystickInput);
     }
 
     void IntrigueButtonCounter(Enums.InputButton button)
