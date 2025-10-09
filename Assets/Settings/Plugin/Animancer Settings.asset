@@ -1,0 +1,65 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 16
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 18bd840b706853d4a934ec3199f63a41, type: 3}
+  m_Name: Animancer Settings
+  m_EditorClassIdentifier: 
+  _Data:
+  - rid: 7307493271914414080
+  - rid: 7307493271914414081
+  - rid: 7307493271914414082
+  - rid: 7307493271914414083
+  - rid: 7307493271914414084
+  - rid: 7307493271914414085
+  references:
+    version: 2
+    RefIds:
+    - rid: 7307493271914414080
+      type: {class: AnimancerComponentPreviewSettings, ns: Animancer.Editor.Previews,
+        asm: Kybernetik.Animancer.Editor}
+      data:
+        _RepaintRate: 30
+    - rid: 7307493271914414081
+      type: {class: AnimancerGraphControls, ns: Animancer.Editor, asm: Kybernetik.Animancer.Editor}
+      data:
+        _FrameStep: 0.02
+    - rid: 7307493271914414082
+      type: {class: TransitionPreviewSettings, ns: Animancer.Editor.Previews, asm: Kybernetik.Animancer.Editor}
+      data:
+        _AutoClose: 1
+        _SceneLighting: 0
+        _ShowSkybox: 0
+        _FrameStep: 0.02
+        _SceneEnvironment: {fileID: 0}
+        _Models:
+        - {fileID: 6756677279266250836, guid: a4a20f7de8c53684f97be75dd7045953, type: 3}
+    - rid: 7307493271914414083
+      type: {class: SerializableEventSequenceDrawerSettings, ns: Animancer.Editor,
+        asm: Kybernetik.Animancer.Editor}
+      data:
+        _HideEventCallbacks: 0
+    - rid: 7307493271914414084
+      type: {class: AnimationTimeAttributeSettings, ns: Animancer.Units.Editor, asm: Kybernetik.Animancer.Editor}
+      data:
+        showApproximations: 1
+        showNormalized: 1
+        showSeconds: 1
+        showFrames: 1
+    - rid: 7307493271914414085
+      type: {class: GenerateSpriteAnimationsSettings, ns: Animancer.Editor.Tools,
+        asm: Kybernetik.Animancer.Editor}
+      data:
+        _FrameRate: 12
+        _HierarchyPath: 
+        _TargetType:
+          _QualifiedName: UnityEngine.SpriteRenderer, UnityEngine.CoreModule, Version=0.0.0.0,
+            Culture=neutral, PublicKeyToken=null
+        _PropertyName: m_Sprite
