@@ -10,11 +10,12 @@ GameObject:
   m_Component:
   - component: {fileID: 7283756058995910492}
   - component: {fileID: 7826832039632355343}
-  - component: {fileID: 4898307913418043452}
+  - component: {fileID: 5325364531118426207}
   - component: {fileID: 6068393064586612582}
   - component: {fileID: 4396130559834715007}
+  - component: {fileID: 273953429433407213}
   m_Layer: 0
-  m_Name: Player
+  m_Name: YBot
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -62,7 +63,7 @@ CharacterController:
   m_SkinWidth: 0.08
   m_MinMoveDistance: 0.001
   m_Center: {x: 0, y: 1.76, z: 0.08}
---- !u!114 &4898307913418043452
+--- !u!114 &5325364531118426207
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -71,11 +72,14 @@ MonoBehaviour:
   m_GameObject: {fileID: 8430437223595106808}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1da384edba23d1c438cc9ac21bcc9e2f, type: 3}
+  m_Script: {fileID: 11500000, guid: 5929f8be9f2efa4439e0b192a0435993, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  bodyEnabled: 1
   Mass: 1
   GravityScale: 1
+  physicsVelocity: {x: 0, y: 0, z: 0}
+  frameVelocity: {x: 0, y: 0, z: 0}
 --- !u!114 &6068393064586612582
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -88,7 +92,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 32b6f99b419752f43b8c4bfd716d548a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  canMove: 1
   rotateSpeed: 500
   walkSpeed: 6
   runSpeed: 10
@@ -116,6 +119,28 @@ MonoBehaviour:
   OnFallDown:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &273953429433407213
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8430437223595106808}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3e85ae17f5c6fab4eaf4bbca561cbc79, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  swordObject: {fileID: 0}
+  attacks:
+  - {fileID: 11400000, guid: 87d9c843d0a52974988878ad54258d1b, type: 2}
+  - {fileID: 11400000, guid: 6493d7ef7a3d8064f8bf10caf20ec72d, type: 2}
+  - {fileID: 11400000, guid: 038721070df670f4585c3056e05e94e9, type: 2}
+  <InAction>k__BackingField: 0
+  AcqFadeSpeed: 5
+  AcqContainsTime: 2
+  <IsAcquised>k__BackingField: 0
+  acquisition: 0
 --- !u!1001 &3900104664981866476
 PrefabInstance:
   m_ObjectHideFlags: 0
