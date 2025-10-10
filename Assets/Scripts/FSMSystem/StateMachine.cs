@@ -4,52 +4,112 @@ using System.Collections.Generic;
 using Unity.VisualScripting;
 using UnityEngine;
 
-public class StateMachine<T>
+public abstract class StateMachine<T> : MonoBehaviour where T : class
 {
-    private SerializableTransitionMap transitionMap = new SerializableTransitionMap();
+    [field: SerializeField] public State<T> CurrentState { get; protected set; }
+    [SerializeField] protected List<TransitionMapBranch> stateMachineMap = new List<TransitionMapBranch>();
+    [SerializeField] protected State<T> startState;
 
-    private T _owner;
-    public State<T> CurrentState { get; private set; }
-
-    public StateMachine(T owner)
+    protected T _owner;
+    protected Dictionary<State<T>, List<TransitionLine>> mapDictionary;
+    public Dictionary<State<T>, List<TransitionLine>> AsDictionary
     {
-        _owner = owner;
+        get
+        {
+            if (mapDictionary == null)
+            {
+                mapDictionary = new Dictionary<State<T>, List<TransitionLine>>();
+                foreach (var branch in stateMachineMap)
+                {
+                    mapDictionary[branch.sourceState] = branch.transitionLines;
+                }
+            }
+            return mapDictionary;
+        }
     }
 
-    public void ChangeState(State<T> state)
+    protected virtual void Awake()
     {
-        if(CurrentState != null) 
-            CurrentState.OnExit();
-        CurrentState = state;
-        CurrentState.OnEnter(_owner);
+        _owner = GetComponent<T>();
+
+        if (startState != null)
+            ChangeState(startState);
+        else if (stateMachineMap[0].sourceState != null)
+            ChangeState(stateMachineMap[0].sourceState);
     }
 
-    public void StateUpdate()
+    protected virtual void Update()
     {
         if (CurrentState == null) return;
 
-        //Transitions currentTransitions;
-        //transitionMap.AsDictionary.TryGetValue(currentState, out currentTransitions);
+        List<TransitionLine> currentTransitions;
+        AsDictionary.TryGetValue(CurrentState, out currentTransitions);
 
-        //if (currentTransitions.transitions == null) return;
+        if (currentTransitions != null)
+        {
+            foreach (var transitionLine in currentTransitions)
+            {
+                if (transitionLine.transition.ToTransition())
+                {
+                    ChangeState(transitionLine.targetState);
+                    break;
+                }
+            }
 
-        //foreach (var transition in currentTransitions.transitions)
-        //{
-        //    if(transition.TransitionRef.ToTransition())
-        //    {
-        //        ChangeState(transition.targetStateRef);
-        //        break;
-        //    }
-        //}
+        }
 
         CurrentState.OnUpdate();
     }
 
-    public void StateFixedUpdate()
+    protected virtual void FixedUpdate()
     {
         if (CurrentState == null) return;
 
         CurrentState.OnFixedUpdate();
+    }
+
+    public virtual void ChangeState(State<T> state)
+    {
+        if (!AsDictionary.ContainsKey(state)) return;
+
+        if (CurrentState != null)
+            ExitState();
+
+        EnterState(state);
+    }
+
+    public virtual bool IsInState(Type stateType)
+    {
+        if(stateType == null) return false;
+
+        return CurrentState.GetType() == stateType;   
+    }
+
+    void ExitState()
+    {
+        CurrentState.OnStateExit();
+
+        List<TransitionLine> currentTransitions;
+        AsDictionary.TryGetValue(CurrentState, out currentTransitions);
+        if (currentTransitions != null)
+        {
+            foreach (var transitionLine in currentTransitions)
+                transitionLine.transition.OnStateExit();
+        }
+    }
+
+    void EnterState(State<T> state)
+    {
+        CurrentState = state;
+        CurrentState.OnStateEnter(_owner);
+
+        List<TransitionLine> currentTransitions;
+        AsDictionary.TryGetValue(CurrentState, out currentTransitions);
+        if (currentTransitions != null)
+        {
+            foreach (var transitionLine in currentTransitions)
+                transitionLine.transition.OnStateEnter(_owner);
+        }
     }
 
     #region 变量定义
@@ -57,86 +117,26 @@ public class StateMachine<T>
     [System.Serializable]
     public struct TransitionLine
     {
-        public Transition TransitionRef;
-        public State<T> targetStateRef;
+        public Transition<T> transition;
+        public State<T> targetState;
 
-        public TransitionLine(Transition transition, State<T> state)
+        public TransitionLine(Transition<T> transition, State<T> state)
         {
-            TransitionRef = transition ?? throw new ArgumentNullException(nameof(transition));
-            targetStateRef = state ?? throw new ArgumentNullException(nameof(state));
+            this.transition = transition ?? throw new ArgumentNullException(nameof(transition));
+            targetState = state ?? throw new ArgumentNullException(nameof(state));
         }
     }
 
     [System.Serializable]
-    public struct Transitions
+    public class TransitionMapBranch
     {
-        public List<TransitionLine> transitions;
-    }
-
-    [System.Serializable]
-    public class TransitionMapEntry
-    {
-        public State<T> SourceState;
-        public Transitions Transitions;
-    }
-
-    [System.Serializable]
-    public class SerializableTransitionMap
-    {
-        private List<TransitionMapEntry> entries = new List<TransitionMapEntry>();
-
-        private Dictionary<State<T>, Transitions> _lookup;
-
-        public Dictionary<State<T>, Transitions> AsDictionary
-        {
-            get
-            {
-                if (_lookup == null)
-                {
-                    _lookup = new Dictionary<State<T>, Transitions>();
-                    foreach (var entry in entries)
-                    {
-                        _lookup[entry.SourceState] = entry.Transitions;
-                    }
-                }
-                return _lookup;
-            }
-        }
-
-        public void AddTransition(State<T> sourceState, TransitionLine statePair)
-        {
-            foreach (var entry in entries)
-            {
-                if (entry.SourceState == sourceState)
-                {
-                    if (!entry.Transitions.transitions.Contains(statePair))
-                        entry.Transitions.transitions.Add(statePair);
-                    break;
-                }
-            }
-        }
-
-        public void AddMapEntry(TransitionMapEntry newEntry)
-        {
-            foreach (var entry in entries)
-            {
-                if (entry.SourceState == newEntry.SourceState)
-                {
-                    foreach (var transition in newEntry.Transitions.transitions)
-                    {
-                        if (!entry.Transitions.transitions.Contains(transition))
-                            entry.Transitions.transitions.Add(transition);
-                    }
-                    return;
-                }
-            }
-
-            entries.Add(newEntry);
-        }
-
+        public string branchName;
+        public State<T> sourceState;
+        public List<TransitionLine> transitionLines;
     }
 
     #endregion
+
 }
 
 

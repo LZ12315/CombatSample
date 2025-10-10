@@ -4,45 +4,49 @@ using TMPro;
 using Unity.VisualScripting;
 using UnityEngine;
 
+[CreateAssetMenu(menuName = "FSM/State/EnemyCombatMove", fileName = "CombatMoveState")]
 public class CombatMoveState : State<EnemyController>
 {
     [Header("待机状态")]
     [SerializeField] private Vector2 idleTimeRange = new Vector2(2,5);
     [Header("追逐状态")]
-    [SerializeField] private float distanceToIdle = 2.5f;
-    [SerializeField] private float adjustChaseDistance = 1f; //防止角色在Chase与其他状态间反复切换导致不自然行为
+    [SerializeField] private float distanceToIdle = 5.5f;
+    [SerializeField] private float adjustChaseDistance = 1.5f; //防止角色在Chase与其他状态间反复切换导致不自然行为
     [Header("环绕状态")]
     [SerializeField] private Vector2 circleTimeRange = new Vector2(3, 6);
-    [SerializeField] private float circlingSpeed = 20f;
+    [SerializeField] private float circlingSpeed = 30f;
     [Header("攻击切换")]
-    [SerializeField] private float attackWaitTime = 3f;
-    private float attackWaitTimer = 0;
+    [SerializeField] private float attackWaitTime = 6f;
 
-    Utils.Enums.AICombatStates combatState;
+    private CombatActionState combatState;
+    private float attackWaitTimer = 0;
     float stateTimer = 0;
 
-    public override void OnEnter(EnemyController owner)
+    public override void OnStateEnter(EnemyController owner)
     {
-        base.OnEnter(owner);
+        base.OnStateEnter(owner);
 
         if (EnemyManager.Instance != null)
             EnemyManager.Instance.AddEnemy(_owner.Info);
-        EventCenter.Instance.AddEventListener(_owner.Info.ID + "Attack", ToAttack);
 
         _owner.NavAgent.updatePosition = false;
         _owner.NavAgent.updateRotation = false;
         _owner.NavAgent.angularSpeed = 120f;
         _owner.NavAgent.acceleration = 40f;
+
+        combatState = CombatActionState.Idle;
+        attackWaitTimer = 0;
+        stateTimer = 0;
     }
 
     public override void OnUpdate()
     {
         float distance_Target = Vector3.Distance(_owner.Target.position, _owner.transform.position);
 
-        if (distance_Target >= distanceToIdle + adjustChaseDistance && combatState!= Utils.Enums.AICombatStates.Chase)
+        if (distance_Target >= distanceToIdle + adjustChaseDistance && combatState!= CombatActionState.Chase)
             ToChase();
 
-        if(combatState == Utils.Enums.AICombatStates.Idle)
+        if(combatState == CombatActionState.Idle)
         {
             if (stateTimer <= 0)
             {
@@ -56,7 +60,7 @@ public class CombatMoveState : State<EnemyController>
             var vecToTarget = _owner.Target.transform.position - _owner.transform.position;
             _owner.LocalRotation(vecToTarget);
         }
-        else if(combatState == Utils.Enums.AICombatStates.Chase)
+        else if(combatState == CombatActionState.Chase)
         {
             _owner.NavAgent.SetDestination(_owner.Target.position);
             Vector3 velocity =  _owner.NavAgent.desiredVelocity.normalized;
@@ -90,7 +94,7 @@ public class CombatMoveState : State<EnemyController>
         _owner.NavAgent.nextPosition = _owner.transform.position;
         lastPosition = _owner.NavAgent.nextPosition;
 
-        if (combatState == Utils.Enums.AICombatStates.Circling)
+        if (combatState == CombatActionState.Circling)
         {
             if (stateTimer <= 0)
             {
@@ -103,7 +107,6 @@ public class CombatMoveState : State<EnemyController>
             var rotatePos = Quaternion.Euler(0, circlingSpeed * circlingDir * Time.fixedDeltaTime, 0) * vecToTarget;
 
             _owner.NavAgent.Move(rotatePos - vecToTarget);
-            targetPosition = _owner.NavAgent.nextPosition;
 
             Vector3 velocity = ((_owner.NavAgent.nextPosition - lastPosition) / Time.fixedDeltaTime);
             _owner.LocalMotion(-rotatePos, velocity.normalized, _owner.NavAgent.speed);
@@ -112,7 +115,7 @@ public class CombatMoveState : State<EnemyController>
 
     void ToIdle()
     {
-        combatState = Utils.Enums.AICombatStates.Idle;
+        combatState = CombatActionState.Idle;
         stateTimer = Random.Range(idleTimeRange.x, idleTimeRange.y);
 
         _owner.NavAgent.ResetPath();
@@ -123,7 +126,7 @@ public class CombatMoveState : State<EnemyController>
 
     private void ToChase()
     {
-        combatState = Utils.Enums.AICombatStates.Chase;
+        combatState = CombatActionState.Chase;
         _owner.Animator.SetBool("combatMode", true);
     }
 
@@ -137,51 +140,22 @@ public class CombatMoveState : State<EnemyController>
         stateTimer = Random.Range(circleTimeRange.x, circleTimeRange.y);
         circlingDir = Random.Range(0, 2) == 0 ? 1 : -1;
 
-        combatState = Utils.Enums.AICombatStates.Circling;
+        combatState = CombatActionState.Circling;
         _owner.Animator.SetBool("combatMode", false);
     }
 
-    void ToAttack()
-    {
-        _owner.ChangeState(Utils.Enums.EnemyStates.Attack);
-    }
-
-    public override void OnExit()
+    public override void OnStateExit()
     {
         stateTimer = 0;
         _owner.NavAgent.ResetPath();
         _owner.LocalMotion(Vector3.zero);
         _owner.Animator.SetBool("combatMode", false);
 
-        base.OnExit();
+        base.OnStateExit();
     }
 
-    Vector3 targetPosition = Vector3.zero;
-    private void OnDrawGizmos()
+    private enum CombatActionState
     {
-        Gizmos.color = Color.yellow;
-        float rayLength = 4f;
-
-        if(_owner != null)
-        {
-            Vector3 direction = (targetPosition - _owner.transform.position).normalized;
-            direction.y = 0;
-
-            Gizmos.DrawRay(_owner.transform.position, direction * rayLength);
-
-            Gizmos.DrawWireSphere(targetPosition, 0.5f);
-        }
-    }
-}
-
-
-public static partial class Utils
-{
-    public static partial class Enums
-    {
-        public enum AICombatStates
-        {
-            None, Idle, Chase, Circling
-        }
+        None, Idle, Chase, Circling
     }
 }
