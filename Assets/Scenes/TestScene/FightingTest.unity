@@ -167,6 +167,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   attackIntervalRandom: {x: 3, y: 5}
+  <enemiesInCombat>k__BackingField: []
 --- !u!1 &382486426
 GameObject:
   m_ObjectHideFlags: 0
@@ -1140,7 +1141,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   swordGamobject: {fileID: 0}
-  attacks: []
+  attacks:
+  - {fileID: 11400000, guid: 87d9c843d0a52974988878ad54258d1b, type: 2}
+  - {fileID: 11400000, guid: 6493d7ef7a3d8064f8bf10caf20ec72d, type: 2}
+  - {fileID: 11400000, guid: 038721070df670f4585c3056e05e94e9, type: 2}
   <InAction>k__BackingField: 0
   AcqFadeSpeed: 5
   AcqContainsTime: 2
