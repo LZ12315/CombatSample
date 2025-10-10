@@ -37,7 +37,7 @@ public class ActorLogicInput : MonoBehaviour
 
     public void InputLook(Vector2 LookInput)
     {
-        actor.cameraControl.HandleCameraRotation(LookInput);
+        //actor.cameraControl.HandleCameraRotation(LookInput);
     }
 
     #region Input¥¶¿Ì
