@@ -11,7 +11,7 @@ public class PlayerController : MonoBehaviour
     CameraController cameraControl;
     CharacterBody physicsCharacter;
     Animator animator;
-    CharacterCombater meleeAttacker;
+    Combater meleeAttacker;
 
     [Header("ÒÆ¶¯²ÎÊý")]
     [SerializeField] float rotateSpeed = 500f;
@@ -30,7 +30,7 @@ public class PlayerController : MonoBehaviour
     {
         inputControl = new PlayerInputControl();
         physicsCharacter = GetComponent<CharacterBody>();
-        meleeAttacker = GetComponent<CharacterCombater>();
+        meleeAttacker = GetComponent<Combater>();
         animator = GetComponentInChildren<Animator>();
         cameraControl = Camera.main.GetComponent<CameraController>();
     }
@@ -107,15 +107,13 @@ public class PlayerController : MonoBehaviour
     private void OnEnable()
     {
         inputControl.Enable();
-        inputControl.Player.Jump.started += Jump;
-        inputControl.Player.Fire.started += InvokeAttack;
+        inputControl.Player.LightAttack.started += InvokeAttack;
     }
 
     private void OnDisable()
     {
         inputControl.Disable();
-        inputControl.Player.Jump.started -= Jump;
-        inputControl.Player.Fire.started -= InvokeAttack;
+        inputControl.Player.LightAttack.started -= InvokeAttack;
     }
 
     public float MotionBlend => moveDir.magnitude * currentSpeed / runSpeed;

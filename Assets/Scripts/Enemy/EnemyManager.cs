@@ -19,7 +19,14 @@ public struct EnemyInfo
 
 public class EnemyManager : MonoBehaviour
 {
-    public static EnemyManager Instance;
+    private static EnemyManager instance;
+    public static EnemyManager Instance
+    {
+        get
+        {
+            return instance;
+        }
+    }
 
     [Header("群体进攻设置")]
     [SerializeField] private Vector2 attackIntervalRandom = new Vector2(3,5);
@@ -28,9 +35,9 @@ public class EnemyManager : MonoBehaviour
     private Queue<EnemyInfo> enemiesToAttack = new Queue<EnemyInfo>();
     private float attackIntervalCounter = 0;
 
-    private void Awake()
+    private void Start()
     {
-        Instance = this;
+        instance = this;
         attackIntervalCounter = UnityEngine.Random.Range(attackIntervalRandom.x, attackIntervalRandom.y);
     }
 
@@ -56,7 +63,7 @@ public class EnemyManager : MonoBehaviour
     {
         if (enemiesToAttack.Count == 0) return;
 
-        if (!enemiesInCombat.Any(enemy => enemy.controller.StateMachine.IsInState(Utils.Enums.EnemyStates.Attack)))
+        if (!enemiesInCombat.Any(enemy => enemy.controller.StateMachine.IsInState(Enums.EnemyStates.Attack)))
         {
             if (attackIntervalCounter > 0)
                 attackIntervalCounter -= Time.deltaTime;

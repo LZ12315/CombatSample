@@ -1,19 +1,16 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.InputSystem;
-using static UnityEngine.GraphicsBuffer;
-using static UnityEngine.UI.GridLayoutGroup;
-using static UnityEngine.UI.Image;
+using CombatSample.Consts;
 
 public class EnemyController : MonoBehaviour
 {
     public Animator Animator { get; private set; }
     public CharacterBody PhysicsCharacter { get; private set; }
-    public CharacterCombater MeleeAttacker { get; private set; }
+    public Combater MeleeAttacker { get; private set; }
     public EnemyFSM StateMachine { get; private set;}
     public NavMeshAgent NavAgent { get; private set; }
     public EnemyInfo Info {  get; set; }
@@ -36,16 +33,24 @@ public class EnemyController : MonoBehaviour
     [SerializeField] private LayerMask obstacleMask;      // ×èµ²²ã
 
 
-    void Start()
+    void Awake()
     {
         Animator = GetComponentInChildren<Animator>();
         PhysicsCharacter = GetComponent<CharacterBody>();
         NavAgent = GetComponent<NavMeshAgent>();
-        MeleeAttacker = GetComponent<CharacterCombater>();
+        MeleeAttacker = GetComponent<Combater>();
         StateMachine = GetComponent<EnemyFSM>();
         AnimateControl = GetComponentInChildren<AnimateControl>();
 
         IDInitialized();
+    }
+
+    private void Start()
+    {
+        NavAgent.updatePosition = false;
+        NavAgent.updateRotation = false;
+        NavAgent.angularSpeed = 120f;
+        NavAgent.acceleration = 40f;
     }
 
     private void Update()
@@ -221,14 +226,10 @@ public class EnemyController : MonoBehaviour
 
 }
 
-public static partial class Utils
+public static partial class Enums
 {
-
-    public static partial class Enums
+    public enum EnemyStates
     {
-        public enum EnemyStates
-        {
-            None, Idle, CombatMove, Attack, Retreat
-        }
+        None, Idle, CombatMove, Attack, Retreat
     }
 }

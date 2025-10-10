@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c5a8877f26e7a6a43aaf06fade1a064a, type: 3}
+  m_Name: Lucy_Fight_Walk
+  m_EditorClassIdentifier: 
+  _Transition:
+    rid: 3092552503723819010
+  references:
+    version: 2
+    RefIds:
+    - rid: 3092552503723819010
+      type: {class: DirectionalClipTransition, ns: Animancer, asm: Kybernetik.Animancer}
+      data:
+        _FadeDuration: 0.25
+        _Speed: 1
+        _Events:
+          _NormalizedTimes: []
+          _Callbacks: []
+          _Names: []
+        _Clip: {fileID: 2189116569001452754, guid: 373ceb13eb5b7e04294116a71b7ae638,
+          type: 3}
+        _NormalizedStartTime: 0
+        _AnimationSet: {fileID: 11400000, guid: b783063b1a9f58141b8f317edeb6f0e3,
+          type: 2}

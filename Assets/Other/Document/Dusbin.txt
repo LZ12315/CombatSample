@@ -1,0 +1,39 @@
+
+    private struct InputButtonCounter
+    {
+        public bool active;
+        private PlayerInputController inputController;
+
+        public int inputCounter;
+        public Enums.InputButton inputButton;
+
+        public void InitCounter(PlayerInputController controller, Enums.InputButton button)
+        {
+            active = true;
+            inputCounter = 0;
+            inputButton = button;
+            inputController = controller;
+        }
+
+        public void UpdateCounter()
+        {
+            if (!active) return;
+
+            inputCounter++;
+
+            if(inputCounter > 40)
+            {
+                InputButtonData buttonHoldInput = new InputButtonData();
+                buttonHoldInput.SetValue(inputButton, Enums.InputState.Hold);
+                DisableCounter();
+            }
+        }
+
+        void DisableCounter()
+        {
+            active = false;
+            inputCounter = 0;
+            inputButton = Enums.InputButton.None;
+            inputController = null;
+        }
+    }

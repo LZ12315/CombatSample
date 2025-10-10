@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b5b6ac0c7ebd7b41b307d920db7b245, type: 3}
+  m_Name: Lucy_Fight_Walk_DirectAnim8
+  m_EditorClassIdentifier: 
+  _Up: {fileID: 2189116569001452754, guid: 373ceb13eb5b7e04294116a71b7ae638, type: 3}
+  _Right: {fileID: 7311213225735148125, guid: 7af979e32a3978243ba68eaf050c48fc, type: 3}
+  _Down: {fileID: 5668443603817071437, guid: f236d085eae9e64408f6f7ff604831e2, type: 3}
+  _Left: {fileID: -5362407590305301477, guid: 2d9f35375974cfe4b925817e37dbda63, type: 3}
+  _UpRight: {fileID: 728319764403861561, guid: 693df34bb6cd4114b9c0150b8e29306d, type: 3}
+  _DownRight: {fileID: 4996483858042778754, guid: b669b214fe2686f429346d42f598b3b7,
+    type: 3}
+  _DownLeft: {fileID: -3382711529652376570, guid: 62bdfff76eff3a746bc1de4023928c83,
+    type: 3}
+  _UpLeft: {fileID: 3121829670272145165, guid: 00f8ca01a93067342af4b3c269c4d705, type: 3}
