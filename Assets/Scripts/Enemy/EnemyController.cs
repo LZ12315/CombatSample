@@ -14,7 +14,7 @@ public class EnemyController : MonoBehaviour
     public EnemyFSM StateMachine { get; private set;}
     public NavMeshAgent NavAgent { get; private set; }
     public EnemyInfo Info {  get; set; }
-    public AnimateControl AnimateControl { get; private set; }
+    public EnemyAnimateControl AnimateControl { get; private set; }
 
     [Header("“∆∂Ø…Ë÷√")]
     [SerializeField] float rotateSpeed = 500f;
@@ -40,7 +40,7 @@ public class EnemyController : MonoBehaviour
         NavAgent = GetComponent<NavMeshAgent>();
         MeleeAttacker = GetComponent<Combater>();
         StateMachine = GetComponent<EnemyFSM>();
-        AnimateControl = GetComponentInChildren<AnimateControl>();
+        AnimateControl = GetComponentInChildren<EnemyAnimateControl>();
 
         IDInitialized();
     }

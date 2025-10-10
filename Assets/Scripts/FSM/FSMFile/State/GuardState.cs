@@ -8,7 +8,7 @@ using static UnityEngine.GraphicsBuffer;
 [CreateAssetMenu(menuName = "FSM/State/Enemy/Guard",fileName ="GuardState")]
 public class GuardState : State<EnemyController>
 {
-    private AnimateControl animControl;
+    private EnemyAnimateControl animControl;
     [SerializeField] private IdleActionState idleState;
 
     [Header("感知参数")]
@@ -47,7 +47,7 @@ public class GuardState : State<EnemyController>
     {
         base.OnStateEnter(owner);
 
-        animControl = _owner.GetComponentInChildren<AnimateControl>();
+        animControl = _owner.GetComponentInChildren<EnemyAnimateControl>();
 
         //等到副本机制实现后可以删除
         idleState = IdleActionState.None;
