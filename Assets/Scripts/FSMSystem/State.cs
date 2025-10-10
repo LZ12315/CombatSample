@@ -2,13 +2,12 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public abstract class State<T>:MonoBehaviour
+public abstract class State<T> : FSMNode<T, State<T>>
 {
-    protected T _owner;
 
-    public virtual void OnEnter(T owner)
+    public override void OnStateEnter(T owner)
     {
-        _owner = owner;
+        base.OnStateEnter(owner);
     }
 
     public virtual void OnUpdate()
@@ -21,9 +20,9 @@ public abstract class State<T>:MonoBehaviour
 
     }
 
-    public virtual void OnExit()
+    public override void OnStateExit()
     {
-
+        base .OnStateExit();
     }
 
 }

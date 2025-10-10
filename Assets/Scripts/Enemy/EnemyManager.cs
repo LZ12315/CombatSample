@@ -21,10 +21,11 @@ public class EnemyManager : MonoBehaviour
 {
     public static EnemyManager Instance;
 
-    [SerializeField] private List<EnemyInfo> enemiesInCombat = new List<EnemyInfo>();
-    private Queue<EnemyInfo> enemiesToAttack = new Queue<EnemyInfo>();
-
+    [Header("群体进攻设置")]
     [SerializeField] private Vector2 attackIntervalRandom = new Vector2(3,5);
+
+    [field:SerializeField] public List<EnemyInfo> enemiesInCombat { get; private set; } = new List<EnemyInfo>();
+    private Queue<EnemyInfo> enemiesToAttack = new Queue<EnemyInfo>();
     private float attackIntervalCounter = 0;
 
     private void Awake()
@@ -55,7 +56,7 @@ public class EnemyManager : MonoBehaviour
     {
         if (enemiesToAttack.Count == 0) return;
 
-        if(!enemiesInCombat.Any(enemy => enemy.controller.IsInState(Utils.Enums.EnemyStates.Attack)))
+        if (!enemiesInCombat.Any(enemy => enemy.controller.StateMachine.IsInState(Utils.Enums.EnemyStates.Attack)))
         {
             if (attackIntervalCounter > 0)
                 attackIntervalCounter -= Time.deltaTime;

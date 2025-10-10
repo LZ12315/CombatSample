@@ -3,13 +3,21 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class Transition
+[System.Serializable]
+public abstract class Transition<T> : FSMNode<T,Transition<T>>
 {
-    GameObject pOwner;
+    public override void OnStateEnter(T owner)
+    {
+        base.OnStateEnter(owner);
+    }
 
     public virtual bool ToTransition()
     {
-        return false;
+        if (_owner == null) 
+            return false;
+        else 
+            return true;
     }
+
 }
 
