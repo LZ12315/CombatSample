@@ -11,7 +11,6 @@ GameObject:
   - component: {fileID: 3986627405513237452}
   - component: {fileID: 7094526656913678462}
   - component: {fileID: 2490060539542932596}
-  - component: {fileID: 2087147868952075548}
   m_Layer: 0
   m_Name: Arrow
   m_TagString: Untagged
@@ -84,18 +83,6 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.1809755, y: 0.18654376, z: 1.0315983}
   m_Center: {x: -0.00086161494, y: -0.0102835, z: 0.01579918}
---- !u!114 &2087147868952075548
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3072113930002307361}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9c01a6b9796e1484e952997ff3541725, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1 &3318411854425194959
 GameObject:
   m_ObjectHideFlags: 0
@@ -137,7 +124,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3318411854425194959}
-  m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+  m_Mesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
 --- !u!23 &2651709581020166452
 MeshRenderer:
   m_ObjectHideFlags: 0

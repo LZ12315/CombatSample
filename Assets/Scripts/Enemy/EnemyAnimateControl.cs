@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem.Controls;
 
-public class AnimateControl : MonoBehaviour
+public class EnemyAnimateControl : MonoBehaviour
 {
     private Animator animator;
 

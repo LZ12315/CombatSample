@@ -12,7 +12,6 @@ GameObject:
   - component: {fileID: 2366226874604409778}
   - component: {fileID: 4416407806079583994}
   - component: {fileID: 3771435754363308845}
-  - component: {fileID: 6697662536781752549}
   m_Layer: 0
   m_Name: ErrowEjector
   m_TagString: Untagged
@@ -107,21 +106,6 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
---- !u!114 &6697662536781752549
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4254554322781474344}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3b511fcdc48e9d84fbdb4197c71ea5ac, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  arrow: {fileID: 3072113930002307361, guid: 334333855564921448531c8c89b53f72, type: 3}
-  ejectHole: {fileID: 0}
-  ejectForce: 10
 --- !u!1 &7504106513569455639
 GameObject:
   m_ObjectHideFlags: 0
