@@ -4,20 +4,20 @@ using UnityEngine;
 
 public class EnemyFSM : StateMachine<EnemyController>
 {
-    [SerializeField] private EnemyFSMSetting FSMSetting;
+    [SerializeField] private EnemyFSMSetting setting;
 
-    public bool IsInState(Utils.Enums.EnemyStates stateType)
+    public bool IsInState(Enums.EnemyStates stateType)
     {
-        if(!FSMSetting.AsDictionary.ContainsKey(stateType)) return false;
+        if(!setting.AsDictionary.ContainsKey(stateType)) return false;
 
-        return CurrentState == FSMSetting.AsDictionary[stateType];
+        return CurrentState == setting.AsDictionary[stateType];
     }
 
-    public void ChangeState(Utils.Enums.EnemyStates stateType)
+    public void ChangeState(Enums.EnemyStates stateType)
     {
-        if (!FSMSetting.AsDictionary.ContainsKey(stateType)) return;
+        if (!setting.AsDictionary.ContainsKey(stateType)) return;
 
-        ChangeState(FSMSetting.AsDictionary[stateType]);
+        ChangeState(setting.AsDictionary[stateType]);
     }
 
 }
