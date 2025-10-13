@@ -5,11 +5,13 @@ public interface IDamageable
     void TakeDamage(AttackHitData attackData);
 }
 
-public class Damageable : MonoBehaviour, IDamageable
+public class ActorCombater : MonoBehaviour, IDamageable
 {
     [SerializeField] private float _maxHealth = 100f;
     [SerializeField] private bool _debugLog = true;
 
+    [SerializeField] private GameObject combatTarget;
+    public GameObject CombatTarget => combatTarget;
     private float _currentHealth;
 
     private void Awake()
