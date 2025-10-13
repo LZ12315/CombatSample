@@ -7,13 +7,13 @@ using UnityEngine;
 [Serializable]
 public class AttackHitBox : MonoBehaviour
 {
-    private ActionHitBoxClip clip;
+    public ActorCombater combater;
     public AttackConfig config;
 
-    public void Init(ActionHitBoxClip clip)
+    public void Init(ActorCombater combater, AttackConfig config)
     {
-        this.config = clip.attackConfig;
-        this.clip = clip;
+        this.combater = combater;
+        this.config = config;
     }
 
     private void OnTriggerEnter(Collider other)
@@ -26,8 +26,8 @@ public class AttackHitBox : MonoBehaviour
                 // 创建攻击数据
                 AttackHitData hitData = new AttackHitData(
                     damage: config._baseDamage,
-                    attacker: clip._hitboxObject.transform.root.gameObject,
-                    hitPoint: other.ClosestPoint(clip._hitboxObject.transform.position)
+                    attacker: combater,
+                    hitPoint: other.ClosestPoint(gameObject.transform.position)
                 );
 
                 // 处理伤害
@@ -36,7 +36,7 @@ public class AttackHitBox : MonoBehaviour
 
                 if (config._debugMode)
                 {
-                    Debug.Log($"[攻击命中] 目标: {other.name}, 伤害: {config._baseDamage}");
+                    Debug.Log($"[攻击命中] 目标: {other.name}, 位置: {hitData.HitPoint}, 伤害: {hitData.Damage}");
                 }
             }
         }
@@ -47,10 +47,10 @@ public class AttackHitBox : MonoBehaviour
 public struct AttackHitData
 {
     public float Damage { get; }
-    public GameObject Attacker { get; }
+    public ActorCombater Attacker { get; }
     public Vector3 HitPoint { get; }
 
-    public AttackHitData(float damage, GameObject attacker, Vector3 hitPoint)
+    public AttackHitData(float damage, ActorCombater attacker, Vector3 hitPoint)
     {
         Damage = damage;
         Attacker = attacker;

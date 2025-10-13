@@ -25,7 +25,6 @@ public class AttackConfig
     public bool _debugMode = true;
 }
 
-
 public class ActionHitBoxAsset : PlayableAsset, ITimelineClipAsset
 {
     public ExposedReference<Transform> boneTransform;
@@ -85,7 +84,7 @@ public class ActionHitBoxClip : ActionClipBase
         if(Application.isPlaying)
         {
             var hitbox = _collider.gameObject.AddComponent<AttackHitBox>();
-            hitbox.Init(this);
+            hitbox.Init(actor.combater, attackConfig);
         }
 
         // Ìí¼Ó¸¨Öú×é¼þUpdater

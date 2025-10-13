@@ -6,11 +6,11 @@ using Cinemachine;
 
 public class ActorCameraControl : MonoBehaviour
 {
+    public Actor actor;
     public CinemachineBrain cinemachineBrain;
 
     private ICinemachineCamera activeVirtualCamera;
     [SerializeField] private Enums.PlayerCameraState state;
-    [SerializeField] private Transform targetTrans;
 
     public Vector3 CalculateDirection(Vector2 rawMove)
     {
@@ -64,6 +64,7 @@ public class ActorCameraControl : MonoBehaviour
 
     Vector3 CalculateEnemyDirection(Vector2 rawMove)
     {
+        Transform targetTrans = actor.combater.CombatTarget.transform;
         if (targetTrans == null) return Vector3.zero;
 
         Vector3 faceDirect = targetTrans.position - transform.position ;

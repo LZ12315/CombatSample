@@ -80,6 +80,7 @@ MonoBehaviour:
   characterController: {fileID: 0}
   animancer: {fileID: 0}
   cameraControl: {fileID: 7979688053302251136}
+  combater: {fileID: 0}
 --- !u!114 &4638743967393742353
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -168,12 +169,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9dfc7f69fa0a3314e942dc5bae39d88e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  virtualCamera: {fileID: 0}
-  invertVertical: 1
-  horizontalSpeed: 100
-  verticalSpeed: 30
-  inputDeadzone: 0.1
-  verticalAngleMin: -30
-  verticalAngleMax: 70
-  rotationSmoothing: 8
-  inputSmoothing: 6
+  cinemachineBrain: {fileID: 0}
+  state: 0
+  targetTrans: {fileID: 0}
