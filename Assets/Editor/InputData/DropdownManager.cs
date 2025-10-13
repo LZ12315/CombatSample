@@ -54,12 +54,12 @@ public class DropdownManager : EditorWindow
                 {
                     ButtonInputConditionDrawer.dropdownStates[key] = false;
                 }
-                
+
                 foreach (var key in JoystickInputConditionDrawer.dropdownStates.Keys.ToList())
                 {
                     JoystickInputConditionDrawer.dropdownStates[key] = false;
                 }
-                
+
                 // 重绘所有窗口
                 EditorWindow[] windows = Resources.FindObjectsOfTypeAll<EditorWindow>();
                 foreach (EditorWindow window in windows)
