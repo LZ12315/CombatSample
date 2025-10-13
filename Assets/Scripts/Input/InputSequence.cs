@@ -4,6 +4,7 @@ using UnityEngine;
 using CombatSample.Consts;
 using System;
 using UnityEngine.InputSystem;
+using JetBrains.Annotations;
 
 [Serializable]
 public class InputSequence
@@ -31,6 +32,13 @@ public class InputCondition
     {
         return dataCheck.CheckInput(input);
     }
+}
+
+[Serializable]
+public class InputCondition_NodeCanvas
+{
+    [SerializeReference]
+    public InputConditionBase dataCheck;
 }
 
 [Serializable]
