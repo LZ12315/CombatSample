@@ -10,7 +10,11 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
     PlayerInput playerInput;
     PlayerInputControl actions;
     public Actor controlledActor;
+
+    [Header("Debug设置")]
+    public bool debug = false;
     public float timeScale = 0.1f;
+
     [Header("输入设置")]
     [SerializeField] int ShortPress_Frame = 40;
     [SerializeField] int LongPress_Frame = 120;
@@ -35,7 +39,9 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
     private void Start()
     {
         SetControlledActor(FindFirstObjectByType<Actor>());
-        Time.timeScale = timeScale;
+
+        if(debug)
+            Time.timeScale = timeScale;
     }
 
     private void OnEnable()
@@ -75,7 +81,8 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
 
         controlledActor.logicInput.GetInputData(buttonInput);
 
-        //Debug.Log(buttonInput.inputButton + "   " + buttonInput.buttonState);
+        if (debug)
+            Debug.Log(buttonInput.inputButton + "   " + buttonInput.buttonState);
     }
 
     void SendJoystickInputData(Enums.InputJoystick joystick, Enums.JoystickVigor vigor)
@@ -85,7 +92,8 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
         lastJoystickInput = joystickInput;
         controlledActor.logicInput.GetInputData(joystickInput);
 
-        //Debug.Log(joystickInput.inputJoystick + "   " + joystickInput.joystickVigor);
+        if (debug)
+            Debug.Log(joystickInput.inputJoystick + "   " + joystickInput.joystickVigor);
     }
 
     #region 获取Input
