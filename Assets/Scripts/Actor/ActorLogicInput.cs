@@ -15,7 +15,7 @@ public class ActorLogicInput : MonoBehaviour
 
     private void Start()
     {
-        AddStandingHandler();
+        //AddStandingHandler();
     }
 
     protected virtual void LateUpdate()
@@ -79,15 +79,15 @@ public class ActorLogicInput : MonoBehaviour
         if (actor.actionPlayerDirector.actionSetting == null) return;
         List<ActorSkill> skills = actor.actionPlayerDirector.actionSetting.specialSkills;
 
-        foreach (var skill in skills)
-        {
-            CommandStateHandler actionCommand = new CommandStateHandler(skill.action, skill.inputSequence, skill.priority);
-            if (actionCommand == null) continue;
-            handlers_Standing.Add(actionCommand);
-        }
+        //foreach (var skill in skills)
+        //{
+        //    CommandStateHandler actionCommand = new CommandStateHandler(skill.action, skill.inputSequence, skill.priority);
+        //    if (actionCommand == null) continue;
+        //    handlers_Standing.Add(actionCommand);
+        //}
     }
 
-    public void AddShortdatedHandler(ActionTimelineAsset actionToPlay, InputSequence sequence, Enums.ActionPriority priority)
+    public void AddShortdatedHandler(ActionTimelineAsset actionToPlay, InputCheckSequence sequence, Enums.ActionPriority priority)
     {
         CommandStateHandler actionCommand = new CommandStateHandler(actionToPlay, sequence, priority);
         if (actionCommand == null) return;

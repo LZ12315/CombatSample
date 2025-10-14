@@ -8,5 +8,4 @@ public class ActorSkill : ScriptableObject
 {
     public Enums.ActionPriority priority;
     public ActionTimelineAsset action;
-    public InputSequence inputSequence;
 }

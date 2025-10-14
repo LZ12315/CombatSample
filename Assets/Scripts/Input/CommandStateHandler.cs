@@ -9,13 +9,13 @@ public class CommandStateHandler
 {
     public Enums.ActionPriority priority;
     public ActionTimelineAsset actionToPlay;
-    public InputSequence sequence;
+    public InputCheckSequence sequence;
 
     [HideInInspector] public int waitTime = 0;
     [HideInInspector] public int waitCounter = 0;
     [HideInInspector] public int checkIndex = 0;
 
-    public CommandStateHandler(ActionTimelineAsset actionToPlay, InputSequence sequence, Enums.ActionPriority priority)
+    public CommandStateHandler(ActionTimelineAsset actionToPlay, InputCheckSequence sequence, Enums.ActionPriority priority)
     {
         this.actionToPlay = actionToPlay;
         this.sequence = sequence;
@@ -37,12 +37,12 @@ public class CommandStateHandler
 
     public bool Matches(InputData inputData)
     {
-        bool isMatch = sequence.dataChecks[checkIndex].CheckInputData(inputData);
+        bool isMatch = sequence.inputChecks[checkIndex].CheckInputData(inputData);
 
         return isMatch;
     }
 
-    public bool IsLast => checkIndex == sequence.dataChecks.Count - 1;
+    public bool IsLast => checkIndex == sequence.inputChecks.Count - 1;
 
 }
 

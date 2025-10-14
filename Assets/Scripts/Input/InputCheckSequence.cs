@@ -7,42 +7,33 @@ using UnityEngine.InputSystem;
 using JetBrains.Annotations;
 
 [Serializable]
-public class InputSequence
+public class InputCheckSequence
 {
     public int waitTime;
-    public List<InputCondition> dataChecks;
+    public List<InputCheck> inputChecks;
 
-    public InputSequence()
+    public InputCheckSequence()
     {
         waitTime = 40;
-        dataChecks = new List<InputCondition>();
+        inputChecks = new List<InputCheck>();
     }
 }
 
 [Serializable]
-public class InputCondition
+public class InputCheck
 {
+    public Enums.InputCheckType checkType;
     [SerializeReference]
-    public InputConditionBase dataCheck;
-
-    public void CheckButtonData() => dataCheck = new ButtonInputCondition();
-    public void CheckJoystickData() => dataCheck = new JoystickInputCondition();
+    public InputCheckBase inputCheck;
 
     public bool CheckInputData(InputData input)
     {
-        return dataCheck.CheckInput(input);
+        return inputCheck.CheckInput(input);
     }
 }
 
 [Serializable]
-public class InputCondition_NodeCanvas
-{
-    [SerializeReference]
-    public InputConditionBase dataCheck;
-}
-
-[Serializable]
-public abstract class InputConditionBase
+public abstract class InputCheckBase
 {
     public virtual bool CheckInput(InputData input)
     {
@@ -51,7 +42,7 @@ public abstract class InputConditionBase
 }
 
 [Serializable]
-public class ButtonInputCondition : InputConditionBase
+public class ButtonInputCheck : InputCheckBase
 {
     public List<Enums.InputButton> inputButtons = new ();
     public List<Enums.ButtonState> inputState = new();
@@ -89,7 +80,7 @@ public class ButtonInputCondition : InputConditionBase
 }
 
 [Serializable]
-public class JoystickInputCondition : InputConditionBase
+public class JoystickInputCheck : InputCheckBase
 {
     public List<Enums.InputJoystick> inputJoysticks = new ();
     public List<Enums.JoystickVigor> joystickVigors = new ();
@@ -130,3 +121,10 @@ public class JoystickInputCondition : InputConditionBase
     }
 }
 
+public partial class Enums
+{
+    public enum InputCheckType
+    {
+        None, Button, Joystick
+    }
+}
