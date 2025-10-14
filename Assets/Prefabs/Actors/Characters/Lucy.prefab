@@ -2301,6 +2301,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _maxHealth: 100
   _debugLog: 1
+  combatTarget: {fileID: 0}
 --- !u!114 &876052482482885673 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 4638743967393742353, guid: a299ab9894312a643ac83699cf7e0da3,

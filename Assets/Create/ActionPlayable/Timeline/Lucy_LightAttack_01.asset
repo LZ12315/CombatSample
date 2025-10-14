@@ -19,17 +19,10 @@ MonoBehaviour:
     actionToPlay: {fileID: 11400000, guid: 6b70ad9a45d12d84997b9579ca1c8cbf, type: 2}
     sequence:
       waitTime: 40
-      dataChecks:
-      - dataCheck:
-          rid: 3092552883680051242
+      inputChecks: []
   references:
     version: 2
-    RefIds:
-    - rid: 3092552883680051242
-      type: {class: ButtonInputCondition, ns: , asm: Assembly-CSharp}
-      data:
-        inputButtons: 03000000
-        inputState: 01000000
+    RefIds: []
 --- !u!114 &-893426440890345083
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -45,7 +38,7 @@ MonoBehaviour:
   m_Version: 3
   m_AnimClip: {fileID: 0}
   m_Locked: 0
-  m_Muted: 0
+  m_Muted: 1
   m_CustomPlayableFullTypename: 
   m_Curves: {fileID: 0}
   m_Parent: {fileID: 4318589795469976621}
@@ -229,17 +222,10 @@ MonoBehaviour:
     actionToPlay: {fileID: 11400000, guid: 6b70ad9a45d12d84997b9579ca1c8cbf, type: 2}
     sequence:
       waitTime: 40
-      dataChecks:
-      - dataCheck:
-          rid: 3092552883680051242
+      inputChecks: []
   references:
     version: 2
-    RefIds:
-    - rid: 3092552883680051242
-      type: {class: ButtonInputCondition, ns: , asm: Assembly-CSharp}
-      data:
-        inputButtons: 03000000
-        inputState: 01000000
+    RefIds: []
 --- !u!114 &4318589795469976621
 MonoBehaviour:
   m_ObjectHideFlags: 1

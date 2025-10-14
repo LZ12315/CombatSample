@@ -5,11 +5,11 @@ using CombatSample.Consts;
 using UnityEngine.Events;
 using System.Linq;
 using System;
+using NodeCanvas.Tasks.Conditions;
 
 public class ActorLogicInput : MonoBehaviour
 {
     public Actor actor;
-
     private Vector2 lastMoveInput = Vector2.zero;
     public Vector2 MoveInput => lastMoveInput;
 
@@ -87,7 +87,7 @@ public class ActorLogicInput : MonoBehaviour
         //}
     }
 
-    public void AddShortdatedHandler(ActionTimelineAsset actionToPlay, InputCheckSequence sequence, Enums.ActionPriority priority)
+    public void AddCommandStateHandler(ActionTimelineAsset actionToPlay, InputCheckSequence sequence, Enums.ActionPriority priority)
     {
         CommandStateHandler actionCommand = new CommandStateHandler(actionToPlay, sequence, priority);
         if (actionCommand == null) return;

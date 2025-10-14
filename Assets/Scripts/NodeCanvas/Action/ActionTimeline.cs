@@ -1,14 +1,15 @@
 using NodeCanvas.Framework;
 using ParadoxNotion.Design;
-
+using UnityEngine;
 
 namespace NodeCanvas.Tasks.Actions {
 
-	[Category("ActionSystem")]
+	[Name("ActionTimeline")]
+	[Category("Custom")]
 	[Description("Play a ActionTimeline when performed")]
 	public class ActionTimeline : ActionTask {
 
-        public ActionTimelineAsset actionTimeline;
+        public BBParameter<ActionTimelineAsset> actionTimeline;
 
         //Use for initialization. This is called only once in the lifetime of the task.
         //Return null if init was successfull. Return an error string otherwise
@@ -25,8 +26,8 @@ namespace NodeCanvas.Tasks.Actions {
 
 		//Called once per frame while the action is active.
 		protected override void OnUpdate() {
-			
-		}
+
+        }
 
 		//Called when the task is disabled.
 		protected override void OnStop() {

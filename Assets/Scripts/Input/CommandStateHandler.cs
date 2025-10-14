@@ -4,7 +4,6 @@ using UnityEngine;
 using CombatSample.Consts;
 using System;
 
-[Serializable]
 public class CommandStateHandler
 {
     public Enums.ActionPriority priority;
@@ -20,7 +19,7 @@ public class CommandStateHandler
         this.actionToPlay = actionToPlay;
         this.sequence = sequence;
         this.priority = priority;
-        waitTime = sequence.waitTime;
+        waitTime = sequence.waitFrame;
     }
 
     public void Update()
