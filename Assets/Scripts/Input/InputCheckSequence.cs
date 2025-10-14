@@ -1,34 +1,48 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using CombatSample.Consts;
-using System;
 using UnityEngine.InputSystem;
 using JetBrains.Annotations;
 
 [Serializable]
 public class InputCheckSequence
 {
-    public int waitTime;
+    public int waitFrame;
     public List<InputCheck> inputChecks;
 
     public InputCheckSequence()
     {
-        waitTime = 40;
+        waitFrame = 40;
         inputChecks = new List<InputCheck>();
     }
 }
 
+//这样一看 InputCheck类似乎可以去掉 因为本来是作为绘制的中间件
+//现在不进行绘制了 也就不需要了
 [Serializable]
 public class InputCheck
 {
     public Enums.InputCheckType checkType;
-    [SerializeReference]
-    public InputCheckBase inputCheck;
+    public ButtonInputCheck buttonInputCheck;
+    public JoystickInputCheck joystickInputCheck;
+
+    [SerializeReference] private InputCheckBase inputCheck;
 
     public bool CheckInputData(InputData input)
     {
-        return inputCheck.CheckInput(input);
+        switch (checkType)
+        {
+            case Enums.InputCheckType.None:
+                return true;
+            case Enums.InputCheckType.Button:
+                return buttonInputCheck.CheckInput(input);
+            case Enums.InputCheckType.Joystick:
+                return joystickInputCheck.CheckInput(input);
+        }
+
+        return false;
     }
 }
 

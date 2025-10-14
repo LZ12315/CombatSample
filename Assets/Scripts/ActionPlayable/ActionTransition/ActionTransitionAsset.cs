@@ -54,7 +54,7 @@ public class ActionTransitionClip : ActionClipBase
         if(!active || actor == null) return;
 
         foreach (var setting in actionCommandSettings)
-            actor.logicInput.AddShortdatedHandler(setting.actionToPlay, setting.sequence, setting.priority);
+            actor.logicInput.AddCommandStateHandler(setting.actionToPlay, setting.sequence, setting.priority);
         actor.logicInput.RegisterForTransitionEvent(this, PlayNextAction);
     }
 
