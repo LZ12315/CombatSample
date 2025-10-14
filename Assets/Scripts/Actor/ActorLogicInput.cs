@@ -74,39 +74,13 @@ public class ActorLogicInput : MonoBehaviour
         RaiseTransitionEvent(commandsReady[0].actionToPlay);
     }
 
-    void AddStandingHandler()
-    {
-        if (actor.actionPlayerDirector.actionSetting == null) return;
-        List<ActorSkill> skills = actor.actionPlayerDirector.actionSetting.specialSkills;
-
-        //foreach (var skill in skills)
-        //{
-        //    CommandStateHandler actionCommand = new CommandStateHandler(skill.action, skill.inputSequence, skill.priority);
-        //    if (actionCommand == null) continue;
-        //    handlers_Standing.Add(actionCommand);
-        //}
-    }
-
-    public void AddCommandStateHandler(ActionTimelineAsset actionToPlay, InputCheckSequence sequence, Enums.ActionPriority priority)
-    {
-        CommandStateHandler actionCommand = new CommandStateHandler(actionToPlay, sequence, priority);
-        if (actionCommand == null) return;
-
-        handlers_ShortDated.Add(actionCommand);
-    }
-
     void UpdateActionCommands()
     {
-        List<CommandStateHandler> actionCommands = handlers_Standing.Concat(handlers_ShortDated).ToList();
+        List<CommandStateHandler> actionCommands = new();
         if (actionCommands.Count == 0) return;
 
         for (int i = 0; i < actionCommands.Count; i++)
             actionCommands[i].Update();
-    }
-
-    public void ClearShortdatedCommand()
-    {
-        handlers_ShortDated.Clear();
     }
 
     #endregion

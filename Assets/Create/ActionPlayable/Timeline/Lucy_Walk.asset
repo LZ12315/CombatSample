@@ -15,7 +15,7 @@ MonoBehaviour:
   m_Version: 3
   m_AnimClip: {fileID: 0}
   m_Locked: 0
-  m_Muted: 1
+  m_Muted: 0
   m_CustomPlayableFullTypename: 
   m_Curves: {fileID: 0}
   m_Parent: {fileID: -2017990948626186922}
@@ -89,7 +89,7 @@ MonoBehaviour:
     m_PreExtrapolationMode: 0
     m_PostExtrapolationTime: 0
     m_PreExtrapolationTime: 0
-    m_DisplayName: 'Translate when : Immediate'
+    m_DisplayName: 'Translate when : StartUp'
   m_Markers:
     m_Objects: []
 --- !u!114 &-3344378463073141841
@@ -105,6 +105,22 @@ MonoBehaviour:
   m_Name: AnimancerAsset
   m_EditorClassIdentifier: 
   transitionAsset: {fileID: 11400000, guid: 2e0ab4968d9b7d94caf780cb872c41a8, type: 2}
+--- !u!114 &-2156439979663122194
+MonoBehaviour:
+  m_ObjectHideFlags: 1
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 15c38f6fa1940124db1ab7f6fe7268d1, type: 3}
+  m_Name: Signal Emitter
+  m_EditorClassIdentifier: 
+  m_Time: 0.45
+  m_Retroactive: 0
+  m_EmitOnce: 0
+  m_Asset: {fileID: 11400000, guid: 3fdf6fbfccab5354893193fdd0411be3, type: 2}
 --- !u!114 &-2017990948626186922
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -139,22 +155,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7e16121e222ac9543a73f7aba8deff52, type: 3}
   m_Name: ActionTransitionAsset(Clone)(Clone)
   m_EditorClassIdentifier: 
-  active: 1
-  transitionType: 0
-  actionCommandSettings:
-  - priority: 0
-    actionToPlay: {fileID: 11400000, guid: 621bc18676a2c5145b6c4765fd6b77d3, type: 2}
-    sequence:
-      waitTime: 40
-      inputChecks: []
-  - priority: 0
-    actionToPlay: {fileID: 11400000, guid: 69459a040219c3c479a2b9188223232e, type: 2}
-    sequence:
-      waitTime: 40
-      inputChecks: []
-  references:
-    version: 2
-    RefIds: []
+  moveType: 1
 --- !u!114 &11400000
 MonoBehaviour:
   m_ObjectHideFlags: 0

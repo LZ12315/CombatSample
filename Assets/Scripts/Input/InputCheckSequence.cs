@@ -58,8 +58,8 @@ public abstract class InputCheckBase
 [Serializable]
 public class ButtonInputCheck : InputCheckBase
 {
-    public List<Enums.InputButton> inputButtons = new ();
-    public List<Enums.ButtonState> inputState = new();
+    public Enums.InputButton inputButtons = new ();
+    public Enums.ButtonState inputState = new();
 
     public override bool CheckInput(InputData input)
     {
@@ -68,23 +68,8 @@ public class ButtonInputCheck : InputCheckBase
 
         if(input is InputButtonData buttonData)
         {
-            foreach(var button in inputButtons)
-            {
-                if (button == buttonData.inputButton)
-                {
-                    isButtonSame = true;
-                    break;
-                }
-            }
-
-            foreach(var state in inputState)
-            {
-                if(state == buttonData.buttonState)
-                {
-                    isStateSame = true;
-                    break;
-                }
-            }
+            isButtonSame = (buttonData.inputButton & inputButtons) == buttonData.inputButton;
+            isStateSame = (buttonData.buttonState & inputState) == buttonData.buttonState;
 
             return (isButtonSame && isStateSame);
         }
@@ -96,8 +81,8 @@ public class ButtonInputCheck : InputCheckBase
 [Serializable]
 public class JoystickInputCheck : InputCheckBase
 {
-    public List<Enums.InputJoystick> inputJoysticks = new ();
-    public List<Enums.JoystickVigor> joystickVigors = new ();
+    public Enums.InputJoystick inputJoysticks = new ();
+    public Enums.JoystickVigor joystickVigors = new ();
 
     public override bool CheckInput(InputData input)
     {
@@ -107,26 +92,11 @@ public class JoystickInputCheck : InputCheckBase
         if (input is InputJoystickData joyStickData)
         {
             if (joyStickData.joystickVigor == Enums.JoystickVigor.Idle &&
-                joystickVigors.Contains(Enums.JoystickVigor.Idle))
+                ((joystickVigors & Enums.JoystickVigor.Idle) == Enums.JoystickVigor.Idle))
                 return true;
 
-            foreach (var joystick in inputJoysticks)
-            {
-                if (joystick == joyStickData.inputJoystick)
-                {
-                    isJoystickSame = true;
-                    break;
-                }
-            }
-
-            foreach (var vigor in joystickVigors)
-            {
-                if (vigor == joyStickData.joystickVigor)
-                {
-                    isVigorSame = true;
-                    break;
-                }
-            }
+            isJoystickSame = (joyStickData.inputJoystick & inputJoysticks) == joyStickData.inputJoystick;
+            isVigorSame = (joyStickData.joystickVigor & joystickVigors) == joyStickData.joystickVigor;
 
             return (isJoystickSame && isVigorSame);
         }

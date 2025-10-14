@@ -1,37 +1,17 @@
-using System;
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.Events;
 using UnityEngine.Playables;
-using UnityEngine.Timeline;
-using CombatSample.Consts;
-
-[Serializable]
-public struct ActionCommandSetting
-{
-    public Enums.ActionPriority priority;
-    public ActionTimelineAsset actionToPlay;
-    public InputCheckSequence sequence;
-}
 
 public class ActionTransitionAsset : PlayableAsset
 {
-    [Header("Transition设置")]
-    public bool active = true;
-    public Enums.ActTransType transitionType;
-
-    [Header("输入检查")]
-    public List<ActionCommandSetting> actionCommandSettings = new ();
+    [Header("片段设置")]
+    public Enums.MoveType moveType;
 
     public override Playable CreatePlayable(PlayableGraph graph, GameObject owner)
     {
         var playable = ScriptPlayable<ActionTransitionClip>.Create(graph);
         ActionTransitionClip clip = playable.GetBehaviour();
 
-        clip.active = active;
-        clip.transitionType = transitionType;
-        clip.actionCommandSettings = actionCommandSettings;
+        clip.moveType = moveType;
 
         return playable;
     }
@@ -40,74 +20,19 @@ public class ActionTransitionAsset : PlayableAsset
 
 public class ActionTransitionClip : ActionClipBase
 {
-    public bool active = true;
-    public Enums.ActTransType transitionType;
-
-    public List<ActionCommandSetting> actionCommandSettings;
-
-    bool actionWaitToPlay = false;
-    ActionTimelineAsset actionToPlay = null;
-
-    protected override void OnClipPlay(Playable playable)
-    {
-        base.OnClipPlay(playable);
-        if(!active || actor == null) return;
-
-        foreach (var setting in actionCommandSettings)
-            actor.logicInput.AddCommandStateHandler(setting.actionToPlay, setting.sequence, setting.priority);
-        actor.logicInput.RegisterForTransitionEvent(this, PlayNextAction);
-    }
-
-    protected override void OnClipFinish(bool isNormal)
-    {
-        base.OnClipFinish(isNormal);
-        if (!active || actor == null) return;
-
-        if(isNormal)
-        {
-            if (actionWaitToPlay && transitionType == Enums.ActTransType.TransitionEnd)
-            {
-                actionWaitToPlay = false;
-
-                if (actionToPlay != null)
-                    actor.actionPlayerDirector.PlayAction(actionToPlay);
-            }
-        }
-    }
-
-    private void PlayNextAction(ActionTimelineAsset actionToPlay)
-    {
-        if(!active) return;
-        actionWaitToPlay = true;
-        this.actionToPlay = actionToPlay;
-
-        if (actionWaitToPlay && transitionType == Enums.ActTransType.Immediate)
-        {
-            actionWaitToPlay = false;
-
-            if (actionToPlay != null)
-                actor.actionPlayerDirector.PlayAction(actionToPlay);
-        }
-    }
-
-    protected override void CleanUp()
-    {
-        base.CleanUp();
-
-        actor.logicInput.ClearShortdatedCommand();
-        actor.logicInput.UnregisterFromTransitionEvent(this);
-
-        actionWaitToPlay = false;
-        actionToPlay = null;
-    }
-
+    public Enums.MoveType moveType;
 }
 
 public static partial class Enums
 {
-    public enum ActTransType
+    public enum MoveType
     {
-        Immediate,
-        TransitionEnd,
+        None,
+        Idle,
+        StartUp,
+        Recovery,
+        Effect,
+        Charge,
+        OverCharge
     }
 }

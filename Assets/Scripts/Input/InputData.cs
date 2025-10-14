@@ -41,36 +41,40 @@ public class InputJoystickData : InputData
 
 public static partial class Enums
 {
+    [System.Flags]
     public enum InputButton
     {
-        Idle,
-        Dodge,
-        Defence,
-        LightAttack,
-        HeavyAttack
+        Idle = 0,
+        Dodge = 2,
+        Defence = 4,
+        LightAttack = 8,
+        HeavyAttack = 16
     }
 
+    [System.Flags]
     public enum ButtonState
     {
-        Idle,
-        ShortPress,
-        LongPress_Start,
-        LongPress_Cancel
+        Idle = 0,
+        ShortPress = 2,
+        LongPress_Start = 4,
+        LongPress_Cancel = 8
     }
 
+    [System.Flags]
     public enum InputJoystick
     {
-        Idle,
-        East,
-        South,
-        West,
-        North,
+        Idle = 0,
+        East = 2,
+        South = 4,
+        West = 6,
+        North = 8,
     }
 
+    [System.Flags]
     public enum JoystickVigor
     {
-        Idle,
-        Light,
-        Hard
+        Idle = 0,
+        Light = 2,
+        Hard = 4
     }
 }
