@@ -4,11 +4,11 @@ using ParadoxNotion.Design;
 
 namespace NodeCanvas.Tasks.Conditions {
 
-	[Category("ActionSystem")]
+	[Category("Custom")]
 	[Description("A")]
-	public class InputSequenceCondition : ConditionTask {
+	public class ButtonCheckCondition : ConditionTask {
 
-	    public BBParameter<InputSequence> inputSequence;
+		public BBParameter<ButtonInputCheck> buttonCheck;
 
 		//Use for initialization. This is called only once in the lifetime of the task.
 		//Return null if init was successfull. Return an error string otherwise

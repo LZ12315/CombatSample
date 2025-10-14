@@ -12,7 +12,7 @@ public struct ActionCommandSetting
 {
     public Enums.ActionPriority priority;
     public ActionTimelineAsset actionToPlay;
-    public InputSequence sequence;
+    public InputCheckSequence sequence;
 }
 
 public class ActionTransitionAsset : PlayableAsset
