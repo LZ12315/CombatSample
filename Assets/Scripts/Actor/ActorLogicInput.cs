@@ -35,10 +35,6 @@ public class ActorLogicInput : MonoBehaviour
         actor.movement.UpdateTurn(moveDir);
     }
 
-    public void InputLook(Vector2 LookInput)
-    {
-    }
-
     #region Input¥¶¿Ì
 
     private List<CommandStateHandler> handlers_Standing = new ();
