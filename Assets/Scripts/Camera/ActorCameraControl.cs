@@ -17,17 +17,17 @@ public class ActorCameraControl : MonoBehaviour
         switch (state)
         {
             case Enums.PlayerCameraState.Normal:
-                return CalculateFaceDirection(rawMove);
-            case Enums.PlayerCameraState.Concentrate:
-                return CalculateMovementDirection(rawMove);
+                return CalculateNormalDirection(rawMove);
+            case Enums.PlayerCameraState.FreeLook:
+                return CalculateFreeDirection(rawMove);
             case Enums.PlayerCameraState.Combat:
-                return CalculateEnemyDirection(rawMove);
+                return CalculateLockDirection(rawMove);
             default:
                 return Vector3.zero;
         }
     }
 
-    Vector3 CalculateFaceDirection(Vector2 rawMove)
+    Vector3 CalculateNormalDirection(Vector2 rawMove)
     {
         activeVirtualCamera = cinemachineBrain?.ActiveVirtualCamera;
         if (activeVirtualCamera == null) return Vector3.zero;
@@ -44,7 +44,7 @@ public class ActorCameraControl : MonoBehaviour
         return cameraDirect;
     }
 
-    Vector3 CalculateMovementDirection(Vector2 rawMove)
+    Vector3 CalculateFreeDirection(Vector2 rawMove)
     {
         activeVirtualCamera = cinemachineBrain?.ActiveVirtualCamera;
         if (activeVirtualCamera == null) return Vector3.zero;
@@ -62,10 +62,10 @@ public class ActorCameraControl : MonoBehaviour
         return moveDirection.normalized; // 归一化确保各方向速度一致
     }
 
-    Vector3 CalculateEnemyDirection(Vector2 rawMove)
+    Vector3 CalculateLockDirection(Vector2 rawMove)
     {
         Transform targetTrans = actor.combater.CombatTarget.transform;
-        if (targetTrans == null) return Vector3.zero;
+        if (targetTrans == null) return CalculateFreeDirection(rawMove);
 
         Vector3 faceDirect = targetTrans.position - transform.position ;
         faceDirect.y = 0;
@@ -82,7 +82,9 @@ public class ActorCameraControl : MonoBehaviour
         {
             case Enums.PlayerCameraState.Normal:
                 break;
-            case Enums.PlayerCameraState.Concentrate:
+            case Enums.PlayerCameraState.FreeLook:
+                break;
+            case Enums.PlayerCameraState.Combat:
                 break;
         }
     }
@@ -93,6 +95,6 @@ public partial class Enums
 {
     public enum PlayerCameraState
     {
-        Normal, Concentrate, Combat
+        Normal, FreeLook, Combat
     }
 }
