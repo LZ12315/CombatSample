@@ -9,7 +9,7 @@ namespace NodeCanvas.Tasks.Actions {
 	[Description("Play a ActionTimeline when performed")]
 	public class ActionTimeline : ActionTask {
 
-        public BBParameter<ActionTimelineAsset> actionTimeline;
+        public BBParameter<ActionAsset> actionTimeline;
 
         //Use for initialization. This is called only once in the lifetime of the task.
         //Return null if init was successfull. Return an error string otherwise

@@ -7,7 +7,8 @@ public class ActionPlayableDirector : MonoBehaviour
 {
     public PlayableDirector playableDirector;
     public ActorActionSetting actionSetting;
-    ActionTimelineAsset actionPlaying;
+   
+    ActionAsset actionPlaying;
 
     private void Awake()
     {
@@ -25,7 +26,7 @@ public class ActionPlayableDirector : MonoBehaviour
         _timelineEventManager.ClearAllSubscriptions();
     }
 
-    public void PlayAction(ActionTimelineAsset action)
+    public void PlayAction(ActionAsset action)
     {
         if (action == null || playableDirector == null) return;
 
@@ -78,12 +79,4 @@ public class ActionPlayableDirector : MonoBehaviour
 
     #endregion
 
-}
-
-public partial class Enums
-{
-    public enum ActionTimelineEvent
-    {
-        TransToNextAction
-    }
 }

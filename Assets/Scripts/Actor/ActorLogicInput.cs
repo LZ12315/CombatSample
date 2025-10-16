@@ -87,9 +87,9 @@ public class ActorLogicInput : MonoBehaviour
 
     #region ActionÊÂ¼þ
 
-    private GenericEventManager<ActionTimelineAsset> _transitionEventManager = new GenericEventManager<ActionTimelineAsset>();
+    private GenericEventManager<ActionAsset> _transitionEventManager = new GenericEventManager<ActionAsset>();
 
-    public void RegisterForTransitionEvent(object registrant, Action<ActionTimelineAsset> callback)
+    public void RegisterForTransitionEvent(object registrant, Action<ActionAsset> callback)
     {
         _transitionEventManager.Subscribe(registrant, callback);
     }
@@ -99,7 +99,7 @@ public class ActorLogicInput : MonoBehaviour
         _transitionEventManager.Unsubscribe(registrant);
     }
 
-    void RaiseTransitionEvent(ActionTimelineAsset actionTimelineAsset)
+    void RaiseTransitionEvent(ActionAsset actionTimelineAsset)
     {
         _transitionEventManager.Publish(actionTimelineAsset);
     }

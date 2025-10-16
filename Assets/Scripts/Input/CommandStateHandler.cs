@@ -7,14 +7,14 @@ using System;
 public class CommandStateHandler
 {
     public Enums.ActionPriority priority;
-    public ActionTimelineAsset actionToPlay;
+    public ActionAsset actionToPlay;
     public InputCheckSequence sequence;
 
     [HideInInspector] public int waitTime = 0;
     [HideInInspector] public int waitCounter = 0;
     [HideInInspector] public int checkIndex = 0;
 
-    public CommandStateHandler(ActionTimelineAsset actionToPlay, InputCheckSequence sequence, Enums.ActionPriority priority)
+    public CommandStateHandler(ActionAsset actionToPlay, InputCheckSequence sequence, Enums.ActionPriority priority)
     {
         this.actionToPlay = actionToPlay;
         this.sequence = sequence;
