@@ -4,7 +4,6 @@ using UnityEngine;
 using UnityEditor;
 using UnityEditor.Timeline;
 using UnityEngine.Timeline;
-using Animancer;
 
 public class ActionTimelineAssetEditor : Editor
 {
@@ -12,10 +11,10 @@ public class ActionTimelineAssetEditor : Editor
     /// 创建ActionTimelineAsset的方法
     /// 需要特别注意的是：在创建轨道时要设置好hideFlags，否则会导致Timeline在播放时损坏
     /// </summary>
-    public static ActionTimelineAsset CreateActionAsset(string path)
+    public static ActionAsset CreateActionAsset(string path)
     {
         // 创建ActionAsset作为载体
-        var actionAsset = CreateInstance<ActionTimelineAsset>();
+        var actionAsset = CreateInstance<ActionAsset>();
         AssetDatabase.CreateAsset(actionAsset, path);
 
         // 创建Timeline

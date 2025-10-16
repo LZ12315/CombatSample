@@ -26,7 +26,7 @@ class TimeLineHelper
     [OnOpenAsset(1)]
     public static bool OnOpenCustomTimeline(int instanceID, int line)
     {
-        var actionTimelineOpened = EditorUtility.InstanceIDToObject(instanceID) as ActionTimelineAsset;
+        var actionTimelineOpened = EditorUtility.InstanceIDToObject(instanceID) as ActionAsset;
         if (actionTimelineOpened == null)
             return false;
 

@@ -7,5 +7,5 @@ using CombatSample.Consts;
 public class ActorSkill : ScriptableObject
 {
     public Enums.ActionPriority priority;
-    public ActionTimelineAsset action;
+    public ActionAsset action;
 }
