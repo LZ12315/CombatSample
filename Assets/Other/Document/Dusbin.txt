@@ -39,7 +39,7 @@
         }
     }
 
-    # 2. 第三人称相机
+# 2. 第三人称相机
     
     //public CinemachineVirtualCamera personalFollowCamera;
 
@@ -123,3 +123,95 @@
     //        _previousRotation = transform.rotation;
     //    }
     //}
+
+    # 3.旧InputCheck
+    
+    private List<InputCheckHandler> handlers_Standing = new ();
+    private List<InputCheckHandler> handlers_ShortDated = new();
+
+    public void GetInputData(InputData inputData)
+    {
+        List<InputCheckHandler> actionCommands = handlers_Standing.Concat(handlers_ShortDated).ToList();
+        if (actionCommands.Count == 0) return;
+
+        List<InputCheckHandler> commandsReady = new List<InputCheckHandler>();
+        for (int i = 0; i < actionCommands.Count; i++)
+        {
+            if (!actionCommands[i].Matches(inputData)) continue;
+
+            if (actionCommands[i].IsLast)
+            {
+                if (!commandsReady.Contains(actionCommands[i]))
+                    commandsReady.Add(actionCommands[i]);
+                actionCommands[i].checkIndex = 0;
+                actionCommands[i].waitCounter = 0;
+            }
+            else
+            {
+                actionCommands[i].checkIndex++;
+                actionCommands[i].waitCounter = actionCommands[i].waitFrame;
+            }
+        }
+
+        if (commandsReady.Count == 0) return;
+    }
+
+    void UpdateActionCommands()
+    {
+        List<InputCheckHandler> actionCommands = new();
+        if (actionCommands.Count == 0) return;
+
+        for (int i = 0; i < actionCommands.Count; i++)
+            actionCommands[i].Update();
+    }
+
+    using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using CombatSample.Consts;
+using CombatSample.Input;
+using System;
+
+public class InputCheckHandler
+{
+    public List<InputCheckWrapper> inputChecks;
+
+    [HideInInspector] public int waitFrame = 0;
+    [HideInInspector] public int waitCounter = 0;
+    [HideInInspector] public int checkIndex = 0;
+
+    public InputCheckHandler(int waitFrame, List<InputCheckWrapper> inputChecks)
+    {
+        this.inputChecks = inputChecks;
+        this.waitFrame = waitFrame;
+    }
+
+    public void Update()
+    {
+        if(waitCounter <= 0) return;
+
+        waitCounter--;
+        if(waitCounter == 0)
+        {
+            checkIndex = 0;
+            waitCounter = 0;
+        }
+    }
+
+    public void Advance()
+    {
+        checkIndex++;
+        waitCounter = waitFrame;
+    }
+
+    public bool Matches(InputData inputData)
+    {
+        bool isMatch = inputChecks[checkIndex].CheckInputData(inputData);
+
+        return isMatch;
+    }
+
+    public bool IsLast => checkIndex == inputChecks.Count - 1;
+
+}
+

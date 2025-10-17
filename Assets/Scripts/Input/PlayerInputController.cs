@@ -68,9 +68,6 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
         // 更新Input
         UpdateInput();
 
-        // 更新Camera视角
-        controlledActor.logicInput.InputLook(rawLook);
-
         // 处理角色移动
         controlledActor.logicInput.InputMove(rawMove);
     }

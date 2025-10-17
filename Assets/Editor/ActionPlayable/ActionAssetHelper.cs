@@ -8,9 +8,9 @@ using UnityEngine;
 using UnityEngine.Playables;
 using UnityEngine.Timeline;
 
-class TimeLineHelper
+class ActionAssetHelper
 {
-    //以下函数用于优化TimeLine编辑流程，双击Timeline就可以自动装配到Director上
+    //以下函数用于优化ActionAsset的Timeline编辑流程，双击Timeline就可以自动装配到Director上
 
     [OnOpenAsset(0)]
     public static bool OnOpenTimeline(int instanceID, int line)

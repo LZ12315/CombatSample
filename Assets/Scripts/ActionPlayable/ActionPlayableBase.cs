@@ -11,6 +11,7 @@ public abstract class ActionTrackBase : TrackAsset{ }
 public abstract class ActionClipBase : PlayableBehaviour
 {
     protected Actor actor = null;
+    protected ActionAsset actionAsset;
     protected Enums.ActionClipState state = Enums.ActionClipState.None;
 
     protected virtual void OnClipPlay(Playable playable) { }
@@ -39,6 +40,8 @@ public abstract class ActionClipBase : PlayableBehaviour
 
         actor = director.GetComponent<Actor>();
         if (actor == null) return;
+
+        actionAsset = actor.actionPlayerDirector.ActionPlaying;
 
         actor.actionPlayerDirector.RegisterForTimelineEvent(this, OnGraphSwitch);
         OnClipPlay(playable);

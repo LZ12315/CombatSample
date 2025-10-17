@@ -5,20 +5,15 @@ using UnityEngine.Playables;
 
 public class ActionPlayableDirector : MonoBehaviour
 {
-    public PlayableDirector playableDirector;
-    public ActorActionSetting actionSetting;
+    public PlayableDirector director;
    
-    ActionAsset actionPlaying;
+    private ActionAsset actionPlaying;
+    public ActionAsset ActionPlaying => actionPlaying;
 
     private void Awake()
     {
-        playableDirector.extrapolationMode = DirectorWrapMode.None;
-        playableDirector.stopped += OnDirectorStopped;
-    }
-
-    private void Start()
-    {
-        PlayAction(actionSetting.idle);
+        director.extrapolationMode = DirectorWrapMode.None;
+        director.stopped += OnDirectorStopped;
     }
 
     private void OnDestroy()
@@ -28,34 +23,33 @@ public class ActionPlayableDirector : MonoBehaviour
 
     public void PlayAction(ActionAsset action)
     {
-        if (action == null || playableDirector == null) return;
+        if (action == null || director == null) return;
 
         //播放事件
-        RaiseTransitionEvent(playableDirector);
+        RaiseTransitionEvent(director);
 
-        playableDirector.Stop();
-        playableDirector.playableAsset = action.TimelineAsset;
-        playableDirector.time = 0.0;
-        playableDirector.Play();
+        director.Stop();
+        director.playableAsset = action.TimelineAsset;
+        director.time = 0.0;
+        director.Play();
 
         actionPlaying = action;
+    }
+
+    private void Update()
+    {
+        if (actionPlaying != null)
+        {
+            double timelineProgress = director.time / director.duration;
+            actionPlaying.ActionAssetData.nomalizedTime = timelineProgress;
+        }
     }
 
     private void OnDirectorStopped(PlayableDirector director)
     {
         if(actionPlaying == null) return;
 
-        if (actionPlaying.isLoop)
-            PlayAction(actionPlaying);
-        else if (actionPlaying.nextAction != null)
-            PlayAction(actionPlaying.nextAction);
-        else
-        {
-            if (actionPlaying.actionType == Enums.ActorActionType.Normal)
-                PlayAction(actionSetting.idle);
-            else
-                PlayAction(actionSetting.fight_Idle);
-        }
+        actionPlaying.ActionAssetData.progress = Enums.ActionProgress.Finish;
     }
 
     #region Timeline切换事件

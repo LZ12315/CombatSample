@@ -31,13 +31,10 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b2fc54e447a68ac499cb315c73175951, type: 3}
+  m_Script: {fileID: 11500000, guid: d4a14c808be2c4f4a8f1b6d45ebd172f, type: 3}
   m_Name: Lucy_Run
   m_EditorClassIdentifier: 
-  isLoop: 1
-  actionType: 0
-  nextAction: {fileID: 0}
-  _timelineAsset: {fileID: -355047637893349529}
+  _timelineAsset: {fileID: 0}
 --- !u!114 &2573085483798297701
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -50,27 +47,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7e16121e222ac9543a73f7aba8deff52, type: 3}
   m_Name: ActionTransitionAsset(Clone)(Clone)(Clone)(Clone)
   m_EditorClassIdentifier: 
-  active: 1
-  transitionType: 0
-  actionCommandSettings:
-  - priority: 0
-    actionToPlay: {fileID: 11400000, guid: 621bc18676a2c5145b6c4765fd6b77d3, type: 2}
-    sequence:
-      waitTime: 40
-      inputChecks: []
-  - priority: 0
-    actionToPlay: {fileID: 11400000, guid: 69459a040219c3c479a2b9188223232e, type: 2}
-    sequence:
-      waitTime: 40
-      inputChecks: []
-  - priority: 0
-    actionToPlay: {fileID: 11400000, guid: e10d3d58495a7f741b81d917ccf6ca5c, type: 2}
-    sequence:
-      waitTime: 40
-      inputChecks: []
-  references:
-    version: 2
-    RefIds: []
+  moveType: 1
 --- !u!114 &3440916887800352079
 MonoBehaviour:
   m_ObjectHideFlags: 1
