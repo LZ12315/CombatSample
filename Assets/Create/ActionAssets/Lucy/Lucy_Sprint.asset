@@ -12,27 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7e16121e222ac9543a73f7aba8deff52, type: 3}
   m_Name: ActionTransitionAsset(Clone)(Clone)(Clone)(Clone)(Clone)(Clone)
   m_EditorClassIdentifier: 
-  active: 1
-  transitionType: 0
-  actionCommandSettings:
-  - priority: 0
-    actionToPlay: {fileID: 11400000, guid: 621bc18676a2c5145b6c4765fd6b77d3, type: 2}
-    sequence:
-      waitTime: 40
-      inputChecks: []
-  - priority: 0
-    actionToPlay: {fileID: 11400000, guid: 1611c37b590410646a4f01329e62f609, type: 2}
-    sequence:
-      waitTime: 40
-      inputChecks: []
-  - priority: 0
-    actionToPlay: {fileID: 11400000, guid: 6a49f6e0f885c0c46b7a100799ab1acd, type: 2}
-    sequence:
-      waitTime: 40
-      inputChecks: []
-  references:
-    version: 2
-    RefIds: []
+  moveType: 1
 --- !u!114 &-7352015076067775534
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -226,13 +206,10 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b2fc54e447a68ac499cb315c73175951, type: 3}
+  m_Script: {fileID: 11500000, guid: d4a14c808be2c4f4a8f1b6d45ebd172f, type: 3}
   m_Name: Lucy_Sprint
   m_EditorClassIdentifier: 
-  isLoop: 1
-  actionType: 0
-  nextAction: {fileID: 0}
-  _timelineAsset: {fileID: 140717114239552374}
+  _timelineAsset: {fileID: 0}
 --- !u!114 &140717114239552374
 MonoBehaviour:
   m_ObjectHideFlags: 1

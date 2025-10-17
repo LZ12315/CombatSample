@@ -12,17 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7e16121e222ac9543a73f7aba8deff52, type: 3}
   m_Name: ActionTransitionAsset(Clone)
   m_EditorClassIdentifier: 
-  active: 1
-  transitionType: 0
-  actionCommandSettings:
-  - priority: 1
-    actionToPlay: {fileID: 11400000, guid: 0ece6a11e6e3be14f9a39316e5ceead4, type: 2}
-    sequence:
-      waitTime: 40
-      inputChecks: []
-  references:
-    version: 2
-    RefIds: []
+  moveType: 1
 --- !u!114 &-8783416821341421724
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -160,17 +150,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7e16121e222ac9543a73f7aba8deff52, type: 3}
   m_Name: ActionTransitionAsset
   m_EditorClassIdentifier: 
-  active: 1
-  transitionType: 1
-  actionCommandSettings:
-  - priority: 1
-    actionToPlay: {fileID: 11400000, guid: 0ece6a11e6e3be14f9a39316e5ceead4, type: 2}
-    sequence:
-      waitTime: 40
-      inputChecks: []
-  references:
-    version: 2
-    RefIds: []
+  moveType: 1
 --- !u!114 &-5912438726839608855
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -298,13 +278,10 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b2fc54e447a68ac499cb315c73175951, type: 3}
+  m_Script: {fileID: 11500000, guid: d4a14c808be2c4f4a8f1b6d45ebd172f, type: 3}
   m_Name: Lucy_LightAttack_03
   m_EditorClassIdentifier: 
-  isLoop: 0
-  actionType: 1
-  nextAction: {fileID: 0}
-  _timelineAsset: {fileID: 6206148329717605224}
+  _timelineAsset: {fileID: 0}
 --- !u!114 &518720222363068703
 MonoBehaviour:
   m_ObjectHideFlags: 1

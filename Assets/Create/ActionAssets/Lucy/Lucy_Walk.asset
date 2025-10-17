@@ -89,7 +89,7 @@ MonoBehaviour:
     m_PreExtrapolationMode: 0
     m_PostExtrapolationTime: 0
     m_PreExtrapolationTime: 0
-    m_DisplayName: 'Translate when : StartUp'
+    m_DisplayName: 'Translate when : Idle'
   m_Markers:
     m_Objects: []
 --- !u!114 &-3344378463073141841
@@ -165,13 +165,10 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b2fc54e447a68ac499cb315c73175951, type: 3}
+  m_Script: {fileID: 11500000, guid: d4a14c808be2c4f4a8f1b6d45ebd172f, type: 3}
   m_Name: Lucy_Walk
   m_EditorClassIdentifier: 
-  isLoop: 1
-  actionType: 0
-  nextAction: {fileID: 0}
-  _timelineAsset: {fileID: -2017990948626186922}
+  _timelineAsset: {fileID: 0}
 --- !u!114 &1904858521833694178
 MonoBehaviour:
   m_ObjectHideFlags: 1

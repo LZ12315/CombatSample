@@ -891,7 +891,7 @@ PrefabInstance:
         type: 3}
       propertyPath: m_PlayableAsset
       value: 
-      objectReference: {fileID: -2017990948626186922, guid: a7e681807f4a98f4db85f24b388b0d44,
+      objectReference: {fileID: -2813052340153945021, guid: 17e0262b4146e3d459ad7ec3ad4add9a,
         type: 2}
     - target: {fileID: 3647181986542200228, guid: a4a20f7de8c53684f97be75dd7045953,
         type: 3}
@@ -1960,6 +1960,11 @@ PrefabInstance:
       propertyPath: m_Layer
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 8709708826383607793, guid: a4a20f7de8c53684f97be75dd7045953,
+        type: 3}
+      propertyPath: combatTarget
+      value: 
+      objectReference: {fileID: 1843225524}
     - target: {fileID: 8757123433729634125, guid: a4a20f7de8c53684f97be75dd7045953,
         type: 3}
       propertyPath: m_LocalRotation.w
@@ -2022,6 +2027,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 9113936135464953444, guid: a4a20f7de8c53684f97be75dd7045953,
         type: 3}
+      propertyPath: combater
+      value: 
+      objectReference: {fileID: 1884034049}
+    - target: {fileID: 9113936135464953444, guid: a4a20f7de8c53684f97be75dd7045953,
+        type: 3}
       propertyPath: actorMovement
       value: 
       objectReference: {fileID: 1846897382}
@@ -2034,7 +2044,7 @@ PrefabInstance:
     - {fileID: 3272125233534597806, guid: a4a20f7de8c53684f97be75dd7045953, type: 3}
     - {fileID: 2622689595673074183, guid: a4a20f7de8c53684f97be75dd7045953, type: 3}
     - {fileID: 7718604714020411539, guid: a4a20f7de8c53684f97be75dd7045953, type: 3}
-    - {fileID: 8691944588741224978, guid: a4a20f7de8c53684f97be75dd7045953, type: 3}
+    - {fileID: 0}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
@@ -3541,6 +3551,18 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 97740e3c55b7f354286e934df5286f43, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &1884034049 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 8709708826383607793, guid: a4a20f7de8c53684f97be75dd7045953,
+    type: 3}
+  m_PrefabInstance: {fileID: 154090518}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 046b88d50aabbe0409499479e7c2b09b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
 --- !u!1 &1989942727
