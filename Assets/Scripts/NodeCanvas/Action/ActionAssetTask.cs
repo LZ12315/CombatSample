@@ -1,5 +1,6 @@
 using NodeCanvas.Framework;
 using ParadoxNotion.Design;
+using UnityEngine.Playables;
 
 namespace NodeCanvas.Tasks.Actions {
 
@@ -10,42 +11,39 @@ namespace NodeCanvas.Tasks.Actions {
 
 		[Header("≈‰÷√")]
 		public BBParameter<Actor> actor;
-		public BBParameter<ActionPlayableDirector> director;
         public BBParameter<ActionAsset> action;
 
 		[Header(" Ù–‘")]
 		public bool isLoop = false;
 
-        protected override string OnInit() {
-			return null;
-		}
-
 		protected override void OnExecute() {
+			PlayAction(actor.value.actionPlayerDirector.director);
 
-			PlayAction();
-
-			EndAction(true);
+			if(isLoop)
+			{
+				var playableDirector = actor.value.actionPlayerDirector.director;
+				playableDirector.stopped += PlayAction;
+			}
+			else
+				EndAction();
 		}
-
-		protected override void OnUpdate() {
-			var actionProgress = action.value.ActionAssetData.progress;
-
-			if (actionProgress == Enums.ActionProgress.Finish && isLoop)
-				PlayAction();
-        }
 
 		protected override void OnStop() {
-			
-		}
 
-		protected override void OnPause() {
-			
-		}
+            if (isLoop)
+            {
+                var playableDirector = actor.value.actionPlayerDirector.director;
+                playableDirector.stopped -= PlayAction;
+            }
+        }
 
-		void PlayAction()
+		void PlayAction(PlayableDirector director)
 		{
-            director.value.PlayAction(action.value);
-			action.value.Init();
+			actor.value.actionPlayerDirector.PlayAction(action.value);
+			action.value.DataReset();
+
+			var agentBlackBoard = agent.GetComponent<Blackboard>();
+			agentBlackBoard.SetVariableValue("currentAction", action.value);
         }
 	}
 }

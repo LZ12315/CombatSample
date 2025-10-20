@@ -27,7 +27,7 @@ namespace NodeCanvas.Tasks.Conditions {
 		}
 
 		protected override bool OnCheck() {
-            if(checkIndex == inputChecks.Count - 1) 
+            if(checkIndex == inputChecks.Count) 
                 return true;
 
             if(inputChecks[checkIndex].CheckInputData(inputData.value))

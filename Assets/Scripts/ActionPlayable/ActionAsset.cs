@@ -7,7 +7,6 @@ public class ActionAssetData
 {
     public double nomalizedTime = 0;
     public Enums.ActionPhase phase = Enums.ActionPhase.Neutral;
-    public Enums.ActionProgress progress = Enums.ActionProgress.Finish;
 }
 
 public class ActionAsset : ScriptableObject
@@ -15,8 +14,7 @@ public class ActionAsset : ScriptableObject
     [SerializeField, HideInInspector] private TimelineAsset _timelineAsset;
     public TimelineAsset TimelineAsset => _timelineAsset;
 
-    [SerializeField, HideInInspector] private ActionAssetData _actionAssetData = new ActionAssetData();
-    public ActionAssetData ActionAssetData => _actionAssetData;
+    [SerializeField] public ActionAssetData actionAssetData = new ActionAssetData();
 
     public void SetTimelineAsset(TimelineAsset timelineAsset)
     {
@@ -26,19 +24,25 @@ public class ActionAsset : ScriptableObject
 #endif
     }
 
-    public void Init()
+    public void DataReset()
     {
-        _actionAssetData.nomalizedTime = 0;
-        _actionAssetData.progress = Enums.ActionProgress.Play;
+        actionAssetData.nomalizedTime = 0;
+        actionAssetData.phase = Enums.ActionPhase.Neutral;
     }
 
 }
 
-public partial class Enums
+public static partial class Enums
 {
-    public enum ActionProgress
+    [System.Flags]
+    public enum ActionPhase
     {
-        Play,
-        Finish
+        Neutral = 0,
+        Startup = 2,
+        Charging = 4,
+        FullPower = 8,
+        OverCharge = 16,
+        Effect = 32,
+        Recovery = 64
     }
 }

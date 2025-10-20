@@ -29,14 +29,6 @@ public class InputJoystickData : InputData
         joystickVigor = vigor;
     }
 
-    public bool isSame(InputJoystickData other)
-    {
-        if (!(other.inputJoystick == inputJoystick)) return false;
-
-        if (!(other.joystickVigor == joystickVigor)) return false;
-
-        return true;
-    }
 }
 
 public static partial class Enums

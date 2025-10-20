@@ -36,7 +36,7 @@ public class ActionAssetCreater
         animancerTrack.hideFlags = HideFlags.HideInHierarchy;
 
         // 修复：使用正确的CreateTrack方法而不是CreateInstance
-        var transitionTrack = timeline.CreateTrack<ActionTransitionTrack>(null, "ActionTransition");
+        var transitionTrack = timeline.CreateTrack<ActionPhaseTrack>(null, "ActionTransition");
         transitionTrack.hideFlags = HideFlags.HideInHierarchy;
 
         // 关联资源

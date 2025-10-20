@@ -7,14 +7,15 @@ public class ActionPlayableDirector : MonoBehaviour
 {
     public PlayableDirector director;
    
-    private ActionAsset actionPlaying;
+    [SerializeField] private ActionAsset actionPlaying;
     public ActionAsset ActionPlaying => actionPlaying;
 
     private void Awake()
     {
         director.extrapolationMode = DirectorWrapMode.None;
-        director.stopped += OnDirectorStopped;
+        director.stopped += OnActionStopped;
     }
+
 
     private void OnDestroy()
     {
@@ -25,7 +26,7 @@ public class ActionPlayableDirector : MonoBehaviour
     {
         if (action == null || director == null) return;
 
-        //播放事件
+        //启动ActionTimeline切换事件
         RaiseTransitionEvent(director);
 
         director.Stop();
@@ -36,20 +37,19 @@ public class ActionPlayableDirector : MonoBehaviour
         actionPlaying = action;
     }
 
+    private void OnActionStopped(PlayableDirector director)
+    {
+        if(actionPlaying == null) return;
+
+        actionPlaying.DataReset();
+    }
     private void Update()
     {
         if (actionPlaying != null)
         {
             double timelineProgress = director.time / director.duration;
-            actionPlaying.ActionAssetData.nomalizedTime = timelineProgress;
+            actionPlaying.actionAssetData.nomalizedTime = timelineProgress;
         }
-    }
-
-    private void OnDirectorStopped(PlayableDirector director)
-    {
-        if(actionPlaying == null) return;
-
-        actionPlaying.ActionAssetData.progress = Enums.ActionProgress.Finish;
     }
 
     #region Timeline切换事件
