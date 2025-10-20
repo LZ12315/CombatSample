@@ -22,7 +22,7 @@ public class ActorLogicInput : MonoBehaviour
 
     public void GetInputData(InputData inputData)
     {
-
+        actor.blackboard.SetVariableValue("latestInput", inputData);
     }
 
 }

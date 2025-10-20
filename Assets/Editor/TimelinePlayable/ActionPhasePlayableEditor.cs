@@ -1,17 +1,13 @@
-using System.Collections;
-using System.Collections.Generic;
-using UnityEditor;
 using UnityEditor.Timeline;
-using UnityEditor.VersionControl;
 using UnityEngine;
 using UnityEngine.Timeline;
 
-[CustomTimelineEditor(typeof(ActionTransitionTrack))]
-public class ActionTransitionTrackEditor : ActionTrackEditorBase{ }
+[CustomTimelineEditor(typeof(ActionPhaseTrack))]
+public class ActionPhaseTrackEditor : ActionTrackEditorBase{ }
 
 
-[CustomTimelineEditor(typeof(ActionTransitionAsset))]
-class ActionTransitionClipEditor : ActionClipEditorBase
+[CustomTimelineEditor(typeof(ActionPhaseAsset))]
+class ActionPhaseClipEditor : ActionClipEditorBase
 {
     public override ClipDrawOptions GetClipOptions(TimelineClip clip)
     {
@@ -32,10 +28,10 @@ class ActionTransitionClipEditor : ActionClipEditorBase
 
     void SetClipDisplayName(TimelineClip clip)
     {
-        var asset = clip.asset as ActionTransitionAsset;
-        var transitionType = asset.actionPhase.ToString();
+        var asset = clip.asset as ActionPhaseAsset;
+        var phaseType = asset.actionPhase.ToString();
 
-        clip.displayName = $"Translate when : {transitionType}";
+        clip.displayName = $"ActionPhase : {phaseType}";
     }
 
 }

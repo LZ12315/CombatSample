@@ -11,7 +11,7 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
     PlayerInputControl actions;
     public Actor controlledActor;
 
-    [Header("Debug…Ë÷√")]
+    [Header("µ˜ ‘")]
     public bool debug = false;
     public float timeScale = 0.1f;
 
@@ -25,7 +25,6 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
     private Vector2 rawMove = Vector2.zero;
     private Vector2 rawLook = Vector2.zero;
     Dictionary<Enums.InputButton, ButtonInputCounter> buttonCounters = new ();
-    InputJoystickData lastJoystickInput;
 
     private void Awake()
     {
@@ -86,7 +85,6 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
     {
         InputJoystickData joystickInput = new InputJoystickData(joystick, vigor);
 
-        lastJoystickInput = joystickInput;
         controlledActor.logicInput.GetInputData(joystickInput);
 
         if (debug)
@@ -226,8 +224,6 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
             }
         }
 
-        if(lastJoystickInput != null)
-            controlledActor.logicInput.GetInputData(lastJoystickInput);
     }
 
     void IntrigueButtonCounter(Enums.InputButton button)
