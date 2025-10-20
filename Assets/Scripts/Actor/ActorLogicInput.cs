@@ -15,9 +15,9 @@ public class ActorLogicInput : MonoBehaviour
 
     public void InputMove(Vector2 moveInput)
     {
-        lastMoveInput = moveInput;
-        Vector3 moveDir = actor.cameraControl.CalculateDirection(moveInput);
-        actor.movement.UpdateTurn(moveDir);
+        //lastMoveInput = moveInput;
+        //Vector3 moveDir = actor.cameraControl.CalculateDirection(moveInput);
+        //actor.movement.UpdateTurn(moveDir);
     }
 
     public void GetInputData(InputData inputData)
