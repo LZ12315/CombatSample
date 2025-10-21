@@ -10,7 +10,7 @@ public class InputButtonData : InputData
     public Enums.InputButton inputButton;
     public Enums.ButtonState buttonState;
 
-    public InputButtonData(Enums.InputButton button = Enums.InputButton.Idle, Enums.ButtonState state = Enums.ButtonState.Idle)
+    public InputButtonData(Enums.InputButton button = Enums.InputButton.None, Enums.ButtonState state = Enums.ButtonState.None)
     {
         inputButton = button;
         buttonState = state;
@@ -36,7 +36,7 @@ public static partial class Enums
     [System.Flags]
     public enum InputButton
     {
-        Idle = 0,
+        None = 0,
         Dodge = 2,
         Defence = 4,
         LightAttack = 8,
@@ -46,7 +46,7 @@ public static partial class Enums
     [System.Flags]
     public enum ButtonState
     {
-        Idle = 0,
+        None = 0,
         ShortPress = 2,
         LongPress_Start = 4,
         LongPress_Cancel = 8
@@ -58,8 +58,8 @@ public static partial class Enums
         Idle = 0,
         East = 2,
         South = 4,
-        West = 6,
-        North = 8,
+        West = 8,
+        North = 16,
     }
 
     [System.Flags]
