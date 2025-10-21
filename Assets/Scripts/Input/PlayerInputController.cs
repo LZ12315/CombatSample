@@ -24,8 +24,6 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
     // 输入状态 //
     private Vector2 rawMove = Vector2.zero;
     private Vector2 rawLook = Vector2.zero;
-    Dictionary<Enums.InputButton, ButtonInputCounter> buttonCounters = new ();
-
     Dictionary<Enums.InputButton, InputPressState> buttonStates = new ();
     Dictionary<Enums.InputJoystick, InputPressState> joystickStates = new ();
 
@@ -69,7 +67,6 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
 
         // 更新Input
         UpdateInputState();
-        //UpdateInput();
 
         // 处理角色移动
         controlledActor.logicInput.InputMove(rawMove);
@@ -136,11 +133,11 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
         switch (context.phase)
         {
             case InputActionPhase.Started:
-                InvokeButtonCounter(Enums.InputButton.Dodge);
+                SetInputState(Enums.InputButton.Dodge, true);
                 break;
 
             case InputActionPhase.Canceled:
-                IntrigueButtonCounter(Enums.InputButton.Dodge);
+                SetInputState(Enums.InputButton.Dodge, false);
                 break;
         }
     }
@@ -153,12 +150,10 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
         {
             case InputActionPhase.Started:
                 SetInputState(Enums.InputButton.LightAttack, true);
-                //InvokeButtonCounter(Enums.InputButton.LightAttack);
                 break;
 
             case InputActionPhase.Canceled:
                 SetInputState(Enums.InputButton.LightAttack, false);
-                //IntrigueButtonCounter(Enums.InputButton.LightAttack);
                 break;
         }
     }
@@ -170,11 +165,11 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
         switch (context.phase)
         {
             case InputActionPhase.Started:
-                InvokeButtonCounter(Enums.InputButton.HeavyAttack);
+                SetInputState(Enums.InputButton.HeavyAttack, true);
                 break;
 
             case InputActionPhase.Canceled:
-                IntrigueButtonCounter(Enums.InputButton.HeavyAttack);
+                SetInputState(Enums.InputButton.HeavyAttack, false);
                 break;
         }
     }
@@ -182,24 +177,6 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
     #endregion
 
     #region Input工具
-
-    private class ButtonInputCounter
-    {
-        public bool active;
-        public int count;
-
-        public void Start()
-        {
-            active = true;
-            count = 0;
-        }
-
-        public void Cancel()
-        {
-            active = false;
-            count = 0;
-        }
-    }
 
     // 数据需要频繁被引用修改且数据量不大 用类很合适
     // 并且修改字典里的类可以直接引用 相比起结构体更方便
@@ -228,6 +205,8 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
         if(!isPressed)
         {
             var state = buttonStates[button];
+            if(state.elapsedFrame == 0) return;
+
             if (state.elapsedFrame < ShortPress_Frame)
                 SendButtonInputData(button, Enums.ButtonState.ShortPress);
             else
@@ -244,6 +223,12 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
         }
         else
             joystickStates[joystick] = new InputPressState(isPressed);
+
+        if (!isPressed)
+        {
+            foreach(var state in joystickStates.Values)
+                state.isPressed = false;
+        }
     }
 
     public bool GetInputState(Enums.InputButton button)
@@ -265,18 +250,6 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
         {
             joystickStates[joystick] = new InputPressState();
             return false;
-        }
-    }
-
-    void InvokeButtonCounter(Enums.InputButton button)
-    {
-        if(buttonCounters.ContainsKey(button))
-            buttonCounters[button].Start();
-        else
-        {
-            ButtonInputCounter counter = new ButtonInputCounter();
-            buttonCounters.Add(button, counter);
-            counter.Start();
         }
     }
 
@@ -317,47 +290,6 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
 
             state.elapsedFrame++;
         }
-    }
-
-    void UpdateInput()
-    {
-        foreach (var pair in buttonCounters)
-        {
-            var counter = pair.Value;
-            if (!counter.active) continue;
-
-            counter.count++;
-
-            if (counter.count == ShortPress_Frame)
-            {
-                SendButtonInputData(pair.Key, Enums.ButtonState.LongPress_Start);
-                continue;
-            }
-
-            if (counter.count > LongPress_Frame)
-            {
-                SendButtonInputData(pair.Key, Enums.ButtonState.LongPress_Cancel);
-                counter.Cancel();
-                continue;
-            }
-        }
-
-    }
-
-    void IntrigueButtonCounter(Enums.InputButton button)
-    {
-        if (!buttonCounters.ContainsKey(button)) return;
-
-        var counter = buttonCounters[button];
-
-        if(!counter.active) return;
-
-        if(counter.count < ShortPress_Frame)
-            SendButtonInputData(button, Enums.ButtonState.ShortPress);
-        else
-            SendButtonInputData(button, Enums.ButtonState.LongPress_Cancel);
-
-        counter.Cancel();
     }
 
     // 将输入向量转换为角度

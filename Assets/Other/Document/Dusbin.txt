@@ -1,4 +1,4 @@
-# 1. InputButton
+# 1.InputButton
 
     private struct InputButtonCounter
     {
@@ -39,7 +39,7 @@
         }
     }
 
-# 2. 第三人称相机
+# 2.第三人称相机
     
     //public CinemachineVirtualCamera personalFollowCamera;
 
@@ -124,7 +124,7 @@
     //    }
     //}
 
-    # 3.旧InputCheck
+# 3.旧InputCheck
     
     private List<InputCheckHandler> handlers_Standing = new ();
     private List<InputCheckHandler> handlers_ShortDated = new();
@@ -215,3 +215,76 @@ public class InputCheckHandler
 
 }
 
+# 4.旧的输入分类
+
+    private class ButtonInputCounter
+    {
+        public bool active;
+        public int count;
+
+        public void Start()
+        {
+            active = true;
+            count = 0;
+        }
+
+        public void Cancel()
+        {
+            active = false;
+            count = 0;
+        }
+    }
+
+    void InvokeButtonCounter(Enums.InputButton button)
+    {
+        if (buttonCounters.ContainsKey(button))
+            buttonCounters[button].Start();
+        else
+        {
+            ButtonInputCounter counter = new ButtonInputCounter();
+            buttonCounters.Add(button, counter);
+            counter.Start();
+        }
+    }
+
+
+    void UpdateInput()
+    {
+        foreach (var pair in buttonCounters)
+        {
+            var counter = pair.Value;
+            if (!counter.active) continue;
+
+            counter.count++;
+
+            if (counter.count == ShortPress_Frame)
+            {
+                SendButtonInputData(pair.Key, Enums.ButtonState.LongPress_Start);
+                continue;
+            }
+
+            if (counter.count > LongPress_Frame)
+            {
+                SendButtonInputData(pair.Key, Enums.ButtonState.LongPress_Cancel);
+                counter.Cancel();
+                continue;
+            }
+        }
+
+    }
+
+    void IntrigueButtonCounter(Enums.InputButton button)
+    {
+        if (!buttonCounters.ContainsKey(button)) return;
+
+        var counter = buttonCounters[button];
+
+        if (!counter.active) return;
+
+        if (counter.count < ShortPress_Frame)
+            SendButtonInputData(button, Enums.ButtonState.ShortPress);
+        else
+            SendButtonInputData(button, Enums.ButtonState.LongPress_Cancel);
+
+        counter.Cancel();
+    }

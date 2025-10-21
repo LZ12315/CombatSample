@@ -4,14 +4,15 @@ using UnityEngine.Playables;
 
 namespace NodeCanvas.Tasks.Actions {
 
-	[Name("ActionTimeline")]
+	[Name("Play Action")]
 	[Category("Custom")]
 	[Description("Play a ActionTimeline when performed")]
 	public class ActionAssetTask : ActionTask {
 
 		[Header("≈‰÷√")]
 		public BBParameter<Actor> actor;
-        public BBParameter<ActionAsset> action;
+        public BBParameter<ActionAsset> actionToPlay;
+		public BBParameter<ActionAsset> currentAction;
 
 		[Header(" Ù–‘")]
 		public bool isLoop = false;
@@ -39,11 +40,10 @@ namespace NodeCanvas.Tasks.Actions {
 
 		void PlayAction(PlayableDirector director)
 		{
-			actor.value.actionPlayerDirector.PlayAction(action.value);
-			action.value.DataReset();
+			actor.value.actionPlayerDirector.PlayAction(actionToPlay.value);
+			actionToPlay.value.DataReset();
 
-			var agentBlackBoard = agent.GetComponent<Blackboard>();
-			agentBlackBoard.SetVariableValue("currentAction", action.value);
+			currentAction.value = actionToPlay.value;
         }
 	}
 }

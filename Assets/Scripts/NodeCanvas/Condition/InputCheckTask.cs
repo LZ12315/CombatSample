@@ -1,11 +1,8 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using UnityEngine;
 using NodeCanvas.Framework;
 using ParadoxNotion.Design;
-using CombatSample.Input;
-
 
 namespace NodeCanvas.Tasks.Conditions {
 
@@ -14,7 +11,10 @@ namespace NodeCanvas.Tasks.Conditions {
 	[Description("Transfer to next [Action] when all the inputChecks has been met")]
 	public class InputCheckTask : ConditionTask {
 
+        [Header("≈‰÷√")]
         public BBParameter<InputData> inputData;
+
+        [Header(" Ù–‘")]
         public int waitFrame = 40;
         public List<InputCheckWrapper> inputChecks;
 
