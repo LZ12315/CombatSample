@@ -55,18 +55,20 @@ public static partial class Enums
     [System.Flags]
     public enum InputJoystick
     {
-        Idle = 0,
-        East = 2,
-        South = 4,
-        West = 8,
-        North = 16,
+        None = 0,
+        Idle = 2,
+        East = 4,
+        South = 8,
+        West = 16,
+        North = 32,
     }
 
     [System.Flags]
     public enum JoystickVigor
     {
-        Idle = 0,
-        Light = 2,
-        Hard = 4
+        None = 0,
+        Idle = 2,
+        Light = 4,
+        Hard = 8
     }
 }

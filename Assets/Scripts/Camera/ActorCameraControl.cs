@@ -33,7 +33,7 @@ public class ActorCameraControl : MonoBehaviour
         if (activeVirtualCamera == null) return Vector3.zero;
 
         // 无输入时返回零向量（角色保持当前朝向）
-        if (rawMove.sqrMagnitude > 0.01f)
+        if (rawMove.sqrMagnitude <= 0.01f)
             return Vector3.zero;
 
         // 使用当前Cinemachine的方向，仅取水平面（Y 轴置零）

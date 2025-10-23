@@ -23,7 +23,8 @@ MonoBehaviour:
         _FadeDuration: 0.25
         _Speed: 1
         _Events:
-          _NormalizedTimes: []
+          _NormalizedTimes:
+          - 0.99696016
           _Callbacks: []
           _Names: []
         _Clip: {fileID: -5547062438317123006, guid: cb6fbed179b3a9a4ca5f1dadd0b53332,

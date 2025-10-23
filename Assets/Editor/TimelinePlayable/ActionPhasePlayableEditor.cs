@@ -29,7 +29,7 @@ class ActionPhaseClipEditor : ActionClipEditorBase
     void SetClipDisplayName(TimelineClip clip)
     {
         var asset = clip.asset as ActionPhaseAsset;
-        var phaseType = asset.actionPhase.ToString();
+        var phaseType = asset.actionPhase_Start.ToString();
 
         clip.displayName = $"ActionPhase : {phaseType}";
     }

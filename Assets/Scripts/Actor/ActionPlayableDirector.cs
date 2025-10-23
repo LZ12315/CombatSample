@@ -5,6 +5,7 @@ using UnityEngine.Playables;
 
 public class ActionPlayableDirector : MonoBehaviour
 {
+    public Actor actor;
     public PlayableDirector director;
    
     [SerializeField] private ActionAsset actionPlaying;
@@ -15,7 +16,6 @@ public class ActionPlayableDirector : MonoBehaviour
         director.extrapolationMode = DirectorWrapMode.None;
         director.stopped += OnActionStopped;
     }
-
 
     private void OnDestroy()
     {
@@ -34,6 +34,7 @@ public class ActionPlayableDirector : MonoBehaviour
         director.time = 0.0;
         director.Play();
 
+        actor.blackboard.SetVariableValue("currentAction", action);
         actionPlaying = action;
     }
 

@@ -1,6 +1,9 @@
 using NodeCanvas.Framework;
 using ParadoxNotion.Design;
+using System.Collections;
+using UnityEngine;
 using UnityEngine.Playables;
+using HeaderAttribute = ParadoxNotion.Design.HeaderAttribute;
 
 namespace NodeCanvas.Tasks.Actions {
 
@@ -12,38 +15,40 @@ namespace NodeCanvas.Tasks.Actions {
 		[Header("≈‰÷√")]
 		public BBParameter<Actor> actor;
         public BBParameter<ActionAsset> actionToPlay;
-		public BBParameter<ActionAsset> currentAction;
 
 		[Header(" Ù–‘")]
 		public bool isLoop = false;
 
 		protected override void OnExecute() {
-			PlayAction(actor.value.actionPlayerDirector.director);
-
-			if(isLoop)
-			{
-				var playableDirector = actor.value.actionPlayerDirector.director;
-				playableDirector.stopped += PlayAction;
-			}
-			else
-				EndAction();
+			StartCoroutine(LateRegistration());
+			PlayAction();
 		}
 
 		protected override void OnStop() {
-
-            if (isLoop)
-            {
-                var playableDirector = actor.value.actionPlayerDirector.director;
-                playableDirector.stopped -= PlayAction;
-            }
+            var playableDirector = actor.value.actionPlayerDirector.director;
+            playableDirector.stopped -= ActionStopped;
         }
 
-		void PlayAction(PlayableDirector director)
+		IEnumerator LateRegistration()
+		{
+			yield return new WaitForSeconds(0.05f);
+
+            var playableDirector = actor.value.actionPlayerDirector.director;
+            playableDirector.stopped += ActionStopped;
+        }
+
+		void PlayAction()
 		{
 			actor.value.actionPlayerDirector.PlayAction(actionToPlay.value);
 			actionToPlay.value.DataReset();
+        }
 
-			currentAction.value = actionToPlay.value;
+		void ActionStopped(PlayableDirector director)
+		{
+			if(isLoop)
+                PlayAction();
+			else
+				EndAction();
         }
 	}
 }
