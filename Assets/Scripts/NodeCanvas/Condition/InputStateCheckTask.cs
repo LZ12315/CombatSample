@@ -2,6 +2,8 @@ using CombatSample.Consts;
 using CombatSample.Utils;
 using NodeCanvas.Framework;
 using ParadoxNotion.Design;
+using UnityEngine;
+using HeaderAttribute = ParadoxNotion.Design.HeaderAttribute;
 
 
 namespace NodeCanvas.Tasks.Conditions {
@@ -32,6 +34,7 @@ namespace NodeCanvas.Tasks.Conditions {
                             return true;
                     }
 					break;
+
 				case Enums.InputCheckType.Joystick:
                     foreach (var joystick in EnumUtils.GetFlags(joystick))
                     {

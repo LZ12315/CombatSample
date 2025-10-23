@@ -37,12 +37,13 @@ public static partial class Enums
     [System.Flags]
     public enum ActionPhase
     {
-        Neutral = 0,
-        Startup = 2,
-        Charging = 4,
-        FullPower = 8,
-        OverCharge = 16,
-        Effect = 32,
-        Recovery = 64
+        None = 0,
+        Neutral = 2,
+        Startup = 4,
+        Charging = 8,
+        FullPower = 16,
+        OverCharge = 32,
+        Effect = 64,
+        Recovery = 128
     }
 }

@@ -20,6 +20,7 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
     [SerializeField] int LongPress_Frame = 120;
 
     [SerializeField] float joystickHard_Distance = 0.6f;
+    [SerializeField] float joystick_DeadZone = 0.1f;
 
     // 输入状态 //
     private Vector2 rawMove = Vector2.zero;
@@ -70,6 +71,9 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
 
         // 处理角色移动
         controlledActor.logicInput.InputMove(rawMove);
+
+        //if(buttonStates.ContainsKey(Enums.InputButton.Dodge))
+        //    Debug.Log(buttonStates[Enums.InputButton.Dodge].isPressed);
     }
 
     void SendButtonInputData(Enums.InputButton button, Enums.ButtonState state)
@@ -115,7 +119,7 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
             case InputActionPhase.Canceled:
                 SendJoystickInputData(CastVectorToDirection(rawMove), Enums.JoystickVigor.Idle);
 
-                SetInputState(CastVectorToDirection(rawMove), false);
+                SetInputState(Enums.InputJoystick.Idle, true);
                 break;
         }
 
@@ -182,27 +186,27 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
     // 并且修改字典里的类可以直接引用 相比起结构体更方便
     public class InputPressState
     {
-        public bool isPressed;
+        public bool isActive;
         public int elapsedFrame;
 
-        public InputPressState(bool pressed = false, int frame = 0)
+        public InputPressState(bool active = false, int frame = 0)
         {
-            isPressed = pressed;
+            isActive = active;
             elapsedFrame = frame;
         }
     }
 
-    void SetInputState(Enums.InputButton button, bool isPressed)
+    void SetInputState(Enums.InputButton button, bool active)
     {
         if(buttonStates.ContainsKey(button))
         {
             var state = buttonStates[button];
-            state.isPressed = isPressed;
+            state.isActive = active;
         }
         else
-            buttonStates[button] = new InputPressState(isPressed);
+            buttonStates[button] = new InputPressState(active);
 
-        if(!isPressed)
+        if(!active)
         {
             var state = buttonStates[button];
             if(state.elapsedFrame == 0) return;
@@ -214,30 +218,27 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
         }
     }
 
-    void SetInputState(Enums.InputJoystick joystick, bool isPressed)
+    void SetInputState(Enums.InputJoystick joystick, bool active)
     {
-        if(joystickStates.ContainsKey(joystick))
+        foreach (var state in joystickStates.Values)
+            state.isActive = false;
+
+        if (joystickStates.ContainsKey(joystick))
         {
             var state = joystickStates[joystick];
-            state.isPressed = isPressed;
+            state.isActive = active;
         }
         else
-            joystickStates[joystick] = new InputPressState(isPressed);
-
-        if (!isPressed)
-        {
-            foreach(var state in joystickStates.Values)
-                state.isPressed = false;
-        }
+            joystickStates[joystick] = new InputPressState(active);
     }
 
     public bool GetInputState(Enums.InputButton button)
     {
         if (buttonStates.ContainsKey(button))
-            return buttonStates[button].isPressed;
+            return buttonStates[button].isActive;
         else
         {
-            buttonStates[button] = new InputPressState();
+            buttonStates[button] = new InputPressState(false);
             return false;
         }
     }
@@ -245,10 +246,10 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
     public bool GetInputState(Enums.InputJoystick joystick)
     {
         if (joystickStates.ContainsKey(joystick))
-            return joystickStates[joystick].isPressed;
+            return joystickStates[joystick].isActive;
         else
         {
-            joystickStates[joystick] = new InputPressState();
+            joystickStates[joystick]= new InputPressState(false);
             return false;
         }
     }
@@ -258,7 +259,7 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
         foreach (var pair in buttonStates)
         {
             var state = pair.Value;
-            if(!state.isPressed)
+            if(!state.isActive)
             {
                 state.elapsedFrame = 0;
                 continue;
@@ -274,7 +275,7 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
             if (state.elapsedFrame > LongPress_Frame)
             {
                 SendButtonInputData(pair.Key, Enums.ButtonState.LongPress_Cancel);
-                state.isPressed = false;
+                state.isActive = false;
                 continue;
             }
         }
@@ -282,7 +283,7 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
         foreach (var pair in joystickStates)
         {
             var state = pair.Value;
-            if (!state.isPressed)
+            if (!state.isActive)
             {
                 state.elapsedFrame = 0;
                 continue;
@@ -295,7 +296,7 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
     // 将输入向量转换为角度
     Enums.InputJoystick CastVectorToDirection(Vector2 input)
     {
-        if (input.sqrMagnitude < 0.1f)
+        if (input.sqrMagnitude < joystick_DeadZone)
             return Enums.InputJoystick.Idle;
 
         // 归一化输入向量以确保方向准确

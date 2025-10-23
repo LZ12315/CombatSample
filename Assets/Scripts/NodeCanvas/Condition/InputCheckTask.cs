@@ -2,7 +2,10 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using NodeCanvas.Framework;
+using NodeCanvas.Tasks.Actions;
 using ParadoxNotion.Design;
+using UnityEngine;
+using HeaderAttribute = ParadoxNotion.Design.HeaderAttribute;
 
 namespace NodeCanvas.Tasks.Conditions {
 
@@ -26,14 +29,18 @@ namespace NodeCanvas.Tasks.Conditions {
 			checkIndex = 0;
 		}
 
-		protected override bool OnCheck() {
-            if(checkIndex == inputChecks.Count) 
-                return true;
-
-            if(inputChecks[checkIndex].CheckInputData(inputData.value))
+        protected override bool OnCheck() {
+            if (inputChecks[checkIndex].CheckInputData(inputData.value))
             {
                 waitCounter = waitFrame;
                 checkIndex++;
+            }
+            //Debug.Log(checkIndex);
+            if (checkIndex >= inputChecks.Count)
+            {
+                waitCounter = 0;
+                checkIndex = 0;
+                return true;
             }
 
             if(waitCounter > 0)
@@ -48,5 +55,11 @@ namespace NodeCanvas.Tasks.Conditions {
 
             return false;
 		}
+
+        protected override void OnDisable()
+        {
+            waitCounter = 0;
+            checkIndex = 0;
+        }
     }
 }

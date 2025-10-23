@@ -5,7 +5,6 @@ using CombatSample.Consts;
 using UnityEngine.Events;
 using System.Linq;
 using System;
-using NodeCanvas.Tasks.Conditions;
 
 public class ActorLogicInput : MonoBehaviour
 {
@@ -15,9 +14,9 @@ public class ActorLogicInput : MonoBehaviour
 
     public void InputMove(Vector2 moveInput)
     {
-        //lastMoveInput = moveInput;
-        //Vector3 moveDir = actor.cameraControl.CalculateDirection(moveInput);
-        //actor.movement.UpdateTurn(moveDir);
+        lastMoveInput = moveInput;
+        Vector3 moveDir = actor.cameraControl.CalculateDirection(moveInput);
+        actor.movement.UpdateTurn(moveDir);
     }
 
     public void GetInputData(InputData inputData)
