@@ -10,7 +10,8 @@ namespace NodeCanvas.StateMachines
     {
 
         public override string name {
-            get { return base.name.ToUpper(); }
+            //get { return base.name.ToUpper(); } 所有字符为大写的默认设置
+            get { return base.name; }
         }
 
         protected override void OnEnter() {

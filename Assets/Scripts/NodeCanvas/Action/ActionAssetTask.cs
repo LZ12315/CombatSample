@@ -18,28 +18,21 @@ namespace NodeCanvas.Tasks.Actions {
 		public BBParameter<Actor> actor;
         public BBParameter<ActionAsset> actionToPlay;
 
-		[Header(" Ù–‘")]
-		public bool isLoop = false;
-
-		protected override void OnExecute() {
-			StartCoroutine(LateRegistration());
+        protected override void OnExecute() {
 			PlayAction();
-		}
 
-		protected override void OnStop() {
-            var playableDirector = actor.value.actionPlayerDirector.director;
-            playableDirector.stopped -= ActionStopped;
-        }
+			StartCoroutine(LateRegistration());
+		}
 
 		IEnumerator LateRegistration()
 		{
 			yield return new WaitForSeconds(0.05f);
 
-            var playableDirector = actor.value.actionPlayerDirector.director;
-            playableDirector.stopped += ActionStopped;
-        }
+			var playableDirector = actor.value.actionPlayerDirector.director;
+			playableDirector.stopped += ActionStopped;
+		}
 
-		void PlayAction()
+        void PlayAction()
 		{
 			actor.value.actionPlayerDirector.PlayAction(actionToPlay.value);
 			actionToPlay.value.DataReset();
@@ -47,10 +40,9 @@ namespace NodeCanvas.Tasks.Actions {
 
 		void ActionStopped(PlayableDirector director)
 		{
-			if(isLoop)
-                PlayAction();
-			else
-				EndAction();
+            EndAction();
+            var playableDirector = actor.value.actionPlayerDirector.director;
+            playableDirector.stopped -= ActionStopped;
         }
 	}
 }

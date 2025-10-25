@@ -12,7 +12,7 @@ namespace NodeCanvas.StateMachines
     {
 
         [Tooltip("If enabled, a transition to an already running state will not happen.")]
-        public bool dontRetriggerStates = false;
+        public bool dontRetriggerRunningStates = false;
 
         public override string name { //yei for caps
             get { return "FROM ANY STATE"; }
@@ -51,15 +51,24 @@ namespace NodeCanvas.StateMachines
                     continue;
                 }
 
-                if ( dontRetriggerStates ) {
+                if ( dontRetriggerRunningStates ) {
                     if ( FSM.currentState == (FSMState)connection.targetNode && FSM.currentState.status == Status.Running ) {
                         continue;
                     }
                 }
 
                 if ( condition.Check(graphAgent, graphBlackboard) ) {
+
+                    // 新增：此节点切换到新节点时，调用所有Connection的OnDisable和OnEnable
+                    for (var j = 0; j < outConnections.Count; j++)
+                        (outConnections[j] as FSMConnection).DisableCondition();
+
                     FSM.EnterState((FSMState)connection.targetNode, connection.transitionCallMode);
                     connection.status = Status.Success; //editor vis
+
+                    for (var j = 0; j < outConnections.Count; j++)
+                        (outConnections[j] as FSMConnection).EnableCondition(graphAgent, graphBlackboard);
+
                     return;
                 }
 
@@ -73,7 +82,7 @@ namespace NodeCanvas.StateMachines
 
         protected override void OnNodeGUI() {
             base.OnNodeGUI();
-            if ( dontRetriggerStates ) {
+            if ( dontRetriggerRunningStates ) {
                 UnityEngine.GUILayout.Label("<b>[NO RETRIGGER]</b>");
             }
         }
@@ -114,7 +123,7 @@ namespace NodeCanvas.StateMachines
                 UnityEditor.EditorGUILayout.HelpBox("This is not a state and as such it never finish, thus OnFinish transitions are never called.\nPlease add a condition in all transitions of this node.", UnityEditor.MessageType.Warning);
             }
 
-            dontRetriggerStates = UnityEditor.EditorGUILayout.ToggleLeft("Don't Retrigger Running States", dontRetriggerStates);
+            dontRetriggerRunningStates = UnityEditor.EditorGUILayout.ToggleLeft("Don't Retrigger Running States", dontRetriggerRunningStates);
         }
 #endif
 
