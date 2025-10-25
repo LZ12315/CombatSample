@@ -7,23 +7,27 @@ using System;
 public class InputCheckHandler
 {
     public List<InputCheckWrapper> inputChecks;
+    public Enums.ActionPriority priority = Enums.ActionPriority.Normal;
+    public float waitTime = 0;
+    public bool useBuffer =false;
 
-    [HideInInspector] public int waitFrame = 0;
-    [HideInInspector] public int waitCounter = 0;
-    [HideInInspector] public int checkIndex = 0;
+    public float waitCounter = 0;
+    public int checkIndex = 0;
 
-    public InputCheckHandler(int waitFrame, List<InputCheckWrapper> inputChecks)
+    public InputCheckHandler(float waitTime, List<InputCheckWrapper> inputChecks, Enums.ActionPriority priority, bool useBuffer)
     {
+        this.waitTime = waitTime;
         this.inputChecks = inputChecks;
-        this.waitFrame = waitFrame;
+        this.priority = priority;
+        this.useBuffer = useBuffer;
     }
 
-    public void Update()
+    public void Update(float deltaTime)
     {
         if(waitCounter <= 0) return;
 
-        waitCounter--;
-        if(waitCounter == 0)
+        waitCounter -= deltaTime;
+        if(waitCounter <= 0)
         {
             checkIndex = 0;
             waitCounter = 0;
@@ -33,7 +37,7 @@ public class InputCheckHandler
     public void Advance()
     {
         checkIndex++;
-        waitCounter = waitFrame;
+        waitCounter = waitTime;
     }
 
     public bool Matches(InputData inputData)
@@ -45,4 +49,14 @@ public class InputCheckHandler
 
     public bool IsLast => checkIndex == inputChecks.Count - 1;
 
+}
+
+public static partial class Enums
+{
+    public enum ActionPriority
+    {
+        Normal,
+        Special,
+        Override
+    }
 }

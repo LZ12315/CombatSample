@@ -8,7 +8,7 @@ public class ActionPlayableDirector : MonoBehaviour
     public Actor actor;
     public PlayableDirector director;
    
-    private ActionAsset actionPlaying;
+    [SerializeField] private ActionAsset actionPlaying;
     public ActionAsset ActionPlaying => actionPlaying;
 
     private void Awake()

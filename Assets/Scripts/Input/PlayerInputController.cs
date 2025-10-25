@@ -66,14 +66,11 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
     {
         if (controlledActor == null) return;
 
-        // 更新Input
-        UpdateInputState();
-
         // 处理角色移动
         controlledActor.logicInput.InputMove(rawMove);
 
-        //if(buttonStates.ContainsKey(Enums.InputButton.Dodge))
-        //    Debug.Log(buttonStates[Enums.InputButton.Dodge].isPressed);
+        // 更新Input
+        UpdateInputState();
     }
 
     void SendButtonInputData(Enums.InputButton button, Enums.ButtonState state)

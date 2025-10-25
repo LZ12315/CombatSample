@@ -6,6 +6,8 @@ using UnityEngine.Events;
 using System.Linq;
 using System;
 using UnityEngine.Playables;
+using NodeCanvas.Framework;
+
 
 public class ActorLogicInput : MonoBehaviour
 {
@@ -14,23 +16,38 @@ public class ActorLogicInput : MonoBehaviour
     private Vector2 lastMoveInput = Vector2.zero;
     public Vector2 MoveInput => lastMoveInput;
 
-    private InputData lastInput;
-    public InputData LastInput => lastInput; 
+    private List<InputBuffer> inputBuffers = new ();
+    public List<InputBuffer> InputBuffers => inputBuffers;
+
+    private void Update()
+    {
+        for (int i = 0; i < inputBuffers.Count; i++)
+        {
+            if (Time.time - inputBuffers[i].time >= 0.6f)
+                inputBuffers.RemoveAt(i);
+        }
+    }
 
     public void InputMove(Vector2 moveInput)
     {
-        lastMoveInput = moveInput;
-        Vector3 moveDir = actor.cameraControl.CalculateDirection(moveInput);
-        actor.movement.UpdateTurn(moveDir);
+        //lastMoveInput = moveInput;
+        //Vector3 moveDir = actor.cameraControl.CalculateDirection(moveInput);
+        //actor.movement.UpdateTurn(moveDir);
     }
 
     public void GetInputData(InputData inputData)
     {
-        lastInput = inputData;
         RaiseInputEvent(inputData);
+        inputBuffers.Add(new InputBuffer(inputData, Time.time));
+    }
+
+    public void CleanInputBuffers()
+    {
+        inputBuffers.Clear();
     }
 
     #region InputÊÂ¼þ
+
 
     private GenericEventManager<InputData> _inputEventManager = new GenericEventManager<InputData>();
 
@@ -50,4 +67,17 @@ public class ActorLogicInput : MonoBehaviour
     }
 
     #endregion
+
+}
+
+public struct InputBuffer
+{
+    public InputData inputData;
+    public float time;
+
+    public InputBuffer(InputData data, float time)
+    {
+        inputData = data;
+        this.time = time;
+    }
 }
