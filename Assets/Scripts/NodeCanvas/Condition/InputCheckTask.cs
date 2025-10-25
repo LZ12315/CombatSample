@@ -15,7 +15,7 @@ namespace NodeCanvas.Tasks.Conditions {
 	public class InputCheckTask : ConditionTask {
 
         [Header("≈‰÷√")]
-        public BBParameter<InputData> inputData;
+        public BBParameter<Actor> actor;
 
         [Header(" Ù–‘")]
         public int waitFrame = 40;
@@ -25,25 +25,27 @@ namespace NodeCanvas.Tasks.Conditions {
         private int checkIndex = 0;
 
 		protected override void OnEnable() {
-			waitCounter = 0;
-			checkIndex = 0;
-		}
+            waitCounter = 0;
+            checkIndex = 0;
+
+            var logicInput = actor.value.logicInput;
+            logicInput.RegisterForInputEvent(this, GetInputData);
+        }
+
+        protected override void OnDisable(){
+            waitCounter = 0;
+            checkIndex = 0;
+
+            var logicInput = actor.value.logicInput;
+            logicInput.UnregisterFromInputEvent(this);
+        }
 
         protected override bool OnCheck() {
-            if (inputChecks[checkIndex].CheckInputData(inputData.value))
-            {
-                waitCounter = waitFrame;
-                checkIndex++;
-            }
-            //Debug.Log(checkIndex);
-            if (checkIndex >= inputChecks.Count)
-            {
-                waitCounter = 0;
-                checkIndex = 0;
-                return true;
-            }
 
-            if(waitCounter > 0)
+            if (checkIndex >= inputChecks.Count)
+                return true;
+
+            if (waitCounter > 0)
             {
                 waitCounter--;
                 if (waitCounter == 0)
@@ -56,10 +58,14 @@ namespace NodeCanvas.Tasks.Conditions {
             return false;
 		}
 
-        protected override void OnDisable()
+        void GetInputData(InputData inputData) 
         {
-            waitCounter = 0;
-            checkIndex = 0;
+            if (inputChecks[checkIndex].CheckInputData(inputData))
+            {
+                waitCounter = waitFrame;
+                checkIndex++;
+            }
         }
+
     }
 }
