@@ -5,12 +5,17 @@ using CombatSample.Consts;
 using UnityEngine.Events;
 using System.Linq;
 using System;
+using UnityEngine.Playables;
 
 public class ActorLogicInput : MonoBehaviour
 {
     public Actor actor;
+
     private Vector2 lastMoveInput = Vector2.zero;
     public Vector2 MoveInput => lastMoveInput;
+
+    private InputData lastInput;
+    public InputData LastInput => lastInput; 
 
     public void InputMove(Vector2 moveInput)
     {
@@ -21,7 +26,28 @@ public class ActorLogicInput : MonoBehaviour
 
     public void GetInputData(InputData inputData)
     {
-        actor.blackboard.SetVariableValue("latestInput", inputData);
+        lastInput = inputData;
+        RaiseInputEvent(inputData);
     }
 
+    #region InputÊÂ¼þ
+
+    private GenericEventManager<InputData> _inputEventManager = new GenericEventManager<InputData>();
+
+    public void RegisterForInputEvent(object registrant, Action<InputData> callback)
+    {
+        _inputEventManager.Subscribe(registrant, callback);
+    }
+
+    public void UnregisterFromInputEvent(object registrant)
+    {
+        _inputEventManager.Unsubscribe(registrant);
+    }
+
+    void RaiseInputEvent(InputData inputData)
+    {
+        _inputEventManager.Publish(inputData);
+    }
+
+    #endregion
 }

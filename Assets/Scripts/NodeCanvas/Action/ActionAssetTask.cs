@@ -1,4 +1,6 @@
+using NodeCanvas.BehaviourTrees;
 using NodeCanvas.Framework;
+using NodeCanvas.StateMachines;
 using ParadoxNotion.Design;
 using System.Collections;
 using UnityEngine;

@@ -8,7 +8,7 @@ public class ActionPlayableDirector : MonoBehaviour
     public Actor actor;
     public PlayableDirector director;
    
-    [SerializeField] private ActionAsset actionPlaying;
+    private ActionAsset actionPlaying;
     public ActionAsset ActionPlaying => actionPlaying;
 
     private void Awake()
@@ -27,14 +27,13 @@ public class ActionPlayableDirector : MonoBehaviour
         if (action == null || director == null) return;
 
         //Æô¶¯ActionTimelineÇÐ»»ÊÂ¼þ
-        RaiseTransitionEvent(director);
+        RaiseTimelineEvent(director);
 
         director.Stop();
         director.playableAsset = action.TimelineAsset;
         director.time = 0.0;
         director.Play();
 
-        actor.blackboard.SetVariableValue("currentAction", action);
         actionPlaying = action;
     }
 
@@ -67,7 +66,7 @@ public class ActionPlayableDirector : MonoBehaviour
         _timelineEventManager.Unsubscribe(registrant);
     }
 
-    void RaiseTransitionEvent(PlayableDirector playabledirector)
+    void RaiseTimelineEvent(PlayableDirector playabledirector)
     {
         _timelineEventManager.Publish(playabledirector);
     }
