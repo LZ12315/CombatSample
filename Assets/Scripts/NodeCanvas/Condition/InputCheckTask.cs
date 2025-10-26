@@ -21,57 +21,34 @@ namespace NodeCanvas.Tasks.Conditions {
         public BBParameter<Actor> actor;
 
         [Header(" Ù–‘")]
+        public float waitTime = 0.2f;
         public bool useBuffer = false;
-        public float waitTime = 0.6f;
+        public Enums.ActionPriority priority;
         public List<InputCheckWrapper> inputChecks;
 
-        private float waitCounter = 0;
-        private int checkIndex = 0;
+        private InputCheckHandler checkHandler;
+        private bool isTriggered = false;
 
         protected override void OnEnable() {
-            waitCounter = 0;
-            checkIndex = 0;
+            isTriggered = false;
 
-            var logicInput = actor.value.logicInput;
-            logicInput.RegisterForInputEvent(this, GetInputData);
+            checkHandler = new InputCheckHandler(waitTime, inputChecks, priority, useBuffer);
+            actor.value.logicInput.RegisterForInputEvent(checkHandler, GetResult);
         }
 
         protected override void OnDisable(){
-            waitCounter = 0;
-            checkIndex = 0;
-
-            var logicInput = actor.value.logicInput;
-            logicInput.UnregisterFromInputEvent(this);
+            isTriggered = false;
+            actor.value.logicInput.UnregisterFromInputEvent(checkHandler);
         }
 
         protected override bool OnCheck() {
-
-            if (checkIndex >= inputChecks.Count)
-                return true;
-
-            if (waitCounter > 0)
-            {
-                waitCounter -= Time.deltaTime;
-                if (waitCounter <= 0)
-                {
-                    checkIndex = 0;
-                    waitCounter = 0;
-                }
-            }
-
-            return false;
+            return isTriggered;
 		}
 
-        void GetInputData(InputData inputData) 
+        void GetResult(bool triggered) 
         {
-            if (checkIndex >= inputChecks.Count)
-                return;
-
-            if (inputChecks[checkIndex].CheckInputData(inputData))
-            {
-                waitCounter = waitTime;
-                checkIndex++;
-            }
+            //Debug.Log(triggered);
+            isTriggered = triggered;
         }
 
     }
