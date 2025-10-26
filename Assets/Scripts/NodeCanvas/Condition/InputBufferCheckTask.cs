@@ -12,11 +12,10 @@ namespace NodeCanvas.Tasks.Conditions {
 	public class InputBufferCheckTask : ConditionTask {
 
         [Header("≈‰÷√")]
-        public BBParameter<Actor> actor;
         public BBParameter<List<InputBuffer>> inputBuffers;
 
         [Header(" Ù–‘")]
-        public float waitTime = 0.6f;
+        public float waitTime = 0.2f;
         public List<InputCheckWrapper> inputChecks;
 
         private int checkIndex = 0;
@@ -36,9 +35,6 @@ namespace NodeCanvas.Tasks.Conditions {
                         checkIndex++;
                 }
             }
-
-            if (checkIndex >= inputBuffers.value.Count)
-                actor.value.logicInput.CleanInputBuffers();
         }
 
 		protected override void OnDisable() {
