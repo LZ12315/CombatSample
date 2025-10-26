@@ -47,7 +47,6 @@ namespace NodeCanvas.Tasks.Conditions {
 
         void GetResult(bool triggered) 
         {
-            //Debug.Log(triggered);
             isTriggered = triggered;
         }
 
