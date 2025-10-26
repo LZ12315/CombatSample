@@ -20,6 +20,8 @@ public class InputCheckHandler
         this.inputChecks = inputChecks;
         this.priority = priority;
         this.useBuffer = useBuffer;
+
+        Reset();
     }
 
     public void Update(float deltaTime)
@@ -27,17 +29,20 @@ public class InputCheckHandler
         if(waitCounter <= 0) return;
 
         waitCounter -= deltaTime;
-        if(waitCounter <= 0)
-        {
-            checkIndex = 0;
-            waitCounter = 0;
-        }
+        if (waitCounter <= 0)
+            Reset();
     }
 
     public void Advance()
     {
         checkIndex++;
         waitCounter = waitTime;
+    }
+
+    public void Reset()
+    {
+        checkIndex = 0;
+        waitCounter = 0;
     }
 
     public bool Matches(InputData inputData)

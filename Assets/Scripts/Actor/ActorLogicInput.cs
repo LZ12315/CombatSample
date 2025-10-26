@@ -14,20 +14,24 @@ public class ActorLogicInput : MonoBehaviour
     private InputData lastInput;
     public InputData LastInput => lastInput;
 
-    private List<InputBuffer> inputBuffers = new ();
+    private List<InputBuffer> inputBuffers = new();
     public List<InputBuffer> InputBuffers => inputBuffers;
+    int a = 0;
 
-
-    private void LateUpdate()
+    private void Update()
     {
+        a++;
+        List<InputCheckHandler> handlersReady = new List<InputCheckHandler>();
         handlersReady.AddRange(BufferCheck());
-        if (handlersReady.Count > 0) 
+        handlersReady.AddRange(InputCheck(lastInput));
+
+        if (handlersReady.Count > 0)
         {
             SendBackInputResult(handlersReady);
-            Clear();
+            inputBuffers.Clear();
+            lastInput = null;
+            ClearAll();
         }
-
-        UpdateInput();
     }
 
     public void InputMove(Vector2 moveInput)
@@ -39,7 +43,7 @@ public class ActorLogicInput : MonoBehaviour
 
     public void GetInputData(InputData inputData)
     {
-        InputCheck(inputData);
+        lastInput = inputData;
         UpdateBuffer(new InputBuffer(inputData, Time.time));
     }
 
@@ -47,7 +51,6 @@ public class ActorLogicInput : MonoBehaviour
 
     private List<InputCheckHandler> inputCheckHandlers = new List<InputCheckHandler>();
     private List<InputCheckHandler> bufferCheckHandlers = new List<InputCheckHandler>();
-    private List<InputCheckHandler> handlersReady = new List<InputCheckHandler>();
 
     List<InputCheckHandler> BufferCheck()
     {
@@ -55,51 +58,67 @@ public class ActorLogicInput : MonoBehaviour
         var handlersCopy = new List<InputCheckHandler>(bufferCheckHandlers);
         List<InputCheckHandler> handlersReady = new List<InputCheckHandler>();
 
-        if(handlersCopy.Count == 0 || inputBuffers.Count == 0) return handlersReady;
+        if (handlersCopy.Count == 0 || inputBuffers.Count == 0) return handlersReady;
 
         foreach (var handler in bufferCheckHandlers)
         {
             var buffersCopy = new List<InputBuffer>(InputBuffers);
-            float primaryTime = buffersCopy[0].time;
+            float primaryTime = 0;
             foreach (var buffer in buffersCopy)
             {
                 if (handler.IsLast)
                     break;
 
-                float intervalTime = buffer.time - primaryTime;
-                if (handler.Matches(buffer.inputData) && intervalTime <= handler.waitTime)
-                    handler.Advance();
-                primaryTime = buffer.time;
+                if (handler.Matches(buffer.inputData))
+                {
+                    float intervalTime = buffer.time - primaryTime;
+                    if(primaryTime == 0 || intervalTime <= handler.waitTime)
+                    {
+                        handler.Advance();
+                        primaryTime = buffer.time;
+                    }
+                }
             }
 
             if (handler.IsLast)
                 handlersReady.Add(handler);
+            else
+                handler.Reset();
         }
 
         return handlersReady;
     }
 
-    void InputCheck(InputData inputData)
+    List<InputCheckHandler> InputCheck(InputData inputData)
     {
         var handlersCopy = new List<InputCheckHandler>(inputCheckHandlers);
+        List<InputCheckHandler> handlersReady = new List<InputCheckHandler>();
 
-        if(handlersCopy.Count == 0) return;
-
+        if (handlersCopy.Count == 0 || inputData == null) return handlersReady;
+        Debug.Log(lastInput);
         foreach (var handler in handlersCopy)
         {
-            if (!handler.Matches(inputData)) continue;
-            if (handler.IsLast)
+            if (handler.Matches(inputData))
             {
-                if (!handlersReady.Contains(handler))
-                    handlersReady.Add(handler);
+                if (handler.IsLast)
+                {
+                    if (!handlersReady.Contains(handler))
+                        handlersReady.Add(handler);
+                }
+                else
+                    handler.Advance();
             }
             else
-                handler.Advance();
+                handler.Update(Time.deltaTime);
         }
+
+        return handlersReady;
     }
 
     void SendBackInputResult(List<InputCheckHandler> handlersReady)
     {
+        if (handlersReady.Count == 0) return;
+
         var handlerToUse = handlersReady.OrderByDescending(h => (int)h.priority).FirstOrDefault();
         RaiseInputEventSingle(handlerToUse, true);
 
@@ -108,30 +127,14 @@ public class ActorLogicInput : MonoBehaviour
             if (handler != handlerToUse)
                 RaiseInputEventSingle(handler, false);
         }
-
-        handlersReady.Clear();
-    }
-
-    void UpdateInput()
-    {
-        foreach (var handler in inputCheckHandlers)
-            handler.Update(Time.deltaTime);
     }
 
     void UpdateBuffer(InputBuffer buffer)
     {
-        if(inputBuffers.Count >= 6)
-        {
-            float currentTime = Time.time;
-            for (int i = 0; i < inputBuffers.Count; i++)
-            {
-                if (currentTime - inputBuffers[i].time >= 0.6f)
-                    inputBuffers.RemoveAt(i);
-            }
-        }
-        
-        if(inputBuffers.Count < 6) 
-            inputBuffers.Add(buffer);
+        if (inputBuffers.Count == 6)
+            inputBuffers.RemoveAt(0);
+
+        inputBuffers.Add(buffer);
     }
 
     void AddHandler(InputCheckHandler handler)
@@ -152,15 +155,16 @@ public class ActorLogicInput : MonoBehaviour
     {
         if (inputCheckHandlers.Contains(handler))
             inputCheckHandlers.Remove(handler);
+
         if (bufferCheckHandlers.Contains(handler))
             bufferCheckHandlers.Remove(handler);
     }
 
-    void ClearHandler()
+    void ClearAllHandler()
     {
         inputCheckHandlers.Clear();
         bufferCheckHandlers.Clear();
-    }    
+    }
 
     #endregion
 
@@ -180,10 +184,10 @@ public class ActorLogicInput : MonoBehaviour
         RemoveHandler(registrant);
     }
 
-    public void Clear()
+    void ClearAll()
     {
         _inputEventManager.ClearAllSubscriptions();
-        ClearHandler();
+        ClearAllHandler();
     }
 
     void RaiseInputEvent(bool eventData)
@@ -200,7 +204,8 @@ public class ActorLogicInput : MonoBehaviour
 
 }
 
-public struct InputBuffer
+
+public class InputBuffer
 {
     public InputData inputData;
     public float time;
