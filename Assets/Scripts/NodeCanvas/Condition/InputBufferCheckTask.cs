@@ -14,7 +14,7 @@ namespace NodeCanvas.Tasks.Conditions {
 
         [Header("≈‰÷√")]
         public BBParameter<Actor> actor;
-
+        public int value;
         [Header(" Ù–‘")]
         public float waitTime = 0.2f;
         public List<InputCheckWrapper> inputChecks;
@@ -22,21 +22,23 @@ namespace NodeCanvas.Tasks.Conditions {
         private int checkIndex = 0;
 
         protected override void OnEnable() {
-
+            checkIndex = 0;
+            BufferCheck(actor.value.logicInput.InputBuffers);
         }
 
 		protected override void OnDisable() {
             checkIndex = 0;
+            actor.value.logicInput.ClearBuffer();
 		}
 
 		protected override bool OnCheck() {
             return checkIndex >= inputChecks.Count;
         }
 
-        void GetBuffer(List<InputBuffer> inputBuffers)
+        void BufferCheck(List<InputBuffer> inputBuffers)
         {
             if (inputBuffers.Count == 0) return;
-
+            Debug.Log(value);
             float lastTime = 0;
             foreach (var buffer in inputBuffers)
             {
@@ -50,7 +52,7 @@ namespace NodeCanvas.Tasks.Conditions {
                     }
                 }
 
-                if (checkIndex >= inputBuffers.Count)
+                if (checkIndex >= inputChecks.Count)
                     break;
             }
         }

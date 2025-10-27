@@ -182,7 +182,7 @@ MonoBehaviour:
     _version: 3.33
     _category: 
     _comments: 
-    _translation: {x: -2021, y: -120}
+    _translation: {x: -1851, y: -82}
     _zoomFactor: 0.7190695
   _firstActivation: 0
   _enableAction: 0
@@ -220,6 +220,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   actor: {fileID: 154660292}
+  frameCount: 0
 --- !u!114 &154660292
 MonoBehaviour:
   m_ObjectHideFlags: 0

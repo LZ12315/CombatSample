@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -15,21 +16,21 @@ public class ActorLogicInput : MonoBehaviour
     public List<InputBuffer> InputBuffers => inputBuffers;
 
 
-    //public int frameCount = 0;
-    //private void Update()
-    //{
-    //    frameCount++;
-    //    if (inputBuffers.Count == 0)
-    //        Debug.Log(frameCount + "   " + inputBuffers.Count);
-    //    else
-    //        Debug.LogWarning(frameCount + "   " + inputBuffers.Count);
-    //}
+    public int frameCount = 0;
+    private void Update()
+    {
+        frameCount++;
+        //if (inputBuffers.Count == 0)
+        //    Debug.Log(frameCount + "   " + inputBuffers.Count);
+        //else
+        //    Debug.LogWarning(frameCount + "   " + inputBuffers.Count);
+    }
 
     public void InputMove(Vector2 moveInput)
     {
-        lastMoveInput = moveInput;
-        Vector3 moveDir = actor.cameraControl.CalculateDirection(moveInput);
-        actor.movement.UpdateTurn(moveDir);
+        //lastMoveInput = moveInput;
+        //Vector3 moveDir = actor.cameraControl.CalculateDirection(moveInput);
+        //actor.movement.UpdateTurn(moveDir);
     }
 
     public void GetInputData(InputData inputData)
@@ -37,6 +38,8 @@ public class ActorLogicInput : MonoBehaviour
         //Debug.LogWarning(frameCount + "Get Input");
         RaiseInputEvent(inputData);
         UpdateBuffer(new InputBuffer(inputData, Time.time));
+
+        StartCoroutine(AFuc());
     }
 
     #region Input»º³å
@@ -49,6 +52,56 @@ public class ActorLogicInput : MonoBehaviour
         inputBuffers.Add(buffer);
     }
 
+    public void ClearBuffer()
+    {
+        inputBuffers.Clear();
+    }
+
+    private GenericEventManager<bool> _actionEventManager = new GenericEventManager<bool>();
+    private List<object> registrants = new List<object>();
+
+    public void RegisterForActionEvent(object registrant, Action<bool> callback)
+    {
+        _actionEventManager.Subscribe(registrant, callback);
+        registrants.Add(registrant);
+    }
+
+    public void UnregisterFromActionEvent(object registrant)
+    {
+        _actionEventManager.Unsubscribe(registrant);
+        registrants.Remove(registrant);
+    }
+
+    void RaiseActionEventSingle(object registrant, bool eventData)
+    {
+        //_actionEventManager.PublishSingle(registrant, eventData);
+        for (int i = 0; i < registrants.Count; i++)
+        {
+            if(i == 0)
+                _actionEventManager.PublishSingle(registrant, true);
+            else
+                _actionEventManager.PublishSingle(registrant, false);
+        }
+    }
+
+    private IEnumerator AFuc()
+    {
+        yield return null;
+
+
+        for (int i = 0; i < registrants.Count; i++)
+        {
+            if(i == 0)
+                RaiseActionEventSingle(registrants[i], true);
+            else
+                RaiseActionEventSingle(registrants[i], false);
+        }
+    }
+
+    void ClearActionEvent()
+    {
+        _actionEventManager.ClearAllSubscriptions();
+    }
 
     #endregion
 
@@ -66,7 +119,7 @@ public class ActorLogicInput : MonoBehaviour
         _inputEventManager.Unsubscribe(registrant);
     }
 
-    void Clear()
+    void ClearInputEvent()
     {
         _inputEventManager.ClearAllSubscriptions();
     }
