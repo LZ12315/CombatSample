@@ -1,5 +1,6 @@
 using NodeCanvas.Framework;
 using ParadoxNotion.Design;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using HeaderAttribute = ParadoxNotion.Design.HeaderAttribute;
@@ -12,7 +13,7 @@ namespace NodeCanvas.Tasks.Conditions {
 	public class InputBufferCheckTask : ConditionTask {
 
         [Header("≈‰÷√")]
-        public BBParameter<List<InputBuffer>> inputBuffers;
+        public BBParameter<Actor> actor;
 
         [Header(" Ù–‘")]
         public float waitTime = 0.2f;
@@ -22,19 +23,6 @@ namespace NodeCanvas.Tasks.Conditions {
 
         protected override void OnEnable() {
 
-            if (inputBuffers.value.Count == 0) return;
-
-            var buffers = inputBuffers.value;
-            float lastTime = buffers[0].time;
-
-            foreach (var buffer in buffers)
-            {
-                if (inputChecks[checkIndex].CheckInputData(buffer.inputData))
-                {
-                    if(buffer.time - lastTime <= waitTime)
-                        checkIndex++;
-                }
-            }
         }
 
 		protected override void OnDisable() {
@@ -42,8 +30,30 @@ namespace NodeCanvas.Tasks.Conditions {
 		}
 
 		protected override bool OnCheck() {
-			return checkIndex >= inputChecks.Count;
-		}
+            return checkIndex >= inputChecks.Count;
+        }
+
+        void GetBuffer(List<InputBuffer> inputBuffers)
+        {
+            if (inputBuffers.Count == 0) return;
+
+            float lastTime = 0;
+            foreach (var buffer in inputBuffers)
+            {
+                if (inputChecks[checkIndex].CheckInputData(buffer.inputData))
+                {
+                    float intervalTime = buffer.time - lastTime;
+                    if (lastTime == 0 || intervalTime <= waitTime)
+                    {
+                        checkIndex++;
+                        lastTime = buffer.time;
+                    }
+                }
+
+                if (checkIndex >= inputBuffers.Count)
+                    break;
+            }
+        }
 
 	}
 }
