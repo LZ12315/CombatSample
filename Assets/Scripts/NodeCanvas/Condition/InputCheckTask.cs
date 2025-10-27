@@ -22,32 +22,52 @@ namespace NodeCanvas.Tasks.Conditions {
 
         [Header(" Ù–‘")]
         public float waitTime = 0.2f;
-        public bool useBuffer = false;
         public Enums.ActionPriority priority;
         public List<InputCheckWrapper> inputChecks;
 
-        private InputCheckHandler checkHandler;
-        private bool isTriggered = false;
+        private float waitCounter = 0;
+        private int checkIndex = 0;
 
         protected override void OnEnable() {
-            isTriggered = false;
+            waitCounter = 0;
+            checkIndex = 0;
 
-            checkHandler = new InputCheckHandler(waitTime, inputChecks, priority, useBuffer);
-            actor.value.logicInput.RegisterForInputEvent(checkHandler, GetResult);
+            actor.value.logicInput.RegisterForInputEvent(this, GetInput);
         }
 
         protected override void OnDisable(){
-            isTriggered = false;
-            actor.value.logicInput.UnregisterFromInputEvent(checkHandler);
+            waitCounter = 0;
+            checkIndex = 0;
+
+            actor.value.logicInput.UnregisterFromInputEvent(this);
         }
 
         protected override bool OnCheck() {
-            return isTriggered;
-		}
 
-        void GetResult(bool triggered) 
+            if (checkIndex >= inputChecks.Count) return true;
+
+            if(waitCounter > 0)
+            {
+                waitCounter -= Time.deltaTime;
+                if(waitCounter <= 0)
+                {
+                    checkIndex = 0;
+                    waitCounter = 0;
+                }
+            }
+
+            return false;
+        }
+
+        void GetInput(InputData input) 
         {
-            isTriggered = triggered;
+            if(checkIndex >= inputChecks.Count) return;
+
+            if(inputChecks[checkIndex].CheckInputData(input))
+            {
+                checkIndex++;
+                waitCounter = waitTime;
+            }
         }
 
     }

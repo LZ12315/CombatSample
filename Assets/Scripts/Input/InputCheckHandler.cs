@@ -14,12 +14,11 @@ public class InputCheckHandler
     public float waitCounter = 0;
     public int checkIndex = 0;
 
-    public InputCheckHandler(float waitTime, List<InputCheckWrapper> inputChecks, Enums.ActionPriority priority, bool useBuffer)
+    public InputCheckHandler(float waitTime, List<InputCheckWrapper> inputChecks, Enums.ActionPriority priority)
     {
         this.waitTime = waitTime;
         this.inputChecks = inputChecks;
         this.priority = priority;
-        this.useBuffer = useBuffer;
 
         Reset();
     }
