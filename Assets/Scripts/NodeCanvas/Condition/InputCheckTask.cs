@@ -46,7 +46,7 @@ namespace NodeCanvas.Tasks.Conditions {
 
             if (checkIndex >= inputChecks.Count) return true;
 
-            if(waitCounter > 0)
+            if (waitCounter > 0)
             {
                 waitCounter -= Time.deltaTime;
                 if(waitCounter <= 0)
@@ -61,13 +61,16 @@ namespace NodeCanvas.Tasks.Conditions {
 
         void GetInput(InputData input) 
         {
-            if(checkIndex >= inputChecks.Count) return;
+            if (checkIndex >= inputChecks.Count) return;
 
             if(inputChecks[checkIndex].CheckInputData(input))
             {
                 checkIndex++;
                 waitCounter = waitTime;
             }
+
+            //if (checkIndex >= inputChecks.Count)
+            //    Debug.Log(value);
         }
 
     }
