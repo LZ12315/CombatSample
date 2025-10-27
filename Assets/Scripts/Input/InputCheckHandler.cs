@@ -19,29 +19,6 @@ public class InputCheckHandler
         this.waitTime = waitTime;
         this.inputChecks = inputChecks;
         this.priority = priority;
-
-        Reset();
-    }
-
-    public void Update(float deltaTime)
-    {
-        if(waitCounter <= 0) return;
-
-        waitCounter -= deltaTime;
-        if (waitCounter <= 0)
-            Reset();
-    }
-
-    public void Advance()
-    {
-        checkIndex++;
-        waitCounter = waitTime;
-    }
-
-    public void Reset()
-    {
-        checkIndex = 0;
-        waitCounter = 0;
     }
 
     public bool Matches(InputData inputData)
