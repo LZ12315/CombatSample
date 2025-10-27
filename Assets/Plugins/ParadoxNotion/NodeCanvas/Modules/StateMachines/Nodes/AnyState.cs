@@ -42,9 +42,7 @@ namespace NodeCanvas.StateMachines
                 return;
             }
 
-            status = Status.Running;
-
-            if(lastActionState != null && lastActionState != FSM.currentState)
+            if (lastActionState != null && lastActionState != FSM.currentState)
             {
                 // 新增：此节点切换到新节点时，调用所有Connection的OnDisable和OnEnable
 
@@ -56,6 +54,8 @@ namespace NodeCanvas.StateMachines
 
                 lastActionState = FSM.currentState;
             }
+
+            status = Status.Running;
 
             for ( var i = 0; i < outConnections.Count; i++ ) {
 
@@ -74,9 +74,16 @@ namespace NodeCanvas.StateMachines
 
                 if ( condition.Check(graphAgent, graphBlackboard) ) {
 
+                    for (var j = 0; j < outConnections.Count; j++)
+                        (outConnections[j] as FSMConnection).DisableCondition();
+
                     FSM.EnterState((FSMState)connection.targetNode, connection.transitionCallMode);
                     connection.status = Status.Success; //editor vis
 
+                    for (var j = 0; j < outConnections.Count; j++)
+                        (outConnections[j] as FSMConnection).EnableCondition(graphAgent, graphBlackboard);
+
+                    lastActionState = FSM.currentState;
                     return;
                 }
 

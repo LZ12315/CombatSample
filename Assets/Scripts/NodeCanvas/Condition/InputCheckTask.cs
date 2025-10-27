@@ -19,7 +19,7 @@ namespace NodeCanvas.Tasks.Conditions {
 
         [Header("≈‰÷√")]
         public BBParameter<Actor> actor;
-
+        public int value;
         [Header(" Ù–‘")]
         public float waitTime = 0.2f;
         public Enums.ActionPriority priority;
@@ -27,7 +27,7 @@ namespace NodeCanvas.Tasks.Conditions {
 
         private float waitCounter = 0;
         private int checkIndex = 0;
-
+        //Debug.Log(actor.value.logicInput.frameCount + ": " + "No." + value + " Enable");
         protected override void OnEnable() {
             waitCounter = 0;
             checkIndex = 0;
@@ -43,7 +43,6 @@ namespace NodeCanvas.Tasks.Conditions {
         }
 
         protected override bool OnCheck() {
-
             if (checkIndex >= inputChecks.Count) return true;
 
             if (waitCounter > 0)
@@ -68,9 +67,6 @@ namespace NodeCanvas.Tasks.Conditions {
                 checkIndex++;
                 waitCounter = waitTime;
             }
-
-            //if (checkIndex >= inputChecks.Count)
-            //    Debug.Log(value);
         }
 
     }

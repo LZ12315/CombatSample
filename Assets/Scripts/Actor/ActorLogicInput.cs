@@ -20,10 +20,6 @@ public class ActorLogicInput : MonoBehaviour
     private void Update()
     {
         frameCount++;
-        //if (inputBuffers.Count == 0)
-        //    Debug.Log(frameCount + "   " + inputBuffers.Count);
-        //else
-        //    Debug.LogWarning(frameCount + "   " + inputBuffers.Count);
     }
 
     public void InputMove(Vector2 moveInput)
@@ -35,14 +31,13 @@ public class ActorLogicInput : MonoBehaviour
 
     public void GetInputData(InputData inputData)
     {
-        //Debug.LogWarning(frameCount + "Get Input");
         RaiseInputEvent(inputData);
         UpdateBuffer(new InputBuffer(inputData, Time.time));
 
         StartCoroutine(AFuc());
     }
 
-    #region Input缓冲
+    #region Buffer事件
 
     void UpdateBuffer(InputBuffer buffer)
     {
@@ -54,6 +49,7 @@ public class ActorLogicInput : MonoBehaviour
 
     public void ClearBuffer()
     {
+        Debug.Log("Clear");
         inputBuffers.Clear();
     }
 
@@ -108,6 +104,7 @@ public class ActorLogicInput : MonoBehaviour
     #region Input事件
 
     private GenericEventManager<InputData> _inputEventManager = new GenericEventManager<InputData>();
+    private List<InputCheckHandler> _inputCheckHandlers = new List<InputCheckHandler>();
 
     public void RegisterForInputEvent(object registrant, Action<InputData> callback)
     {
