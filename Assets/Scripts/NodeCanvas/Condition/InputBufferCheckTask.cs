@@ -2,6 +2,7 @@ using NodeCanvas.Framework;
 using ParadoxNotion.Design;
 using System.Collections;
 using System.Collections.Generic;
+using Unity.IO.LowLevel.Unsafe;
 using UnityEngine;
 using HeaderAttribute = ParadoxNotion.Design.HeaderAttribute;
 
@@ -9,57 +10,44 @@ namespace NodeCanvas.Tasks.Conditions {
 
     [Name("Check InputBuffer")]
 	[Category("Custom")]
-	[Description("A")]
+	[Description("Transfer to next [Action] when all the bufferChecks has been met")]
 	public class InputBufferCheckTask : ConditionTask {
 
         [Header("≈‰÷√")]
         public BBParameter<Actor> actor;
-        public int value;
+
         [Header(" Ù–‘")]
         public float waitTime = 0.2f;
+        public Enums.ActionPriority priority;
         public List<InputCheckWrapper> inputChecks;
 
-        private int checkIndex = 0;
+        private InputCheckHandler handler;
+        private bool isTriggered = false;
 
-        protected override void OnEnable() {
-            checkIndex = 0;
-        }
-
-		protected override void OnDisable() {
-            checkIndex = 0;
-		}
-
-		protected override bool OnCheck() {
-            BufferCheck(actor.value.logicInput.InputBuffers);
-
-            if (checkIndex >= inputChecks.Count)
-            {
-                actor.value.logicInput.ClearBuffer();
-                return true;
-            }
-            return false;
-        }
-
-        void BufferCheck(List<InputBuffer> inputBuffers)
+        protected override void OnEnable()
         {
-            if (inputBuffers.Count == 0) return;
+            isTriggered = false;
+            handler = new InputCheckHandler(waitTime, inputChecks, priority);
+            actor.value.logicInput.RegisterForBufferEvent(handler, GetResult);
+        }
 
-            float lastTime = 0;
-            foreach (var buffer in inputBuffers)
-            {
-                if (inputChecks[checkIndex].CheckInputData(buffer.inputData))
-                {
-                    float intervalTime = buffer.time - lastTime;
-                    if (lastTime == 0 || intervalTime <= waitTime)
-                    {
-                        checkIndex++;
-                        lastTime = buffer.time;
-                    }
-                }
+        protected override void OnDisable()
+        {
+            isTriggered = false;
+            actor.value.logicInput.UnregisterFromBufferEvent(handler);
+            handler = null;
+        }
 
-                if (checkIndex >= inputChecks.Count)
-                    break;
-            }
+        protected override bool OnCheck() {
+            return isTriggered;
+        }
+
+        void GetResult(bool triggered)
+        {
+            isTriggered = triggered;
+
+            if (!isTriggered)
+                actor.value.logicInput.UnregisterFromBufferEvent(handler);
         }
 
 	}

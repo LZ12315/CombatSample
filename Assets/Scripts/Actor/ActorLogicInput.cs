@@ -20,21 +20,20 @@ public class ActorLogicInput : MonoBehaviour
     private void Update()
     {
         frameCount++;
+        UpdateInputCheck(Time.deltaTime);
     }
 
     public void InputMove(Vector2 moveInput)
     {
-        //lastMoveInput = moveInput;
-        //Vector3 moveDir = actor.cameraControl.CalculateDirection(moveInput);
-        //actor.movement.UpdateTurn(moveDir);
+        lastMoveInput = moveInput;
+        Vector3 moveDir = actor.cameraControl.CalculateDirection(moveInput);
+        actor.movement.UpdateTurn(moveDir);
     }
 
     public void GetInputData(InputData inputData)
     {
-        RaiseInputEvent(inputData);
+        RaiseInputEvent(InputCheck(inputData));
         UpdateBuffer(new InputBuffer(inputData, Time.time));
-
-        StartCoroutine(AFuc());
     }
 
     #region Buffer事件
@@ -47,83 +46,139 @@ public class ActorLogicInput : MonoBehaviour
         inputBuffers.Add(buffer);
     }
 
-    public void ClearBuffer()
+    private GenericEventManager<bool> bufferEventManager = new GenericEventManager<bool>();
+    private List<InputCheckHandler> bufferCheckHandlers = new List<InputCheckHandler>();
+
+    public void RegisterForBufferEvent(InputCheckHandler registrant, Action<bool> callback)
     {
-        Debug.Log("Clear");
+        bufferEventManager.Subscribe(registrant, callback);
+        bufferCheckHandlers.Add(registrant);
+    }
+
+    public void UnregisterFromBufferEvent(InputCheckHandler registrant)
+    {
+        bufferEventManager.Unsubscribe(registrant);
+        bufferCheckHandlers.Remove(registrant);
+    }
+
+    List<InputCheckHandler> BufferCheck(List<InputBuffer> inputBuffers)
+    {
+        List<InputCheckHandler> handlersReady = new List<InputCheckHandler>();
+        List<InputCheckHandler> handlers = new List<InputCheckHandler>(bufferCheckHandlers);
+        if (handlers.Count == 0) return handlersReady;
+
+        for (int i = 0; i < handlers.Count; i++)
+        {
+            float lastTime = 0;
+            foreach (var buffer in inputBuffers)
+            {
+                if (handlers[i].Matches(buffer.inputData))
+                {
+                    float intervalTime = buffer.time - lastTime;
+                    if (lastTime == 0 || intervalTime <= handlers[i].waitTime)
+                    {
+                        handlers[i].checkIndex++;
+                        lastTime = buffer.time;
+                    }
+                }
+
+                if (handlers[i].IsLast)
+                {
+                    handlersReady.Add(handlers[i]);
+                    break;
+                }
+            }
+        }
+
+        return handlersReady;
+    }
+
+    void RaiseBufferEvent(List<InputCheckHandler> handlersReady)
+    {
+        if (handlersReady.Count == 0) return;
+
+        var orderedHandlers = handlersReady.OrderByDescending(h => h.priority).ToList();
+
+        for (int i = 0; i < orderedHandlers.Count; i++)
+            bufferEventManager.PublishSingle(orderedHandlers[i], i == 0);
+
         inputBuffers.Clear();
     }
 
-    private GenericEventManager<bool> _actionEventManager = new GenericEventManager<bool>();
-    private List<object> registrants = new List<object>();
-
-    public void RegisterForActionEvent(object registrant, Action<bool> callback)
+    public void BufferEventTrigger()
     {
-        _actionEventManager.Subscribe(registrant, callback);
-        registrants.Add(registrant);
-    }
-
-    public void UnregisterFromActionEvent(object registrant)
-    {
-        _actionEventManager.Unsubscribe(registrant);
-        registrants.Remove(registrant);
-    }
-
-    void RaiseActionEventSingle(object registrant, bool eventData)
-    {
-        //_actionEventManager.PublishSingle(registrant, eventData);
-        for (int i = 0; i < registrants.Count; i++)
-        {
-            if(i == 0)
-                _actionEventManager.PublishSingle(registrant, true);
-            else
-                _actionEventManager.PublishSingle(registrant, false);
-        }
-    }
-
-    private IEnumerator AFuc()
-    {
-        yield return null;
-
-
-        for (int i = 0; i < registrants.Count; i++)
-        {
-            if(i == 0)
-                RaiseActionEventSingle(registrants[i], true);
-            else
-                RaiseActionEventSingle(registrants[i], false);
-        }
-    }
-
-    void ClearActionEvent()
-    {
-        _actionEventManager.ClearAllSubscriptions();
+        RaiseBufferEvent(BufferCheck(inputBuffers));
     }
 
     #endregion
 
     #region Input事件
 
-    private GenericEventManager<InputData> _inputEventManager = new GenericEventManager<InputData>();
-    private List<InputCheckHandler> _inputCheckHandlers = new List<InputCheckHandler>();
+    private GenericEventManager<bool> inputEventManager = new GenericEventManager<bool>();
+    private List<InputCheckHandler> inputCheckHandlers = new List<InputCheckHandler>();
 
-    public void RegisterForInputEvent(object registrant, Action<InputData> callback)
+    public void RegisterForInputEvent(InputCheckHandler registrant, Action<bool> callback)
     {
-        _inputEventManager.Subscribe(registrant, callback);
+        inputEventManager.Subscribe(registrant, callback);
+        inputCheckHandlers.Add(registrant);
     }
 
-    public void UnregisterFromInputEvent(object registrant)
+    public void UnregisterFromInputEvent(InputCheckHandler registrant)
     {
-        _inputEventManager.Unsubscribe(registrant);
+        inputEventManager.Unsubscribe(registrant);
+        inputCheckHandlers.Remove(registrant);
     }
 
-    void ClearInputEvent()
+    List<InputCheckHandler> InputCheck(InputData inputData)
     {
-        _inputEventManager.ClearAllSubscriptions();
+        List<InputCheckHandler> handlersReady = new List<InputCheckHandler>();
+        if (inputCheckHandlers.Count == 0) return handlersReady;
+
+        for (int i = 0; i < inputCheckHandlers.Count; i++)
+        {
+            if (!inputCheckHandlers[i].Matches(inputData)) continue;
+
+            inputCheckHandlers[i].checkIndex++;
+            if (inputCheckHandlers[i].IsLast)
+            {
+                if (!handlersReady.Contains(inputCheckHandlers[i]))
+                    handlersReady.Add(inputCheckHandlers[i]);
+
+                continue;
+            }
+            else
+                inputCheckHandlers[i].waitCounter = inputCheckHandlers[i].waitTime;
+        }
+
+        return handlersReady;
     }
 
-    void RaiseInputEvent(InputData eventData)
+    void UpdateInputCheck(float deltaTime)
     {
-        _inputEventManager.Publish(eventData);
+        if (inputCheckHandlers.Count == 0) return;
+
+        for (int i = 0; i < inputCheckHandlers.Count; i++)
+        {
+            if (inputCheckHandlers[i].waitCounter > 0)
+            {
+                inputCheckHandlers[i].waitCounter -= deltaTime;
+                if(inputCheckHandlers[i].waitCounter <= 0)
+                {
+                    inputCheckHandlers[i].checkIndex = 0;
+                    inputCheckHandlers[i].waitCounter = 0;
+                }
+            }
+        }
+    }
+
+
+    void RaiseInputEvent(List<InputCheckHandler> handlersReady)
+    {
+        if(handlersReady.Count == 0) return;
+        var orderedHandlers = handlersReady.OrderByDescending(h => h.priority).ToList();
+
+        for (int i = 0;i < orderedHandlers.Count;i++)
+            inputEventManager.PublishSingle(orderedHandlers[i], i == 0);
     }
 
     #endregion

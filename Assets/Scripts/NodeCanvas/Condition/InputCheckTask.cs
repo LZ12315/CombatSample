@@ -19,54 +19,37 @@ namespace NodeCanvas.Tasks.Conditions {
 
         [Header("≈‰÷√")]
         public BBParameter<Actor> actor;
-        public int value;
+
         [Header(" Ù–‘")]
         public float waitTime = 0.2f;
         public Enums.ActionPriority priority;
         public List<InputCheckWrapper> inputChecks;
 
-        private float waitCounter = 0;
-        private int checkIndex = 0;
-        //Debug.Log(actor.value.logicInput.frameCount + ": " + "No." + value + " Enable");
-        protected override void OnEnable() {
-            waitCounter = 0;
-            checkIndex = 0;
+        private InputCheckHandler handler;
+        private bool isTriggered = false;   
 
-            actor.value.logicInput.RegisterForInputEvent(this, GetInput);
+        protected override void OnEnable() {
+            isTriggered = false ;
+            handler = new InputCheckHandler(waitTime, inputChecks, priority);
+            actor.value.logicInput.RegisterForInputEvent(handler, GetResult);
         }
 
         protected override void OnDisable(){
-            waitCounter = 0;
-            checkIndex = 0;
-
-            actor.value.logicInput.UnregisterFromInputEvent(this);
+            isTriggered = false;
+            actor.value.logicInput.UnregisterFromInputEvent(handler);
+            handler = null;
         }
 
         protected override bool OnCheck() {
-            if (checkIndex >= inputChecks.Count) return true;
-
-            if (waitCounter > 0)
-            {
-                waitCounter -= Time.deltaTime;
-                if(waitCounter <= 0)
-                {
-                    checkIndex = 0;
-                    waitCounter = 0;
-                }
-            }
-
-            return false;
+            return isTriggered;
         }
 
-        void GetInput(InputData input) 
+        void GetResult(bool triggered) 
         {
-            if (checkIndex >= inputChecks.Count) return;
+            isTriggered = triggered;
 
-            if(inputChecks[checkIndex].CheckInputData(input))
-            {
-                checkIndex++;
-                waitCounter = waitTime;
-            }
+            if(!isTriggered)
+                actor.value.logicInput.UnregisterFromInputEvent(handler);
         }
 
     }
