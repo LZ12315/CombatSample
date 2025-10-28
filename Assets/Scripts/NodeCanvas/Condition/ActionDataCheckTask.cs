@@ -1,6 +1,8 @@
 using NodeCanvas.Framework;
 using ParadoxNotion.Design;
 using CombatSample.Utils;
+using HeaderAttribute = ParadoxNotion.Design.HeaderAttribute;
+using UnityEngine;
 
 
 namespace NodeCanvas.Tasks.Conditions {
@@ -12,17 +14,41 @@ namespace NodeCanvas.Tasks.Conditions {
 
         [Header("≈‰÷√")]
         public BBParameter<ActionAsset> currentAction;
+        public Enums.ActionDataCheckType dataChecks;
 
         [Header(" Ù–‘")]
         public Enums.ActionPhase requiredPhase = Enums.ActionPhase.Neutral;
+        [SliderField(0, 1f)] public float requiredProgress = 0;
 
 		protected override bool OnCheck() {
 			bool isCorrect = false;
-			ActionAssetData data = currentAction.value.actionAssetData;
+            ActionAssetData actionData = currentAction.value.actionAssetData;
 
-			isCorrect = EnumUtils.ContainsAny(data.phase, requiredPhase);
-            // (data.phase == requiredPhase);
+            foreach (var check in EnumUtils.GetFlags(dataChecks))
+            {
+                switch (check)
+                {
+                    case Enums.ActionDataCheckType.Phase:
+                        isCorrect = EnumUtils.ContainsAny(actionData.phase, requiredPhase);
+                        break;
+                    case Enums.ActionDataCheckType.Progress:
+                        isCorrect = (actionData.nomalizedTime >= requiredProgress - 0.03f);
+                        break;
+                }
+            }
+
             return isCorrect;
 		}
 	}
+}
+
+public static partial class Enums
+{
+    [System.Flags]
+    public enum ActionDataCheckType
+    {
+        None,
+        Phase,
+        Progress
+    }
 }

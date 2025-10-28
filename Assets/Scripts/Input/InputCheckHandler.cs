@@ -23,12 +23,13 @@ public class InputCheckHandler
 
     public bool Matches(InputData inputData)
     {
-        bool isMatch = inputChecks[checkIndex].CheckInputData(inputData);
+        if(checkIndex >= inputChecks.Count) return true;
 
+        bool isMatch = inputChecks[checkIndex].CheckInputData(inputData);
         return isMatch;
     }
 
-    public bool IsLast => checkIndex == inputChecks.Count - 1;
+    public bool IsLast => checkIndex >= inputChecks.Count;
 
 }
 
