@@ -41,7 +41,11 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
     {
         SetControlledActor(FindFirstObjectByType<Actor>());
 
-        if(debug)
+        // 游戏开始时锁定并隐藏鼠标
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false; // 在Locked模式下此行可省略，但明确设置是好习惯 [6](@ref)
+
+        if (debug)
             Time.timeScale = timeScale;
     }
 
@@ -65,6 +69,13 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
     void Update()
     {
         if (controlledActor == null) return;
+
+        // 按ESC键解锁并显示鼠标，方便玩家操作
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+        }
 
         // 处理角色移动
         controlledActor.logicInput.InputMove(rawMove);
@@ -146,6 +157,13 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
     public void OnLightAttack(InputAction.CallbackContext context)
     {
         if (controlledActor == null) return;
+
+        // 点击鼠标左键时重新锁定并隐藏鼠标
+        if (Cursor.lockState == CursorLockMode.None)
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+        }
 
         switch (context.phase)
         {
