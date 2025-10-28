@@ -123,6 +123,10 @@ public class ActorCameraControl : MonoBehaviour
         // 更新当前状态
         currentState = newState;
 
+        var targetTrans = actor.combater.CombatTarget.transform;
+        if (currentState == Enums.PlayerCameraState.Combat && targetTrans == null)
+            currentState = Enums.PlayerCameraState.Normal;
+
         // 重置所有相机的优先级（设置为较低的基准值）
         ResetAllCameraPriorities();
 
