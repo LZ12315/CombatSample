@@ -741,21 +741,6 @@ PrefabInstance:
       propertyPath: m_LookAt
       value: 
       objectReference: {fileID: 1661022599}
-    - target: {fileID: 4449137782116182252, guid: 436aa83097d76b44ca619e009642b4be,
-        type: 3}
-      propertyPath: m_Priority
-      value: 20
-      objectReference: {fileID: 0}
-    - target: {fileID: 4449137782116182252, guid: 436aa83097d76b44ca619e009642b4be,
-        type: 3}
-      propertyPath: m_StandbyUpdate
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 4449137782116182252, guid: 436aa83097d76b44ca619e009642b4be,
-        type: 3}
-      propertyPath: m_Transitions.m_InheritPosition
-      value: 1
-      objectReference: {fileID: 0}
     - target: {fileID: 5489442725558724778, guid: 436aa83097d76b44ca619e009642b4be,
         type: 3}
       propertyPath: m_LocalPosition.x
@@ -870,16 +855,6 @@ PrefabInstance:
       propertyPath: m_Targets.Array.data[1].target
       value: 
       objectReference: {fileID: 881109577}
-    - target: {fileID: 1114539215599772509, guid: e3597120b4a22ed44bd09d48a18f72ba,
-        type: 3}
-      propertyPath: m_Priority
-      value: 10
-      objectReference: {fileID: 0}
-    - target: {fileID: 1114539215599772509, guid: e3597120b4a22ed44bd09d48a18f72ba,
-        type: 3}
-      propertyPath: m_StandbyUpdate
-      value: 1
-      objectReference: {fileID: 0}
     - target: {fileID: 2992329761819831329, guid: e3597120b4a22ed44bd09d48a18f72ba,
         type: 3}
       propertyPath: m_LocalPosition.x
@@ -3370,7 +3345,7 @@ PrefabInstance:
         type: 3}
       propertyPath: combater
       value: 
-      objectReference: {fileID: 1661022594}
+      objectReference: {fileID: 0}
     - target: {fileID: 9113936135464953444, guid: a4a20f7de8c53684f97be75dd7045953,
         type: 3}
       propertyPath: actorMovement
@@ -3403,18 +3378,6 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 97740e3c55b7f354286e934df5286f43, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
---- !u!114 &1661022594 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 2208766612003458552, guid: a4a20f7de8c53684f97be75dd7045953,
-    type: 3}
-  m_PrefabInstance: {fileID: 1661022592}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 046b88d50aabbe0409499479e7c2b09b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
 --- !u!4 &1661022595 stripped
@@ -3808,36 +3771,6 @@ PrefabInstance:
       propertyPath: m_LookAt
       value: 
       objectReference: {fileID: 1661022599}
-    - target: {fileID: 7728809334084251445, guid: c0707a8c6ed296841b5bfd2bddd936b1,
-        type: 3}
-      propertyPath: m_YAxis.Value
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 7728809334084251445, guid: c0707a8c6ed296841b5bfd2bddd936b1,
-        type: 3}
-      propertyPath: m_StandbyUpdate
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 7728809334084251445, guid: c0707a8c6ed296841b5bfd2bddd936b1,
-        type: 3}
-      propertyPath: m_Rigs.Array.data[0]
-      value: 
-      objectReference: {fileID: 2018377246}
-    - target: {fileID: 7728809334084251445, guid: c0707a8c6ed296841b5bfd2bddd936b1,
-        type: 3}
-      propertyPath: m_Rigs.Array.data[1]
-      value: 
-      objectReference: {fileID: 2018377243}
-    - target: {fileID: 7728809334084251445, guid: c0707a8c6ed296841b5bfd2bddd936b1,
-        type: 3}
-      propertyPath: m_Rigs.Array.data[2]
-      value: 
-      objectReference: {fileID: 1401416843}
-    - target: {fileID: 7728809334084251445, guid: c0707a8c6ed296841b5bfd2bddd936b1,
-        type: 3}
-      propertyPath: m_Transitions.m_InheritPosition
-      value: 1
-      objectReference: {fileID: 0}
     - target: {fileID: 8174704678402518606, guid: c0707a8c6ed296841b5bfd2bddd936b1,
         type: 3}
       propertyPath: m_LocalPosition.x

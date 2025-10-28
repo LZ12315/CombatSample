@@ -15,11 +15,8 @@ public class ActorLogicInput : MonoBehaviour
     private List<InputBuffer> inputBuffers = new();
     public List<InputBuffer> InputBuffers => inputBuffers;
 
-
-    public int frameCount = 0;
     private void Update()
     {
-        frameCount++;
         UpdateInputCheck(Time.deltaTime);
     }
 
