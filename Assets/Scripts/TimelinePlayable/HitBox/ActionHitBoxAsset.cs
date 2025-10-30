@@ -48,7 +48,7 @@ public class ActionHitBoxAsset : PlayableAsset, ITimelineClipAsset
     }
 }
 
-public class ActionHitBoxClip : ActionClipBase
+public class ActionHitBoxClip : ActionBehaviourBase
 {
     public Transform boneTransform;
     public ActionHitBoxConfig hitboxConfig;

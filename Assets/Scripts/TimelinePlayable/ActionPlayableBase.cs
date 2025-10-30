@@ -8,7 +8,7 @@ using CombatSample.Consts;
 
 public abstract class ActionTrackBase : TrackAsset{ }
 
-public abstract class ActionClipBase : PlayableBehaviour
+public abstract class ActionBehaviourBase : PlayableBehaviour
 {
     protected Actor actor = null;
     protected ActionAsset actionAsset;
