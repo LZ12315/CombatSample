@@ -6,7 +6,7 @@ using UnityEngine.Timeline;
 using Animancer;
 
 [CustomTimelineEditor(typeof(AnimancerTrack))]
-public class AnimancerTrackEditor : ActionTrackEditorBase
+public class AnimancerTrackEditor : TrackEditor
 {
     public override TrackDrawOptions GetTrackOptions(TrackAsset track, Object binding)
     {
@@ -32,18 +32,7 @@ class AnimancerClipEditor : ActionClipEditorBase
 {
     public override void OnCreate(TimelineClip clip, TrackAsset track, TimelineClip clonedFrom)
     {
-        UpdateAnimancerInfo(clip);
-    }
-
-    public override void OnClipChanged(TimelineClip clip)
-    {
-        AdjustClipStartTime(clip);
-        TimelineEditor.Refresh(RefreshReason.ContentsModified);
-    }
-
-    //自动更新Clip时长和名称
-    void UpdateAnimancerInfo(TimelineClip clip)
-    {
+        //创建时设置Clip时长为动画时长
         var asset = clip.asset as AnimancerClip;
         if (asset == null || asset.transitionAsset == null) return;
 
@@ -53,6 +42,17 @@ class AnimancerClipEditor : ActionClipEditorBase
             clip.displayName = clipTransition.Clip.name;
             clip.duration = clipTransition.Clip.length;
         }
+    }
+
+    protected override void OnClipChange(TimelineClip clip)
+    {
+        //更新Clip名称为动画名称
+        var asset = clip.asset as AnimancerClip;
+        if (asset == null || asset.transitionAsset == null) return;
+
+        ClipTransition clipTransition = asset.transitionAsset.Transition as ClipTransition;
+        if (clipTransition.Clip != null)
+            clip.displayName = clipTransition.Clip.name;
     }
 
 }
