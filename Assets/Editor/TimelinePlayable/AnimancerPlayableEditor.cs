@@ -30,19 +30,6 @@ public class AnimancerTrackEditor : TrackEditor
 [CustomTimelineEditor(typeof(AnimancerClip))]
 class AnimancerClipEditor : ActionClipEditorBase
 {
-    public override void OnCreate(TimelineClip clip, TrackAsset track, TimelineClip clonedFrom)
-    {
-        //创建时设置Clip时长为动画时长
-        var asset = clip.asset as AnimancerClip;
-        if (asset == null || asset.transitionAsset == null) return;
-
-        ClipTransition clipTransition = asset.transitionAsset.Transition as ClipTransition;
-        if (clipTransition.Clip != null)
-        {
-            clip.displayName = clipTransition.Clip.name;
-            clip.duration = clipTransition.Clip.length;
-        }
-    }
 
     protected override void OnClipChange(TimelineClip clip)
     {
