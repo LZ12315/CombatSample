@@ -41,7 +41,7 @@ public class EffectAsset : PlayableAsset
     }
 }
 
-public class EffectClip : ActionClipBase
+public class EffectClip : ActionBehaviourBase
 {
     public Transform parentTransform;
     public List<GameObject> effectPrefabs;
@@ -83,7 +83,7 @@ public class EffectClip : ActionClipBase
         if(effectObject != null || parentTransform == null) return;
 
         effectObject = new GameObject("Effects");
-        effectObject.hideFlags = HideFlags.HideInHierarchy;
+        //effectObject.hideFlags = HideFlags.HideInHierarchy;
 
         effectObject.transform.position = parentTransform.TransformPoint(effectConfig.position);
         effectObject.transform.rotation = parentTransform.rotation * effectConfig.rotation;
@@ -133,6 +133,7 @@ public class EffectClip : ActionClipBase
                 newEffect.transform.SetParent(effectObject.transform, false);
 
                 var particleSystem = newEffect.GetComponent<ParticleSystem>();
+                particleSystem.Play();
                 yield return new WaitForSeconds(particleSystem.main.duration);
             }
 

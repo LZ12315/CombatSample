@@ -38,11 +38,11 @@ public class ActionTrackEditorBase : TrackEditor
 }
 
 
-[CustomTimelineEditor(typeof(ActionClipBase))]
+[CustomTimelineEditor(typeof(ActionBehaviourBase))]
 public class ActionClipEditorBase : ClipEditor
 {
     //防止Clip起始时间过于靠近0
-    //否则会导致逻辑错误: OnBehavior等方法被错误触发
+    //否则会导致逻辑错误: OnBehavior的方法被错误触发
     protected void AdjustClipStartTime(TimelineClip clip)
     {
         if (clip.start < 0.0001f)

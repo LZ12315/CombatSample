@@ -20,7 +20,7 @@ public class ActionPhaseAsset : PlayableAsset
 
 }
 
-public class ActionPhaseClip : ActionClipBase
+public class ActionPhaseClip : ActionBehaviourBase
 {
     public Enums.ActionPhase actionPhase_Start = Enums.ActionPhase.Neutral;
     public Enums.ActionPhase actionPhase_End = Enums.ActionPhase.Neutral;

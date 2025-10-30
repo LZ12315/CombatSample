@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Playables;
 
-public class AnimancerAsset : PlayableAsset
+public class AnimancerClip : PlayableAsset
 {
     public TransitionAsset transitionAsset = null;
 
@@ -36,8 +36,8 @@ public class AnimancerAsset : PlayableAsset
 
     public override Playable CreatePlayable(PlayableGraph graph, GameObject owner)
     {
-        var playable = ScriptPlayable<AnimancerClip>.Create(graph);
-        AnimancerClip clip = playable.GetBehaviour();
+        var playable = ScriptPlayable<AnimancerBehaviour>.Create(graph);
+        AnimancerBehaviour clip = playable.GetBehaviour();
 
         clip.transitionAsset = transitionAsset;
 
@@ -45,7 +45,7 @@ public class AnimancerAsset : PlayableAsset
     }
 }
 
-public class AnimancerClip : ActionClipBase
+public class AnimancerBehaviour : ActionBehaviourBase
 {
     public TransitionAsset transitionAsset = null;
     private AnimancerState animateState;
