@@ -42,4 +42,9 @@ class AnimancerClipEditor : ActionClipEditorBase
             clip.displayName = clipTransition.Clip.name;
     }
 
+    protected override void SetClipDurationOnStart(TimelineClip clip, TrackAsset track)
+    {
+        // 不进行设置 Animancer会自动匹配动画时长
+    }
+
 }

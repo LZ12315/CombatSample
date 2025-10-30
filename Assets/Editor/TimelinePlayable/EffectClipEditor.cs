@@ -5,15 +5,12 @@ using UnityEngine.Timeline;
 [CustomTimelineEditor(typeof(ParticleControlClip))]
 public class EffectClipEditor : ActionClipEditorBase
 {
-    // Start is called before the first frame update
-    void Start()
+    protected override void OnClipChange(TimelineClip clip)
     {
-        
+        var asset = clip.asset as ParticleControlClip;
+        if (asset == null || asset.particlePrefab == null) return;
+
+        var particlePrefab = asset.particlePrefab;
     }
 
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
 }

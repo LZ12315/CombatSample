@@ -9,6 +9,41 @@ using UnityEngine.Timeline;
 [CustomTimelineEditor(typeof(ActionBehaviourBase))]
 public class ActionClipEditorBase : ClipEditor
 {
+
+    protected virtual void OnClipCreate(TimelineClip clip, TrackAsset track) { }
+
+    protected virtual void OnClipChange(TimelineClip clip){ }
+
+    protected virtual void AdjustClipStartTime(TimelineClip clip)
+    {
+        //防止Clip起始时间过于靠近0
+        //否则会导致逻辑错误: OnBehavior的方法被错误触发
+        if (clip.start < 0.0001f)
+            clip.start = 0.0001f;
+    }
+
+    protected virtual void SetClipDurationOnStart(TimelineClip clip, TrackAsset track)
+    {
+        // 获取Timeline资源
+        var timelineAsset = track.timelineAsset;
+        if (timelineAsset == null) return;
+
+        // 获取Timeline总时长
+        double timelineDuration = timelineAsset.duration;
+
+        // 设置Clip时长为Timeline总时长
+        clip.duration = timelineDuration;
+        clip.start = 0.0001f;
+    }
+
+    #region 方法继承
+
+    public override void OnCreate(TimelineClip clip, TrackAsset track, TimelineClip clonedFrom)
+    {
+        OnClipCreate(clip, track);
+        SetClipDurationOnStart(clip, track);
+    }
+
     public override void OnClipChanged(TimelineClip clip)
     {
         if (clip.asset == null) return;
@@ -18,14 +53,6 @@ public class ActionClipEditorBase : ClipEditor
         TimelineEditor.Refresh(RefreshReason.ContentsModified);
     }
 
-    protected virtual void OnClipChange(TimelineClip clip){ }
-
-    //防止Clip起始时间过于靠近0
-    //否则会导致逻辑错误: OnBehavior的方法被错误触发
-    protected virtual void AdjustClipStartTime(TimelineClip clip)
-    {
-        if (clip.start < 0.0001f)
-            clip.start = 0.0001f;
-    }
+    #endregion
 
 }
