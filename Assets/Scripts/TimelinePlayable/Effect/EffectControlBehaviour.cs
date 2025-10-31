@@ -7,6 +7,7 @@ public class EffectControlBehaviour : PlayableBehaviour
 {
     // 配置数据
     public GameObject particlePrefab;
+    public Transform parentTransform;
     public Vector3 localPosition;
     public Vector3 localRotation;
     public Vector3 localScale;
@@ -19,7 +20,6 @@ public class EffectControlBehaviour : PlayableBehaviour
     private GameObject particleInstance;
     private List<ParticleSystem> particleSystems;
     private bool isPlaying;
-    private Transform trackBinding;
 
     // 时间跟踪（仿照官方代码）
     private const float kUnsetTime = float.MaxValue;
@@ -81,9 +81,8 @@ public class EffectControlBehaviour : PlayableBehaviour
         }
     }
 
-    public override void PrepareFrame(Playable playable, FrameData info)
+    public override void ProcessFrame(Playable playable, FrameData info, object playerData)
     {
-
         UpdateParticleTransform();
         UpdateParticlePlayback(playable);
     }
@@ -185,9 +184,9 @@ public class EffectControlBehaviour : PlayableBehaviour
 
     private void UpdateParticleTransform()
     {
-        if (particleInstance == null || trackBinding == null) return;
+        if (particleInstance == null || parentTransform == null) return;
 
-        particleInstance.transform.SetParent(trackBinding, false);
+        particleInstance.transform.SetParent(parentTransform, false);
         particleInstance.transform.localPosition = localPosition;
         particleInstance.transform.localEulerAngles = localRotation;
         particleInstance.transform.localScale = localScale;
@@ -305,7 +304,6 @@ public class EffectControlBehaviour : PlayableBehaviour
         }
 
         isPlaying = false;
-        trackBinding = null;
         m_LastPlayableTime = kUnsetTime;
         m_LastParticleTime = kUnsetTime;
         m_ClipStartTime = kUnsetTime;

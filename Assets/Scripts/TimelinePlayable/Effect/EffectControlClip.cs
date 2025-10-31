@@ -10,6 +10,7 @@ public class EffectControlClip : PlayableAsset, ITimelineClipAsset
     public GameObject particlePrefab;
 
     [Header("Î»ÖÃÆ«ÒÆ")]
+    public ExposedReference<Transform> parentTransform;
     public Vector3 localPosition = Vector3.zero;
     public Vector3 localRotation = Vector3.zero;
     public Vector3 localScale = Vector3.one;
@@ -33,6 +34,7 @@ public class EffectControlClip : PlayableAsset, ITimelineClipAsset
         var behaviour = playable.GetBehaviour();
 
         behaviour.particlePrefab = particlePrefab;
+        behaviour.parentTransform = parentTransform.Resolve(graph.GetResolver());
         behaviour.localPosition = localPosition;
         behaviour.localRotation = localRotation;
         behaviour.localScale = localScale;
