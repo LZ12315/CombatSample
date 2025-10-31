@@ -61,10 +61,7 @@ public class ActionHitBoxClip : ActionBehaviourBase
     {
         base.OnClipPlay(playable);
 
-        if(Application.isPlaying)
-            CreateHitbox();
-        else
-            CreateHitBoxInEditor();
+        CreateHitbox();
     }
 
     protected override void OnClipPause()
@@ -86,14 +83,6 @@ public class ActionHitBoxClip : ActionBehaviourBase
         base.OnClipFinish(isNormal);
     }
 
-    protected override void OnClipUpdate(Playable playable)
-    {
-        base.OnClipUpdate(playable);
-
-        if (Application.isPlaying)
-            UpdateHitbox();
-    }
-
     private void CreateHitbox()
     {
         if (_hitboxObject != null || boneTransform == null) return;
@@ -108,6 +97,10 @@ public class ActionHitBoxClip : ActionBehaviourBase
         // 添加AttackHandler
         var hitbox = _collider.gameObject.AddComponent<AttackHandler>();
         hitbox.Init(actor.combater, attackConfig);
+
+        //添加辅助组件Updater
+        var updater = _hitboxObject.AddComponent<HitBoxUpdater>();
+        updater.Init(this);
     }
 
     public void UpdateHitbox()
@@ -140,16 +133,6 @@ public class ActionHitBoxClip : ActionBehaviourBase
     }
 
     #region Editor预览
-
-    void CreateHitBoxInEditor()
-    {
-        if (_hitboxObject != null || boneTransform == null) return;
-        CreateHitbox();
-
-        //添加辅助组件Updater
-        var updater = _hitboxObject.AddComponent<HitBoxUpdater>();
-        updater.Init(this);
-    }
 
     void DestroyHiyBoxInEditor()
     {
