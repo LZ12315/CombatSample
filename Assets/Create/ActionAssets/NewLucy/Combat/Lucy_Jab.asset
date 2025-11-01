@@ -114,7 +114,8 @@ MonoBehaviour:
     radius: 0.1
   impactConfig:
     impactType: 1
-    impactTime: 0
+    stopTime: 1
+    stickTime: 0
     stickStrength: 0
     hitPrefab: {fileID: 0}
     hitRotate: 0

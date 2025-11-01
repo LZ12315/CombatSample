@@ -9,7 +9,8 @@ public class AttackHandler : MonoBehaviour
 {
     public ActorCombater combater;
     public AttackDataConfig config;
-    private GenericEventManager<AttackHitData> hitEventManager = new GenericEventManager<AttackHitData>();
+
+    private List<Collider> attackedObjects = new List<Collider>();
 
     public void Init(ActorCombater combater, AttackDataConfig config)
     {
@@ -24,9 +25,10 @@ public class AttackHandler : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        // 检查是否在敌人层
+        // 检查是否在目标层
         if (((1 << other.gameObject.layer) & config.targetLayers) != 0)
         {
+            if(attackedObjects.Contains(other)) return;
             if (other.TryGetComponent<IDamageable>(out var damageable))
             {
                 // 创建攻击数据
@@ -42,9 +44,15 @@ public class AttackHandler : MonoBehaviour
 
                 // 广播攻击事件
                 InvokeHitEvent(hitData);
+
+                attackedObjects.Add(other);
             }
         }
     }
+
+    #region 攻击接触事件
+
+    private GenericEventManager<AttackHitData> hitEventManager = new GenericEventManager<AttackHitData>();
 
     public void RegisterForHitEvent(object registrant, Action<AttackHitData> callback)
     {
@@ -65,5 +73,7 @@ public class AttackHandler : MonoBehaviour
     {
         hitEventManager.ClearAllSubscriptions();
     }
+
+    #endregion 攻击脱离事件
 
 }
