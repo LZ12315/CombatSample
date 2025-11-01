@@ -115,13 +115,13 @@ namespace HitBoxEditorNamespace
         {
             foreach (var clip in hitboxTrack.GetClips())
             {
-                if (!(clip.asset is ActionHitBoxAsset hitboxAsset)) continue;
+                if (!(clip.asset is ActionHitBoxClip hitboxAsset)) continue;
 
                 double currentTime = director.time;
                 bool isClipActive = currentTime >= clip.start && currentTime <= clip.end;
                 DebugLog($"Clip: {clip.displayName}, Active: {isClipActive}, Time: {currentTime:F3}");
 
-                if (isClipActive && hitboxAsset.behavior._collider != null)
+                if (isClipActive && hitboxAsset.behavior.collider != null)
                 {
                     // 总是绘制胶囊体线框
                     DrawCapsuleWireframeForClip(hitboxAsset.behavior, clip);
@@ -129,28 +129,28 @@ namespace HitBoxEditorNamespace
                     // 只绘制选中Clip的Handle
                     if (_showHandles && selectedClips.Contains(clip))
                     {
-                        DrawHitBoxHandles(hitboxAsset.behavior._collider, hitboxAsset.behavior, clip);
+                        DrawHitBoxHandles(hitboxAsset.behavior.collider, hitboxAsset.behavior, clip);
                     }
                 }
             }
         }
 
-        private static void DrawCapsuleWireframeForClip(ActionHitBoxClip clip, TimelineClip timelineClip)
+        private static void DrawCapsuleWireframeForClip(ActionHitBoxBehavior clip, TimelineClip timelineClip)
         {
             if (clip == null || clip.hitboxConfig == null || timelineClip == null) return;
-            if (clip._collider == null) return;
+            if (clip.collider == null) return;
 
-            var transform = clip._collider.transform;
+            var transform = clip.collider.transform;
             Vector3 center = transform.TransformPoint(clip.hitboxConfig.center);
             Quaternion rotation = transform.rotation * clip.hitboxConfig.rotation;
             rotation = NormalizeQuaternion(rotation);
 
             // 绘制胶囊体线框
-            DrawCapsuleWireframe(center, rotation, clip.hitboxConfig.radius, clip.hitboxConfig.height, clip._collider.direction);
+            DrawCapsuleWireframe(center, rotation, clip.hitboxConfig.radius, clip.hitboxConfig.height, clip.collider.direction);
         }
 
         #region Handle绘制
-        private static void DrawHitBoxHandles(CapsuleCollider collider, ActionHitBoxClip clip, TimelineClip timelineClip)
+        private static void DrawHitBoxHandles(CapsuleCollider collider, ActionHitBoxBehavior clip, TimelineClip timelineClip)
         {
             if (collider == null || clip == null || clip.hitboxConfig == null || timelineClip == null) return;
 
@@ -160,7 +160,7 @@ namespace HitBoxEditorNamespace
             rotation = NormalizeQuaternion(rotation);
 
             // 获取关联的ActionHitBoxAsset
-            var hitboxAsset = timelineClip.asset as ActionHitBoxAsset;
+            var hitboxAsset = timelineClip.asset as ActionHitBoxClip;
             if (hitboxAsset == null) return;
 
             // 获取当前选中的工具
