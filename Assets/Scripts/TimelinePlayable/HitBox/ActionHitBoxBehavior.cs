@@ -100,7 +100,7 @@ public class ActionHitBoxBehavior : ActionBehaviourBase
 
     void OnAttackHit(AttackHitData data)
     {
-
+        OnHitImpact(impactConfig.impactType);
     }
 
     void CreateDamageEffect()
@@ -110,7 +110,33 @@ public class ActionHitBoxBehavior : ActionBehaviourBase
 
     void OnHitImpact(Enums.HitImpactType impactType)
     {
+        switch (impactType)
+        {
+            case Enums.HitImpactType.HitStop:
+                actor.StartCoroutine(HitStop(impactConfig.stopTime));
+                break;
+            case Enums.HitImpactType.HitStick:
+                actor.StartCoroutine(HitStick(impactConfig.stickStrength, impactConfig.stickTime));
+                break;
+        }
+    }
 
+    IEnumerator HitStop(float stopTime)
+    {
+        actor.actionPlayerDirector.PauseTimeline();
+
+        yield return new WaitForSeconds(stopTime);
+
+        actor.actionPlayerDirector.ResumeTimeline();
+    }
+
+    IEnumerator HitStick(float stickStrength, float stickTime)
+    {
+        actor.actionPlayerDirector.SetTimelineSpeed(stickStrength);
+
+        yield return new WaitForSeconds(stickTime);
+
+        actor.actionPlayerDirector.RestoreTimelineSpeed();
     }
 
     void OnOtherImapact()

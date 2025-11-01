@@ -30,7 +30,8 @@ public class AttackImpactConfig
 {
     [Header("¹¥»÷·´À¡")]
     public Enums.HitImpactType impactType;
-    public float impactTime;
+    public float stopTime;
+    public float stickTime;
     public float stickStrength;
 
     [Header("ÊÜ»÷·´À¡")]
