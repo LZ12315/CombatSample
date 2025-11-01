@@ -5,7 +5,7 @@ using UnityEditor.Timeline;
 using UnityEngine.Timeline;
 
 
-[CustomTimelineEditor(typeof(ActionHitBoxAsset))]
+[CustomTimelineEditor(typeof(ActionHitBoxClip))]
 public class HitBoxClipEditor : ActionClipEditorBase
 {
 
