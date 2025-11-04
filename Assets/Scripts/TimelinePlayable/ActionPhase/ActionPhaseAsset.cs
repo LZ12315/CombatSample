@@ -4,7 +4,7 @@ using UnityEngine.Playables;
 public class ActionPhaseAsset : PlayableAsset
 {
     [Header("Phase…Ë÷√")]
-    public Enums.ActionPhase actionPhase_Start = Enums.ActionPhase.Neutral;
+    public Enums.ActionPhase actionPhase_Start = Enums.ActionPhase.None;
     public Enums.ActionPhase actionPhase_End = Enums.ActionPhase.Neutral;
 
     public override Playable CreatePlayable(PlayableGraph graph, GameObject owner)
@@ -22,7 +22,7 @@ public class ActionPhaseAsset : PlayableAsset
 
 public class ActionPhaseClip : ActionBehaviourBase
 {
-    public Enums.ActionPhase actionPhase_Start = Enums.ActionPhase.Neutral;
+    public Enums.ActionPhase actionPhase_Start = Enums.ActionPhase.None;
     public Enums.ActionPhase actionPhase_End = Enums.ActionPhase.Neutral;
 
     protected override void OnClipPlay(Playable playable)
@@ -39,5 +39,23 @@ public class ActionPhaseClip : ActionBehaviourBase
 
         if (actionAsset != null)
             actionAsset.actionAssetData.phase = Enums.ActionPhase.Neutral;
+    }
+
+    public override void OnGraphStop(Playable playable)
+    {
+        Debug.Log("Graph Stop");
+        base.OnGraphStop(playable);
+    }
+
+    public override void OnPlayableCreate(Playable playable)
+    {
+        Debug.Log("Playable Create");
+        base.OnPlayableCreate(playable);
+    }
+
+    public override void OnPlayableDestroy(Playable playable)
+    {
+        Debug.Log("Playable Destroy");
+        base.OnPlayableDestroy(playable);
     }
 }

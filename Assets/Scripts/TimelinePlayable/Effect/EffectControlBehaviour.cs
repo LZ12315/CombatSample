@@ -68,11 +68,7 @@ public class EffectControlBehaviour : PlayableBehaviour
     /// </summary>
     public override void OnBehaviourPlay(Playable playable, FrameData info)
     {
-        if (particlePrefab == null)
-        {
-            //Debug.LogWarning("EffectControlBehaviour: particlePrefab is null");
-            return;
-        }
+        if (particlePrefab == null) return;
 
         // 确保粒子实例存在
         if (particleInstance == null)
@@ -87,8 +83,6 @@ public class EffectControlBehaviour : PlayableBehaviour
 
             // 激活并开始播放
             ActivateAndPlayParticleSystem();
-
-            //Debug.Log($"开始播放粒子系统: {particleInstance.name}");
         }
     }
 
@@ -102,7 +96,6 @@ public class EffectControlBehaviour : PlayableBehaviour
             if (particleInstance != null)
             {
                 DeactivateParticleSystem();
-                //Debug.Log("暂停粒子系统");
             }
         }
     }
@@ -151,8 +144,6 @@ public class EffectControlBehaviour : PlayableBehaviour
 
             // 初始状态为不激活
             particleInstance.SetActive(false);
-
-            //Debug.Log($"创建粒子实例: {particleInstance.name}, 找到 {particleSystems.Count} 个粒子系统");
         }
         catch (System.Exception e)
         {
@@ -236,6 +227,7 @@ public class EffectControlBehaviour : PlayableBehaviour
         {
             if (destroyOnFinish)
             {
+                // 销毁粒子实例
                 if (Application.isPlaying)
                 {
                     UnityEngine.Object.Destroy(particleInstance);
@@ -244,17 +236,17 @@ public class EffectControlBehaviour : PlayableBehaviour
                 {
                     UnityEngine.Object.DestroyImmediate(particleInstance);
                 }
-                //Debug.Log("销毁粒子实例");
             }
             else
             {
+                // 停止粒子但不销毁实例
                 StopParticleSystems();
                 particleInstance.SetActive(false);
-                //Debug.Log("停止粒子但不销毁实例");
             }
             particleInstance = null;
         }
 
+        // 清理粒子系统引用
         if (particleSystems != null)
         {
             particleSystems.Clear();
@@ -275,13 +267,13 @@ public class EffectControlBehaviour : PlayableBehaviour
     {
         if (particleInstance == null)
         {
-            //Debug.LogWarning("粒子实例为空，无法更新变换");
+            Debug.LogWarning("粒子实例为空，无法更新变换");
             return;
         }
 
         if (parentTransform == null)
         {
-            //Debug.LogWarning("父级变换为空，使用世界坐标");
+            Debug.LogWarning("父级变换为空，使用世界坐标");
             // 如果没有父级，使用世界坐标
             particleInstance.transform.position = localPosition;
             particleInstance.transform.eulerAngles = localRotation;
@@ -294,14 +286,6 @@ public class EffectControlBehaviour : PlayableBehaviour
         particleInstance.transform.localPosition = localPosition;
         particleInstance.transform.localEulerAngles = localRotation;
         particleInstance.transform.localScale = localScale;
-
-        // 调试信息（减少日志频率）
-#if UNITY_EDITOR
-        if (Time.frameCount % 30 == 0)
-        {
-            //Debug.Log($"更新粒子变换 - 父级: {parentTransform.name}, 位置: {localPosition}");
-        }
-#endif
     }
 
     /// <summary>
@@ -322,25 +306,16 @@ public class EffectControlBehaviour : PlayableBehaviour
         double currentTime = playable.GetTime();
         float particleTime = particleSystems[0] != null ? particleSystems[0].time : 0f;
 
-        // 简化：不使用速度倍率，直接使用当前时间
         if (m_LastPlayableTime > currentTime || !Mathf.Approximately(particleTime, (float)m_LastParticleTime))
         {
             // 情况1：时间倒流或外部修改，需要重新模拟
             SimulateAllParticles((float)currentTime, true);
-            //Debug.Log($"重新模拟 - 时间: {currentTime:F2}s");
         }
         else if (m_LastPlayableTime < currentTime)
         {
             // 情况2：时间正常前进，使用增量模拟
             float deltaTime = (float)(currentTime - m_LastPlayableTime);
             SimulateAllParticles(deltaTime, false);
-
-#if UNITY_EDITOR
-            if (Time.frameCount % 30 == 0) // 减少日志频率
-            {
-                //Debug.Log($"增量模拟 - Delta: {deltaTime:F4}s");
-            }
-#endif
         }
 
         // 更新跟踪变量
@@ -430,8 +405,7 @@ public class EffectControlBehaviour : PlayableBehaviour
     private void ResetAllStates()
     {
         isPlaying = false;
-        m_LastPlayableTime = kUnsetTime;
-        m_LastParticleTime = kUnsetTime;
+        ResetTimeTracking();
     }
 
     #endregion

@@ -123,7 +123,6 @@ public class AnimancerBehaviour : ActionBehaviourBase
 
     void OnPlayModeFrame()
     {
-        animateState.Speed = 
         if (transitionAsset.Transition is DirectionalClipTransition)
         {
             // 如果是方向动画，持续更新
