@@ -157,13 +157,14 @@ public class AnimancerBehaviour : ActionBehaviourBase
     {
         base.OnClipFinish(isNromal);
 
-        if(!Application.isPlaying)
+        if (!Application.isPlaying)
             OnEditorFinish();
     }
 
     void OnEditorFinish()
     {
         if (animateState == null) return;
+
         animateState.Speed = 0;
         animateState.NormalizedTime = 0;
     }
