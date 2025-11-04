@@ -40,22 +40,4 @@ public class ActionPhaseClip : ActionBehaviourBase
         if (actionAsset != null)
             actionAsset.actionAssetData.phase = Enums.ActionPhase.Neutral;
     }
-
-    public override void OnGraphStop(Playable playable)
-    {
-        Debug.Log("Graph Stop");
-        base.OnGraphStop(playable);
-    }
-
-    public override void OnPlayableCreate(Playable playable)
-    {
-        Debug.Log("Playable Create");
-        base.OnPlayableCreate(playable);
-    }
-
-    public override void OnPlayableDestroy(Playable playable)
-    {
-        Debug.Log("Playable Destroy");
-        base.OnPlayableDestroy(playable);
-    }
 }
