@@ -4,10 +4,12 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Playables;
+using UnityEngine.Timeline;
 
-public class AnimancerClip : PlayableAsset
+public class AnimancerClip : PlayableAsset,ITimelineClipAsset
 {
     public TransitionAsset transitionAsset = null;
+    public ClipCaps clipCaps => ClipCaps.Blending;
 
     public override double duration
     {
@@ -118,7 +120,7 @@ public class AnimancerBehaviour : ActionBehaviourBase
         if (Application.isPlaying)
             OnPlayModeFrame();
         else
-            OnEditorModeFrame(playable);
+            OnAnimancerFrame(playable);
     }
 
     void OnPlayModeFrame()
@@ -131,7 +133,7 @@ public class AnimancerBehaviour : ActionBehaviourBase
         }
     }
 
-    void OnEditorModeFrame(Playable playable)
+    void OnAnimancerFrame(Playable playable)
     {
         if (animateState == null) return;
 
