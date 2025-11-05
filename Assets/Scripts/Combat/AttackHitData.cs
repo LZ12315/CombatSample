@@ -30,9 +30,8 @@ public class AttackImpactConfig
 {
     [Header("¹¥»÷·´À¡")]
     public Enums.HitImpactType impactType;
-    public float stopTime;
-    public float stickTime;
-    public float stickStrength;
+    public float stopTime = 0.1f;
+    public float stickStrength = 0.3f;
 
     [Header("ÊÜ»÷·´À¡")]
     public GameObject hitPrefab;

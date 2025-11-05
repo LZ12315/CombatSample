@@ -116,7 +116,7 @@ public class ActionHitBoxBehavior : ActionBehaviourBase
                 actor.StartCoroutine(HitStop(impactConfig.stopTime));
                 break;
             case Enums.HitImpactType.HitStick:
-                actor.StartCoroutine(HitStick(impactConfig.stickStrength, impactConfig.stickTime));
+                HitStick(impactConfig.stickStrength);
                 break;
         }
     }
@@ -130,13 +130,9 @@ public class ActionHitBoxBehavior : ActionBehaviourBase
         actor.actionPlayerDirector.ResumeTimeline();
     }
 
-    IEnumerator HitStick(float stickStrength, float stickTime)
+    void HitStick(float stickStrength)
     {
-        actor.actionPlayerDirector.SetTimelineSpeed(stickStrength);
 
-        yield return new WaitForSeconds(stickTime);
-
-        actor.actionPlayerDirector.RestoreTimelineSpeed();
     }
 
     void OnOtherImapact()

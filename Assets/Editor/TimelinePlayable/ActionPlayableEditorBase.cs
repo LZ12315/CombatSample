@@ -22,8 +22,11 @@ public class ActionClipEditorBase : ClipEditor
             clip.start = 0.0001f;
     }
 
-    protected virtual void SetClipDurationOnStart(TimelineClip clip, TrackAsset track)
+    protected virtual void SetClipDurationOnStart(TimelineClip clip, TrackAsset track, TimelineClip clonedFrom)
     {
+        // 如果是Copy其他Clip 则不改变长度
+        if(clonedFrom != null) return;
+
         // 获取Timeline资源
         var timelineAsset = track.timelineAsset;
         if (timelineAsset == null) return;
@@ -32,8 +35,10 @@ public class ActionClipEditorBase : ClipEditor
         double timelineDuration = timelineAsset.duration;
 
         // 设置Clip时长为Timeline总时长
-        clip.duration = timelineDuration;
-        clip.start = 0.0001f;
+        if(timelineDuration < 0.01f)
+            clip.duration = 0.01f;
+        else
+            clip.duration = timelineDuration;
     }
 
     #region 方法继承
@@ -41,7 +46,7 @@ public class ActionClipEditorBase : ClipEditor
     public override void OnCreate(TimelineClip clip, TrackAsset track, TimelineClip clonedFrom)
     {
         OnClipCreate(clip, track);
-        SetClipDurationOnStart(clip, track);
+        SetClipDurationOnStart(clip, track, clonedFrom);
     }
 
     public override void OnClipChanged(TimelineClip clip)
