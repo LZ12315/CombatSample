@@ -12,7 +12,7 @@ public class AnimancerTrackEditor : TrackEditor
     {
         var options = base.GetTrackOptions(track, binding);
 
-        Texture2D trackIcon = Resources.Load<Texture2D>("ArtAssets/Textures/AnimancerIcon");
+        Texture2D trackIcon = Resources.Load<Texture2D>("Textures/AnimancerIcon");
         if (trackIcon != null)
             options.icon = trackIcon;
         else
