@@ -11,8 +11,6 @@ public class ActionPlayableDirector : MonoBehaviour
     [SerializeField] private ActionAsset actionPlaying;
     public ActionAsset ActionPlaying => actionPlaying;
 
-    private double lastDirectorSpeed = 0;
-
     private void Awake()
     {
         director.extrapolationMode = DirectorWrapMode.None;
@@ -46,7 +44,6 @@ public class ActionPlayableDirector : MonoBehaviour
         director.Play();
 
         actionPlaying = action;
-        lastDirectorSpeed = director.playableGraph.GetRootPlayable(0).GetSpeed();
     }
 
     private void OnActionStopped(PlayableDirector director)
@@ -58,10 +55,13 @@ public class ActionPlayableDirector : MonoBehaviour
 
     #region Timeline行为
 
+    private double lastDirectorSpeed = 0;
+
     public void SetTimelineSpeed(double speed)
     {
         if(director == null) return;
 
+        lastDirectorSpeed = director.playableGraph.GetRootPlayable(0).GetSpeed();
         director.playableGraph.GetRootPlayable(0).SetSpeed(speed);
     }
 
@@ -72,16 +72,16 @@ public class ActionPlayableDirector : MonoBehaviour
         director.playableGraph.GetRootPlayable(0).SetSpeed(lastDirectorSpeed);
     }
 
+    // 有问题
     public void PauseTimeline()
     {
-        director.playableGraph.GetRootPlayable(0).SetSpeed(0);
+        director.Pause();
     }
 
+    // 待处理 
     public void ResumeTimeline()
     {
-
-        director.playableGraph.GetRootPlayable(0).SetSpeed(lastDirectorSpeed);
-
+        director.Resume();
     }
 
     #endregion

@@ -7,7 +7,7 @@ using UnityEngine.Playables;
 /// Timeline Playable Behaviour 用于控制粒子系统的播放
 /// 简化版本：移除时长匹配功能，只保留基本播放控制和变换设置
 /// </summary>
-public class EffectControlBehaviour : PlayableBehaviour
+public class EffectControlBehaviour : ActionBehaviourBase
 {
     #region 配置数据 - 在Inspector中设置
 
@@ -18,6 +18,8 @@ public class EffectControlBehaviour : PlayableBehaviour
     [Header("变换设置")]
     [Tooltip("父级变换，粒子将相对于此变换放置")]
     public Transform parentTransform;
+    [Tooltip("在特效创建后是否持续更新其Transform")]
+    public bool updateTransform = true;
     [Tooltip("相对于父级的本地位置")]
     public Vector3 localPosition = Vector3.zero;
     [Tooltip("相对于父级的本地旋转（欧拉角）")]
@@ -53,27 +55,17 @@ public class EffectControlBehaviour : PlayableBehaviour
     #region Timeline Playable 生命周期方法
 
     /// <summary>
-    /// 当PlayableGraph开始时调用
-    /// </summary>
-    public override void OnGraphStart(Playable playable)
-    {
-        if (particlePrefab != null && particleInstance == null)
-        {
-            CreateParticleInstance();
-        }
-    }
-
-    /// <summary>
     /// 当Behaviour开始播放时调用
     /// </summary>
-    public override void OnBehaviourPlay(Playable playable, FrameData info)
+    protected override void OnClipPlay(Playable playable)
     {
         if (particlePrefab == null) return;
 
-        // 确保粒子实例存在
+        // 创建粒子实例并初始化位置
         if (particleInstance == null)
         {
             CreateParticleInstance();
+            UpdateParticleTransform();
         }
 
         if (particleInstance != null && particleSystems != null)
@@ -89,30 +81,29 @@ public class EffectControlBehaviour : PlayableBehaviour
     /// <summary>
     /// 当Behaviour暂停时调用
     /// </summary>
-    public override void OnBehaviourPause(Playable playable, FrameData info)
+    protected override void OnClipPause()
     {
-        if (info.effectivePlayState == PlayState.Paused)
+        if (particleInstance != null)
         {
-            if (particleInstance != null)
-            {
-                DeactivateParticleSystem();
-            }
+            DeactivateParticleSystem();
         }
     }
 
     /// <summary>
     /// 每帧处理，更新粒子系统状态
     /// </summary>
-    public override void ProcessFrame(Playable playable, FrameData info, object playerData)
+    protected override void OnClipUpdate(Playable playable, FrameData info)
     {
-        UpdateParticleTransform();
+        if(updateTransform)
+            UpdateParticleTransform();
+
         UpdateParticlePlayback(playable);
     }
 
     /// <summary>
-    /// 当Playable销毁时调用，进行资源清理
+    /// 当Behaviour结束时调用，进行资源清理
     /// </summary>
-    public override void OnPlayableDestroy(Playable playable)
+    protected override void OnClipFinish(bool isNormal)
     {
         CleanupParticleInstance();
     }
@@ -133,6 +124,7 @@ public class EffectControlBehaviour : PlayableBehaviour
             // 实例化粒子系统预制体
             particleInstance = UnityEngine.Object.Instantiate(particlePrefab);
             particleInstance.name = $"{particlePrefab.name}_EffectControl";
+            particleInstance.hideFlags = HideFlags.HideInHierarchy;
 
             // 获取所有粒子系统组件（包括子对象）
             particleSystems = new List<ParticleSystem>(

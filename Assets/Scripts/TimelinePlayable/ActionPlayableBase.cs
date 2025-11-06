@@ -16,7 +16,7 @@ public abstract class ActionBehaviourBase : PlayableBehaviour
 
     protected virtual void OnClipPlay(Playable playable) { }
 
-    protected virtual void OnClipUpdate(Playable playable) { }
+    protected virtual void OnClipUpdate(Playable playable, FrameData info) { }
 
     protected virtual void OnClipPause() { }
 
@@ -78,7 +78,7 @@ public abstract class ActionBehaviourBase : PlayableBehaviour
 
     public override void ProcessFrame(Playable playable, FrameData info, object playerData)
     {
-        OnClipUpdate(playable);
+        OnClipUpdate(playable, info);
     }
 
     #endregion

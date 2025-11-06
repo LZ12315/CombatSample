@@ -105,7 +105,7 @@ MonoBehaviour:
   m_Name: ActionHitBoxClip(Clone)(Clone)
   m_EditorClassIdentifier: 
   boneTransform:
-    exposedName: f7f0bfe3c4956d942ad4be16fd3c3124
+    exposedName: 39d4de501c4901f47b649fe6922dc552
     defaultValue: {fileID: 0}
   hitboxConfig:
     center: {x: 0, y: 0, z: 0}
@@ -114,9 +114,8 @@ MonoBehaviour:
     radius: 0.1
   impactConfig:
     impactType: 1
-    stopTime: 1
-    stickTime: 0
-    stickStrength: 0
+    stopTime: 0.1
+    stickStrength: 0.1
     hitPrefab: {fileID: 0}
     hitRotate: 0
     screenShake: 0

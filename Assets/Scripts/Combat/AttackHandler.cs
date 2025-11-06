@@ -20,7 +20,8 @@ public class AttackHandler : MonoBehaviour
 
     private void OnDestroy()
     {
-        ClearEvents();
+        ClearHitStartEvents();
+        ClearHitOverEvents();
     }
 
     private void OnTriggerEnter(Collider other)
@@ -28,7 +29,9 @@ public class AttackHandler : MonoBehaviour
         // 检查是否在目标层
         if (((1 << other.gameObject.layer) & config.targetLayers) != 0)
         {
+            // 排除已经处理过的对象
             if(attackedObjects.Contains(other)) return;
+
             if (other.TryGetComponent<IDamageable>(out var damageable))
             {
                 // 创建攻击数据
@@ -42,38 +45,93 @@ public class AttackHandler : MonoBehaviour
                 if(damageable != null)
                     damageable.TakeDamage(hitData);
 
-                // 广播攻击事件
-                InvokeHitEvent(hitData);
+                // 广播攻击开始事件
+                InvokeHitStartEvent(hitData);
 
                 attackedObjects.Add(other);
             }
         }
     }
 
+    private void OnTriggerExit(Collider other)
+    {
+        // 检查是否在目标层
+        if (((1 << other.gameObject.layer) & config.targetLayers) != 0)
+        {
+            // 如果没有接触过则不处理
+            if (!attackedObjects.Contains(other)) return;
+
+            if (other.TryGetComponent<IDamageable>(out var damageable))
+            {
+                // 创建攻击数据
+                AttackHitData hitData = new AttackHitData(
+                    damage: config._baseDamage,
+                    attacker: combater,
+                    hitPoint: other.ClosestPoint(gameObject.transform.position)
+                );
+
+                // 处理伤害
+                if (damageable != null)
+                    damageable.TakeDamage(hitData);
+
+                // 广播攻击结束事件
+                InvokeHitOverEvent(hitData);
+
+                attackedObjects.Remove(other);
+            }
+        }
+    }
+
     #region 攻击接触事件
 
-    private GenericEventManager<AttackHitData> hitEventManager = new GenericEventManager<AttackHitData>();
+    private GenericEventManager<AttackHitData> hitStartEventManager = new GenericEventManager<AttackHitData>();
 
-    public void RegisterForHitEvent(object registrant, Action<AttackHitData> callback)
+    public void RegisterHitStartEvent(object registrant, Action<AttackHitData> callback)
     {
-        hitEventManager.Subscribe(registrant, callback);
+        hitStartEventManager.Subscribe(registrant, callback);
     }
 
-    public void UnregisterFromHitEvent(object registrant)
+    public void UnregisterHitStartEvent(object registrant)
     {
-        hitEventManager.Unsubscribe(registrant);
+        hitStartEventManager.Unsubscribe(registrant);
     }
 
-    void InvokeHitEvent(AttackHitData eventData)
+    void InvokeHitStartEvent(AttackHitData eventData)
     {
-        hitEventManager.Publish(eventData);
+        hitStartEventManager.Publish(eventData);
     }
 
-    void ClearEvents()
+    void ClearHitStartEvents()
     {
-        hitEventManager.ClearAllSubscriptions();
+        hitStartEventManager.ClearAllSubscriptions();
     }
 
-    #endregion 攻击脱离事件
+    #endregion
+
+    #region  攻击脱离事件
+
+    private GenericEventManager<AttackHitData> hitOverEventManager = new GenericEventManager<AttackHitData>();
+
+    public void RegisterHitOverEvent(object registrant, Action<AttackHitData> callback)
+    {
+        hitOverEventManager.Subscribe(registrant, callback);
+    }
+
+    public void UnregisterHitOverEvent(object registrant)
+    {
+        hitOverEventManager.Unsubscribe(registrant);
+    }
+
+    void InvokeHitOverEvent(AttackHitData eventData)
+    {
+        hitOverEventManager.Publish(eventData);
+    }
+
+    void ClearHitOverEvents()
+    {
+        hitOverEventManager.ClearAllSubscriptions();
+    }
+
+    #endregion
 
 }
