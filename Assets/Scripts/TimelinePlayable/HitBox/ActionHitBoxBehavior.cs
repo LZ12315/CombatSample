@@ -16,28 +16,12 @@ public class ActionHitBoxBehavior : ActionBehaviourBase
 
     protected override void OnClipPlay(Playable playable)
     {
-        base.OnClipPlay(playable);
-
         CreateHitbox();
-    }
-
-    protected override void OnClipPause()
-    {
-        // 在编辑模式下立刻删除HitBox避免遗留
-        if (!Application.isPlaying)
-            DestroyHiyBoxInEditor();
-
-        base.OnClipPause();
     }
 
     protected override void OnClipFinish(bool isNormal)
     {
-        if (Application.isPlaying)
-            DestroyHitbox();
-        else
-            DestroyHiyBoxInEditor();
-
-        base.OnClipFinish(isNormal);
+        DestroyHitbox();
     }
 
     private void CreateHitbox()
@@ -56,7 +40,8 @@ public class ActionHitBoxBehavior : ActionBehaviourBase
         hitbox.Init(actor.combater, dataConfig);
 
         // 注册攻击事件
-        hitbox.RegisterForHitEvent(this, OnAttackHit);
+        hitbox.RegisterHitStartEvent(this, OnHitStart);
+        hitbox.RegisterHitOverEvent(this, OnHitOver);
 
         //添加辅助组件Updater
         var updater = hitboxObject.AddComponent<HitBoxUpdater>();
@@ -87,10 +72,24 @@ public class ActionHitBoxBehavior : ActionBehaviourBase
 
         // 取消注册攻击事件
         var hitbox = collider.gameObject.GetComponent<AttackHandler>();
-        hitbox.UnregisterFromHitEvent(this);
+        hitbox.UnregisterHitStartEvent(this);
+        hitbox.UnregisterHitOverEvent(this);
 
-        // 销毁游戏对象
-        UnityEngine.Object.Destroy(hitboxObject);
+        // 销毁辅助组件
+        var updater = hitboxObject.GetComponent<HitBoxUpdater>();
+        if (updater != null)
+        {
+            if (Application.isPlaying)
+                Object.Destroy(updater);
+            else
+                Object.DestroyImmediate(updater);
+        }
+
+            // 销毁游戏对象
+        if (Application.isPlaying)
+            Object.Destroy(hitboxObject);
+        else
+            Object.DestroyImmediate(hitboxObject);
 
         hitboxObject = null;
         collider = null;
@@ -98,69 +97,43 @@ public class ActionHitBoxBehavior : ActionBehaviourBase
 
     #region 攻击相关
 
-    void OnAttackHit(AttackHitData data)
+    void OnHitStart(AttackHitData data)
     {
-        OnHitImpact(impactConfig.impactType);
-    }
-
-    void CreateDamageEffect()
-    {
-
-    }
-
-    void OnHitImpact(Enums.HitImpactType impactType)
-    {
-        switch (impactType)
+        switch (impactConfig.impactType)
         {
             case Enums.HitImpactType.HitStop:
                 actor.StartCoroutine(HitStop(impactConfig.stopTime));
                 break;
             case Enums.HitImpactType.HitStick:
-                HitStick(impactConfig.stickStrength);
+                actor.actionPlayerDirector.SetTimelineSpeed(impactConfig.stickStrength);
+                break;
+        }
+    }
+
+    void OnHitOver(AttackHitData data)
+    {
+        switch (impactConfig.impactType)
+        {
+            case Enums.HitImpactType.HitStick:
+                actor.actionPlayerDirector.RestoreTimelineSpeed();
                 break;
         }
     }
 
     IEnumerator HitStop(float stopTime)
     {
-        actor.actionPlayerDirector.PauseTimeline();
+        actor.actionPlayerDirector.SetTimelineSpeed(0);
 
         yield return new WaitForSeconds(stopTime);
 
-        actor.actionPlayerDirector.ResumeTimeline();
-    }
-
-    void HitStick(float stickStrength)
-    {
-
-    }
-
-    void OnOtherImapact()
-    {
-
+        actor.actionPlayerDirector.RestoreTimelineSpeed();
     }
 
     #endregion
 
-    #region Editor预览
+    #region 辅助工具
 
-    void DestroyHiyBoxInEditor()
-    {
-        if (hitboxObject == null) return;
-
-        // 先销毁辅助组件
-        var updater = hitboxObject.GetComponent<HitBoxUpdater>();
-        if (updater != null)
-            UnityEngine.Object.DestroyImmediate(updater);
-
-        // 然后销毁游戏对象
-        UnityEngine.Object.DestroyImmediate(hitboxObject);
-
-        hitboxObject = null;
-        collider = null;
-    }
-
-    //辅助更新组件 在编辑模式下更新HitBox状态 否则其相对动画会慢一帧
+    //辅助更新组件 用于更新HitBox状态 否则其相对动画会慢一帧
     [ExecuteInEditMode]
     private class HitBoxUpdater : MonoBehaviour
     {

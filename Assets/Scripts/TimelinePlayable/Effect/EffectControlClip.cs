@@ -13,6 +13,8 @@ public class EffectControlClip : PlayableAsset, ITimelineClipAsset
     [Header("变换设置")]
     [Tooltip("父级变换引用（使用ExposedReference以便在Timeline中绑定）")]
     public ExposedReference<Transform> parentTransform;
+    [Tooltip("在特效创建后是否持续更新其Transform")]
+    public bool updateTransform = true;
     [Tooltip("相对于父级的本地位置")]
     public Vector3 localPosition = Vector3.zero;
     [Tooltip("相对于父级的本地旋转（欧拉角）")]
@@ -38,6 +40,7 @@ public class EffectControlClip : PlayableAsset, ITimelineClipAsset
         // 设置配置参数
         behaviour.particlePrefab = particlePrefab;
         behaviour.parentTransform = parentTransform.Resolve(graph.GetResolver());
+        behaviour.updateTransform = updateTransform;
         behaviour.localPosition = localPosition;
         behaviour.localRotation = localRotation;
         behaviour.localScale = localScale;
