@@ -9,37 +9,27 @@ using UnityEngine.Playables;
 /// </summary>
 public class EffectControlBehaviour : ActionBehaviourBase
 {
-    #region 配置数据 - 在Inspector中设置
+    #region 配置数据
 
     [Header("粒子系统设置")]
-    [Tooltip("要控制的粒子系统预制体")]
     public GameObject particlePrefab;
 
     [Header("变换设置")]
-    [Tooltip("父级变换，粒子将相对于此变换放置")]
     public Transform parentTransform;
-    [Tooltip("在特效创建后是否持续更新其Transform")]
     public bool updateTransform = true;
-    [Tooltip("相对于父级的本地位置")]
     public Vector3 localPosition = Vector3.zero;
-    [Tooltip("相对于父级的本地旋转（欧拉角）")]
     public Vector3 localRotation = Vector3.zero;
-    [Tooltip("相对于父级的本地缩放")]
     public Vector3 localScale = Vector3.one;
 
     [Header("播放控制")]
-    [Tooltip("激活时自动播放")]
     public bool playOnActive = true;
-    [Tooltip("播放完成后销毁实例")]
     public bool destroyOnFinish = true;
-    [Tooltip("随机种子，确保播放一致性")]
     public uint randomSeed = 1;
-    [Tooltip("拥有此Playable的GameObject")]
     public GameObject owner;
 
     #endregion
 
-    #region 运行时状态 - 内部使用
+    #region 运行时状态
 
     private GameObject particleInstance;           // 实例化的粒子系统对象
     private List<ParticleSystem> particleSystems;  // 所有粒子系统组件
@@ -259,13 +249,12 @@ public class EffectControlBehaviour : ActionBehaviourBase
     {
         if (particleInstance == null)
         {
-            Debug.LogWarning("粒子实例为空，无法更新变换");
+            // 粒子实例为空，无法更新变换
             return;
         }
 
         if (parentTransform == null)
         {
-            Debug.LogWarning("父级变换为空，使用世界坐标");
             // 如果没有父级，使用世界坐标
             particleInstance.transform.position = localPosition;
             particleInstance.transform.eulerAngles = localRotation;
@@ -402,57 +391,4 @@ public class EffectControlBehaviour : ActionBehaviourBase
 
     #endregion
 
-    #region 编辑器调试功能
-
-#if UNITY_EDITOR
-
-    /// <summary>
-    /// 调试粒子系统状态（在Inspector中右键调用）
-    /// </summary>
-    [ContextMenu("调试粒子状态")]
-    public void DebugParticleState()
-    {
-        if (particleSystems == null || particleSystems.Count == 0) return;
-
-        Debug.Log($"=== 粒子系统状态调试 ===");
-        Debug.Log($"粒子实例: {particleInstance?.name ?? "null"}");
-        Debug.Log($"父级变换: {parentTransform?.name ?? "null"}");
-        Debug.Log($"播放状态: {isPlaying}");
-
-        foreach (var ps in particleSystems)
-        {
-            if (ps != null)
-            {
-                var main = ps.main;
-                Debug.Log($"{ps.gameObject.name}: 时间={ps.time:F2}, 粒子数={ps.particleCount}, 是否播放={ps.isPlaying}");
-            }
-        }
-    }
-
-    /// <summary>
-    /// 调试变换状态（在Inspector中右键调用）
-    /// </summary>
-    [ContextMenu("调试变换状态")]
-    public void DebugTransformState()
-    {
-        if (particleInstance == null)
-        {
-            Debug.LogWarning("粒子实例为空");
-            return;
-        }
-
-        Debug.Log($"=== 变换状态调试 ===");
-        Debug.Log($"粒子实例: {particleInstance.name}");
-        Debug.Log($"父级变换: {(parentTransform != null ? parentTransform.name : "null")}");
-        Debug.Log($"世界位置: {particleInstance.transform.position}");
-        Debug.Log($"本地位置: {particleInstance.transform.localPosition}");
-        Debug.Log($"父级: {(particleInstance.transform.parent != null ? particleInstance.transform.parent.name : "null")}");
-        Debug.Log($"设置的位置: {localPosition}");
-        Debug.Log($"设置的旋转: {localRotation}");
-        Debug.Log($"设置的缩放: {localScale}");
-    }
-
-#endif
-
-    #endregion
 }
