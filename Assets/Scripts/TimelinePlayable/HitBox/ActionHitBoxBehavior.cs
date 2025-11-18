@@ -24,6 +24,8 @@ public class ActionHitBoxBehavior : ActionBehaviourBase
         DestroyHitbox();
     }
 
+    #region HitBox管理方法
+
     private void CreateHitbox()
     {
         if (hitboxObject != null || boneTransform == null) return;
@@ -95,7 +97,9 @@ public class ActionHitBoxBehavior : ActionBehaviourBase
         collider = null;
     }
 
-    #region 攻击相关
+    #endregion
+
+    #region 攻击反馈方法
 
     void OnHitStart(AttackHitData data)
     {
