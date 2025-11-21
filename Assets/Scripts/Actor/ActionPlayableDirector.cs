@@ -35,9 +35,6 @@ public class ActionPlayableDirector : MonoBehaviour
     {
         if (action == null || director == null) return;
 
-        //启动ActionTimeline切换事件
-        RaiseTimelineEvent(director);
-
         director.Stop();
         director.playableAsset = action.TimelineAsset;
         director.time = 0.0;
@@ -53,7 +50,7 @@ public class ActionPlayableDirector : MonoBehaviour
         actionPlaying.DataReset();
     }
 
-    #region Timeline行为
+    #region Timeline控制方法
 
     private double lastDirectorSpeed = 0;
 
@@ -84,10 +81,15 @@ public class ActionPlayableDirector : MonoBehaviour
         director.Resume();
     }
 
+    public double GetTimelineSpeed()
+    {
+        return director.playableGraph.GetRootPlayable(0).GetSpeed();
+    }
+
     #endregion
 
 
-    #region Timeline切换事件
+    #region Timeline事件
 
     private GenericEventManager<PlayableDirector> _timelineEventManager = new GenericEventManager<PlayableDirector>();
 
