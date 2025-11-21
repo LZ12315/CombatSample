@@ -42,7 +42,6 @@ public class EffectControlBehaviour : ActionBehaviourBase
 
     #endregion
 
-    #region Timeline Playable 生命周期方法
 
     /// <summary>
     /// 当Behaviour开始播放时调用
@@ -98,7 +97,6 @@ public class EffectControlBehaviour : ActionBehaviourBase
         CleanupParticleInstance();
     }
 
-    #endregion
 
     #region 粒子系统管理方法
 
