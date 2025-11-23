@@ -27,6 +27,8 @@ public class AnimancerBehaviour : ActionBehaviourBase
 
     void CreateAnimate()
     {
+        if(animateState != null) return;
+
         // 初始化方向动画
         if (transitionAsset.Transition is DirectionalClipTransition directionalTransition)
         {
@@ -38,6 +40,11 @@ public class AnimancerBehaviour : ActionBehaviourBase
         {
             animateState = actor.animancer.Play(clipTransition, 0.15f);
         }
+
+        // 重置播放时间到开始
+        animateState.NormalizedTime = 0f;
+        // 确保播放状态
+        animateState.IsPlaying = true;
     }
 
     protected override void OnClipUpdate(Playable playable, FrameData info)
@@ -47,7 +54,7 @@ public class AnimancerBehaviour : ActionBehaviourBase
         animateState.Speed = info.effectiveSpeed;
         UpdateAnimationData();
 
-        if(!Application.isPlaying)
+        if (!Application.isPlaying)
             AnimancerSimulate(playable);
     }
 
@@ -70,35 +77,15 @@ public class AnimancerBehaviour : ActionBehaviourBase
         double currentTime = playable.GetTime();
         double duration = playable.GetDuration();
         double normalizedTime = currentTime / duration;
-        animateState.NormalizedTime = (float)normalizedTime;
+        animateState.Time = (float)currentTime;
+        //animateState.NormalizedTime = (float)normalizedTime;
 
         actor.animancer.Evaluate();
-    }
-
-    protected override void OnClipPause()
-    {
-        base.OnClipPause();
-
-        // 暂停时也可以考虑清理资源 但不使用默认清理逻辑(CleanUp方法)
-        animateState = null;
-        _currentDirection = -1;
-        _phaseAwarePlayer = null;
     }
 
     protected override void OnClipFinish(bool isNromal)
     {
         CleanUp();
-
-        if (!Application.isPlaying)
-            OnEditorFinish();
-    }
-
-    void OnEditorFinish()
-    {
-        if (animateState == null) return;
-
-        animateState.Speed = 0;
-        animateState.NormalizedTime = 0;
     }
 
     protected override void CleanUp()
