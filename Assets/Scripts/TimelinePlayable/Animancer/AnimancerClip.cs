@@ -9,7 +9,7 @@ using Animancer;
 public class AnimancerClip : PlayableAsset,ITimelineClipAsset
 {
     public TransitionAsset transitionAsset = null;
-    public ClipCaps clipCaps => ClipCaps.Blending;
+    public ClipCaps clipCaps => ClipCaps.ClipIn;
 
     public override double duration
     {
