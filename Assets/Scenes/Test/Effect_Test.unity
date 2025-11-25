@@ -51381,7 +51381,7 @@ PrefabInstance:
         type: 3}
       propertyPath: actorMovement
       value: 
-      objectReference: {fileID: 1223193300}
+      objectReference: {fileID: 0}
     - target: {fileID: 9113936135464953444, guid: a4a20f7de8c53684f97be75dd7045953,
         type: 3}
       propertyPath: cameraControl
@@ -51453,18 +51453,6 @@ Transform:
     type: 3}
   m_PrefabInstance: {fileID: 1223193294}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &1223193300 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 6271036513442401594, guid: a4a20f7de8c53684f97be75dd7045953,
-    type: 3}
-  m_PrefabInstance: {fileID: 1223193294}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 35d657cc645542e45abb14e99ccc4d6a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1 &1287313867
 GameObject:
   m_ObjectHideFlags: 0
