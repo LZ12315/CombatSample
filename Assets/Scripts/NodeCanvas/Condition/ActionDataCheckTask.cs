@@ -3,6 +3,7 @@ using ParadoxNotion.Design;
 using CombatSample.Utils;
 using HeaderAttribute = ParadoxNotion.Design.HeaderAttribute;
 using UnityEngine;
+using NodeCanvas.StateMachines;
 
 
 namespace NodeCanvas.Tasks.Conditions {
