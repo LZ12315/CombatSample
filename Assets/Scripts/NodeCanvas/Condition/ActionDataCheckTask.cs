@@ -23,7 +23,7 @@ namespace NodeCanvas.Tasks.Conditions {
 
 		protected override bool OnCheck() {
 			bool isCorrect = false;
-            ActionAssetData actionData = currentAction.value.actionAssetData;
+            ActionAssetData actionData = currentAction.value.ActionAssetData;
 
             foreach (var check in EnumUtils.GetFlags(dataChecks))
             {
@@ -48,8 +48,8 @@ public static partial class Enums
     [System.Flags]
     public enum ActionDataCheckType
     {
-        None,
-        Phase,
-        Progress
+        None = 0,
+        Phase = 2,
+        Progress = 4
     }
 }
