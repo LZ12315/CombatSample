@@ -220,9 +220,8 @@ MonoBehaviour:
   m_Name: Lucy_HeavyAttack_03
   m_EditorClassIdentifier: 
   _timelineAsset: {fileID: 979257051020723780}
-  actionAssetData:
-    nomalizedTime: 0
-    phase: 2
+  _actionAssetAttribute:
+    actionType: 2
 --- !u!114 &836680614872614258
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -236,7 +235,6 @@ MonoBehaviour:
   m_Name: ActionPhaseAsset
   m_EditorClassIdentifier: 
   actionPhase_Start: 2
-  actionPhase_End: 2
 --- !u!114 &979257051020723780
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -306,7 +304,6 @@ MonoBehaviour:
   m_Name: ActionPhaseAsset
   m_EditorClassIdentifier: 
   actionPhase_Start: 128
-  actionPhase_End: 2
 --- !u!114 &4515983413453644229
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -333,7 +330,6 @@ MonoBehaviour:
   m_Name: ActionPhaseAsset(Clone)(Clone)
   m_EditorClassIdentifier: 
   actionPhase_Start: 64
-  actionPhase_End: 2
 --- !u!114 &7156274931431433075
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -735,4 +731,3 @@ MonoBehaviour:
   m_Name: ActionPhaseAsset(Clone)
   m_EditorClassIdentifier: 
   actionPhase_Start: 64
-  actionPhase_End: 2

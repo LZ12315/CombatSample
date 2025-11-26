@@ -22,7 +22,7 @@ public class ActionPlayableDirector : MonoBehaviour
         if (actionPlaying != null)
         {
             double timelineProgress = director.time / director.duration;
-            actionPlaying.actionAssetData.nomalizedTime = timelineProgress;
+            actionPlaying.ActionAssetData.nomalizedTime = timelineProgress;
         }
     }
 

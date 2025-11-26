@@ -273,7 +273,7 @@ MonoBehaviour:
   _enableAction: 0
   _disableAction: 0
   _lockBoundGraphPrefabOverrides: 1
-  _preInitializeSubGraphs: 0
+  _preInitializeSubGraphs: 1
   _updateMode: 0
   _graph: {fileID: 11400000, guid: 6828f8409c994ce469693376d2a0c937, type: 2}
   _blackboard: {fileID: 1624505076}

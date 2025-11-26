@@ -45,4 +45,5 @@ namespace NodeCanvas.Tasks.Actions {
             playableDirector.stopped -= ActionStopped;
         }
 	}
+
 }

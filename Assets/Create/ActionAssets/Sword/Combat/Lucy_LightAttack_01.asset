@@ -13,7 +13,6 @@ MonoBehaviour:
   m_Name: ActionPhaseAsset(Clone)
   m_EditorClassIdentifier: 
   actionPhase_Start: 64
-  actionPhase_End: 2
 --- !u!114 &-7339410253920333271
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -285,7 +284,6 @@ MonoBehaviour:
   m_Name: ActionPhaseAsset(Clone)(Clone)
   m_EditorClassIdentifier: 
   actionPhase_Start: 128
-  actionPhase_End: 2
 --- !u!114 &-498561328345217
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -391,9 +389,8 @@ MonoBehaviour:
   m_Name: Lucy_LightAttack_01
   m_EditorClassIdentifier: 
   _timelineAsset: {fileID: -1861555647145380671}
-  actionAssetData:
-    nomalizedTime: 0
-    phase: 2
+  _actionAssetAttribute:
+    actionType: 2
 --- !u!114 &647764945664480512
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -878,7 +875,6 @@ MonoBehaviour:
   m_Name: ActionPhaseAsset
   m_EditorClassIdentifier: 
   actionPhase_Start: 2
-  actionPhase_End: 2
 --- !u!114 &9044357768983363831
 MonoBehaviour:
   m_ObjectHideFlags: 1

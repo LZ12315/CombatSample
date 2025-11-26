@@ -13,7 +13,6 @@ MonoBehaviour:
   m_Name: ActionPhaseAsset
   m_EditorClassIdentifier: 
   actionPhase_Start: 2
-  actionPhase_End: 2
 --- !u!114 &-6286629044728960951
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -154,9 +153,8 @@ MonoBehaviour:
   m_Name: Lucy_Idle
   m_EditorClassIdentifier: 
   _timelineAsset: {fileID: -5540118879403883149}
-  actionAssetData:
-    nomalizedTime: 0
-    phase: 2
+  _actionAssetAttribute:
+    actionType: 1
 --- !u!114 &7335645479925641510
 MonoBehaviour:
   m_ObjectHideFlags: 1
