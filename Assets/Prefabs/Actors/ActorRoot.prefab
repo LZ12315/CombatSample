@@ -172,11 +172,11 @@ MonoBehaviour:
   m_GameObject: {fileID: 1264656311839001196}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ff88077de6a643b4789736beb94af3f3, type: 3}
+  m_Script: {fileID: 11500000, guid: fd23beebde2badb4a8832cbb9a84b020, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  actor: {fileID: 3617314882186939484}
-  director: {fileID: 3354261299216637628}
+  actor: {fileID: 0}
+  director: {fileID: 0}
   actionPlaying: {fileID: 0}
 --- !u!1 &5276626400589506912
 GameObject:

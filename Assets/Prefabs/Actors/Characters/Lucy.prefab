@@ -1981,6 +1981,16 @@ PrefabInstance:
       propertyPath: m_Center.y
       value: 1.05
       objectReference: {fileID: 0}
+    - target: {fileID: 1167365505214070835, guid: a299ab9894312a643ac83699cf7e0da3,
+        type: 3}
+      propertyPath: actor
+      value: 
+      objectReference: {fileID: 6652218765266463647}
+    - target: {fileID: 1167365505214070835, guid: a299ab9894312a643ac83699cf7e0da3,
+        type: 3}
+      propertyPath: director
+      value: 
+      objectReference: {fileID: 4678852854842947967}
     - target: {fileID: 1264656311839001196, guid: a299ab9894312a643ac83699cf7e0da3,
         type: 3}
       propertyPath: m_Name
@@ -2168,6 +2178,12 @@ MonoBehaviour:
   actor: {fileID: 6652218765266463647}
   animator: {fileID: 6262526084617835426}
   rotateSpeed: 500
+--- !u!320 &4678852854842947967 stripped
+PlayableDirector:
+  m_CorrespondingSourceObject: {fileID: 3354261299216637628, guid: a299ab9894312a643ac83699cf7e0da3,
+    type: 3}
+  m_PrefabInstance: {fileID: 7953960576078161859}
+  m_PrefabAsset: {fileID: 0}
 --- !u!4 &5719948904360257935 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 2378870619860012620, guid: a299ab9894312a643ac83699cf7e0da3,
