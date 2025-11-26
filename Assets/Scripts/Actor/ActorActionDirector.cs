@@ -3,7 +3,7 @@ using System;
 using UnityEngine;
 using UnityEngine.Playables;
 
-public class ActionPlayableDirector : MonoBehaviour
+public class ActorActionDirector : MonoBehaviour
 {
     public Actor actor;
     public PlayableDirector director;
