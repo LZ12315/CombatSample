@@ -142,10 +142,25 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
         MarkDirty();
     }
 
-    public void DataReset()
+    public void UpdateActionData(double newNormalizedTime, Enums.ActionPhase newPhase)
     {
-        _actionData.normalizedTime = 0;
-        _actionData.phase = Enums.ActionPhase.Neutral;
+        var newData = new ActionData
+        {
+            normalizedTime = newNormalizedTime,
+            phase = newPhase
+        };
+
+        ActionData = newData;
+    }
+
+    public void UpdateActionData(ActionData newData)
+    {
+        UpdateActionData(newData.normalizedTime, newData.phase);
+    }
+
+    public void ResetData()
+    {
+        UpdateActionData(0, Enums.ActionPhase.Neutral);
     }
 
     #region 生命周期和序列化

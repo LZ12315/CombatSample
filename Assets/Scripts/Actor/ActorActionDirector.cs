@@ -22,7 +22,10 @@ public class ActorActionDirector : MonoBehaviour
         if (actionPlaying != null)
         {
             double timelineProgress = director.time / director.duration;
-            actionPlaying.ActionData.normalizedTime = timelineProgress;
+
+            ActionData actionData = actionPlaying.ActionData;
+            actionData.normalizedTime = timelineProgress;
+            actionPlaying.UpdateActionData(actionData);
         }
     }
 
@@ -47,7 +50,7 @@ public class ActorActionDirector : MonoBehaviour
     {
         if(actionPlaying == null) return;
 
-        actionPlaying.DataReset();
+        actionPlaying.ResetData();
     }
 
     #region Timeline¿ØÖÆ·½·¨

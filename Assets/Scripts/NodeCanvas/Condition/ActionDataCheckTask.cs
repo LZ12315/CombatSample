@@ -33,7 +33,7 @@ namespace NodeCanvas.Tasks.Conditions {
                         isCorrect = EnumUtils.ContainsAny(actionData.phase, requiredPhase);
                         break;
                     case Enums.ActionDataCheckType.Progress:
-                        isCorrect = (actionData.nomalizedTime >= requiredProgress - 0.03f);
+                        isCorrect = (actionData.normalizedTime >= requiredProgress - 0.03f);
                         break;
                 }
             }
