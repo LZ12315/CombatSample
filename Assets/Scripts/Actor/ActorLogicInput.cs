@@ -33,6 +33,8 @@ public class ActorLogicInput : MonoBehaviour
         UpdateBuffer(new InputBuffer(inputData, Time.time));
     }
 
+
+
     #region BufferÊÂ¼þ
 
     void UpdateBuffer(InputBuffer buffer)

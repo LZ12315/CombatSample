@@ -23,7 +23,7 @@ namespace NodeCanvas.Tasks.Conditions {
 
 		protected override bool OnCheck() {
 			bool isCorrect = false;
-            ActionAssetData actionData = currentAction.value.ActionAssetData;
+            ActionData actionData = currentAction.value.ActionData;
 
             foreach (var check in EnumUtils.GetFlags(dataChecks))
             {
