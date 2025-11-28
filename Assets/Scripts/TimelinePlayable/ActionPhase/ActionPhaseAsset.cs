@@ -27,7 +27,7 @@ public class ActionPhaseClip : ActionBehaviourBase
         base.OnClipPlay(playable);
 
         if (actionAsset != null)
-            actionAsset.ActionData.phase = actionPhase_Start;
+            SetActionPhase(actionPhase_Start);
     }
 
     protected override void OnClipFinish(bool isNormal)
@@ -35,6 +35,14 @@ public class ActionPhaseClip : ActionBehaviourBase
         base.OnClipFinish(isNormal);
 
         if (actionAsset != null)
-            actionAsset.ActionData.phase = Enums.ActionPhase.Neutral;
+            SetActionPhase(Enums.ActionPhase.Neutral);
     }
+
+    void SetActionPhase(Enums.ActionPhase actionPhase)
+    {
+        ActionData actionData = actionAsset.ActionData;
+        actionData.phase = actionPhase;
+        actionAsset.UpdateActionData(actionData);
+    }
+
 }
