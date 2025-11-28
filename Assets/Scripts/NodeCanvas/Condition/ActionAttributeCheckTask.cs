@@ -12,20 +12,18 @@ namespace NodeCanvas.Tasks.Conditions {
         public BBParameter<ActionAsset> currentAction;
         public Enums.ActionAttributeCheckType attributeChecks;
 
-        [Header(" Ù–‘")]
-        public Enums.ActionType requiredType = Enums.ActionType.None;
-
         protected override bool OnCheck()
         {
             bool isCorrect = false;
-            ActionAssetData actionData = currentAction.value.ActionAssetData;
+            ActionData actionData = currentAction.value.ActionData;
 
             foreach (var check in EnumUtils.GetFlags(attributeChecks))
             {
                 switch (check)
                 {
-                    case Enums.ActionAttributeCheckType.ActionType:
-                        isCorrect = EnumUtils.ContainsAny(actionData.phase, requiredType);
+
+
+                    default:
                         break;
                 }
             }
@@ -41,6 +39,5 @@ public static partial class Enums
     public enum ActionAttributeCheckType
     {
         None = 0,
-        ActionType = 2,
     }
 }
