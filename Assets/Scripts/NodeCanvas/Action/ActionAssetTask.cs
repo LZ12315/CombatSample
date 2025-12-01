@@ -34,8 +34,8 @@ namespace NodeCanvas.Tasks.Actions {
 
         void PlayAction()
 		{
-			actor.value.actionPlayerDirector.PlayAction(actionToPlay.value);
-			actionToPlay.value.ResetData();
+			actor.value.actionPlayerDirector.SwitchAction(actionToPlay.value);
+			//actionToPlay.value.ResetData(); µ»¥˝÷ÿ÷√
         }
 
 		void ActionStopped(PlayableDirector director)

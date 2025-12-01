@@ -1,70 +1,8 @@
 using UnityEngine;
 using UnityEngine.Timeline;
-using CombatSample.Consts;
-using System.Collections.Generic;
 using System;
-using System.Linq;
-
-[Serializable]
-public struct ActionData
-{
-    [SerializeField, Range(0, 1)] private double _normalizedTime;
-    [SerializeField] private Enums.ActionPhase _phase;
-
-    public double normalizedTime
-    {
-        get => _normalizedTime;
-        set => _normalizedTime = Math.Clamp(value, 0, 1);
-    }
-
-    public Enums.ActionPhase phase
-    {
-        get => _phase;
-        set
-        {
-            if (!Enum.IsDefined(typeof(Enums.ActionPhase), value))
-                throw new ArgumentException($"Invalid ActionPhase: {value}");
-            _phase = value;
-        }
-    }
-
-    public bool IsInPhase(Enums.ActionPhase phaseToCheck)
-    {
-        return (_phase & phaseToCheck) != 0;
-    }
-
-    public static readonly ActionData Default = new ActionData
-    {
-        _normalizedTime = 0,
-        _phase = Enums.ActionPhase.Neutral
-    };
-}
-
-// 属性类增强验证和扩展性
-[Serializable]
-public class ActionAttribute
-{
-    [SerializeField, Min(0)] private Enums.ActionPriority _priority = Enums.ActionPriority.Normal;
-    [SerializeField, Min(0)] private int _weight = 0;
-
-    public Enums.ActionPriority priority
-    {
-        get => _priority;
-        set
-        {
-            if (!Enum.IsDefined(typeof(Enums.ActionPriority), value))
-                throw new ArgumentException($"Invalid ActionPriority: {value}");
-            _priority = value;
-        }
-    }
-
-    public int weight
-    {
-        get => _weight;
-        set => _weight = Math.Max(0, value);
-    }
-
-}
+using System.Collections.Generic;
+using CombatSample.Consts;
 
 public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
 {
@@ -72,13 +10,9 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
     [SerializeField, Tooltip("关联的Timeline")]
     private TimelineAsset _timelineAsset;
 
-    [Header("数据")]
-    [SerializeField, Tooltip("动作运行时状态数据")]
-    private ActionData _actionData = new ActionData();
-
     [Header("属性")]
     [SerializeField, Tooltip("动作优先级")]
-    [Min(0)] private Enums.ActionPriority _priority = Enums.ActionPriority.Normal;
+    private Enums.ActionPriority _priority = Enums.ActionPriority.Normal;
     [SerializeField, Tooltip("同一优先级下的重要性")]
     [Min(0)] private int _weight = 0;
 
@@ -93,25 +27,7 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
         set
         {
             if (_timelineAsset != value)
-            {
                 _timelineAsset = value;
-                //OnTimelineAssetChanged?.Invoke(this);
-                //MarkDirty();
-            }
-        }
-    }
-
-    public ActionData ActionData
-    {
-        get => _actionData;
-        set
-        {
-            if (!_actionData.Equals(value))
-            {
-                _actionData = value;
-                //OnActionDataUpdated?.Invoke(_actionData);
-                //MarkDirty();
-            }
         }
     }
 
@@ -133,8 +49,9 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
     }
 
     public IReadOnlyList<ActionTransition> Transitions => _transitions.AsReadOnly();
-
     #endregion
+
+    #region 公共接口
 
     public void SetTimelineAsset(TimelineAsset timelineAsset)
     {
@@ -142,26 +59,11 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
         MarkDirty();
     }
 
-    public void UpdateActionData(double newNormalizedTime, Enums.ActionPhase newPhase)
+    public ActionInstance CreateActionInstance()
     {
-        var newData = new ActionData
-        {
-            normalizedTime = newNormalizedTime,
-            phase = newPhase
-        };
-
-        ActionData = newData;
+        return new ActionInstance(this);
     }
-
-    public void UpdateActionData(ActionData newData)
-    {
-        UpdateActionData(newData.normalizedTime, newData.phase);
-    }
-
-    public void ResetData()
-    {
-        UpdateActionData(0, Enums.ActionPhase.Neutral);
-    }
+    #endregion
 
     #region 生命周期和序列化
 
@@ -174,8 +76,7 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
 
     public void OnBeforeSerialize()
     {
-        // 序列化前验证数据
-        _actionData.normalizedTime = Math.Clamp(_actionData.normalizedTime, 0, 1);
+
     }
 
     public void OnAfterDeserialize()
@@ -191,24 +92,6 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
         UnityEditor.EditorUtility.SetDirty(this); // 只有在编辑器环境下才需要标记
 #endif
     }
-
     #endregion
-
-}
-
-public static partial class Enums
-{
-    [System.Flags]
-    public enum ActionPhase
-    {
-        None = 0,
-        Neutral = 2,
-        Startup = 4,
-        Charging = 8,
-        FullPower = 16,
-        OverCharge = 32,
-        Effect = 64,
-        Recovery = 128
-    }
 
 }

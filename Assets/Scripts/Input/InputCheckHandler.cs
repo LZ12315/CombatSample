@@ -32,13 +32,3 @@ public class InputCheckHandler
     public bool IsLast => checkIndex >= inputChecks.Count;
 
 }
-
-public static partial class Enums
-{
-    public enum ActionPriority
-    {
-        Normal,
-        Special,
-        Override
-    }
-}

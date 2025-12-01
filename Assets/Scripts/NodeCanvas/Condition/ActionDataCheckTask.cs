@@ -23,20 +23,20 @@ namespace NodeCanvas.Tasks.Conditions {
 
 		protected override bool OnCheck() {
 			bool isCorrect = false;
-            ActionData actionData = currentAction.value.ActionData;
+            //ActionData actionData = currentAction.value.ActionData;
 
-            foreach (var check in EnumUtils.GetFlags(dataChecks))
-            {
-                switch (check)
-                {
-                    case Enums.ActionDataCheckType.Phase:
-                        isCorrect = EnumUtils.ContainsAny(actionData.phase, requiredPhase);
-                        break;
-                    case Enums.ActionDataCheckType.Progress:
-                        isCorrect = (actionData.normalizedTime >= requiredProgress - 0.03f);
-                        break;
-                }
-            }
+            //foreach (var check in EnumUtils.GetFlags(dataChecks))
+            //{
+            //    switch (check)
+            //    {
+            //        case Enums.ActionDataCheckType.Phase:
+            //            isCorrect = EnumUtils.ContainsAny(actionData.phase, requiredPhase);
+            //            break;
+            //        case Enums.ActionDataCheckType.Progress:
+            //            isCorrect = (actionData.normalizedTime >= requiredProgress - 0.03f);
+            //            break;
+            //    }
+            //}
 
             return isCorrect;
 		}

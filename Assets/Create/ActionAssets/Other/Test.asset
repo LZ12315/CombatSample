@@ -34,9 +34,15 @@ MonoBehaviour:
   m_Name: Test
   m_EditorClassIdentifier: 
   _timelineAsset: {fileID: -7701553914209658937}
-  actionAssetData:
-    nomalizedTime: 0
-    phase: 2
+  _priority: 0
+  _weight: 0
+  _transitions:
+  - targetAction: {fileID: 0}
+    transitionMode: 0
+    conditions: []
+  references:
+    version: 2
+    RefIds: []
 --- !u!114 &887814256663843462
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -49,8 +55,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b60178e697ece6745afb0d8e51c193da, type: 3}
   m_Name: ActionPhaseAsset(Clone)
   m_EditorClassIdentifier: 
-  actionPhase_Start: 2
-  actionPhase_End: 2
+  actionPhase: 0
 --- !u!114 &3308678338715470861
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -140,6 +145,6 @@ MonoBehaviour:
     m_PreExtrapolationMode: 0
     m_PostExtrapolationTime: 0
     m_PreExtrapolationTime: 0
-    m_DisplayName: 'ActionPhase : Neutral'
+    m_DisplayName: 'ActionPhase : None'
   m_Markers:
     m_Objects: []

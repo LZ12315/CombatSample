@@ -3,7 +3,7 @@ using UnityEditor;
 using UnityEngine;
 using System.Collections.Generic;
 
-[CustomPropertyDrawer(typeof(ConditionList))]
+[CustomPropertyDrawer(typeof(ActionTransition))]
 public class RobustConditionListDrawer : PropertyDrawer
 {
     private Dictionary<string, bool> foldoutStates = new Dictionary<string, bool>();

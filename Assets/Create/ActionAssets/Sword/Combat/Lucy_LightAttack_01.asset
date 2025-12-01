@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b60178e697ece6745afb0d8e51c193da, type: 3}
   m_Name: ActionPhaseAsset(Clone)
   m_EditorClassIdentifier: 
-  actionPhase_Start: 64
+  actionPhase: 0
 --- !u!114 &-7339410253920333271
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -283,7 +283,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b60178e697ece6745afb0d8e51c193da, type: 3}
   m_Name: ActionPhaseAsset(Clone)(Clone)
   m_EditorClassIdentifier: 
-  actionPhase_Start: 128
+  actionPhase: 0
 --- !u!114 &-498561328345217
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -389,8 +389,15 @@ MonoBehaviour:
   m_Name: Lucy_LightAttack_01
   m_EditorClassIdentifier: 
   _timelineAsset: {fileID: -1861555647145380671}
-  _actionAssetAttribute:
-    actionType: 2
+  _actionData:
+    _normalizedTime: 0
+    _phase: 0
+  _priority: 0
+  _weight: 0
+  _transitions: []
+  references:
+    version: 2
+    RefIds: []
 --- !u!114 &647764945664480512
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -874,7 +881,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b60178e697ece6745afb0d8e51c193da, type: 3}
   m_Name: ActionPhaseAsset
   m_EditorClassIdentifier: 
-  actionPhase_Start: 2
+  actionPhase: 0
 --- !u!114 &9044357768983363831
 MonoBehaviour:
   m_ObjectHideFlags: 1

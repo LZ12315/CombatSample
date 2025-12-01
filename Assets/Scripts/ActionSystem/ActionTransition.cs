@@ -6,32 +6,28 @@ using UnityEngine;
 [Serializable]
 public class ActionTransition
 {
-    public ActionAsset targetAction;
-    public Enums.ActionTransitionMode transitionMode;
-    public ConditionList condition;
+    [Header("配置")]
+    [SerializeField, Tooltip("下一个动作")]
+    private ActionAsset targetAction;
 
-    public void Enable()
+    [SerializeField, Tooltip("动作检查模式")]
+    private Enums.ActionTransitionMode transitionMode;
+
+    [SerializeReference, Tooltip("Transition列表")]
+    private List<TransitionCondition> conditions = new List<TransitionCondition>();
+
+    #region 公有属性
+    public ActionAsset TargetAction { get => targetAction;}
+    public IReadOnlyList<TransitionCondition> Conditions => conditions?.AsReadOnly();
+    #endregion
+
+    public void Enable(Actor actor)
     {
+        if (conditions.Count == 0) return;
 
+        foreach (var condition in conditions)
+            condition.Enable(actor);
     }
-
-    public bool Check()
-    {
-        return condition.Check();
-    }
-
-    public void Disable()
-    {
-
-    }
-
-}
-
-[Serializable]
-public class ConditionList
-{
-    [SerializeReference]
-    public List<TransitionCondition> conditions = new List<TransitionCondition>();
 
     public bool Check()
     {
@@ -43,16 +39,48 @@ public class ConditionList
             if (condition != null)
             {
                 result = result && condition.Check();
+                if (result && transitionMode == Enums.ActionTransitionMode.AnyTrue)
+                    return true;
             }
         }
         return result;
     }
+
+    public void Disable()
+    {
+        if (conditions.Count == 0) return;
+
+        foreach (var condition in conditions)
+            condition.Disable();
+    }
+
+    public ActionTransition Clone()
+    {
+        var clonedConditions = new List<TransitionCondition>();
+
+        foreach (var condition in Conditions)
+        {
+            if (condition != null)
+            {
+                var clonedCondition = condition.Clone();
+                clonedConditions.Add(clonedCondition);
+            }
+        }
+
+        return new ActionTransition
+        {
+            targetAction = this.targetAction,
+            transitionMode = this.transitionMode,
+            conditions = clonedConditions
+        };
+    }
+
 }
 
 public static partial class Enums
 {
     public enum ActionTransitionMode
     {
-        All, Any
+        AllTrue, AnyTrue
     }
 }

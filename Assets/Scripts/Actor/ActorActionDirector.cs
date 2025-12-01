@@ -5,11 +5,16 @@ using UnityEngine.Playables;
 
 public class ActorActionDirector : MonoBehaviour
 {
+    [Header("配置")]
     public Actor actor;
     public PlayableDirector director;
-   
-    [SerializeField] private ActionAsset actionPlaying;
-    public ActionAsset ActionPlaying => actionPlaying;
+
+    [Header("属性")]
+    public bool controlActionTransition = false;
+
+    [Header("数据")]
+    private ActionInstance currentAction;
+    public ActionInstance CurrentAction => currentAction;
 
     private void Awake()
     {
@@ -19,39 +24,48 @@ public class ActorActionDirector : MonoBehaviour
 
     private void Update()
     {
-        if (actionPlaying != null)
+        if (currentAction != null)
         {
             double timelineProgress = director.time / director.duration;
+            CurrentAction.UpdateRuntimeData(timelineProgress, CurrentAction.RuntimeData.phase);
+        }
 
-            ActionData actionData = actionPlaying.ActionData;
-            actionData.normalizedTime = timelineProgress;
-            actionPlaying.UpdateActionData(actionData);
+        if (controlActionTransition)
+        {
+            ActionAsset nextAction = CurrentAction.CheckTransitions();
+            if (nextAction != null)
+                SwitchAction(nextAction);
         }
     }
 
-    private void OnDestroy()
+    void StopAction()
     {
-        _timelineEventManager.ClearAllSubscriptions();
+        director.Stop();
+
+        if (controlActionTransition)
+            CurrentAction.DisableTransitions();
     }
 
-    public void PlayAction(ActionAsset action)
+    void PlayAction(ActionAsset actionToPlay)
     {
-        if (action == null || director == null) return;
-
-        director.Stop();
-        director.playableAsset = action.TimelineAsset;
         director.time = 0.0;
+        director.playableAsset = actionToPlay.TimelineAsset;
         director.Play();
 
-        actionPlaying = action;
+        currentAction = actionToPlay.CreateActionInstance();
+        if (controlActionTransition)
+            CurrentAction.EnableTransitions(actor);
     }
 
-    private void OnActionStopped(PlayableDirector director)
+    public void SwitchAction(ActionAsset nextAction)
     {
-        if(actionPlaying == null) return;
+        if (nextAction == null || director == null) return;
 
-        actionPlaying.ResetData();
+        StopAction();
+        PlayAction(nextAction);
     }
+
+    private void OnActionStopped(PlayableDirector director){  }
 
     #region Timeline控制方法
 
@@ -84,33 +98,7 @@ public class ActorActionDirector : MonoBehaviour
         director.Resume();
     }
 
-    public double GetTimelineSpeed()
-    {
-        return director.playableGraph.GetRootPlayable(0).GetSpeed();
-    }
-
     #endregion
 
-
-    #region Timeline事件
-
-    private GenericEventManager<PlayableDirector> _timelineEventManager = new GenericEventManager<PlayableDirector>();
-
-    public void RegisterForTimelineEvent(object registrant, Action<PlayableDirector> callback)
-    {
-        _timelineEventManager.Subscribe(registrant, callback);
-    }
-
-    public void UnregisterFromTimelineEvent(object registrant)
-    {
-        _timelineEventManager.Unsubscribe(registrant);
-    }
-
-    void RaiseTimelineEvent(PlayableDirector playabledirector)
-    {
-        _timelineEventManager.Publish(playabledirector);
-    }
-
-    #endregion
 
 }
