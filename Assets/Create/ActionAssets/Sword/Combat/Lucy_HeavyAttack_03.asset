@@ -220,9 +220,12 @@ MonoBehaviour:
   m_Name: Lucy_HeavyAttack_03
   m_EditorClassIdentifier: 
   _timelineAsset: {fileID: 979257051020723780}
-  _actionAttribute:
-    actionType: 0
-  transitions: []
+  _actionData:
+    _normalizedTime: 0
+    _phase: 0
+  _priority: 0
+  _weight: 0
+  _transitions: []
   references:
     version: 2
     RefIds: []
@@ -238,7 +241,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b60178e697ece6745afb0d8e51c193da, type: 3}
   m_Name: ActionPhaseAsset
   m_EditorClassIdentifier: 
-  actionPhase_Start: 2
+  actionPhase: 0
 --- !u!114 &979257051020723780
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -307,7 +310,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b60178e697ece6745afb0d8e51c193da, type: 3}
   m_Name: ActionPhaseAsset
   m_EditorClassIdentifier: 
-  actionPhase_Start: 128
+  actionPhase: 0
 --- !u!114 &4515983413453644229
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -333,7 +336,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b60178e697ece6745afb0d8e51c193da, type: 3}
   m_Name: ActionPhaseAsset(Clone)(Clone)
   m_EditorClassIdentifier: 
-  actionPhase_Start: 64
+  actionPhase: 0
 --- !u!114 &7156274931431433075
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -734,4 +737,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b60178e697ece6745afb0d8e51c193da, type: 3}
   m_Name: ActionPhaseAsset(Clone)
   m_EditorClassIdentifier: 
-  actionPhase_Start: 64
+  actionPhase: 0

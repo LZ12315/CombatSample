@@ -4,14 +4,14 @@ using UnityEngine.Playables;
 public class ActionPhaseAsset : PlayableAsset
 {
     [Header("Phase…Ë÷√")]
-    public Enums.ActionPhase actionPhase_Start = Enums.ActionPhase.None;
+    public Enums.ActionPhase actionPhase = Enums.ActionPhase.None;
 
     public override Playable CreatePlayable(PlayableGraph graph, GameObject owner)
     {
         var playable = ScriptPlayable<ActionPhaseClip>.Create(graph);
         ActionPhaseClip clip = playable.GetBehaviour();
 
-        clip.actionPhase_Start = actionPhase_Start;
+        clip.actionPhase = actionPhase;
 
         return playable;
     }
@@ -20,29 +20,28 @@ public class ActionPhaseAsset : PlayableAsset
 
 public class ActionPhaseClip : ActionBehaviourBase
 {
-    public Enums.ActionPhase actionPhase_Start = Enums.ActionPhase.None;
+    public Enums.ActionPhase actionPhase = Enums.ActionPhase.None;
 
     protected override void OnClipPlay(Playable playable)
     {
         base.OnClipPlay(playable);
 
-        if (actionAsset != null)
-            SetActionPhase(actionPhase_Start);
+        SetActionPhase(actionPhase);
     }
 
     protected override void OnClipFinish(bool isNormal)
     {
         base.OnClipFinish(isNormal);
 
-        if (actionAsset != null)
-            SetActionPhase(Enums.ActionPhase.Neutral);
+        SetActionPhase(Enums.ActionPhase.Neutral);
     }
 
-    void SetActionPhase(Enums.ActionPhase actionPhase)
+    void SetActionPhase(Enums.ActionPhase phase)
     {
-        ActionData actionData = actionAsset.ActionData;
-        actionData.phase = actionPhase;
-        actionAsset.UpdateActionData(actionData);
+        if(actor.actionPlayerDirector.CurrentAction == null) return;
+
+        double normalizedTime = actor.actionPlayerDirector.CurrentAction.RuntimeData.normalizedTime;
+        actor.actionPlayerDirector.CurrentAction.UpdateRuntimeData(normalizedTime, phase);
     }
 
 }

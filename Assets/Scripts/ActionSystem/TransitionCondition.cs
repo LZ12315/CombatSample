@@ -14,11 +14,13 @@ abstract public class TransitionCondition
 
     protected virtual void OnDisable() { }
 
+    public abstract TransitionCondition Clone();
+
     #region 公开方法
 
-    public void Enable()
+    public void Enable(Actor actor)
     {
-        actor = null;
+        this.actor = actor;
         OnEnable();
     }
 

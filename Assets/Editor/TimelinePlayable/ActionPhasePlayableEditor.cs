@@ -10,7 +10,7 @@ class ActionPhaseClipEditor : ActionClipEditorBase
     protected override void OnClipChange(TimelineClip clip)
     {
         var asset = clip.asset as ActionPhaseAsset;
-        var phaseType = asset.actionPhase_Start.ToString();
+        var phaseType = asset.actionPhase.ToString();
 
         clip.displayName = $"ActionPhase : {phaseType}";
     }

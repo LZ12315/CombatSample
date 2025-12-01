@@ -25,4 +25,12 @@ public class InputSequenceCondition : TransitionCondition
 
     }
 
+    public override TransitionCondition Clone()
+    {
+        return new InputSequenceCondition
+        {
+            waitTime = this.waitTime,
+            inputChecks = this.inputChecks
+        };
+    }
 }
