@@ -1,23 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Scripting.APIUpdating;
 
-[Serializable]
-public class InputCheckWrapper
-{
-    [ContextMenuItem("CheckButton", "CheckButton", order = 0)]
-    [ContextMenuItem("CheckJoystick", "CheckJoystick", order = 1)]
-    [SerializeReference]
-    private InputCheckBase inputCheck = new ButtonInputCheck();
-
-    public bool CheckInputData(InputData input)
-    {
-        return inputCheck?.CheckInput(input) ?? false;
-    }
-
-    private void CheckButton() => inputCheck = new ButtonInputCheck();
-    private void CheckJoystick() => inputCheck = new JoystickInputCheck();
-}
 
 [Serializable]
 public abstract class InputCheckBase
@@ -28,7 +13,7 @@ public abstract class InputCheckBase
 [Serializable]
 public class ButtonInputCheck : InputCheckBase
 {
-    [Tooltip("需要匹配的按钮组合")]
+    [Tooltip("需要匹配的按钮")]
     public Enums.InputButton requiredButtons;
 
     [Tooltip("需要匹配的按钮状态")]
@@ -81,6 +66,27 @@ public class JoystickInputCheck : InputCheckBase
         }
         return false;
     }
+}
+
+[Serializable]
+public abstract class InputStateCheckBase
+{
+    [Tooltip("需要匹配的输入状态")]
+    public bool requiredState = false;
+}
+
+[Serializable]
+public class ButtonStateCheck : InputStateCheckBase
+{
+    [Tooltip("需要匹配的按钮组合")]
+    public Enums.InputButton check;
+}
+
+[Serializable]
+public class JoystickStateCheck : InputStateCheckBase
+{
+    [Tooltip("需要匹配的摇杆方向")]
+    public Enums.InputJoystick check;
 }
 
 

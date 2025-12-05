@@ -6,7 +6,7 @@ using System;
 
 public class InputCheckHandler
 {
-    public List<InputCheckWrapper> inputChecks;
+    public List<InputCheckBase> inputChecks;
     public Enums.ActionPriority priority = Enums.ActionPriority.Normal;
     public float waitTime = 0;
     public bool useBuffer =false;
@@ -14,7 +14,7 @@ public class InputCheckHandler
     public float waitCounter = 0;
     public int checkIndex = 0;
 
-    public InputCheckHandler(float waitTime, List<InputCheckWrapper> inputChecks, Enums.ActionPriority priority)
+    public InputCheckHandler(float waitTime, List<InputCheckBase> inputChecks, Enums.ActionPriority priority)
     {
         this.waitTime = waitTime;
         this.inputChecks = inputChecks;
@@ -25,7 +25,7 @@ public class InputCheckHandler
     {
         if(checkIndex >= inputChecks.Count) return true;
 
-        bool isMatch = inputChecks[checkIndex].CheckInputData(inputData);
+        bool isMatch = inputChecks[checkIndex].CheckInput(inputData);
         return isMatch;
     }
 

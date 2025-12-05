@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [Serializable]
-abstract public class TransitionCondition
+public abstract class TransitionCondition
 {
     protected Actor actor;
 
@@ -20,6 +20,8 @@ abstract public class TransitionCondition
 
     public void Enable(Actor actor)
     {
+        if(actor == null) return;
+
         this.actor = actor;
         OnEnable();
     }
@@ -31,8 +33,8 @@ abstract public class TransitionCondition
 
     public void Disable()
     {
-        actor = null;
         OnDisable();
+        actor = null;
     }
 
     #endregion

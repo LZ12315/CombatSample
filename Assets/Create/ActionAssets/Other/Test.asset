@@ -37,12 +37,36 @@ MonoBehaviour:
   _priority: 0
   _weight: 0
   _transitions:
-  - targetAction: {fileID: 0}
+  - targetAction: {fileID: 11400000, guid: 8903aefe7547d5648b86a107a3c56050, type: 2}
     transitionMode: 0
-    conditions: []
+    conditions:
+    - rid: 7294130503099351097
   references:
     version: 2
-    RefIds: []
+    RefIds:
+    - rid: 7294130503099351097
+      type: {class: InputSequenceCondition, ns: , asm: Assembly-CSharp}
+      data:
+        waitTime: 1
+        inputChecks:
+        - rid: 7294130503099351099
+        - rid: 7294130503099351100
+        - rid: 7294130503099351098
+    - rid: 7294130503099351098
+      type: {class: ButtonInputCheck, ns: , asm: Assembly-CSharp}
+      data:
+        requiredButtons: 8
+        requiredState: 2
+    - rid: 7294130503099351099
+      type: {class: JoystickInputCheck, ns: , asm: Assembly-CSharp}
+      data:
+        requiredDirections: 8
+        requiredVigors: 8
+    - rid: 7294130503099351100
+      type: {class: JoystickInputCheck, ns: , asm: Assembly-CSharp}
+      data:
+        requiredDirections: 32
+        requiredVigors: 8
 --- !u!114 &887814256663843462
 MonoBehaviour:
   m_ObjectHideFlags: 1

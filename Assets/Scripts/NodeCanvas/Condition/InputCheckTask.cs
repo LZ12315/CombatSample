@@ -23,21 +23,21 @@ namespace NodeCanvas.Tasks.Conditions {
         [Header(" Ù–‘")]
         public float waitTime = 0.2f;
         public Enums.ActionPriority priority;
-        public List<InputCheckWrapper> inputChecks;
+        //public List<InputCheckBase> inputChecks;
 
-        private InputCheckHandler handler;
+        //private InputCheckHandler handler;
         private bool isTriggered = false;   
 
         protected override void OnEnable() {
             isTriggered = false ;
-            handler = new InputCheckHandler(waitTime, inputChecks, priority);
-            actor.value.logicInput.RegisterForInputEvent(handler, GetResult);
+            //handler = new InputCheckHandler(waitTime, inputChecks, priority);
+            //actor.value.logicInput.RegisterForInputEvent(handler, GetResult);
         }
 
         protected override void OnDisable(){
             isTriggered = false;
-            actor.value.logicInput.UnregisterFromInputEvent(handler);
-            handler = null;
+            //actor.value.logicInput.UnregisterFromInputEvent(handler);
+            //handler = null;
         }
 
         protected override bool OnCheck() {
@@ -48,8 +48,8 @@ namespace NodeCanvas.Tasks.Conditions {
         {
             isTriggered = triggered;
 
-            if(!isTriggered)
-                actor.value.logicInput.UnregisterFromInputEvent(handler);
+            //if(!isTriggered)
+            //    actor.value.logicInput.UnregisterFromInputEvent(handler);
         }
 
     }
