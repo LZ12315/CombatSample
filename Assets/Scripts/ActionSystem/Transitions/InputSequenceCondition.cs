@@ -7,22 +7,50 @@ using UnityEngine;
 public class InputSequenceCondition : TransitionCondition
 {
     [Header(" Ù–‘")]
-    public float waitTime = 0.2f;
-    public List<InputCheckWrapper> inputChecks;
+    [SerializeField]
+    private float waitTime = 0.4f;
+    [SerializeReference, SubclassSelector]
+    private List<InputCheckBase> inputChecks = new List<InputCheckBase>();
+
+    private float waitCounter = 0;
+    private int checkIndex = 0;
 
     protected override void OnEnable()
     {
-
+        if(actor.logicInput != null)
+            actor.logicInput.RegisterForInputEvent(this, GetInput);
     }
 
     protected override bool OnCheck()
     {
-        return true;
+        if(waitCounter > 0)
+        {
+            waitCounter -= Time.deltaTime;
+            if(waitCounter <= 0)
+            {
+                checkIndex = 0;
+                waitCounter = 0;
+            }
+        }
+
+        return checkIndex == inputChecks.Count;
     }
 
     protected override void OnDisable()
     {
+        if (actor.logicInput != null)
+            actor.logicInput.UnregisterFromInputEvent(this);
+    }
 
+    void GetInput(InputData input)
+    {
+        if(checkIndex == inputChecks.Count) return;
+
+        if (inputChecks[checkIndex].CheckInput(input))
+        {
+            checkIndex++;
+            waitCounter = waitTime;
+        }
     }
 
     public override TransitionCondition Clone()

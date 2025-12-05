@@ -2,30 +2,45 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using CombatSample.Utils;
 
 [Serializable]
 public class InputStateCondition : TransitionCondition
 {
-    [Header(" Ù–‘")]
-    public InputCheckWrapper inputCheck;
-
-    protected override void OnEnable()
-    {
-
-    }
+    [Header("≈‰÷√")]
+    [SerializeReference, SubclassSelector]
+    private InputStateCheckBase stateCheck;
 
     protected override bool OnCheck()
     {
-        return true;
-    }
+        var controller = actor.logicInput.InputController;
 
-    protected override void OnDisable()
-    {
+        if (stateCheck is ButtonStateCheck buttonCheck)
+        {
+            foreach (var button in EnumUtils.GetFlags(buttonCheck.check))
+            {
+                if (controller.GetInputState(button) == buttonCheck.requiredState)
+                    return true;
+            }
+        }
 
+        if (stateCheck is JoystickStateCheck joystickCheck)
+        {
+            foreach (var joyStick in EnumUtils.GetFlags(joystickCheck.check))
+            {
+                if (controller.GetInputState(joyStick) == joystickCheck.requiredState)
+                    return true;
+            }
+        }
+
+        return false;
     }
 
     public override TransitionCondition Clone()
     {
-        throw new NotImplementedException();
+        return new InputStateCondition
+        {
+            stateCheck = this.stateCheck
+        };
     }
 }

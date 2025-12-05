@@ -13,8 +13,8 @@ public class ActionTransition
     [SerializeField, Tooltip("动作检查模式")]
     private Enums.ActionTransitionMode transitionMode;
 
-    [SerializeReference, Tooltip("Transition列表")]
-    private List<TransitionCondition> conditions = new List<TransitionCondition>();
+    [SerializeReference, SubclassSelector, Tooltip("Transition列表")]
+    private List<TransitionCondition> conditions;
 
     #region 公有属性
     public ActionAsset TargetAction { get => targetAction;}

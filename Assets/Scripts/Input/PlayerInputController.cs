@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using CombatSample.Consts;
+using System;
 
 public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerActions
 {
@@ -22,7 +23,7 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
     [SerializeField] float joystickHard_Distance = 0.6f;
     [SerializeField] float joystick_DeadZone = 0.1f;
 
-    // 输入状态 //
+    [Header("输入状态")]
     private Vector2 rawMove = Vector2.zero;
     private Vector2 rawLook = Vector2.zero;
     Dictionary<Enums.InputButton, InputPressState> buttonStates = new ();
@@ -43,7 +44,8 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
 
         // 游戏开始时锁定并隐藏鼠标
         Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false; // 在Locked模式下此行可省略，但明确设置是好习惯 [6](@ref)
+        // 在Locked模式下此行可省略，但明确设置是好习惯
+        Cursor.visible = false;
 
         if (debug)
             Time.timeScale = timeScale;
@@ -64,6 +66,7 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
         if(controlledActor == null) return;
 
         this.controlledActor = controlledActor;
+        controlledActor.logicInput.InputController = this;
     }
 
     void Update()
@@ -105,6 +108,32 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
     }
 
     #region 获取Input
+
+    public bool GetInputState(Enums.InputButton button)
+    {
+        if (buttonStates.ContainsKey(button))
+            return buttonStates[button].isActive;
+        else
+        {
+            buttonStates[button] = new InputPressState(false);
+            return false;
+        }
+    }
+
+    public bool GetInputState(Enums.InputJoystick joystick)
+    {
+        if (joystickStates.ContainsKey(joystick))
+            return joystickStates[joystick].isActive;
+        else
+        {
+            joystickStates[joystick] = new InputPressState(false);
+            return false;
+        }
+    }
+
+    #endregion
+
+    #region InputSystem实现
 
     public void OnMove(InputAction.CallbackContext context)
     {
@@ -195,7 +224,7 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
 
     #endregion
 
-    #region Input工具
+    #region 辅助工具
 
     // 数据需要频繁被引用修改且数据量不大 用类很合适
     // 并且修改字典里的类可以直接引用 相比起结构体更方便
@@ -245,28 +274,6 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
         }
         else
             joystickStates[joystick] = new InputPressState(active);
-    }
-
-    public bool GetInputState(Enums.InputButton button)
-    {
-        if (buttonStates.ContainsKey(button))
-            return buttonStates[button].isActive;
-        else
-        {
-            buttonStates[button] = new InputPressState(false);
-            return false;
-        }
-    }
-
-    public bool GetInputState(Enums.InputJoystick joystick)
-    {
-        if (joystickStates.ContainsKey(joystick))
-            return joystickStates[joystick].isActive;
-        else
-        {
-            joystickStates[joystick]= new InputPressState(false);
-            return false;
-        }
     }
 
     void UpdateInputState()
