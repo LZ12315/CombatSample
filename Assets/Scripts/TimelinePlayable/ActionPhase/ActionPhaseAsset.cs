@@ -38,10 +38,10 @@ public class ActionPhaseClip : ActionBehaviourBase
 
     void SetActionPhase(Enums.ActionPhase phase)
     {
-        if(actor.actionPlayerDirector.CurrentAction == null) return;
+        if(actor.actionDirector.CurrentAction == null) return;
 
-        double normalizedTime = actor.actionPlayerDirector.CurrentAction.RuntimeData.normalizedTime;
-        actor.actionPlayerDirector.CurrentAction.UpdateRuntimeData(normalizedTime, phase);
+        double normalizedTime = actor.actionDirector.CurrentAction.RuntimeData.normalizedTime;
+        actor.actionDirector.CurrentAction.UpdateRuntimeData(normalizedTime, phase);
     }
 
 }

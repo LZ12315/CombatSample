@@ -9,16 +9,32 @@ public class ActionAssetCreater
     /// </summary>
     public static ActionAsset CreateActionAsset(string path)
     {
-        // 创建主资源
-        var actionAsset = ScriptableObject.CreateInstance<ActionAsset>();
-        AssetDatabase.CreateAsset(actionAsset, path);
+        // 【推荐】开始批量资产编辑，提高性能和操作的原子性
+        AssetDatabase.StartAssetEditing();
 
-        // 创建并附加Timeline资源
-        CreateAndAttachTimeline(actionAsset);
+        ActionAsset actionAsset = null;
+        try
+        {
+            // 创建主资源
+            actionAsset = ScriptableObject.CreateInstance<ActionAsset>();
+            AssetDatabase.CreateAsset(actionAsset, path);
 
-        // 确保所有修改被记录
-        EditorUtility.SetDirty(actionAsset);
-        AssetDatabase.SaveAssets();
+            // 创建并附加Timeline资源
+            CreateAndAttachTimeline(actionAsset);
+        }
+        finally
+        {
+            // 【推荐】结束批量资产编辑，并让Unity一次性处理所有变更
+            AssetDatabase.StopAssetEditing();
+
+            // 确保即使在try块中发生错误，我们也能保存已经创建的部分
+            if (actionAsset != null)
+            {
+                EditorUtility.SetDirty(actionAsset);
+            }
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh(); // 确保Project窗口状态最新
+        }
 
         return actionAsset;
     }
@@ -31,11 +47,10 @@ public class ActionAssetCreater
         timeline.editorSettings.frameRate = TimelineProjectSettings.instance.defaultFrameRate;
         timeline.hideFlags = HideFlags.HideInHierarchy;
 
-        // 创建轨道 - 使用正确的CreateTrack方法
+        // 创建轨道
         var animancerTrack = timeline.CreateTrack<AnimancerTrack>(null, "Animancer");
         animancerTrack.hideFlags = HideFlags.HideInHierarchy;
 
-        // 修复：使用正确的CreateTrack方法而不是CreateInstance
         var transitionTrack = timeline.CreateTrack<ActionPhaseTrack>(null, "ActionTransition");
         transitionTrack.hideFlags = HideFlags.HideInHierarchy;
 
@@ -47,7 +62,7 @@ public class ActionAssetCreater
         AssetDatabase.AddObjectToAsset(animancerTrack, actionAsset);
         AssetDatabase.AddObjectToAsset(transitionTrack, actionAsset);
 
-        // 标记子资源为Dirty
+        // 在批量编辑模式下，SetDirty可以放在最后一起做，但放在这里也无妨
         EditorUtility.SetDirty(timeline);
         EditorUtility.SetDirty(animancerTrack);
         EditorUtility.SetDirty(transitionTrack);
@@ -70,8 +85,10 @@ public class ActionAssetCreater
         public override void Action(int instanceId, string path, string resourceFile)
         {
             var asset = CreateActionAsset(path);
-            ProjectWindowUtil.ShowCreatedAsset(asset);
-            AssetDatabase.Refresh();
+            if (asset != null)
+            {
+                ProjectWindowUtil.ShowCreatedAsset(asset);
+            }
         }
     }
 }

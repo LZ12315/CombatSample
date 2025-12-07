@@ -13,10 +13,12 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
     [Header("属性")]
     [SerializeField, Tooltip("动作优先级")]
     private Enums.ActionPriority _priority = Enums.ActionPriority.Normal;
-    [SerializeField, Tooltip("同一优先级下的重要性")]
-    [Min(0)] private int _weight = 0;
 
     [Header("配置")]
+    [SerializeField, Tooltip("动作是否循环播放")]
+    private bool isLoop = false;
+    [SerializeField, Tooltip("该动作的默认下一个动作")]
+    private ActionAsset nextAction;
     [SerializeField, Tooltip("动作状态转换配置")]
     private List<ActionTransition> _transitions = new List<ActionTransition>();
 
@@ -31,24 +33,14 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
         }
     }
 
-    public Enums.ActionPriority priority
-    {
-        get => _priority;
-        set
-        {
-            if (!Enum.IsDefined(typeof(Enums.ActionPriority), value))
-                throw new ArgumentException($"Invalid ActionPriority: {value}");
-            _priority = value;
-        }
-    }
+    public Enums.ActionPriority priority { get => _priority; }
 
-    public int weight
-    {
-        get => _weight;
-        set => _weight = Math.Max(0, value);
-    }
+    public bool IsLoop { get => isLoop; }
+
+    public ActionAsset NextAction { get => nextAction; }
 
     public IReadOnlyList<ActionTransition> Transitions => _transitions.AsReadOnly();
+
     #endregion
 
     #region 公共接口

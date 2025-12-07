@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b60178e697ece6745afb0d8e51c193da, type: 3}
   m_Name: ActionPhaseAsset
   m_EditorClassIdentifier: 
-  actionPhase_Start: 2
+  actionPhase: 0
 --- !u!114 &-6286629044728960951
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -153,8 +153,14 @@ MonoBehaviour:
   m_Name: Lucy_Idle
   m_EditorClassIdentifier: 
   _timelineAsset: {fileID: -5540118879403883149}
-  _actionAssetAttribute:
-    actionType: 1
+  _priority: 0
+  _weight: 0
+  isLoop: 1
+  nextAction: {fileID: 0}
+  _transitions: []
+  references:
+    version: 2
+    RefIds: []
 --- !u!114 &7335645479925641510
 MonoBehaviour:
   m_ObjectHideFlags: 1

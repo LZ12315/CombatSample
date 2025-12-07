@@ -19,6 +19,9 @@ public class InputSequenceCondition : TransitionCondition
     {
         if(actor.logicInput != null)
             actor.logicInput.RegisterForInputEvent(this, GetInput);
+
+        waitCounter = 0;
+        checkIndex = 0;
     }
 
     protected override bool OnCheck()
