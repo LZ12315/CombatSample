@@ -1,5 +1,3 @@
-using System;
-using System.Reflection;
 using UnityEditor;
 using UnityEditor.Callbacks;
 using UnityEditor.SceneManagement;
@@ -8,74 +6,70 @@ using UnityEngine;
 using UnityEngine.Playables;
 using UnityEngine.Timeline;
 
-class ActionAssetHelper
+public class ActionAssetHelper
 {
-    //以下函数用于优化ActionAsset的Timeline编辑流程，双击Timeline就可以自动装配到Director上
-
-    [OnOpenAsset(0)]
-    public static bool OnOpenTimeline(int instanceID, int line)
+    [OnOpenAsset(1)] // 优先级设为1，优先处理我们的ActionAsset
+    public static bool OnOpenActionAsset(int instanceID, int line)
     {
-        var timelineOpened = EditorUtility.InstanceIDToObject(instanceID) as TimelineAsset;
-        if (timelineOpened == null)
-            return false;
+        var actionAsset = EditorUtility.InstanceIDToObject(instanceID) as ActionAsset;
+        if (actionAsset == null || actionAsset.TimelineAsset == null)
+            return false; // 如果不是ActionAsset或者它没有Timeline，则不做任何事
 
-        SelectDirector(timelineOpened);
-        return false;
-    }
-
-    [OnOpenAsset(1)]
-    public static bool OnOpenCustomTimeline(int instanceID, int line)
-    {
-        var actionTimelineOpened = EditorUtility.InstanceIDToObject(instanceID) as ActionAsset;
-        if (actionTimelineOpened == null)
-            return false;
-
-        SelectDirector(actionTimelineOpened.TimelineAsset);
-        OpenTimelineWindow(actionTimelineOpened.TimelineAsset);
-
-        return true;
-    }
-
-    //手动打开Timeline窗口 因为没有能打开自定义资源的函数可响应
-    //或许还可以用反射来获取TimelineWIndow类型来做更多事 敬请研究
-    private static void OpenTimelineWindow(TimelineAsset timelineAsset)
-    {
-        EditorApplication.ExecuteMenuItem("Window/Sequencing/Timeline");
-        TimelineEditor.GetOrCreateWindow().SetTimeline(timelineAsset);
-    }
-
-    private static void SelectDirector(TimelineAsset timelineAsset)
-    {
-        var director = FindPlayableDirector();
+        // 查找并设置 PlayableDirector
+        var director = FindBestPlayableDirector();
         if (director != null)
         {
-            // 选中包含 PlayableDirector 的 GameObject
-            Selection.activeObject = director.gameObject;
-            // 在 Hierarchy 中高亮显示
+            // 【改进2】记录撤销操作，并设置Timeline
+            Undo.RecordObject(director, "Set Timeline Asset");
+            director.playableAsset = actionAsset.TimelineAsset;
+            EditorUtility.SetDirty(director); // 标记为已修改
+
+            // 选中并高亮显示目标对象
+            Selection.activeGameObject = director.gameObject;
             EditorGUIUtility.PingObject(director.gameObject);
-            director.playableAsset = timelineAsset;
         }
+
+        // 【改进3】使用更健壮的方式打开Timeline窗口
+        var timelineWindow = EditorWindow.GetWindow<TimelineEditorWindow>();
+        timelineWindow.SetTimeline(actionAsset.TimelineAsset);
+
+        return true; // 返回true表示我们已经处理了这个打开事件
     }
 
-    private static PlayableDirector FindPlayableDirector()
+    /// <summary>
+    /// 【改进1】按优先级查找最合适的PlayableDirector
+    /// </summary>
+    private static PlayableDirector FindBestPlayableDirector()
     {
-        //在编辑预制体时，优先使用当前预制体内的director
-        var prefabStage = PrefabStageUtility.GetCurrentPrefabStage();
-        if (prefabStage != null) 
+        // 优先级1: 检查当前选中的GameObject及其子对象
+        if (Selection.activeGameObject != null)
         {
-            foreach (var go in prefabStage.scene.GetRootGameObjects())
+            var directorInSelection = Selection.activeGameObject.GetComponentInChildren<PlayableDirector>();
+            if (directorInSelection != null)
             {
-                var director = go.GetComponentInChildren<PlayableDirector>();
-                if(director != null) return director;
+                Debug.Log($"[ActionAssetHelper] 找到了选中对象 '{Selection.activeGameObject.name}' 上的PlayableDirector。");
+                return directorInSelection;
             }
         }
-        //在普通场景下，使用场景内物体的director
-        else
+
+        // 优先级2: 在预制件编辑模式下查找
+        var prefabStage = PrefabStageUtility.GetCurrentPrefabStage();
+        if (prefabStage != null && prefabStage.scene.IsValid())
         {
-            return UnityEngine.Object.FindAnyObjectByType<PlayableDirector>();
+            foreach (var rootGo in prefabStage.scene.GetRootGameObjects())
+            {
+                var directorInPrefab = rootGo.GetComponentInChildren<PlayableDirector>();
+                if (directorInPrefab != null)
+                {
+                    Debug.Log($"[ActionAssetHelper] 在预制件舞台中找到了 '{directorInPrefab.name}'。");
+                    return directorInPrefab;
+                }
+            }
         }
 
-        return null;
-    }
+        // 优先级3: (备用方案) 全局查找任意一个
+        var anyDirector = Object.FindObjectOfType<PlayableDirector>();
 
+        return anyDirector;
+    }
 }

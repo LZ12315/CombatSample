@@ -12,7 +12,7 @@ public class ActorCameraControl : MonoBehaviour
     [Header("相机配置")]
     // 为三种相机模式分别声明对应的Cinemachine虚拟相机引用
     public CinemachineVirtualCamera normalVirtualCamera;
-    public CinemachineFreeLook freeLookVirtualCamera; // FreeLook通常是特殊类型
+    public CinemachineFreeLook freeLookVirtualCamera;
     public CinemachineVirtualCamera combatVirtualCamera;
 
     [Header("相机属性")]

@@ -175,9 +175,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fd23beebde2badb4a8832cbb9a84b020, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  actor: {fileID: 0}
-  director: {fileID: 0}
-  actionPlaying: {fileID: 0}
+  actor: {fileID: 3617314882186939484}
+  director: {fileID: 3354261299216637628}
+  controlActionTransition: 0
 --- !u!1 &5276626400589506912
 GameObject:
   m_ObjectHideFlags: 0

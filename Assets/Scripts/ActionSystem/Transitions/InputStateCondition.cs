@@ -13,13 +13,11 @@ public class InputStateCondition : TransitionCondition
 
     protected override bool OnCheck()
     {
-        var controller = actor.logicInput.InputController;
-
         if (stateCheck is ButtonStateCheck buttonCheck)
         {
             foreach (var button in EnumUtils.GetFlags(buttonCheck.check))
             {
-                if (controller.GetInputState(button) == buttonCheck.requiredState)
+                if (PlayerInputController.Instance.GetInputState(button) == buttonCheck.requiredState)
                     return true;
             }
         }
@@ -28,7 +26,7 @@ public class InputStateCondition : TransitionCondition
         {
             foreach (var joyStick in EnumUtils.GetFlags(joystickCheck.check))
             {
-                if (controller.GetInputState(joyStick) == joystickCheck.requiredState)
+                if (PlayerInputController.Instance.GetInputState(joyStick) == joystickCheck.requiredState)
                     return true;
             }
         }

@@ -9,11 +9,6 @@ public class ActorLogicInput : MonoBehaviour
 {
     public Actor actor;
 
-    // 为了获取InputState而专门设置
-    private PlayerInputController inputController;
-    public PlayerInputController InputController { get => inputController; set => inputController = value; }
-    // 之后需要删除
-
     private Vector2 lastMoveInput = Vector2.zero;
     public Vector2 MoveInput => lastMoveInput;
 
@@ -65,17 +60,4 @@ public class ActorLogicInput : MonoBehaviour
 
     #endregion
 
-}
-
-
-public class InputBuffer
-{
-    public InputData inputData;
-    public float time;
-
-    public InputBuffer(InputData data, float time)
-    {
-        inputData = data;
-        this.time = time;
-    }
 }

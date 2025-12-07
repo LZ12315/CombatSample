@@ -21,28 +21,23 @@ namespace NodeCanvas.Tasks.Actions {
         protected override void OnExecute() {
 			PlayAction();
 
-			StartCoroutine(LateRegistration());
-		}
-
-		IEnumerator LateRegistration()
-		{
-			yield return new WaitForSeconds(0.05f);
-
-			var playableDirector = actor.value.actionPlayerDirector.director;
-			playableDirector.stopped += ActionStopped;
-		}
+            var actionDirector = actor.value.actionDirector;
+            actionDirector.OnActionFinished += OnActionStopped;
+        }
 
         void PlayAction()
 		{
-			actor.value.actionPlayerDirector.SwitchAction(actionToPlay.value);
-			//actionToPlay.value.ResetData(); µ»¥˝÷ÿ÷√
+			actor.value.actionDirector.Play(actionToPlay.value);
         }
 
-		void ActionStopped(PlayableDirector director)
+		void OnActionStopped(ActionInstance action)
 		{
+            if (action.Config != actionToPlay.value) return;
+
             EndAction();
-            var playableDirector = actor.value.actionPlayerDirector.director;
-            playableDirector.stopped -= ActionStopped;
+
+            var actionDirector = actor.value.actionDirector;
+            actionDirector.OnActionFinished -= OnActionStopped;
         }
 	}
 
