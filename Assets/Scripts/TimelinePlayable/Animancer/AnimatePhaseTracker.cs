@@ -1,102 +1,79 @@
-using Animancer;
 using UnityEngine;
-using System.Collections;
+using Animancer;
 
+/// <summary>
+/// 一个纯C#对象，用于追踪Animancer当前主状态的步态相位。
+/// 它需要被外部代码手动更新。
+/// </summary>
 public class GaitPhaseTracker
 {
-    private float _currentPhase; // 当前步态相位 (0-1)
-    private float _phaseVelocity; // 用于平滑相位变化
+    // --- 公共API ---
+    public float CurrentPhase { get; private set; }
 
-    public void Update(float deltaTime, AnimancerState currentState)
+    public bool IsSafeToTransition => IsLeftFootDown || IsRightFootDown;
+    public bool IsLeftFootDown => CurrentPhase >= 0f && CurrentPhase < 0.1f || CurrentPhase >= 0.5f && CurrentPhase < 0.6f;
+    public bool IsRightFootDown => CurrentPhase >= 0.25f && CurrentPhase < 0.35f || CurrentPhase >= 0.75f && CurrentPhase < 0.85f;
+
+    /// <summary>
+    /// 手动更新相位。应在每帧调用。
+    /// </summary>
+    /// <param name="currentState">要追踪的Animancer状态</param>
+    public void Update(AnimancerState currentState)
     {
-        if (currentState == null || !currentState.IsPlaying)
-            return;
-
-        // 计算基础相位 (基于动画播放进度)
-        float rawPhase = currentState.NormalizedTime % 1f;
-
-        // 应用平滑处理 (避免帧率波动影响)
-        _currentPhase = Mathf.SmoothDamp(_currentPhase, rawPhase,
-                                        ref _phaseVelocity, 0.05f);
+        if (currentState != null && currentState.IsPlaying && currentState.Length > 0)
+        {
+            CurrentPhase = currentState.NormalizedTime;
+        }
     }
-
-    public float CurrentPhase => _currentPhase;
-
-    // 获取当前步态周期的关键点
-    public bool IsLeftFootDown => _currentPhase > 0.25f && _currentPhase < 0.35f;
-    public bool IsRightFootDown => _currentPhase > 0.8f && _currentPhase < 0.9f;
-    public bool IsTransitionSafe => IsLeftFootDown || IsRightFootDown;
 }
 
-public class PhaseAwareAnimancerPlayer
+/// <summary>
+/// 一个静态辅助类，用于执行基于相位的动画过渡。
+/// </summary>
+public static class PhaseMatcher
 {
-    private readonly AnimancerComponent _animancer;
-    private readonly GaitPhaseTracker _phaseTracker;
-
-    public PhaseAwareAnimancerPlayer(AnimancerComponent animancer)
+    /// <summary>
+    /// 以相位匹配的方式，将Animancer过渡到一个新的动画片段。
+    /// </summary>
+    /// <param name="animancer">目标Animancer组件。</param>
+    /// <param name="clipToPlay">要播放的新动画片段。</param>
+    /// <param name="fadeDuration">过渡的淡入淡出时间。</param>
+    /// <param name="referencePhase">用于对齐的参考相位 (0-1)。</param>
+    /// <returns>播放的新动画状态。</returns>
+    public static AnimancerState Transition(
+        AnimancerComponent animancer,
+        AnimationClip clipToPlay,
+        float fadeDuration,
+        float referencePhase)
     {
-        _animancer = animancer;
-        _phaseTracker = new GaitPhaseTracker();
-    }
+        if (clipToPlay == null)
+        {
+            Debug.LogError("尝试进行相位匹配的AnimationClip为空！");
+            return null;
+        }
 
-    public void Update(float deltaTime)
-    {
-        _phaseTracker.Update(deltaTime, _animancer.States.Current);
-    }
+        // 1. 获取或创建新动画的状态
+        var state = animancer.States.GetOrCreate(clipToPlay);
 
-    public AnimancerState Play(AnimationClip clip, float blendTime = 0.15f)
-    {
-        // 获取当前步态相位
-        float currentPhase = _phaseTracker.CurrentPhase;
+        // 2. 根据参考相位，计算新动画应该从哪个时间点开始播放
+        state.Time = referencePhase * clipToPlay.length;
 
-        // 计算新动画的起始时间
-        float startTime = CalculatePhaseAlignedTime(clip, currentPhase);
-
-        // 获取或创建状态但不立即播放
-        var state = _animancer.States.GetOrCreate(clip);
-        // 先设置时间位置
-        state.Time = startTime;
-        // 然后应用平滑过渡
-        _animancer.Play(state, blendTime);
+        // 3. 命令Animancer以指定的淡入时间播放这个已经设置好时间的状态
+        animancer.Play(state, fadeDuration);
 
         return state;
     }
 
-    private float CalculatePhaseAlignedTime(AnimationClip clip, float referencePhase)
+    /// <summary>
+    /// 重载方法，方便直接使用GaitPhaseTracker作为相位参考。
+    /// </summary>
+    public static AnimancerState Transition(
+        AnimancerComponent animancer,
+        AnimationClip clipToPlay,
+        float fadeDuration,
+        GaitPhaseTracker phaseTracker)
     {
-        // 确保相位在0-1范围内
-        float normalizedPhase = referencePhase % 1f;
-
-        // 计算时间位置
-        return normalizedPhase * clip.length;
-    }
-
-    // 一般过渡方法（直接切换）
-    public void NormalPhaseTransition(AnimationClip clip, float blendTime = 0.15f)
-    {
-        Play(clip, blendTime);
-    }
-
-    // 安全过渡方法（在脚步落地时切换）
-    public void SafeTransition(AnimationClip clip, float blendTime = 0.15f)
-    {
-        if (_phaseTracker.IsTransitionSafe)
-            Play(clip, blendTime);
-        else
-        {
-            // 延迟到安全点切换
-            _animancer.StartCoroutine(DelayedTransition(clip, blendTime));
-        }
-    }
-
-    private IEnumerator DelayedTransition(AnimationClip clip, float blendTime)
-    {
-        // 等待下一个安全过渡点
-        while (!_phaseTracker.IsTransitionSafe)
-        {
-            yield return null;
-        }
-
-        Play(clip, blendTime);
+        // 直接从phaseTracker获取当前相位作为参考
+        return Transition(animancer, clipToPlay, fadeDuration, phaseTracker.CurrentPhase);
     }
 }

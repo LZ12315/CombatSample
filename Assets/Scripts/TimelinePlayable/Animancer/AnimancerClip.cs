@@ -1,15 +1,14 @@
-using System;
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Playables;
 using UnityEngine.Timeline;
 using Animancer;
 
-public class AnimancerClip : PlayableAsset,ITimelineClipAsset
+[System.Serializable]
+public class AnimancerClip : PlayableAsset, ITimelineClipAsset
 {
-    public TransitionAsset transitionAsset = null;
-    public ClipCaps clipCaps => ClipCaps.ClipIn;
+    public TransitionAsset transitionAsset;
+
+    public ClipCaps clipCaps => ClipCaps.None;
 
     public override double duration
     {
@@ -24,10 +23,10 @@ public class AnimancerClip : PlayableAsset,ITimelineClipAsset
             }
             else if (transitionAsset.Transition is DirectionalClipTransition directionalTransition)
             {
+                // 【修正】使用 AnimationSet 属性
                 if (directionalTransition.AnimationSet != null &&
                     directionalTransition.AnimationSet.GetClip(0) != null)
                 {
-                    // 使用第一个方向的长度作为基准
                     return directionalTransition.AnimationSet.GetClip(0).length;
                 }
             }
@@ -39,9 +38,9 @@ public class AnimancerClip : PlayableAsset,ITimelineClipAsset
     public override Playable CreatePlayable(PlayableGraph graph, GameObject owner)
     {
         var playable = ScriptPlayable<AnimancerBehaviour>.Create(graph);
-        AnimancerBehaviour clip = playable.GetBehaviour();
+        var behaviour = playable.GetBehaviour();
 
-        clip.transitionAsset = transitionAsset;
+        behaviour.transitionAsset = this.transitionAsset;
 
         return playable;
     }

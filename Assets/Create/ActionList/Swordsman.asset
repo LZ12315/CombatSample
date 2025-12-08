@@ -13,10 +13,7 @@ MonoBehaviour:
   m_Name: Swordsman
   m_EditorClassIdentifier: 
   defaultAction: {fileID: 11400000, guid: 7b34badc342a7b341aef17dc895685f2, type: 2}
-  anyTransitions:
-  - targetAction: {fileID: 0}
-    transitionMode: 0
-    conditions: []
+  anyTransitions: []
   references:
     version: 2
     RefIds: []

@@ -109,7 +109,7 @@ public class ActionHitBoxBehavior : ActionBehaviourBase
                 actor.StartCoroutine(HitStop(impactConfig.stopTime));
                 break;
             case Enums.HitImpactType.HitStick:
-                actor.actionDirector.SetSpeed(impactConfig.stickStrength);
+                actor.actionPlayer.SetSpeed(impactConfig.stickStrength);
                 break;
         }
     }
@@ -119,18 +119,18 @@ public class ActionHitBoxBehavior : ActionBehaviourBase
         switch (impactConfig.impactType)
         {
             case Enums.HitImpactType.HitStick:
-                actor.actionDirector.SetSpeed(1);
+                actor.actionPlayer.SetSpeed(1);
                 break;
         }
     }
 
     IEnumerator HitStop(float stopTime)
     {
-        actor.actionDirector.Stop();
+        actor.actionPlayer.Stop();
 
         yield return new WaitForSeconds(stopTime);
 
-        actor.actionDirector.Resume();
+        actor.actionPlayer.Resume();
     }
 
     #endregion

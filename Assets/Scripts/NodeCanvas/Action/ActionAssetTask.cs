@@ -21,13 +21,13 @@ namespace NodeCanvas.Tasks.Actions {
         protected override void OnExecute() {
 			PlayAction();
 
-            var actionDirector = actor.value.actionDirector;
+            var actionDirector = actor.value.actionPlayer;
             actionDirector.OnActionFinished += OnActionStopped;
         }
 
         void PlayAction()
 		{
-			actor.value.actionDirector.Play(actionToPlay.value);
+			actor.value.actionPlayer.Play(actionToPlay.value);
         }
 
 		void OnActionStopped(ActionInstance action)
@@ -36,7 +36,7 @@ namespace NodeCanvas.Tasks.Actions {
 
             EndAction();
 
-            var actionDirector = actor.value.actionDirector;
+            var actionDirector = actor.value.actionPlayer;
             actionDirector.OnActionFinished -= OnActionStopped;
         }
 	}

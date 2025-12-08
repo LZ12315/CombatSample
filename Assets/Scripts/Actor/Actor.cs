@@ -12,7 +12,7 @@ public class Actor : MonoBehaviour
     public CharacterController characterController;
     public ActorLogicInput logicInput;
     public ActorMovement movement;
-    public ActorActionDirector actionDirector;
+    public ActionPlayer actionPlayer;
     public AnimancerComponent animancer;
     public ActorCameraControl cameraControl;
     public ActorCombater combater;

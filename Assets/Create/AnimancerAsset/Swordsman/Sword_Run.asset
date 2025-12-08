@@ -10,14 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c5a8877f26e7a6a43aaf06fade1a064a, type: 3}
-  m_Name: Lucy_Run
+  m_Name: Sword_Run
   m_EditorClassIdentifier: 
   _Transition:
-    rid: 6385938804402814978
+    rid: 7294130639223914502
   references:
     version: 2
     RefIds:
-    - rid: 6385938804402814978
+    - rid: 7294130639223914502
       type: {class: DirectionalClipTransition, ns: Animancer, asm: Kybernetik.Animancer}
       data:
         _FadeDuration: 0.25
@@ -26,7 +26,7 @@ MonoBehaviour:
           _NormalizedTimes: []
           _Callbacks: []
           _Names: []
-        _Clip: {fileID: 7400000, guid: 50ce7ab9f6974956931be99ef413fcce, type: 3}
+        _Clip: {fileID: 7400000, guid: 421a5f02a38a4b1893503d1e4da9fec5, type: 3}
         _NormalizedStartTime: NaN
-        _AnimationSet: {fileID: 11400000, guid: 4f8ef45a64802c340ad58450dd4a9809,
+        _AnimationSet: {fileID: 11400000, guid: eb2c1c74f62f1e04c9cb9f3022a916b6,
           type: 2}

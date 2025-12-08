@@ -3,12 +3,12 @@ using UnityEngine.Playables;
 using System;
 
 [RequireComponent(typeof(PlayableDirector))]
-public class ActorActionDirector : MonoBehaviour
+public class ActionPlayer : MonoBehaviour
 {
     private PlayableDirector _director;
     public ActionInstance CurrentAction { get; private set; }
 
-    // 【优化】使用C#事件来通知外部系统动作已完成，而不是直接在内部处理逻辑
+    // 使用事件来通知外部系统动作已完成
     public event Action<ActionInstance> OnActionFinished;
 
     private void Awake()
