@@ -40,8 +40,7 @@ public class ActionPhaseClip : ActionBehaviourBase
     {
         if(actor.actionDirector.CurrentAction == null) return;
 
-        double normalizedTime = actor.actionDirector.CurrentAction.RuntimeData.normalizedTime;
-        actor.actionDirector.CurrentAction.UpdateRuntimeData(normalizedTime, phase);
+        actor.actionDirector.CurrentAction.UpdatePhase(phase);
     }
 
 }
