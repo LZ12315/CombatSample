@@ -7,6 +7,7 @@ using UnityEngine;
 public abstract class TransitionCondition
 {
     protected Actor actor;
+    bool enabled = false;
 
     protected virtual void OnEnable() { }
 
@@ -23,16 +24,20 @@ public abstract class TransitionCondition
         if(actor == null) return;
 
         this.actor = actor;
+        enabled = true;
         OnEnable();
     }
 
     public bool Check()
     {
+        if(!enabled) return false;
+
         return OnCheck();
     }
 
     public void Disable()
     {
+        enabled = false;
         OnDisable();
         actor = null;
     }

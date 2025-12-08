@@ -89,7 +89,7 @@ public class ActorActionDirector : MonoBehaviour
         if (CurrentAction != null && _director.state == PlayState.Playing)
         {
             double normalizedTime = _director.duration > 0 ? _director.time / _director.duration : 0;
-            CurrentAction.UpdateRuntimeData(normalizedTime, CurrentAction.RuntimeData.phase);
+            CurrentAction.UpdateNormalizedTime(normalizedTime);
         }
     }
 
