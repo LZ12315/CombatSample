@@ -1,11 +1,9 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Timeline;
 
 [TrackColor(0.2f, 0.8f, 0.4f)]
 [TrackClipType(typeof(AnimancerClip))]
-public class AnimancerTrack : ActionTrackBase
+[TrackBindingType(typeof(Actor))] // 确保这里绑定的是 Actor
+public class AnimancerTrack : TrackAsset
 {
-
 }

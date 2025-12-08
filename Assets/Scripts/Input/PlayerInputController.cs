@@ -35,19 +35,10 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
 
     private void Awake()
     {
-        // 在Awake中进行单例初始化
         if (Instance != null && Instance != this)
-        {
-            // 如果Instance已经存在，并且不是我自己，说明场景中已经有一个GameManager了。
-            // 这是一个重复的副本，必须销毁自己以保证单例的唯一性。
-            Debug.LogWarning("场景中已存在一个GameManager实例，此副本将被销毁。");
-            Destroy(this.gameObject);
-        }
+            Destroy(gameObject);
         else
-        {
-            // 如果Instance是空的，说明我是第一个，那么就把我自己赋给Instance。
             Instance = this;
-        }
 
         playerInput = GetComponent<PlayerInput>();
         actions = new PlayerInputControl();
@@ -168,6 +159,7 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
                     SendJoystickInputData(CastVectorToDirection(rawMove), Enums.JoystickVigor.Light);
 
                 SetInputState(CastVectorToDirection(rawMove), true);
+                //SetInputState(Enums.InputJoystick.Idle, false);
                 break;
 
             case InputActionPhase.Canceled:

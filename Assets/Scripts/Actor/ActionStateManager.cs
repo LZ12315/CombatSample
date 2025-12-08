@@ -1,12 +1,12 @@
 using System.Collections.Generic;
-using System.Linq; // 需要这个来使用OrderBy
+using System.Linq;
 using UnityEngine;
 
-[RequireComponent(typeof(ActorActionDirector), typeof(Actor))]
+[RequireComponent(typeof(ActionPlayer), typeof(Actor))]
 public class ActionStateManager : MonoBehaviour
 {
     [Header("组件引用")]
-    private ActorActionDirector _actionPlayer;
+    private ActionPlayer _actionPlayer;
     private Actor _actor;
 
     [Header("配置")]
@@ -18,7 +18,7 @@ public class ActionStateManager : MonoBehaviour
 
     private void Awake()
     {
-        _actionPlayer = GetComponent<ActorActionDirector>();
+        _actionPlayer = GetComponent<ActionPlayer>();
         _actor = GetComponent<Actor>();
     }
 

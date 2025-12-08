@@ -38,9 +38,9 @@ public class ActionPhaseClip : ActionBehaviourBase
 
     void SetActionPhase(Enums.ActionPhase phase)
     {
-        if(actor.actionDirector.CurrentAction == null) return;
+        if(actor.actionPlayer.CurrentAction == null) return;
 
-        actor.actionDirector.CurrentAction.UpdatePhase(phase);
+        actor.actionPlayer.CurrentAction.UpdatePhase(phase);
     }
 
 }
