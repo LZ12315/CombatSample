@@ -41,7 +41,6 @@ public class ActionPlayer : MonoBehaviour
 
         // 创建新的运行时实例
         CurrentAction = actionAsset.CreateActionInstance();
-        Debug.Log(_director + "  " + CurrentAction);
         _director.playableAsset = CurrentAction.Config.TimelineAsset;
         _director.time = 0;
         _director.Play();
