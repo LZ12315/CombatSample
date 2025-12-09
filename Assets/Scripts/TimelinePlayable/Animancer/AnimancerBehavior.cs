@@ -2,192 +2,82 @@ using UnityEngine;
 using UnityEngine.Playables;
 using Animancer;
 
-public class AnimancerBehaviour : PlayableBehaviour
+public class AnimancerBehaviour : ActionBehaviourBase
 {
-    // 由 AnimancerClip 传入
+    // --- 数据 (由 AnimancerClip 传入) ---
     public TransitionAsset transitionAsset;
 
-    private Actor _actor;
-    private AnimancerState _currentState;
-    private DirectionalAnimationHandler _directionalHandler;
-    private bool _hasEntered;
+    // --- 运行时状态 ---
+    private AnimancerState _state;
 
-    #region PlayableBehaviour 生命周期
-
-    public override void OnGraphStart(Playable playable)
+    // 1. 开始播放 (对应 OnEnter)
+    protected override void OnClipPlay(Playable playable)
     {
-        var director = playable.GetGraph().GetResolver() as PlayableDirector;
-        if (director != null)
+        // actor 已经在基类中被自动获取了，直接使用即可
+        if (actor == null || actor.animancer == null) return;
+        if (transitionAsset == null || transitionAsset.Transition == null) return;
+
+        // 直接播放 Transition
+        // Animancer 会自动处理 ClipTransition 或 DirectionalClipTransition 的播放逻辑
+        _state = actor.animancer.Play(transitionAsset.Transition, 0.25f);
+
+        if (_state != null)
         {
-            _actor = director.GetComponent<Actor>();
+            _state.IsPlaying = true;
+            // 强制同步一次时间，防止从中间开始播放时的跳变
+            _state.Time = (float)playable.GetTime();
         }
     }
 
-    public override void OnBehaviourPlay(Playable playable, FrameData info)
+    // 2. 每帧更新 (对应 ProcessFrame)
+    protected override void OnClipUpdate(Playable playable, FrameData info)
     {
-        if (_actor == null || _actor.animancer == null) return;
+        if (_state == null || actor == null || actor.animancer == null) return;
 
-        if (!_hasEntered)
+        // --- 编辑器预览支持 ---
+        if (!Application.isPlaying)
         {
-            _hasEntered = true;
-            OnEnter(playable);
-        }
+            _state.Speed = 0; // 停止 Animancer 内部计时
+            _state.Time = (float)playable.GetTime(); // 由 Timeline 接管时间
 
-        if (_currentState != null)
-        {
-            _currentState.IsPlaying = true;
-        }
-    }
-
-    public override void OnBehaviourPause(Playable playable, FrameData info)
-    {
-        if (!_hasEntered) return;
-
-        bool isFinished = playable.GetTime() >= playable.GetDuration() - 0.001f;
-        bool isGraphValid = playable.GetGraph().IsValid();
-
-        if (isFinished || !isGraphValid)
-        {
-            OnExit();
-        }
-        else
-        {
-            OnPause();
-        }
-    }
-
-    public override void ProcessFrame(Playable playable, FrameData info, object playerData)
-    {
-        if (_hasEntered && _currentState != null)
-        {
-            OnUpdate(playable, info);
-        }
-    }
-
-    #endregion
-
-    #region 核心逻辑
-
-    private void OnEnter(Playable playable)
-    {
-        // 1. 验证数据
-        if (!IsValidTransition()) return;
-
-        ITransition aTransition = transitionAsset.Transition;
-        bool isEditorPreview = !Application.isPlaying;
-
-        // 2. 这里的顺序至关重要：必须先初始化方向逻辑
-        if (aTransition is DirectionalClipTransition directional)
-        {
-            if (isEditorPreview)
+            // 防止 Directional 动画在预览时因为未设置方向而报错或不显示
+            if (transitionAsset.Transition is DirectionalClipTransition directional)
             {
                 directional.SetDirection(0);
             }
-            else
-            {
-                // 创建Handler，它会在构造函数里根据Input计算出正确的方向
-                _directionalHandler = new DirectionalAnimationHandler(_actor, directional);
-            }
-        }
 
-        // 3. 然后再播放。此时 Transition 内部的方向已经是正确的了。
-        _currentState = _actor.animancer.Play(aTransition, 0.15f);
-
-        // 4. 同步时间 (用于编辑器拖拽预览)
-        if (_currentState != null)
-        {
-            _currentState.Time = (float)playable.GetTime();
-        }
-    }
-
-    private void OnPause()
-    {
-        if (_currentState != null)
-        {
-            _currentState.IsPlaying = false;
-        }
-    }
-
-    private void OnUpdate(Playable playable, FrameData info)
-    {
-        // --- 编辑器预览逻辑 ---
-        if (!Application.isPlaying)
-        {
-            if (_actor != null && _actor.animancer != null && _currentState != null)
-            {
-                _currentState.Speed = 0;
-                _currentState.Time = (float)playable.GetTime();
-                _actor.animancer.Evaluate();
-            }
+            actor.animancer.Evaluate(); // 强制刷新模型姿势
             return;
         }
 
         // --- 运行时逻辑 ---
-        if (_currentState == null) return;
-
-        _currentState.Speed = info.effectiveSpeed;
-
-        // 更新方向逻辑
-        if (_directionalHandler != null)
-        {
-            // Handler 返回新状态 (如果有切换)
-            AnimancerState newState = _directionalHandler.Update();
-
-            // 如果发生了切换（newState不为空），更新引用
-            if (newState != null)
-            {
-                _currentState = newState;
-                _currentState.Speed = info.effectiveSpeed;
-            }
-        }
+        _state.Speed = info.effectiveSpeed; // 同步 Timeline 的速度
     }
 
-    private void OnExit()
+    // 3. 暂停 (对应 Timeline 暂停但未退出)
+    protected override void OnClipPause()
     {
-        _currentState = null;
-        _directionalHandler = null;
-        _hasEntered = false;
+        if (_state != null)
+        {
+            _state.IsPlaying = false;
+        }
     }
 
-    private bool IsValidTransition()
+    // 4. 完成或中断 (对应 Timeline 结束或被切断)
+    protected override void OnClipFinish(bool isNormal)
     {
-        if (transitionAsset == null)
+        if (_state != null)
         {
-            if (Application.isPlaying) Debug.LogWarning("AnimancerBehaviour: TransitionAsset is null.");
-            return false;
+            // 无论是正常结束还是被中断，都停止播放状态
+            // 如果你希望正常结束时保持最后一帧，可以只在 !isNormal 时 Stop
+            _state.IsPlaying = false;
         }
-
-        ITransition transition = transitionAsset.Transition;
-        if (transition == null)
-        {
-            if (Application.isPlaying) Debug.LogWarning($"AnimancerBehaviour: Transition inside '{transitionAsset.name}' is null.");
-            return false;
-        }
-
-        if (transition is ClipTransition clipTransition && clipTransition.Clip == null)
-        {
-            if (Application.isPlaying) Debug.LogWarning($"AnimancerBehaviour: Clip in '{transitionAsset.name}' is null.");
-            return false;
-        }
-
-        if (transition is DirectionalClipTransition directionalTransition)
-        {
-            // 【修正】使用 AnimationSet 属性避免编译器报错
-            if (directionalTransition.AnimationSet == null)
-            {
-                if (Application.isPlaying) Debug.LogWarning($"AnimancerBehaviour: AnimationSet in '{transitionAsset.name}' is null.");
-                return false;
-            }
-
-            if (directionalTransition.AnimationSet.GetClip(0) == null)
-            {
-                if (Application.isPlaying) Debug.LogWarning($"AnimancerBehaviour: Default Clip (0) in Set '{directionalTransition.AnimationSet.name}' is null.");
-                return false;
-            }
-        }
-
-        return true;
     }
 
-    #endregion
+    // 5. 清理引用
+    protected override void CleanUp()
+    {
+        _state = null;
+        // actor 引用在基类中，不需要我们清理
+    }
 }
