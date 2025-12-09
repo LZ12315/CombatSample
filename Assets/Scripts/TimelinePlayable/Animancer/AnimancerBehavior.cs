@@ -2,82 +2,148 @@ using UnityEngine;
 using UnityEngine.Playables;
 using Animancer;
 
+/// <summary>
+/// Timeline 的运行时行为逻辑。
+/// 负责在 Timeline 播放期间控制 Animancer 播放对应的动画。
+/// 支持编辑器预览和运行时方向动画切换。
+/// </summary>
 public class AnimancerBehaviour : ActionBehaviourBase
 {
-    // --- 数据 (由 AnimancerClip 传入) ---
+    // --- 配置数据 ---
     public TransitionAsset transitionAsset;
 
     // --- 运行时状态 ---
-    private AnimancerState _state;
+    private AnimancerState _currentState;
+    private DirectionalAnimationHandler _directionalHandler;
 
-    // 1. 开始播放 (对应 OnEnter)
+    #region 基类方法重写 (生命周期实现)
+
+    /// <summary>
+    /// 开始播放 (对应之前的 OnEnter)
+    /// 基类已确保 actor 不为空
+    /// </summary>
     protected override void OnClipPlay(Playable playable)
     {
-        // actor 已经在基类中被自动获取了，直接使用即可
-        if (actor == null || actor.animancer == null) return;
-        if (transitionAsset == null || transitionAsset.Transition == null) return;
+        if (!IsValidTransition()) return;
 
-        // 直接播放 Transition
-        // Animancer 会自动处理 ClipTransition 或 DirectionalClipTransition 的播放逻辑
-        _state = actor.animancer.Play(transitionAsset.Transition, 0.25f);
+        ITransition aTransition = transitionAsset.Transition;
+        bool isEditorPreview = !Application.isPlaying;
 
-        if (_state != null)
+        // 1. 处理方向动画逻辑
+        if (isEditorPreview && aTransition is DirectionalClipTransition directional)
         {
-            _state.IsPlaying = true;
-            // 强制同步一次时间，防止从中间开始播放时的跳变
-            _state.Time = (float)playable.GetTime();
+            // 编辑器预览：默认向前
+            directional.SetDirection(0);
+            _currentState = actor.animancer.Play(aTransition, 0.15f);
+        }
+        else if (!isEditorPreview && aTransition is DirectionalClipTransition dirTransition)
+        {
+            // 运行时：创建 Handler 并初始化播放
+            _directionalHandler = new DirectionalAnimationHandler(actor, dirTransition);
+            _currentState = _directionalHandler.Initialize();
+        }
+        else
+        {
+            // 2. 普通动画逻辑
+            _currentState = actor.animancer.Play(aTransition, 0.15f);
+        }
+
+        // 3. 同步时间 (防止从中间开始播放时的跳变)
+        if (_currentState != null)
+        {
+            _currentState.IsPlaying = true;
+            _currentState.Time = (float)playable.GetTime();
         }
     }
 
-    // 2. 每帧更新 (对应 ProcessFrame)
+    /// <summary>
+    /// 每帧更新 (对应之前的 OnUpdate)
+    /// </summary>
     protected override void OnClipUpdate(Playable playable, FrameData info)
     {
-        if (_state == null || actor == null || actor.animancer == null) return;
-
-        // --- 编辑器预览支持 ---
+        // --- 编辑器预览 ---
         if (!Application.isPlaying)
         {
-            _state.Speed = 0; // 停止 Animancer 内部计时
-            _state.Time = (float)playable.GetTime(); // 由 Timeline 接管时间
-
-            // 防止 Directional 动画在预览时因为未设置方向而报错或不显示
-            if (transitionAsset.Transition is DirectionalClipTransition directional)
+            if (actor != null && actor.animancer != null && _currentState != null)
             {
-                directional.SetDirection(0);
+                _currentState.Speed = 0;
+                _currentState.Time = (float)playable.GetTime();
+                actor.animancer.Evaluate();
             }
-
-            actor.animancer.Evaluate(); // 强制刷新模型姿势
             return;
         }
 
-        // --- 运行时逻辑 ---
-        _state.Speed = info.effectiveSpeed; // 同步 Timeline 的速度
+        // --- 运行时 ---
+        if (_currentState == null) return;
+
+        // 1. 同步速度
+        _currentState.Speed = info.effectiveSpeed;
+
+        // 2. 更新方向
+        if (_directionalHandler != null)
+        {
+            AnimancerState newState = _directionalHandler.Update();
+            if (newState != null)
+            {
+                _currentState = newState;
+                _currentState.Speed = info.effectiveSpeed;
+            }
+        }
     }
 
-    // 3. 暂停 (对应 Timeline 暂停但未退出)
+    /// <summary>
+    /// 暂停 (Timeline 暂停但未退出)
+    /// </summary>
     protected override void OnClipPause()
     {
-        if (_state != null)
+        if (_currentState != null)
         {
-            _state.IsPlaying = false;
+            _currentState.IsPlaying = false;
         }
     }
 
-    // 4. 完成或中断 (对应 Timeline 结束或被切断)
+    /// <summary>
+    /// 结束 (正常播放完毕 或 被打断)
+    /// </summary>
     protected override void OnClipFinish(bool isNormal)
     {
-        if (_state != null)
+        // 无论是正常结束还是被打断，我们都不再手动调用 Stop()
+        // 而是交由 Animancer 的混合机制处理，避免权重警告和 T-Pose
+        if (_currentState != null)
         {
-            // 无论是正常结束还是被中断，都停止播放状态
-            // 如果你希望正常结束时保持最后一帧，可以只在 !isNormal 时 Stop
-            _state.IsPlaying = false;
+            _currentState.IsPlaying = false;
         }
     }
 
-    // 5. 清理引用
+    /// <summary>
+    /// 清理引用
+    /// </summary>
     protected override void CleanUp()
     {
-        _state = null;
-        // actor 引用在基类中，不需要我们清理
+        _currentState = null;
+        _directionalHandler = null;
+        // actor 引用由基类管理，无需在此清理
     }
+
+    #endregion
+
+    #region 数据验证
+
+    private bool IsValidTransition()
+    {
+        if (transitionAsset == null || transitionAsset.Transition == null) return false;
+
+        if (transitionAsset.Transition is ClipTransition c && c.Clip == null) return false;
+
+        // 使用 AnimationSet 属性避免编译歧义
+        if (transitionAsset.Transition is DirectionalClipTransition d)
+        {
+            if (d.AnimationSet == null) return false;
+            if (d.AnimationSet.GetClip(0) == null) return false;
+        }
+
+        return true;
+    }
+
+    #endregion
 }

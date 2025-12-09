@@ -1,12 +1,17 @@
 using UnityEngine;
 using Animancer;
 
+/// <summary>
+/// 辅助类：负责在运行时根据 Input 切换 DirectionalClipTransition 的方向。
+/// 包含输入阈值检测和相位同步逻辑，确保动画切换丝滑。
+/// </summary>
 public class DirectionalAnimationHandler
 {
     private readonly Actor _actor;
     private readonly DirectionalClipTransition _transition;
 
     private const float DirectionChangeThreshold = 0.1f;
+
     private Vector2 _lastMoveInput;
     private int _currentDirection = -1;
 
@@ -14,25 +19,32 @@ public class DirectionalAnimationHandler
     {
         _actor = actor;
         _transition = transition;
-
-        // 初始化：强制计算一次方向
-        UpdateDirectionInternal(forceUpdate: true);
+        // 构造函数不做播放操作
     }
 
+    /// <summary>
+    /// 初始化并播放初始方向的动画
+    /// </summary>
+    public AnimancerState Initialize()
+    {
+        return UpdateDirectionInternal(forceUpdate: true);
+    }
+
+    /// <summary>
+    /// 运行时更新方向
+    /// </summary>
     public AnimancerState Update()
     {
         if (_actor == null || _actor.logicInput == null) return null;
 
         Vector2 moveInput = _actor.logicInput.MoveInput;
 
-        // 检查输入是否有显著变化
         if (Vector2.Distance(moveInput, _lastMoveInput) < DirectionChangeThreshold)
             return null;
 
         _lastMoveInput = moveInput;
         int newDirection = CalculateDirection(moveInput);
 
-        // 如果方向没有变化，直接返回
         if (newDirection == _currentDirection)
             return null;
 
@@ -52,13 +64,26 @@ public class DirectionalAnimationHandler
         _currentDirection = newDirection;
         _transition.SetDirection(_currentDirection);
 
-        // 如果不是初始化，我们需要直接播放目标Clip来强制刷新
-        if (!forceUpdate)
+        // 直接播放目标 Clip
+        var targetClip = _transition.AnimationSet.GetClip(_currentDirection);
+
+        if (targetClip != null)
         {
-            // 【修正】使用 AnimationSet 属性
-            var targetClip = _transition.AnimationSet.GetClip(_currentDirection);
-            if (targetClip != null)
+            if (!forceUpdate)
             {
+                // 运行时切换：带相位同步
+                var oldState = _actor.animancer.States.Current;
+                var newState = _actor.animancer.Play(targetClip, _transition.FadeDuration);
+
+                if (oldState != null)
+                {
+                    newState.NormalizedTime = oldState.NormalizedTime;
+                }
+                return newState;
+            }
+            else
+            {
+                // 初始化：直接播放
                 return _actor.animancer.Play(targetClip, _transition.FadeDuration);
             }
         }
