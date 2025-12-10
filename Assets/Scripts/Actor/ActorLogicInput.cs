@@ -27,7 +27,7 @@ public class ActorLogicInput : MonoBehaviour
             moveDir = actor.cameraControl.CalculateDirection(moveInput);
 
         if (actor.movement != null)
-            actor.movement.UpdateTurn(moveDir);
+            actor.movement.UpdateRotation(moveDir);
     }
 
     public void GetInputData(InputData inputData)
