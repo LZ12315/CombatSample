@@ -30,7 +30,6 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
     Dictionary<Enums.InputButton, InputPressState> buttonStates = new ();
     Dictionary<Enums.InputJoystick, InputPressState> joystickStates = new ();
 
-    // 单例 //
     public static PlayerInputController Instance { get; private set; }
 
     private void Awake()
@@ -87,9 +86,6 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
         }
-
-        // 处理角色移动
-        controlledActor.logicInput.InputMove(rawMove);
 
         // 更新Input
         UpdateInputState();
@@ -169,11 +165,13 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
                 break;
         }
 
+        controlledActor.logicInput.InputMove(rawMove);
     }
 
     public void OnLook(InputAction.CallbackContext context)
     {
         rawLook = context.ReadValue<Vector2>();
+        controlledActor.logicInput.InputLook(rawLook);
     }
 
     public void OnDodge(InputAction.CallbackContext context)

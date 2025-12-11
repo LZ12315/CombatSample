@@ -5,7 +5,7 @@ using System;
 [RequireComponent(typeof(PlayableDirector))]
 public class ActionPlayer : MonoBehaviour
 {
-    [SerializeField] private PlayableDirector _director;
+    private PlayableDirector _director;
     public ActionInstance CurrentAction { get; private set; }
 
     // 使用事件来通知外部系统动作已完成
@@ -13,7 +13,7 @@ public class ActionPlayer : MonoBehaviour
 
     private void Awake()
     {
-        //_director = GetComponent<PlayableDirector>();
+        _director = GetComponent<PlayableDirector>();
         _director.extrapolationMode = DirectorWrapMode.None;
     }
 
