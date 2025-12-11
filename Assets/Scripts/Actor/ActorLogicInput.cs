@@ -10,24 +10,31 @@ public class ActorLogicInput : MonoBehaviour
     [Header("组件引用")]
     private Actor actor;
 
-    private Vector2 lastMoveInput = Vector2.zero;
-    public Vector2 MoveInput => lastMoveInput;
+    private Vector2 _moveInput = Vector2.zero;
+    public Vector2 MoveInput { get => _moveInput; }
+
+    private Vector2 _lookInput = Vector2.zero;
+    public Vector2 LookInput { get => _lookInput;}
 
     private void Awake()
     {
         actor = GetComponent<Actor>();
     }
 
+    private void Update()
+    {
+        Vector3 faceDir = actor.cameraControl.CalculateWorldDirection(_moveInput);
+        actor.movement.UpdateRotation(faceDir);
+    }
+
     public void InputMove(Vector2 moveInput)
     {
-        lastMoveInput = moveInput;
+        _moveInput = moveInput;
+    }
 
-        Vector3 moveDir = Vector3.zero;
-        if(actor.cameraControl != null)
-            moveDir = actor.cameraControl.CalculateDirection(moveInput);
-
-        if (actor.movement != null)
-            actor.movement.UpdateRotation(moveDir);
+    public void InputLook(Vector2 lookInput)
+    {
+        _lookInput = lookInput;
     }
 
     public void GetInputData(InputData inputData)
