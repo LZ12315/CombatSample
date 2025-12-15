@@ -46,7 +46,7 @@ public class EffectControlBehaviour : ActionBehaviourBase
     /// <summary>
     /// 当Behaviour开始播放时调用
     /// </summary>
-    protected override void OnClipPlay(Playable playable)
+    protected override void OnClipStart(Playable playable)
     {
         if (particlePrefab == null) return;
 

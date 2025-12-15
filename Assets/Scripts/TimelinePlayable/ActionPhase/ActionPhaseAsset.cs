@@ -22,9 +22,9 @@ public class ActionPhaseClip : ActionBehaviourBase
 {
     public Enums.ActionPhase actionPhase = Enums.ActionPhase.None;
 
-    protected override void OnClipPlay(Playable playable)
+    protected override void OnClipStart(Playable playable)
     {
-        base.OnClipPlay(playable);
+        base.OnClipStart(playable);
 
         SetActionPhase(actionPhase);
     }

@@ -14,7 +14,7 @@ public class ActionHitBoxBehavior : ActionBehaviourBase
     public GameObject hitboxObject;
     public CapsuleCollider collider;
 
-    protected override void OnClipPlay(Playable playable)
+    protected override void OnClipStart(Playable playable)
     {
         CreateHitbox();
     }

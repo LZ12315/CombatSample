@@ -13,11 +13,15 @@ public abstract class ActionBehaviourBase : PlayableBehaviour
     protected Actor actor = null;
     protected Enums.ActionClipState state = Enums.ActionClipState.Idle;
 
-    protected virtual void OnClipPlay(Playable playable) { }
+    protected virtual void OnClipInit(Playable playable) { }
 
-    protected virtual void OnClipUpdate(Playable playable, FrameData info) { }
+    protected virtual void OnClipStart(Playable playable) { }
 
     protected virtual void OnClipPause() { }
+
+    protected virtual void OnClipResume(Playable playable) { }
+
+    protected virtual void OnClipUpdate(Playable playable, FrameData info) { }
 
     protected virtual void OnClipFinish(bool isNormal) { }
 
@@ -25,10 +29,9 @@ public abstract class ActionBehaviourBase : PlayableBehaviour
 
     #region ·½·¨¼Ì³Ð
 
-    public override void OnBehaviourPlay(Playable playable, FrameData info)
+    public override void OnGraphStart(Playable playable)
     {
-        if (state == Enums.ActionClipState.Play) return;
-        state = Enums.ActionClipState.Play;
+        base.OnGraphStart(playable);
 
         var director = playable.GetGraph().GetResolver() as PlayableDirector;
         if (director == null) return;
@@ -36,7 +39,19 @@ public abstract class ActionBehaviourBase : PlayableBehaviour
         actor = director.GetComponent<Actor>();
         if (actor == null) return;
 
-        OnClipPlay(playable);
+        OnClipInit(playable);
+    }
+
+    public override void OnBehaviourPlay(Playable playable, FrameData info)
+    {
+        if (state == Enums.ActionClipState.Play) return;
+
+        if(state == Enums.ActionClipState.Pause)
+            OnClipResume(playable);
+        else if(state == Enums.ActionClipState.Idle)
+            OnClipStart(playable);
+
+        state = Enums.ActionClipState.Play;
     }
 
     public override void OnBehaviourPause(Playable playable, FrameData info)

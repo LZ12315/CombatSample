@@ -36,34 +36,10 @@ public struct ActionData
     };
 }
 
-[Serializable]
-public class ActionAttribute
-{
-    [SerializeField] private Enums.ActionPriority _priority = Enums.ActionPriority.Normal;
-    [SerializeField, Min(0)] private int _weight = 0;
-
-    public Enums.ActionPriority priority
-    {
-        get => _priority;
-        set
-        {
-            if (!Enum.IsDefined(typeof(Enums.ActionPriority), value))
-                throw new ArgumentException($"Invalid ActionPriority: {value}");
-            _priority = value;
-        }
-    }
-
-    public int weight
-    {
-        get => _weight;
-        set => _weight = Math.Max(0, value);
-    }
-
-}
 
 public static partial class Enums
 {
-    [System.Flags]
+    [Flags]
     public enum ActionPhase
     {
         None = 0,
@@ -81,5 +57,22 @@ public static partial class Enums
         Normal,
         Special,
         Override
+    }
+
+    [Flags]
+    public enum ActionMoveFlags
+    {
+        None = 0,
+        CanMove = 1 << 0, // (1) ÔÊÐíÒ¡¸Ë¿ØÖÆÎ»ÒÆ
+        CanRotate = 1 << 1, // (2) ÔÊÐíÒ¡¸Ë¿ØÖÆ³¯Ïò
+        IgnoreGravity = 1 << 2, // (4) ºöÂÔÖØÁ¦ (ÖÍ¿Õ/¿ÕÖÐÁ¬ÕÐ)
+    }
+
+    public enum ActionType
+    {
+        Idle,           // ´ý»ú
+        Locomotion,     // ÒÆ¶¯ (Run/Walk)
+        GroundAttack,   // µØÃæ¹¥»÷
+        AirAttack,      // ¿ÕÖÐ¹¥»÷
     }
 }
