@@ -22,7 +22,7 @@ public class AnimancerBehaviour : ActionBehaviourBase
     /// 开始播放 (对应之前的 OnEnter)
     /// 基类已确保 actor 不为空
     /// </summary>
-    protected override void OnClipPlay(Playable playable)
+    protected override void OnClipStart(Playable playable)
     {
         if (!IsValidTransition()) return;
 
