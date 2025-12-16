@@ -24,11 +24,6 @@ public struct ActionData
         }
     }
 
-    public bool IsInPhase(Enums.ActionPhase phaseToCheck)
-    {
-        return (_phase & phaseToCheck) != 0;
-    }
-
     public static readonly ActionData Default = new ActionData
     {
         _normalizedTime = 0,
@@ -39,17 +34,12 @@ public struct ActionData
 
 public static partial class Enums
 {
-    [Flags]
     public enum ActionPhase
     {
-        None = 0,
-        Neutral = 2,
-        Startup = 4,
-        Charging = 8,
-        FullPower = 16,
-        OverCharge = 32,
-        Effect = 64,
-        Recovery = 128
+        None,
+        Neutral,
+        Effect,
+        Recovery
     }
 
     public enum ActionPriority
