@@ -1,24 +1,7 @@
 using UnityEngine;
 using UnityEngine.Playables;
 
-public class ActionPhaseAsset : PlayableAsset
-{
-    [Header("Phase…Ë÷√")]
-    public Enums.ActionPhase actionPhase = Enums.ActionPhase.None;
-
-    public override Playable CreatePlayable(PlayableGraph graph, GameObject owner)
-    {
-        var playable = ScriptPlayable<ActionPhaseClip>.Create(graph);
-        ActionPhaseClip clip = playable.GetBehaviour();
-
-        clip.actionPhase = actionPhase;
-
-        return playable;
-    }
-
-}
-
-public class ActionPhaseClip : ActionBehaviourBase
+public class ActionDataBehavior : ActionBehaviourBase
 {
     public Enums.ActionPhase actionPhase = Enums.ActionPhase.None;
 

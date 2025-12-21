@@ -108,10 +108,20 @@ MonoBehaviour:
   _priority: 0
   isLoop: 1
   nextAction: {fileID: 0}
-  _transitions: []
+  _transitions:
+  - targetAction: {fileID: 0}
+    transitionMode: 0
+    conditions:
+    - rid: 7294130939930869760
   references:
     version: 2
-    RefIds: []
+    RefIds:
+    - rid: 7294130939930869760
+      type: {class: ActionDataCondition, ns: , asm: Assembly-CSharp}
+      data:
+        actionDataType: 0
+        requiredPhase: 1
+        requiredProgress: 0
 --- !u!114 &3095068669158760833
 MonoBehaviour:
   m_ObjectHideFlags: 1

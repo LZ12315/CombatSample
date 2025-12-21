@@ -51,7 +51,7 @@ public class ActionAssetCreater
         var animancerTrack = timeline.CreateTrack<AnimancerTrack>(null, "Animancer");
         animancerTrack.hideFlags = HideFlags.HideInHierarchy;
 
-        var transitionTrack = timeline.CreateTrack<ActionPhaseTrack>(null, "ActionTransition");
+        var transitionTrack = timeline.CreateTrack<ActionDataTrack>(null, "ActionTransition");
         transitionTrack.hideFlags = HideFlags.HideInHierarchy;
 
         // 关联资源
