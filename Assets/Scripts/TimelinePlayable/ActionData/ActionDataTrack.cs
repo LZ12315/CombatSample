@@ -4,8 +4,8 @@ using UnityEngine;
 using UnityEngine.Timeline;
 
 [TrackColor(0.4f, 0.4f, 0.6f)]
-[TrackClipType(typeof(ActionPhaseAsset))]
-public class ActionPhaseTrack : ActionTrackBase
+[TrackClipType(typeof(ActionDataClip))]
+public class ActionDataTrack : ActionTrackBase
 { 
 
 }

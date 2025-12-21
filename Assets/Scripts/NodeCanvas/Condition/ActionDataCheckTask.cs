@@ -15,7 +15,7 @@ namespace NodeCanvas.Tasks.Conditions {
 
         [Header("≈‰÷√")]
         public BBParameter<ActionAsset> currentAction;
-        public Enums.ActionDataCheckType dataChecks;
+        public Enums.ActionDataType dataChecks;
 
         [Header(" Ù–‘")]
         public Enums.ActionPhase requiredPhase = Enums.ActionPhase.Neutral;
@@ -41,15 +41,4 @@ namespace NodeCanvas.Tasks.Conditions {
             return isCorrect;
 		}
 	}
-}
-
-public static partial class Enums
-{
-    [System.Flags]
-    public enum ActionDataCheckType
-    {
-        None = 0,
-        Phase = 2,
-        Progress = 4
-    }
 }
