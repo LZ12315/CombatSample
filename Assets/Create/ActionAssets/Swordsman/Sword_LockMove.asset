@@ -119,7 +119,7 @@ MonoBehaviour:
     - rid: 7294130955636441088
       type: {class: ActionDataCondition, ns: , asm: Assembly-CSharp}
       data:
-        checkType: 1
+        checkType: -1
         requiredPhase: 2
         minProgress: 0
         maxProgress: 1
