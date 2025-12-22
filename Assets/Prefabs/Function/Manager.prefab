@@ -76,6 +76,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   controlledActor: {fileID: 0}
-  freelookCamera: {fileID: 0}
-  ShortPress_Frame: 40
-  Hold_Frame: 120
+  debug: 0
+  timeScale: 1
+  ShortPress_Frame: 80
+  LongPress_Frame: 100000
+  joystickHard_Distance: 0.6

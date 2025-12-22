@@ -4,27 +4,41 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using CombatSample.Consts;
+using System;
+using DG.Tweening.Core.Easing;
 
 public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerActions
 {
     PlayerInput playerInput;
     PlayerInputControl actions;
     public Actor controlledActor;
+
+    [Header("调试")]
+    public bool debug = false;
     public float timeScale = 0.1f;
+
     [Header("输入设置")]
     [SerializeField] int ShortPress_Frame = 40;
     [SerializeField] int LongPress_Frame = 120;
 
     [SerializeField] float joystickHard_Distance = 0.6f;
+    [SerializeField] float joystick_DeadZone = 0.1f;
 
-    // 输入状态 //
+    [Header("输入状态")]
     private Vector2 rawMove = Vector2.zero;
     private Vector2 rawLook = Vector2.zero;
-    Dictionary<Enums.InputButton, ButtonInputCounter> buttonCounters = new ();
-    InputJoystickData lastJoystickInput;
+    Dictionary<Enums.InputButton, InputPressState> buttonStates = new ();
+    Dictionary<Enums.InputJoystick, InputPressState> joystickStates = new ();
+
+    public static PlayerInputController Instance { get; private set; }
 
     private void Awake()
     {
+        if (Instance != null && Instance != this)
+            Destroy(gameObject);
+        else
+            Instance = this;
+
         playerInput = GetComponent<PlayerInput>();
         actions = new PlayerInputControl();
         playerInput.actions = actions.asset;
@@ -35,7 +49,14 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
     private void Start()
     {
         SetControlledActor(FindFirstObjectByType<Actor>());
-        Time.timeScale = timeScale;
+
+        // 游戏开始时锁定并隐藏鼠标
+        Cursor.lockState = CursorLockMode.Locked;
+        // 在Locked模式下此行可省略，但明确设置是好习惯
+        Cursor.visible = false;
+
+        if (debug)
+            Time.timeScale = timeScale;
     }
 
     private void OnEnable()
@@ -59,14 +80,15 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
     {
         if (controlledActor == null) return;
 
+        // 按ESC键解锁并显示鼠标，方便玩家操作
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+        }
+
         // 更新Input
-        UpdateInput();
-
-        // 更新Camera视角
-        controlledActor.logicInput.InputLook(rawLook);
-
-        // 处理角色移动
-        controlledActor.logicInput.InputMove(rawMove);
+        UpdateInputState();
     }
 
     void SendButtonInputData(Enums.InputButton button, Enums.ButtonState state)
@@ -75,20 +97,47 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
 
         controlledActor.logicInput.GetInputData(buttonInput);
 
-        //Debug.Log(buttonInput.inputButton + "   " + buttonInput.buttonState);
+        if (debug)
+            Debug.Log(buttonInput.inputButton + "   " + buttonInput.buttonState);
     }
 
     void SendJoystickInputData(Enums.InputJoystick joystick, Enums.JoystickVigor vigor)
     {
         InputJoystickData joystickInput = new InputJoystickData(joystick, vigor);
 
-        lastJoystickInput = joystickInput;
         controlledActor.logicInput.GetInputData(joystickInput);
 
-        //Debug.Log(joystickInput.inputJoystick + "   " + joystickInput.joystickVigor);
+        if (debug)
+            Debug.Log(joystickInput.inputJoystick + "   " + joystickInput.joystickVigor);
     }
 
     #region 获取Input
+
+    public bool GetInputState(Enums.InputButton button)
+    {
+        if (buttonStates.ContainsKey(button))
+            return buttonStates[button].isActive;
+        else
+        {
+            buttonStates[button] = new InputPressState(false);
+            return false;
+        }
+    }
+
+    public bool GetInputState(Enums.InputJoystick joystick)
+    {
+        if (joystickStates.ContainsKey(joystick))
+            return joystickStates[joystick].isActive;
+        else
+        {
+            joystickStates[joystick] = new InputPressState(false);
+            return false;
+        }
+    }
+
+    #endregion
+
+    #region InputSystem实现
 
     public void OnMove(InputAction.CallbackContext context)
     {
@@ -97,23 +146,32 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
 
         switch (context.phase)
         {
-            case InputActionPhase.Started:
+            //这里应使用Performed而不是Started
+            //从而持续获取新的输入
+            case InputActionPhase.Performed:
                 if (distance >= joystickHard_Distance)
                     SendJoystickInputData(CastVectorToDirection(rawMove), Enums.JoystickVigor.Hard);
                 else
                     SendJoystickInputData(CastVectorToDirection(rawMove), Enums.JoystickVigor.Light);
+
+                SetInputState(CastVectorToDirection(rawMove), true);
+                //SetInputState(Enums.InputJoystick.Idle, false);
                 break;
 
             case InputActionPhase.Canceled:
                 SendJoystickInputData(CastVectorToDirection(rawMove), Enums.JoystickVigor.Idle);
+
+                SetInputState(Enums.InputJoystick.Idle, true);
                 break;
         }
 
+        controlledActor.logicInput.InputMove(rawMove);
     }
 
     public void OnLook(InputAction.CallbackContext context)
     {
         rawLook = context.ReadValue<Vector2>();
+        controlledActor.logicInput.InputLook(rawLook);
     }
 
     public void OnDodge(InputAction.CallbackContext context)
@@ -123,11 +181,11 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
         switch (context.phase)
         {
             case InputActionPhase.Started:
-                InvokeButtonCounter(Enums.InputButton.Dodge);
+                SetInputState(Enums.InputButton.Dodge, true);
                 break;
 
             case InputActionPhase.Canceled:
-                IntrigueButtonCounter(Enums.InputButton.Dodge);
+                SetInputState(Enums.InputButton.Dodge, false);
                 break;
         }
     }
@@ -136,14 +194,21 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
     {
         if (controlledActor == null) return;
 
+        // 点击鼠标左键时重新锁定并隐藏鼠标
+        if (Cursor.lockState == CursorLockMode.None)
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+        }
+
         switch (context.phase)
         {
             case InputActionPhase.Started:
-                InvokeButtonCounter(Enums.InputButton.LightAttack);
+                SetInputState(Enums.InputButton.LightAttack, true);
                 break;
 
             case InputActionPhase.Canceled:
-                IntrigueButtonCounter(Enums.InputButton.LightAttack);
+                SetInputState(Enums.InputButton.LightAttack, false);
                 break;
         }
     }
@@ -155,96 +220,112 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
         switch (context.phase)
         {
             case InputActionPhase.Started:
-                InvokeButtonCounter(Enums.InputButton.HeavyAttack);
+                SetInputState(Enums.InputButton.HeavyAttack, true);
                 break;
 
             case InputActionPhase.Canceled:
-                IntrigueButtonCounter(Enums.InputButton.HeavyAttack);
+                SetInputState(Enums.InputButton.HeavyAttack, false);
                 break;
         }
     }
 
     #endregion
 
-    #region Input工具
+    #region 辅助工具
 
-    private class ButtonInputCounter
+    // 数据需要频繁被引用修改且数据量不大 用类很合适
+    // 并且修改字典里的类可以直接引用 相比起结构体更方便
+    public class InputPressState
     {
-        public bool active;
-        public int count;
+        public bool isActive;
+        public int elapsedFrame;
 
-        public void Start()
+        public InputPressState(bool active = false, int frame = 0)
         {
-            active = true;
-            count = 0;
-        }
-
-        public void Cancel()
-        {
-            active = false;
-            count = 0;
+            isActive = active;
+            elapsedFrame = frame;
         }
     }
 
-    void InvokeButtonCounter(Enums.InputButton button)
+    void SetInputState(Enums.InputButton button, bool active)
     {
-        if(buttonCounters.ContainsKey(button))
-            buttonCounters[button].Start();
+        if(buttonStates.ContainsKey(button))
+        {
+            var state = buttonStates[button];
+            state.isActive = active;
+        }
         else
+            buttonStates[button] = new InputPressState(active);
+
+        if(!active)
         {
-            ButtonInputCounter counter = new ButtonInputCounter();
-            buttonCounters.Add(button, counter);
-            counter.Start();
+            var state = buttonStates[button];
+            if(state.elapsedFrame == 0) return;
+
+            if (state.elapsedFrame < ShortPress_Frame)
+                SendButtonInputData(button, Enums.ButtonState.ShortPress);
+            else
+                SendButtonInputData(button, Enums.ButtonState.LongPress_Cancel);
         }
     }
 
-    void UpdateInput()
+    void SetInputState(Enums.InputJoystick joystick, bool active)
     {
-        foreach (var pair in buttonCounters)
+        foreach (var state in joystickStates.Values)
+            state.isActive = false;
+
+        if (joystickStates.ContainsKey(joystick))
         {
-            var counter = pair.Value;
-            if (!counter.active) continue;
+            var state = joystickStates[joystick];
+            state.isActive = active;
+        }
+        else
+            joystickStates[joystick] = new InputPressState(active);
+    }
 
-            counter.count++;
+    void UpdateInputState()
+    {
+        foreach (var pair in buttonStates)
+        {
+            var state = pair.Value;
+            if(!state.isActive)
+            {
+                state.elapsedFrame = 0;
+                continue;
+            }
+            state.elapsedFrame++;
 
-            if (counter.count == ShortPress_Frame)
+            if (state.elapsedFrame == ShortPress_Frame)
             {
                 SendButtonInputData(pair.Key, Enums.ButtonState.LongPress_Start);
                 continue;
             }
 
-            if (counter.count > LongPress_Frame)
+            if (state.elapsedFrame > LongPress_Frame)
             {
                 SendButtonInputData(pair.Key, Enums.ButtonState.LongPress_Cancel);
-                counter.Cancel();
+                state.isActive = false;
                 continue;
             }
         }
 
-        if(lastJoystickInput != null)
-            controlledActor.logicInput.GetInputData(lastJoystickInput);
-    }
+        foreach (var pair in joystickStates)
+        {
+            var state = pair.Value;
+            if (!state.isActive)
+            {
+                state.elapsedFrame = 0;
+                continue;
+            }
 
-    void IntrigueButtonCounter(Enums.InputButton button)
-    {
-        if (!buttonCounters.ContainsKey(button)) return;
-
-        var counter = buttonCounters[button];
-
-        if(!counter.active) return;
-
-        if(counter.count < ShortPress_Frame)
-            SendButtonInputData(button, Enums.ButtonState.ShortPress);
-        else
-            SendButtonInputData(button, Enums.ButtonState.LongPress_Cancel);
-
-        counter.Cancel();
+            state.elapsedFrame++;
+        }
     }
 
     // 将输入向量转换为角度
     Enums.InputJoystick CastVectorToDirection(Vector2 input)
     {
-        if (input.sqrMagnitude < 0.1f)
+        if (input.sqrMagnitude < joystick_DeadZone)
             return Enums.InputJoystick.Idle;
 
         // 归一化输入向量以确保方向准确

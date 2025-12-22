@@ -1,3 +1,4 @@
+# 1.InputButton
 
     private struct InputButtonCounter
     {
@@ -36,4 +37,330 @@
             inputButton = Enums.InputButton.None;
             inputController = null;
         }
+    }
+
+# 2.第三人称相机
+    
+    //public CinemachineVirtualCamera personalFollowCamera;
+
+    //[Header("相机设置")]
+    //public bool invertVertical;
+    //public float horizontalSpeed = 100f;
+    //public float verticalSpeed = 30f;
+    //public float inputDeadzone = 0.1f;
+    //public float verticalAngleMin = -30f;
+    //public float verticalAngleMax = 70f;
+    //public float rotationSmoothing = 8f; // 指数平滑参数
+
+    //// 相机旋转状态 //
+    //private float _currentHorizontalAngle = 0;
+    //private float _currentVerticalAngle = 0;
+    //private Quaternion _targetRotation;
+    //private Quaternion _previousRotation; // 上一帧旋转记录
+    //private bool _isFirstRotation = true; // 首次旋转标志
+
+    //// 输入状态 //
+    //private Vector2 _rawLook = Vector2.zero;
+    //private Vector2 _smoothedLookInput = Vector2.zero; // 输入平滑
+    //public float inputSmoothing = 6f; // 输入平滑参数
+
+        //public void HandleCameraRotation(Vector2 rawLook)
+    //{
+
+    //    // 平滑输入
+    //    _smoothedLookInput = Vector2.Lerp(
+    //        _smoothedLookInput,
+    //        rawLook,
+    //        inputSmoothing * Time.deltaTime
+    //    );
+
+    //    // 检查输入是否超过死区阈值
+    //    if (_smoothedLookInput.magnitude < inputDeadzone)
+    //    {
+    //        _isFirstRotation = true; // 重置首次旋转标志
+    //        return;
+    //    }
+
+    //    // 计算旋转增量
+    //    float horizontalDelta = _smoothedLookInput.x * horizontalSpeed * Time.deltaTime;
+    //    float verticalDelta = _smoothedLookInput.y * verticalSpeed * Time.deltaTime;
+
+    //    // 反转垂直轴（根据玩家设置）
+    //    if (invertVertical) verticalDelta = -verticalDelta;
+
+    //    // 更新水平旋转角度（Y轴）
+    //    _currentHorizontalAngle += horizontalDelta;
+
+    //    // 确保角度在0-360范围内
+    //    if (_currentHorizontalAngle > 360) _currentHorizontalAngle -= 360;
+    //    if (_currentHorizontalAngle < 0) _currentHorizontalAngle += 360;
+
+    //    // 更新垂直旋转角度（X轴）并限制范围
+    //    _currentVerticalAngle = Mathf.Clamp(
+    //        _currentVerticalAngle - verticalDelta,
+    //        verticalAngleMin,
+    //        verticalAngleMax
+    //    );
+
+    //    // 创建目标旋转四元数
+    //    _targetRotation = Quaternion.Euler(
+    //        _currentVerticalAngle,
+    //        _currentHorizontalAngle,
+    //        0
+    //    );
+
+    //    // 应用旋转（特殊处理首次旋转）
+    //    if (_isFirstRotation)
+    //    {
+    //        transform.rotation = _targetRotation;
+    //        _previousRotation = _targetRotation;
+    //        _isFirstRotation = false;
+    //    }
+    //    else
+    //    {
+    //        // 使用改进的平滑方法
+    //        transform.rotation = SmoothRotation(_previousRotation, _targetRotation);
+    //        _previousRotation = transform.rotation;
+    //    }
+    //}
+
+# 3.旧InputCheck
+    
+    private List<InputCheckHandler> handlers_Standing = new ();
+    private List<InputCheckHandler> handlers_ShortDated = new();
+
+    public void GetInputData(InputData inputData)
+    {
+        List<InputCheckHandler> actionCommands = handlers_Standing.Concat(handlers_ShortDated).ToList();
+        if (actionCommands.Count == 0) return;
+
+        List<InputCheckHandler> commandsReady = new List<InputCheckHandler>();
+        for (int i = 0; i < actionCommands.Count; i++)
+        {
+            if (!actionCommands[i].Matches(inputData)) continue;
+
+            if (actionCommands[i].IsLast)
+            {
+                if (!commandsReady.Contains(actionCommands[i]))
+                    commandsReady.Add(actionCommands[i]);
+                actionCommands[i].checkIndex = 0;
+                actionCommands[i].waitCounter = 0;
+            }
+            else
+            {
+                actionCommands[i].checkIndex++;
+                actionCommands[i].waitCounter = actionCommands[i].waitFrame;
+            }
+        }
+
+        if (commandsReady.Count == 0) return;
+    }
+
+    void UpdateActionCommands()
+    {
+        List<InputCheckHandler> actionCommands = new();
+        if (actionCommands.Count == 0) return;
+
+        for (int i = 0; i < actionCommands.Count; i++)
+            actionCommands[i].Update();
+    }
+
+    using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using CombatSample.Consts;
+using CombatSample.Input;
+using System;
+
+public class InputCheckHandler
+{
+    public List<InputCheckWrapper> inputChecks;
+
+    [HideInInspector] public int waitFrame = 0;
+    [HideInInspector] public int waitCounter = 0;
+    [HideInInspector] public int checkIndex = 0;
+
+    public InputCheckHandler(int waitFrame, List<InputCheckWrapper> inputChecks)
+    {
+        this.inputChecks = inputChecks;
+        this.waitFrame = waitFrame;
+    }
+
+    public void Update()
+    {
+        if(waitCounter <= 0) return;
+
+        waitCounter--;
+        if(waitCounter == 0)
+        {
+            checkIndex = 0;
+            waitCounter = 0;
+        }
+    }
+
+    public void Advance()
+    {
+        checkIndex++;
+        waitCounter = waitFrame;
+    }
+
+    public bool Matches(InputData inputData)
+    {
+        bool isMatch = inputChecks[checkIndex].CheckInputData(inputData);
+
+        return isMatch;
+    }
+
+    public bool IsLast => checkIndex == inputChecks.Count - 1;
+
+}
+
+# 4.旧的输入分类
+
+    private class ButtonInputCounter
+    {
+        public bool active;
+        public int count;
+
+        public void Start()
+        {
+            active = true;
+            count = 0;
+        }
+
+        public void Cancel()
+        {
+            active = false;
+            count = 0;
+        }
+    }
+
+    void InvokeButtonCounter(Enums.InputButton button)
+    {
+        if (buttonCounters.ContainsKey(button))
+            buttonCounters[button].Start();
+        else
+        {
+            ButtonInputCounter counter = new ButtonInputCounter();
+            buttonCounters.Add(button, counter);
+            counter.Start();
+        }
+    }
+
+
+    void UpdateInput()
+    {
+        foreach (var pair in buttonCounters)
+        {
+            var counter = pair.Value;
+            if (!counter.active) continue;
+
+            counter.count++;
+
+            if (counter.count == ShortPress_Frame)
+            {
+                SendButtonInputData(pair.Key, Enums.ButtonState.LongPress_Start);
+                continue;
+            }
+
+            if (counter.count > LongPress_Frame)
+            {
+                SendButtonInputData(pair.Key, Enums.ButtonState.LongPress_Cancel);
+                counter.Cancel();
+                continue;
+            }
+        }
+
+    }
+
+    void IntrigueButtonCounter(Enums.InputButton button)
+    {
+        if (!buttonCounters.ContainsKey(button)) return;
+
+        var counter = buttonCounters[button];
+
+        if (!counter.active) return;
+
+        if (counter.count < ShortPress_Frame)
+            SendButtonInputData(button, Enums.ButtonState.ShortPress);
+        else
+            SendButtonInputData(button, Enums.ButtonState.LongPress_Cancel);
+
+        counter.Cancel();
+    }
+
+
+    # 5. 输入检查（新的尝试 但失败）
+    
+    private List<InputCheckHandler> inputCheckHandlers = new List<InputCheckHandler>();
+    private List<InputCheckHandler> bufferCheckHandlers = new List<InputCheckHandler>();
+
+    List<InputCheckHandler> BufferCheck()
+    {
+        // 防止在遍历过程中集合被修改 创建一份副本进行遍历
+        var handlersCopy = new List<InputCheckHandler>(bufferCheckHandlers);
+        List<InputCheckHandler> handlersReady = new List<InputCheckHandler>();
+
+        if (handlersCopy.Count == 0 || inputBuffers.Count == 0) return handlersReady;
+
+        foreach (var handler in bufferCheckHandlers)
+        {
+            var buffersCopy = new List<InputBuffer>(InputBuffers);
+            float primaryTime = 0;
+            foreach (var buffer in buffersCopy)
+            {
+                if (handler.IsLast)
+                    break;
+
+                if (handler.Matches(buffer.inputData))
+                {
+                    float intervalTime = buffer.time - primaryTime;
+                    if(primaryTime == 0 || intervalTime <= handler.waitTime)
+                    {
+                        handler.Advance();
+                        primaryTime = buffer.time;
+                    }
+                }
+            }
+
+            if (handler.IsLast)
+                handlersReady.Add(handler);
+            else
+                handler.Reset();
+        }
+
+        return handlersReady;
+    }
+
+    List<InputCheckHandler> InputCheck(InputData inputData)
+    {
+        var handlersCopy = new List<InputCheckHandler>(inputCheckHandlers);
+        List<InputCheckHandler> handlersReady = new List<InputCheckHandler>();
+
+        if (handlersCopy.Count == 0 || inputData == null) return handlersReady;
+        Debug.Log(lastInput);
+        foreach (var handler in handlersCopy)
+        {
+            if (handler.Matches(inputData))
+            {
+                if (handler.IsLast)
+                {
+                    if (!handlersReady.Contains(handler))
+                        handlersReady.Add(handler);
+                }
+                else
+                    handler.Advance();
+            }
+            else
+                handler.Update(Time.deltaTime);
+        }
+
+        return handlersReady;
+    }
+
+    void SendBackInputResult(List<InputCheckHandler> handlersReady)
+    {
+        if (handlersReady.Count == 0) return;
+
+        var handlerToUse = handlersReady.OrderByDescending(h => (int)h.priority).FirstOrDefault();
     }

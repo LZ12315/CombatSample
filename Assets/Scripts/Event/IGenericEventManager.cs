@@ -27,4 +27,11 @@ public interface IGenericEventManager<TEventData>
     /// </summary>
     /// <param name="eventData">要传递的事件数据</param>
     void Publish(TEventData eventData);
+
+    /// <summary>
+    /// 触发事件，并传递数据给指定回调。
+    /// </summary>
+     /// <param name="registrant">注册者标识（通常为调用者本身）</param>
+    /// <param name="eventData">要传递的事件数据</param>
+    void PublishSingle(object registrant, TEventData eventData);
 }

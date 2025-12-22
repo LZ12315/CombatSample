@@ -68,6 +68,22 @@ public class GenericEventManager<TEventData> : IGenericEventManager<TEventData>
         }
     }
 
+    public virtual void PublishSingle(object registrant, TEventData eventData)
+    {
+        if(registrant != null && _registrantHandlers.ContainsKey(registrant))
+        {
+            try
+            {
+                _registrantHandlers[registrant]?.Invoke(eventData); // 安全调用
+            }
+            catch (Exception e)
+            {
+                // 非常重要：捕获并记录单个回调的异常，避免一个回调出错导致后续回调无法执行
+                Debug.LogError($"[GenericEventManager] 事件回调执行出错: {e.Message}");
+            }
+        }
+    }
+
     /// <summary>
     /// 清空所有订阅者（通常在管理器销毁时调用）
     /// </summary>

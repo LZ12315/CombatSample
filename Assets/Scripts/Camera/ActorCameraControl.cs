@@ -1,193 +1,251 @@
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using CombatSample.Consts;
 using Cinemachine;
+
+/// <summary>
+/// 核心相机控制器。
+/// 挂载位置：角色根物体下的 CameraPivot 子物体。
+/// </summary>
 
 public class ActorCameraControl : MonoBehaviour
 {
-    public CinemachineVirtualCamera personalFollowCamera;
+    #region 1. 组件与配置
 
-    [Header("相机设置")]
-    public bool invertVertical;
-    public float horizontalSpeed = 100f;
-    public float verticalSpeed = 30f;
-    public float inputDeadzone = 0.1f;
-    public float verticalAngleMin = -30f;
-    public float verticalAngleMax = 70f;
-    public float rotationSmoothing = 8f; // 指数平滑参数
+    public Actor actor;
 
-    // 相机旋转状态 //
-    private float _currentHorizontalAngle = 0;
-    private float _currentVerticalAngle = 0;
-    private Quaternion _targetRotation;
-    private Quaternion _previousRotation; // 上一帧旋转记录
-    private bool _isFirstRotation = true; // 首次旋转标志
+    // 【修改】改为私有，代码在 Awake 中自动创建
+    private CinemachineTargetGroup _targetGroup;
+    public CinemachineTargetGroup TargetGroup => _targetGroup;
 
-    // 输入状态 //
-    private Vector2 _rawLook = Vector2.zero;
-    private Vector2 _smoothedLookInput = Vector2.zero; // 输入平滑
-    public float inputSmoothing = 6f; // 输入平滑参数
+    [Header("虚拟相机")]
+    public CinemachineFreeLook normalFreeLookCamera; // Free
+    public CinemachineVirtualCamera softLockCamera;   // SoftLock
+    public CinemachineVirtualCamera hardLockCamera;   // HardLock
 
-    private Enums.PlayerCameraState state;
+    [Header("Pivot 旋转参数")]
+    [Tooltip("Pivot 跟随敌人旋转的平滑速度")]
+    public float pivotRotationSpeed = 10f;
+    [Tooltip("退出锁定回到自由模式时的回正速度")]
+    public float freeModeResetSpeed = 5f;
 
-    private void Start()
+    [Header("智能偏移 (锁定模式)")]
+    [Tooltip("固定的偏移角度 (肩部偏置)。Pivot 将保持这个角度，而不是回正到0。")]
+    public float fixedOffsetAngle = 15f;
+    [Tooltip("偏移角度变化的平滑时间")]
+    public float offsetSmoothTime = 0.2f;
+    [Tooltip("切换左右肩所需的最小输入阈值")]
+    public float shoulderSwitchThreshold = 0.1f;
+
+    // 内部状态
+    [SerializeField] private Enums.PlayerCameraState currentState;
+    private Dictionary<Enums.PlayerCameraState, ICinemachineCamera> _stateToCameraMap;
+
+    // 平滑计算变量
+    private float _currentOffsetAngle;
+    private float _offsetVelocity;
+    private float _targetShoulderSide = 1f; // 1: 右肩, -1: 左肩 (记忆方向)
+
+    public Enums.PlayerCameraState CinemachineState
     {
-        InitializeCamera();
+        get => currentState;
+        set => SetCameraState(value);
+    }
+    #endregion
+
+    #region 2. 初始化与生命周期
+
+    void Awake()
+    {
+        // 1. 动态创建 TargetGroup
+        GameObject groupObj = new GameObject("Runtime_TargetGroup");
+        _targetGroup = groupObj.AddComponent<CinemachineTargetGroup>();
+        _targetGroup.m_PositionMode = CinemachineTargetGroup.PositionMode.GroupCenter;
+        _targetGroup.m_RotationMode = CinemachineTargetGroup.RotationMode.Manual;
+
+        // 2. 添加玩家自己 (因为脚本挂在 CameraPivot 上，transform 就是 Pivot)
+        _targetGroup.AddMember(transform, 1f, 2f); // Weight 1, Radius 2
     }
 
-    private void InitializeCamera()
+    void Start()
     {
-        // 记录初始旋转状态
-        _previousRotation = transform.rotation;
-        _isFirstRotation = true;
+        InitializeCameraMap();
 
-        // 初始化角度
-        _currentHorizontalAngle = transform.eulerAngles.y;
-        _currentVerticalAngle = NormalizeAngle(transform.eulerAngles.x);
+        // 3. 自动将动态创建的 Group 赋值给锁定相机的 LookAt
+        if (softLockCamera != null) softLockCamera.LookAt = _targetGroup.transform;
+        if (hardLockCamera != null) hardLockCamera.LookAt = _targetGroup.transform;
+
+        // 初始对齐
+        transform.localRotation = Quaternion.identity;
+
+        // 初始化状态
+        SetCameraState(currentState, true);
     }
 
-    private float NormalizeAngle(float angle)
+    void InitializeCameraMap()
     {
-        // 将角度规范到-180~180范围
-        angle %= 360;
-        if (angle > 180) angle -= 360;
-        return angle;
+        _stateToCameraMap = new Dictionary<Enums.PlayerCameraState, ICinemachineCamera>
+            {
+                { Enums.PlayerCameraState.Free, normalFreeLookCamera },
+                { Enums.PlayerCameraState.SoftLock, softLockCamera },
+                { Enums.PlayerCameraState.HardLock, hardLockCamera }
+            };
     }
 
-    public void HandleCameraRotation(Vector2 rawLook)
+    // 核心逻辑放在 LateUpdate，确保在 LogicInput(Update) 之后执行
+    void LateUpdate()
     {
-        // 平滑输入
-        _smoothedLookInput = Vector2.Lerp(
-            _smoothedLookInput,
-            rawLook,
-            inputSmoothing * Time.deltaTime
-        );
+        UpdatePivotBehavior();
+    }
 
-        // 检查输入是否超过死区阈值
-        if (_smoothedLookInput.magnitude < inputDeadzone)
+    #endregion
+
+    #region 3. 核心逻辑：Pivot 驱动
+
+    /// <summary>
+    /// 控制 CameraPivot 的旋转，包含“智能偏移”和“肩部记忆”逻辑
+    /// </summary>
+    public void UpdatePivotBehavior()
+    {
+        Transform enemy = actor.combater.CombatTarget?.transform;
+        bool isLockMode = currentState != Enums.PlayerCameraState.Free;
+
+        if (isLockMode && enemy != null)
         {
-            _isFirstRotation = true; // 重置首次旋转标志
-            return;
-        }
+            // ===========================
+            // 锁定模式 (Soft / Hard)
+            // ===========================
 
-        // 计算旋转增量
-        float horizontalDelta = _smoothedLookInput.x * horizontalSpeed * Time.deltaTime;
-        float verticalDelta = _smoothedLookInput.y * verticalSpeed * Time.deltaTime;
+            // A. 计算基础朝向：从 Pivot 指向 敌人 (忽略高度差)
+            Vector3 dirToEnemy = enemy.position - transform.position;
+            dirToEnemy.y = 0;
 
-        // 反转垂直轴（根据玩家设置）
-        if (invertVertical) verticalDelta = -verticalDelta;
+            if (dirToEnemy.sqrMagnitude > 0.001f)
+            {
+                // B. 获取输入并更新肩部记忆
+                float inputX = (actor.logicInput != null) ? actor.logicInput.MoveInput.x : 0f;
 
-        // 更新水平旋转角度（Y轴）
-        _currentHorizontalAngle += horizontalDelta;
+                // 只有当输入明确超过阈值时，才切换肩部方向
+                // 如果停下或只按前后，保持上一次的 _targetShoulderSide
+                if (inputX > shoulderSwitchThreshold) _targetShoulderSide = 1f;      // 向右偏移
+                else if (inputX < -shoulderSwitchThreshold) _targetShoulderSide = -1f; // 向左偏移
 
-        // 确保角度在0-360范围内
-        if (_currentHorizontalAngle > 360) _currentHorizontalAngle -= 360;
-        if (_currentHorizontalAngle < 0) _currentHorizontalAngle += 360;
+                // C. 计算目标角度 (固定偏移量)
+                float targetOffset = _targetShoulderSide * fixedOffsetAngle;
 
-        // 更新垂直旋转角度（X轴）并限制范围
-        _currentVerticalAngle = Mathf.Clamp(
-            _currentVerticalAngle - verticalDelta,
-            verticalAngleMin,
-            verticalAngleMax
-        );
+                // D. 平滑插值角度
+                _currentOffsetAngle = Mathf.SmoothDamp(_currentOffsetAngle, targetOffset, ref _offsetVelocity, offsetSmoothTime);
 
-        // 创建目标旋转四元数
-        _targetRotation = Quaternion.Euler(
-            _currentVerticalAngle,
-            _currentHorizontalAngle,
-            0
-        );
+                // E. 合成最终旋转：基础朝向 * 偏移旋转
+                Quaternion baseRotation = Quaternion.LookRotation(dirToEnemy);
+                Quaternion finalRotation = baseRotation * Quaternion.Euler(0, _currentOffsetAngle, 0);
 
-        // 应用旋转（特殊处理首次旋转）
-        if (_isFirstRotation)
-        {
-            transform.rotation = _targetRotation;
-            _previousRotation = _targetRotation;
-            _isFirstRotation = false;
+                // F. 应用旋转
+                transform.rotation = Quaternion.Slerp(transform.rotation, finalRotation, Time.deltaTime * pivotRotationSpeed);
+            }
         }
         else
         {
-            // 使用改进的平滑方法
-            transform.rotation = SmoothRotation(_previousRotation, _targetRotation);
-            _previousRotation = transform.rotation;
+            // ===========================
+            // 自由模式 (Free)
+            // ===========================
+
+            // 重置偏移计算变量
+            _currentOffsetAngle = 0f;
+            _offsetVelocity = 0f;
+            // _targetShoulderSide 保持不变，或者重置为 1f (默认右肩)
+            _targetShoulderSide = 1f;
+
+            // Pivot 归零：
+            // 在自由模式下，Pivot 不需要旋转，它应该保持相对静止（跟随父物体），
+            // 或者平滑回正到 Identity，把旋转权交给 CinemachineFreeLook。
+            transform.localRotation = Quaternion.Slerp(transform.localRotation, Quaternion.identity, Time.deltaTime * freeModeResetSpeed);
         }
     }
 
-    // 改进的旋转平滑方法
-    private Quaternion SmoothRotation(Quaternion from, Quaternion to)
+    #endregion
+
+    #region 4. 状态切换与 TargetGroup
+
+    public void SetCameraState(Enums.PlayerCameraState newState, bool forceUpdate = false)
     {
-        // 计算角度差异
-        float angle = Quaternion.Angle(from, to);
+        if (currentState == newState && !forceUpdate) return;
 
-        // 小角度时直接设置，避免反向插值
-        if (angle < 5f) return to;
+        Transform enemyTarget = actor.combater.CombatTarget?.transform;
 
-        // 使用指数平滑
-        return Quaternion.Slerp(
-            from,
-            to,
-            1 - Mathf.Exp(-rotationSmoothing * Time.deltaTime)
-        );
-    }
-
-    public Vector3 CalculateMovementDirection(Vector2 rawMove)
-    {
-        if (transform == null) return Vector3.zero;
-
-        // 使用相机枢轴点的方向
-        Vector3 cameraForward = transform.forward;
-        cameraForward.y = 0;
-        cameraForward.Normalize();
-
-        Vector3 cameraRight = transform.right;
-        cameraRight.y = 0;
-        cameraRight.Normalize();
-
-        // 将输入方向转换为世界空间方向
-        return (cameraForward * rawMove.y) + (cameraRight * rawMove.x);
-    }
-
-    public Vector3 CalculateFaceDirection(Vector2 rawMove)
-    {
-        if (transform == null) return Vector3.zero;
-
-        // 检查输入是否有效（即 rawMove 不为零向量）
-        if (rawMove.sqrMagnitude > 0.01f) // 使用 sqrMagnitude 避免平方根运算
+        // 安全检查：无目标强制回退 Free
+        if (newState != Enums.PlayerCameraState.Free && enemyTarget == null)
         {
-            // 使用相机枢轴点的方向，仅取水平面（Y 轴置零）
-            Vector3 cameraForward = transform.forward;
-            cameraForward.y = 0;
-            cameraForward.Normalize();
-            return cameraForward;
+            newState = Enums.PlayerCameraState.Free;
         }
 
-        // 无输入时返回零向量（角色保持当前朝向）
-        return Vector3.zero;
-    }
+        currentState = newState;
 
-
-    public void SetCameraState(Enums.PlayerCameraState state)
-    {
-        this.state = state;
-
-        switch (state) 
+        // --- 更新 TargetGroup 成员 ---
+        if (_targetGroup != null)
         {
-            case Enums.PlayerCameraState.Normal:
-                personalFollowCamera.m_Lens.FieldOfView = 50;
-                break;
-            case Enums.PlayerCameraState.Concentrate:
-                personalFollowCamera.m_Lens.FieldOfView = 80;
-                break;
+            // 清理旧敌人 (保留 Index 0 的玩家)
+            for (int i = _targetGroup.m_Targets.Length - 1; i > 0; i--)
+            {
+                _targetGroup.RemoveMember(_targetGroup.m_Targets[i].target);
+            }
+
+            // 添加新敌人
+            if (currentState != Enums.PlayerCameraState.Free && enemyTarget != null)
+            {
+                // Weight=1: 玩家和敌人视觉比重 1:1，GroupCenter 会在两人连线中点
+                // Radius=2: 给敌人一点缓冲圈
+                _targetGroup.AddMember(enemyTarget, 1f, 2f);
+            }
+        }
+
+        // --- 切换 LookAt ---
+        // 锁定模式 LookAt Group，自由模式 LookAt Null (FreeLook 自己处理)
+        Transform lookAtTarget = (currentState == Enums.PlayerCameraState.Free) ? null : _targetGroup.transform;
+        if (softLockCamera != null) softLockCamera.LookAt = lookAtTarget;
+        if (hardLockCamera != null) hardLockCamera.LookAt = lookAtTarget;
+
+        // --- 切换相机优先级 ---
+        foreach (var kvp in _stateToCameraMap)
+        {
+            if (kvp.Value == null) continue;
+
+            var camBase = kvp.Value as CinemachineVirtualCameraBase;
+            if (camBase != null)
+            {
+                camBase.Priority = (kvp.Key == currentState) ? 20 : 10;
+            }
         }
     }
 
+    #endregion
+
+    #region 5. 工具方法
+
+    /// <summary>
+    /// 计算基于当前主相机视角的移动方向 (用于 LogicInput)
+    /// </summary>
+    public Vector3 CalculateWorldDirection(Vector2 rawMove)
+    {
+        if (rawMove.sqrMagnitude <= 0.01f) return Vector3.zero;
+
+        Transform mainCam = Camera.main.transform;
+        Vector3 forward = mainCam.forward;
+        Vector3 right = mainCam.right;
+        forward.y = 0;
+        right.y = 0;
+        forward.Normalize();
+        right.Normalize();
+
+        return (forward * rawMove.y) + (right * rawMove.x);
+    }
+
+    #endregion
 }
 
 public partial class Enums
 {
     public enum PlayerCameraState
     {
-        Normal, Concentrate, Combat
+        Free, SoftLock, HardLock
     }
 }

@@ -1,105 +1,100 @@
-using System;
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 public class ActorMovement : MonoBehaviour
 {
     public Actor actor;
     public Animator animator;
-    [SerializeField] private float rotateSpeed = 500f;
+    [SerializeField] private float rotateSpeed = 600f; // 稍微调快一点旋转速度
 
-    Quaternion rotation = Quaternion.identity;
-    Vector3 gravityVelocity = Vector3.zero;
+    private Quaternion targetRotation = Quaternion.identity;
+    private Vector3 gravityVelocity = Vector3.zero;
 
-    public void UpdateTurn(Vector3 moveDirection)
+    // 你之前的死区逻辑参数
+    private float _yPositionDeadZone = 0.5f;
+    private float _accumulatedYDelta;
+
+    private void Start()
     {
-        // 没有有效移动方向时返回
-        if (moveDirection.sqrMagnitude < 0.01f) return;
-
-        // 计算目标旋转
-        Quaternion targetRotation = Quaternion.LookRotation(moveDirection, Vector3.up);
-
-        // 计算当前旋转与目标旋转的角度差
-        float angleDifference = Quaternion.Angle(rotation, targetRotation);
-
-        // 设置角度阈值（可配置）
-        const float rotationThreshold = 1f; // 1度阈值
-
-        // 如果当前旋转与目标方向一致（在阈值内），则跳过旋转
-        if (angleDifference <= rotationThreshold)
-            return;
-
-        // 执行旋转
-        rotation = Quaternion.RotateTowards(rotation, targetRotation, rotateSpeed * Time.deltaTime);
+        targetRotation = transform.rotation;
     }
 
+    /// <summary>
+    /// 只负责更新旋转，位移完全交给RootMotion
+    /// </summary>
+    /// <param name="faceDirection">角色应该面朝的方向</param>
+    public void UpdateRotation(Vector3 faceDirection)
+    {
+        if (faceDirection.sqrMagnitude < 0.01f) return;
+
+        // 计算目标旋转
+        targetRotation = Quaternion.LookRotation(faceDirection, Vector3.up);
+    }
 
     private void Update()
     {
-        transform.rotation = rotation;
+        // 平滑旋转
+        transform.rotation = Quaternion.RotateTowards(
+            transform.rotation,
+            targetRotation,
+            rotateSpeed * Time.deltaTime
+        );
+
+        // 单独处理重力，因为RootMotion通常处理不好Y轴重力
+        PerformGravity();
     }
 
-    private float _yPositionDeadZone = 0.5f; // 死区阈值（单位：米）
-    private float _accumulatedYDelta; // 累积的Y轴变化量
-    private Vector3 _lastPosition; // 上一帧位置
     private void OnAnimatorMove()
     {
+        if (actor.characterController == null) return;
+
+        // 1. 获取动画原本想让角色移动的向量 (Root Motion)
         Vector3 deltaPos = animator.deltaPosition;
-        Quaternion deltaRot = animator.deltaRotation;
 
-        // 计算当前帧的Y轴变化
+        // 你原本的 Y 轴死区处理逻辑 (保留)
         float currentYDelta = deltaPos.y;
-
-        // 死区处理：累积微小变化，直到超过阈值
         if (Mathf.Abs(currentYDelta) < _yPositionDeadZone)
         {
-            // 累积微小变化
             _accumulatedYDelta += currentYDelta;
-
-            // 检查累积值是否超过阈值
             if (Mathf.Abs(_accumulatedYDelta) >= _yPositionDeadZone)
             {
-                // 应用累积的变化（保留符号）
                 deltaPos.y = _accumulatedYDelta;
                 _accumulatedYDelta = 0;
             }
             else
             {
-                // 忽略此帧的Y轴变化
                 deltaPos.y = 0;
             }
         }
         else
         {
-            // 变化量超过阈值，直接应用
-            _accumulatedYDelta = 0; // 重置累积值
+            _accumulatedYDelta = 0;
         }
 
-        // 应用旋转（修正为使用localRotation）
-        transform.localRotation = deltaRot * transform.rotation;
-
-        // 移动角色控制器
+        // 2. 将动画位移应用给 CharacterController
+        // 注意：这里不应用 deltaRotation，因为旋转已经在 Update 中由代码接管了
+        // 这样可以避免动画里的旋转和代码计算的旋转打架，手感更顺滑
         actor.characterController.Move(deltaPos);
-
-        // 记录位置用于调试
-        _lastPosition = transform.position;
     }
-
 
     void PerformGravity()
     {
         if (actor.characterController.isGrounded)
-            gravityVelocity = Vector3.zero;
+        {
+            // 给一个微小的向下力，确保 isGrounded 检测稳定
+            gravityVelocity = Vector3.down * 2f;
+        }
         else
         {
             gravityVelocity += Physics.gravity * Time.deltaTime;
-            actor.characterController.Move(gravityVelocity * Time.deltaTime);
         }
+
+        // 应用重力位移
+        actor.characterController.Move(gravityVelocity * Time.deltaTime);
     }
 
     internal void ResetRotation()
     {
+        targetRotation = Quaternion.identity;
         transform.localRotation = Quaternion.identity;
     }
 }

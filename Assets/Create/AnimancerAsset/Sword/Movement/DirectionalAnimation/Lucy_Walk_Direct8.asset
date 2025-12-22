@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b5b6ac0c7ebd7b41b307d920db7b245, type: 3}
+  m_Name: Lucy_Walk_Direct8
+  m_EditorClassIdentifier: 
+  _Up: {fileID: 7400000, guid: 5d0b620c2ade4dba8ac5feb4471edd03, type: 3}
+  _Right: {fileID: 7400000, guid: 61e90b3ab5504fea8d0dc5f402127d4f, type: 3}
+  _Down: {fileID: 7400000, guid: 3bb4f2bf5a8045b68195645c830c6ffc, type: 3}
+  _Left: {fileID: 7400000, guid: 3912f34b024e41889ae1fdcfd083c62e, type: 3}
+  _UpRight: {fileID: 7400000, guid: d28edcbc885743fb92bd459bb2fb786b, type: 3}
+  _DownRight: {fileID: 7400000, guid: 2de2d4e2b6204c6e8f9524be42624855, type: 3}
+  _DownLeft: {fileID: 7400000, guid: 5d59f6f0bcf34d66bc55ad2131b65009, type: 3}
+  _UpLeft: {fileID: 7400000, guid: e33e2e7d21824f638f97bbb3af5ec141, type: 3}

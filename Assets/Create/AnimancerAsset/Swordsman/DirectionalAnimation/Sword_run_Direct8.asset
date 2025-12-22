@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b5b6ac0c7ebd7b41b307d920db7b245, type: 3}
+  m_Name: Sword_run_Direct8
+  m_EditorClassIdentifier: 
+  _Up: {fileID: 7400000, guid: 421a5f02a38a4b1893503d1e4da9fec5, type: 3}
+  _Right: {fileID: 7400000, guid: 4df1a882ad5241129f42d2ac22e307ab, type: 3}
+  _Down: {fileID: 7400000, guid: e82a8fc067f240168d8e814bc85476ab, type: 3}
+  _Left: {fileID: 7400000, guid: 054ffb052488456cb6a3d956cab7b29c, type: 3}
+  _UpRight: {fileID: 7400000, guid: de224791b4dc4c27889bb18bc6107ac9, type: 3}
+  _DownRight: {fileID: 7400000, guid: 50ce7ab9f6974956931be99ef413fcce, type: 3}
+  _DownLeft: {fileID: 7400000, guid: 696697e25f504d85b144756cdef7a3dc, type: 3}
+  _UpLeft: {fileID: 7400000, guid: 20d8616d8e8542e492efb977fcb93a1f, type: 3}

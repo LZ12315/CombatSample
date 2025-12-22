@@ -1,0 +1,707 @@
+# 1. EffectControl
+
+using System;
+using UnityEngine;
+using UnityEngine.Playables;
+using UnityEngine.Timeline;
+
+[Serializable]
+public class EffectControlClip : PlayableAsset, ITimelineClipAsset
+{
+    [Header("粒子设置")]
+    public GameObject particlePrefab;
+
+    [Header("位置偏移")]
+    public ExposedReference<Transform> parentTransform;
+    public Vector3 localPosition = Vector3.zero;
+    public Vector3 localRotation = Vector3.zero;
+    public Vector3 localScale = Vector3.one;
+
+    [Header("播放控制")]
+    public bool playOnActive = true;
+    public bool destroyOnFinish = true;
+    public uint randomSeed = 1;
+
+    [Header("时长匹配")]
+    [Tooltip("启用后，粒子系统播放时长将与Clip时长完全同步")]
+    public bool matchClipDuration = true;
+    [Tooltip("粒子系统自然播放时长（秒），如果为0则自动计算")]
+    public float manualParticleDuration = 0f;
+
+    public ClipCaps clipCaps => ClipCaps.Blending;
+
+    public override Playable CreatePlayable(PlayableGraph graph, GameObject owner)
+    {
+        var playable = ScriptPlayable<EffectControlBehaviour>.Create(graph);
+        var behaviour = playable.GetBehaviour();
+
+        behaviour.particlePrefab = particlePrefab;
+        behaviour.parentTransform = parentTransform.Resolve(graph.GetResolver());
+        behaviour.localPosition = localPosition;
+        behaviour.localRotation = localRotation;
+        behaviour.localScale = localScale;
+        behaviour.playOnActive = playOnActive;
+        behaviour.destroyOnFinish = destroyOnFinish;
+        behaviour.randomSeed = randomSeed;
+        behaviour.matchClipDuration = matchClipDuration;
+        behaviour.manualParticleDuration = manualParticleDuration;
+        behaviour.owner = owner;
+
+        return playable;
+    }
+}
+
+
+
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.Playables;
+
+/// <summary>
+/// Timeline Playable Behaviour 用于控制粒子系统的播放
+/// 支持时长匹配功能，确保粒子系统在Clip时长内播放完毕
+/// </summary>
+public class EffectControlBehaviour : PlayableBehaviour
+{
+    #region 配置数据 - 在Inspector中设置
+
+    [Header("粒子系统设置")]
+    [Tooltip("要控制的粒子系统预制体")]
+    public GameObject particlePrefab;
+
+    [Header("变换设置")]
+    [Tooltip("父级变换，粒子将相对于此变换放置")]
+    public Transform parentTransform;
+    [Tooltip("相对于父级的本地位置")]
+    public Vector3 localPosition = Vector3.zero;
+    [Tooltip("相对于父级的本地旋转（欧拉角）")]
+    public Vector3 localRotation = Vector3.zero;
+    [Tooltip("相对于父级的本地缩放")]
+    public Vector3 localScale = Vector3.one;
+
+    [Header("播放控制")]
+    [Tooltip("激活时自动播放")]
+    public bool playOnActive = true;
+    [Tooltip("播放完成后销毁实例")]
+    public bool destroyOnFinish = true;
+    [Tooltip("随机种子，确保播放一致性")]
+    public uint randomSeed = 1;
+    [Tooltip("拥有此Playable的GameObject")]
+    public GameObject owner;
+
+    [Header("时长匹配")]
+    [Tooltip("启用后，粒子系统播放时长将与Clip时长完全同步")]
+    public bool matchClipDuration = true;
+    [Tooltip("手动指定粒子系统自然时长（秒），为0则自动计算")]
+    public float manualParticleDuration = 0f;
+
+    #endregion
+
+    #region 运行时状态 - 内部使用
+
+    private GameObject particleInstance;           // 实例化的粒子系统对象
+    private List<ParticleSystem> particleSystems;  // 所有粒子系统组件
+    private bool isPlaying;                         // 是否正在播放
+
+    // 时间跟踪（仿照Unity官方代码设计）
+    private const float kUnsetTime = float.MaxValue;    // 未设置时间的标志值
+    private double m_LastPlayableTime = kUnsetTime;     // 上一次Playable时间
+    private double m_LastParticleTime = kUnsetTime;     // 上一次粒子系统时间
+    private double m_ClipStartTime = kUnsetTime;        // Clip开始时间
+
+    // 时长匹配相关
+    private float m_SpeedMultiplier = 1.0f;         // 速度倍率
+    private float m_ParticleNaturalDuration = 0f;  // 粒子系统自然时长
+    private double m_ClipDuration = 0;              // Clip时长
+    private bool m_IsSpeedCalculated = false;       // 速度是否已计算
+
+    #endregion
+
+    #region Timeline Playable 生命周期方法
+
+    /// <summary>
+    /// 当PlayableGraph开始时调用
+    /// </summary>
+    public override void OnGraphStart(Playable playable)
+    {
+        if (particlePrefab != null && particleInstance == null)
+        {
+            CreateParticleInstance();
+        }
+    }
+
+    /// <summary>
+    /// 当Behaviour开始播放时调用
+    /// </summary>
+    public override void OnBehaviourPlay(Playable playable, FrameData info)
+    {
+        if (particlePrefab == null)
+        {
+            Debug.LogWarning("EffectControlBehaviour: particlePrefab is null");
+            return;
+        }
+
+        // 确保粒子实例存在
+        if (particleInstance == null)
+        {
+            CreateParticleInstance();
+        }
+
+        if (particleInstance != null && particleSystems != null)
+        {
+            // 重置时间跟踪状态
+            ResetTimeTracking(playable);
+
+            // 计算并应用时长匹配
+            if (matchClipDuration && !m_IsSpeedCalculated)
+            {
+                CalculateAndApplyDurationMatching();
+                m_IsSpeedCalculated = true;
+            }
+
+            // 激活并开始播放
+            ActivateAndPlayParticleSystem();
+
+            Debug.Log($"开始播放 - Clip时长: {m_ClipDuration:F2}s, 粒子时长: {m_ParticleNaturalDuration:F2}s, 速度: {m_SpeedMultiplier:F2}x");
+        }
+    }
+
+    /// <summary>
+    /// 当Behaviour暂停时调用
+    /// </summary>
+    public override void OnBehaviourPause(Playable playable, FrameData info)
+    {
+        if (info.effectivePlayState == PlayState.Paused)
+        {
+            if (particleInstance != null)
+            {
+                DeactivateParticleSystem();
+                Debug.Log("暂停粒子系统");
+            }
+        }
+    }
+
+    /// <summary>
+    /// 每帧处理，更新粒子系统状态
+    /// </summary>
+    public override void ProcessFrame(Playable playable, FrameData info, object playerData)
+    {
+        UpdateParticleTransform();
+        UpdateParticlePlayback(playable);
+    }
+
+    /// <summary>
+    /// 当Playable销毁时调用，进行资源清理
+    /// </summary>
+    public override void OnPlayableDestroy(Playable playable)
+    {
+        CleanupParticleInstance();
+    }
+
+    #endregion
+
+    #region 粒子系统管理方法
+
+    /// <summary>
+    /// 创建粒子系统实例
+    /// </summary>
+    private void CreateParticleInstance()
+    {
+        if (particlePrefab == null) return;
+
+        try
+        {
+            // 实例化粒子系统预制体
+            particleInstance = UnityEngine.Object.Instantiate(particlePrefab);
+            particleInstance.name = $"{particlePrefab.name}_EffectControl";
+
+            // 获取所有粒子系统组件（包括子对象）
+            particleSystems = new List<ParticleSystem>(
+                particleInstance.GetComponentsInChildren<ParticleSystem>());
+
+            // 设置随机种子确保一致性
+            if (randomSeed == 0) randomSeed = (uint)UnityEngine.Random.Range(1, 10000);
+            SetRandomSeed(particleSystems, randomSeed);
+
+            // 初始状态为不激活
+            particleInstance.SetActive(false);
+
+            Debug.Log($"创建粒子实例: {particleInstance.name}, 找到 {particleSystems.Count} 个粒子系统");
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"创建粒子实例失败: {e.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 设置随机种子到所有粒子系统
+    /// </summary>
+    private void SetRandomSeed(List<ParticleSystem> systems, uint seed)
+    {
+        foreach (var ps in systems)
+        {
+            if (ps == null) continue;
+
+            // 停止并清除现有粒子
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+
+            // 设置固定随机种子（禁用自动随机）
+            if (ps.useAutoRandomSeed)
+            {
+                ps.useAutoRandomSeed = false;
+                ps.randomSeed = seed;
+            }
+
+            // 递归设置子发射器的随机种子
+            var subEmitters = new List<ParticleSystem>();
+            for (int i = 0; i < ps.subEmitters.subEmittersCount; i++)
+            {
+                var subEmitter = ps.subEmitters.GetSubEmitterSystem(i);
+                if (subEmitter != null) subEmitters.Add(subEmitter);
+            }
+
+            if (subEmitters.Count > 0)
+            {
+                SetRandomSeed(subEmitters, ++seed);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 重置粒子系统到初始状态
+    /// </summary>
+    private void ResetParticleSystems()
+    {
+        if (particleSystems == null) return;
+
+        foreach (var ps in particleSystems)
+        {
+            if (ps != null)
+            {
+                ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+                ps.Play(false);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 停止所有粒子系统
+    /// </summary>
+    private void StopParticleSystems()
+    {
+        if (particleSystems == null) return;
+
+        foreach (var ps in particleSystems)
+        {
+            if (ps != null)
+            {
+                ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 清理粒子实例资源
+    /// </summary>
+    private void CleanupParticleInstance()
+    {
+        if (particleInstance != null)
+        {
+            if (destroyOnFinish)
+            {
+                if (Application.isPlaying)
+                {
+                    UnityEngine.Object.Destroy(particleInstance);
+                }
+                else
+                {
+                    UnityEngine.Object.DestroyImmediate(particleInstance);
+                }
+                Debug.Log("销毁粒子实例");
+            }
+            else
+            {
+                StopParticleSystems();
+                particleInstance.SetActive(false);
+                Debug.Log("停止粒子但不销毁实例");
+            }
+            particleInstance = null;
+        }
+
+        if (particleSystems != null)
+        {
+            particleSystems.Clear();
+        }
+
+        // 重置所有状态
+        ResetAllStates();
+    }
+
+    #endregion
+
+    #region 时长匹配核心逻辑
+
+    /// <summary>
+    /// 计算并应用时长匹配（速度倍率）
+    /// </summary>
+    private void CalculateAndApplyDurationMatching()
+    {
+        if (particleSystems == null || particleSystems.Count == 0)
+        {
+            Debug.LogWarning("没有找到粒子系统，无法计算时长匹配");
+            m_SpeedMultiplier = 1.0f;
+            return;
+        }
+
+        // 1. 计算粒子系统自然时长
+        m_ParticleNaturalDuration = CalculateParticleNaturalDuration();
+
+        // 2. 计算速度倍率：粒子时长 / Clip时长
+        if (m_ClipDuration > 0 && m_ParticleNaturalDuration > 0)
+        {
+            m_SpeedMultiplier = m_ParticleNaturalDuration / (float)m_ClipDuration;
+            m_SpeedMultiplier = Mathf.Clamp(m_SpeedMultiplier, 0.1f, 10f); // 限制速度范围
+
+            Debug.Log($"时长匹配计算: {m_ParticleNaturalDuration:F2}s / {m_ClipDuration:F2}s = {m_SpeedMultiplier:F2}x");
+        }
+        else
+        {
+            m_SpeedMultiplier = 1.0f;
+            Debug.LogWarning("无法计算速度倍率，使用默认值 1.0x");
+        }
+
+        // 3. 应用速度到所有粒子系统
+        ApplySpeedToParticleSystems(m_SpeedMultiplier);
+    }
+
+    /// <summary>
+    /// 计算粒子系统自然播放时长
+    /// </summary>
+    private float CalculateParticleNaturalDuration()
+    {
+        // 优先使用手动指定的时长
+        if (manualParticleDuration > 0)
+        {
+            Debug.Log($"使用手动指定的粒子时长: {manualParticleDuration:F2}s");
+            return manualParticleDuration;
+        }
+
+        if (particleSystems == null || particleSystems.Count == 0)
+        {
+            Debug.LogWarning("没有找到粒子系统，使用默认时长 5秒");
+            return 5f;
+        }
+
+        // 计算所有粒子系统中的最大时长
+        float maxDuration = 0f;
+        foreach (var ps in particleSystems)
+        {
+            if (ps == null) continue;
+
+            float systemDuration = CalculateSingleParticleSystemDuration(ps);
+            maxDuration = Mathf.Max(maxDuration, systemDuration);
+            Debug.Log($"{ps.gameObject.name} 计算时长: {systemDuration:F2}s");
+        }
+
+        Debug.Log($"粒子系统最大自然时长: {maxDuration:F2}s");
+        return maxDuration > 0 ? maxDuration : 5f;
+    }
+
+    /// <summary>
+    /// 计算单个粒子系统的总时长（不考虑循环）
+    /// </summary>
+    private float CalculateSingleParticleSystemDuration(ParticleSystem ps)
+    {
+        var main = ps.main;
+        float totalDuration = 0f;
+
+        // 1. 开始延迟时间
+        if (main.startDelay.mode == ParticleSystemCurveMode.Constant)
+        {
+            totalDuration += main.startDelay.constant;
+            Debug.Log($"  - 开始延迟: {main.startDelay.constant:F2}s");
+        }
+
+        // 2. 发射持续时间
+        totalDuration += main.duration;
+        Debug.Log($"  - 发射时长: {main.duration:F2}s");
+
+        // 3. 粒子生命周期（关键因素）
+        float particleLifetime = GetParticleLifetime(ps);
+        totalDuration += particleLifetime;
+        Debug.Log($"  - 粒子生命周期: {particleLifetime:F2}s");
+
+        Debug.Log($"  → 系统总时长（单周期）: {totalDuration:F2}s");
+        return totalDuration;
+    }
+
+    /// <summary>
+    /// 获取粒子生命周期最大值
+    /// </summary>
+    private float GetParticleLifetime(ParticleSystem ps)
+    {
+        var main = ps.main;
+
+        switch (main.startLifetime.mode)
+        {
+            case ParticleSystemCurveMode.Constant:
+                return main.startLifetime.constant;
+
+            case ParticleSystemCurveMode.TwoConstants:
+                return Mathf.Max(main.startLifetime.constantMin, main.startLifetime.constantMax);
+
+            case ParticleSystemCurveMode.Curve:
+                return GetCurveMaxValue(main.startLifetime.curve);
+
+            case ParticleSystemCurveMode.TwoCurves:
+                float max1 = GetCurveMaxValue(main.startLifetime.curveMin);
+                float max2 = GetCurveMaxValue(main.startLifetime.curveMax);
+                return Mathf.Max(max1, max2);
+
+            default:
+                return 5f; // 默认安全值
+        }
+    }
+
+    /// <summary>
+    /// 获取动画曲线的最大值
+    /// </summary>
+    private float GetCurveMaxValue(AnimationCurve curve)
+    {
+        if (curve == null || curve.length == 0) return 0f;
+
+        // 采样曲线上的多个点来找到最大值
+        float maxValue = float.MinValue;
+        for (float t = 0; t <= 1f; t += 0.05f)
+        {
+            maxValue = Mathf.Max(maxValue, curve.Evaluate(t));
+        }
+        return maxValue;
+    }
+
+    /// <summary>
+    /// 应用速度倍率到所有粒子系统
+    /// </summary>
+    private void ApplySpeedToParticleSystems(float speed)
+    {
+        if (particleSystems == null) return;
+
+        foreach (var ps in particleSystems)
+        {
+            if (ps != null)
+            {
+                var main = ps.main;
+                main.simulationSpeed = speed;
+            }
+        }
+    }
+
+    #endregion
+
+    #region 更新方法
+
+    /// <summary>
+    /// 更新粒子系统的变换（位置、旋转、缩放）
+    /// </summary>
+    private void UpdateParticleTransform()
+    {
+        if (particleInstance == null || parentTransform == null) return;
+
+        // 设置相对于父级的变换
+        particleInstance.transform.SetParent(parentTransform, false);
+        particleInstance.transform.localPosition = localPosition;
+        particleInstance.transform.localEulerAngles = localRotation;
+        particleInstance.transform.localScale = localScale;
+    }
+
+    /// <summary>
+    /// 更新粒子系统的播放状态（核心播放逻辑）
+    /// </summary>
+    private void UpdateParticlePlayback(Playable playable)
+    {
+        if (!isPlaying || particleInstance == null || particleSystems == null)
+            return;
+
+        // 检查粒子系统是否激活
+        if (!particleInstance.gameObject.activeInHierarchy)
+        {
+            m_LastPlayableTime = kUnsetTime;
+            return;
+        }
+
+        double currentTime = playable.GetTime();
+        float particleTime = particleSystems[0] != null ? particleSystems[0].time : 0f;
+
+        // 考虑速度倍率的时间计算
+        double effectiveCurrentTime = matchClipDuration ?
+            currentTime * m_SpeedMultiplier : currentTime;
+
+        double effectiveLastTime = (m_LastPlayableTime != kUnsetTime && matchClipDuration) ?
+            m_LastPlayableTime * m_SpeedMultiplier : m_LastPlayableTime;
+
+        // 智能决策：重新模拟 vs 增量模拟
+        if (m_LastPlayableTime > currentTime || !Mathf.Approximately(particleTime, (float)m_LastParticleTime))
+        {
+            // 情况1：时间倒流或外部修改，需要重新模拟
+            SimulateAllParticles((float)effectiveCurrentTime, true);
+            Debug.Log($"重新模拟 - 有效时间: {effectiveCurrentTime:F2}s");
+        }
+        else if (m_LastPlayableTime < currentTime)
+        {
+            // 情况2：时间正常前进，使用增量模拟
+            float deltaTime = (float)(effectiveCurrentTime - effectiveLastTime);
+            SimulateAllParticles(deltaTime, false);
+
+#if UNITY_EDITOR
+            if (Time.frameCount % 30 == 0) // 减少日志频率
+            {
+                Debug.Log($"增量模拟 - Delta: {deltaTime:F4}s, 速度: {m_SpeedMultiplier:F2}x");
+            }
+#endif
+        }
+
+        // 更新跟踪变量
+        m_LastPlayableTime = currentTime;
+        m_LastParticleTime = particleTime;
+    }
+
+    /// <summary>
+    /// 模拟所有粒子系统的播放（使用分步模拟避免大时间步长问题）
+    /// </summary>
+    private void SimulateAllParticles(float time, bool restart)
+    {
+        const bool withChildren = true;    // 包含子发射器
+        const bool fixedTimeStep = false;  // 使用可变时间步长
+        float maxTime = Time.maximumDeltaTime; // 最大时间步长
+
+        if (particleSystems == null) return;
+
+        // 重新模拟时需要先重置到0
+        if (restart)
+        {
+            foreach (var ps in particleSystems)
+            {
+                if (ps != null)
+                    ps.Simulate(0, withChildren, true, fixedTimeStep);
+            }
+        }
+
+        // 分步模拟：避免大时间步长导致的模拟不准确
+        while (time > maxTime)
+        {
+            foreach (var ps in particleSystems)
+            {
+                if (ps != null)
+                    ps.Simulate(maxTime, withChildren, false, fixedTimeStep);
+            }
+            time -= maxTime;
+        }
+
+        // 模拟剩余时间
+        if (time > 0)
+        {
+            foreach (var ps in particleSystems)
+            {
+                if (ps != null)
+                    ps.Simulate(time, withChildren, false, fixedTimeStep);
+            }
+        }
+    }
+
+    #endregion
+
+    #region 辅助方法
+
+    /// <summary>
+    /// 重置时间跟踪状态
+    /// </summary>
+    private void ResetTimeTracking(Playable playable)
+    {
+        m_LastPlayableTime = kUnsetTime;
+        m_LastParticleTime = kUnsetTime;
+        m_ClipStartTime = playable.GetTime();
+        m_ClipDuration = playable.GetDuration();
+    }
+
+    /// <summary>
+    /// 激活并开始播放粒子系统
+    /// </summary>
+    private void ActivateAndPlayParticleSystem()
+    {
+        particleInstance.SetActive(true);
+        ResetParticleSystems();
+        isPlaying = true;
+    }
+
+    /// <summary>
+    /// 停用粒子系统
+    /// </summary>
+    private void DeactivateParticleSystem()
+    {
+        particleInstance.SetActive(false);
+        StopParticleSystems();
+        isPlaying = false;
+    }
+
+    /// <summary>
+    /// 重置所有运行时状态
+    /// </summary>
+    private void ResetAllStates()
+    {
+        isPlaying = false;
+        m_LastPlayableTime = kUnsetTime;
+        m_LastParticleTime = kUnsetTime;
+        m_ClipStartTime = kUnsetTime;
+        m_SpeedMultiplier = 1.0f;
+        m_IsSpeedCalculated = false;
+    }
+
+    #endregion
+
+    #region 编辑器调试功能
+
+#if UNITY_EDITOR
+
+    /// <summary>
+    /// 调试粒子系统状态（在Inspector中右键调用）
+    /// </summary>
+    [ContextMenu("调试粒子状态")]
+    public void DebugParticleState()
+    {
+        if (particleSystems == null || particleSystems.Count == 0) return;
+
+        Debug.Log($"=== 粒子系统状态调试 ===");
+        Debug.Log($"时长匹配: {matchClipDuration}");
+        Debug.Log($"Clip时长: {m_ClipDuration:F2}s");
+        Debug.Log($"粒子自然时长: {m_ParticleNaturalDuration:F2}s");
+        Debug.Log($"速度倍率: {m_SpeedMultiplier:F2}x");
+
+        foreach (var ps in particleSystems)
+        {
+            if (ps != null)
+            {
+                var main = ps.main;
+                Debug.Log($"{ps.gameObject.name}: 时间={ps.time:F2}, 粒子数={ps.particleCount}, 速度={main.simulationSpeed:F2}x");
+            }
+        }
+    }
+
+    /// <summary>
+    /// 重新计算时长匹配（在Inspector中右键调用）
+    /// </summary>
+    [ContextMenu("重新计算时长匹配")]
+    public void RecalculateDurationMatching()
+    {
+        if (particleSystems != null && particleSystems.Count > 0)
+        {
+            CalculateAndApplyDurationMatching();
+            Debug.Log("重新计算时长匹配完成");
+        }
+    }
+
+#endif
+
+    #endregion
+}
