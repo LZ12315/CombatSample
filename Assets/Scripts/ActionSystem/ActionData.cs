@@ -34,12 +34,13 @@ public struct ActionData
 
 public static partial class Enums
 {
+    [System.Flags]
     public enum ActionPhase
     {
-        None,
-        Neutral,
-        Effect,
-        Recovery
+        None = 0,
+        Neutral = 1 << 0,
+        Recovery = 1 << 1,
+        Effect = 1 << 2
     }
 
     public enum ActionPriority
