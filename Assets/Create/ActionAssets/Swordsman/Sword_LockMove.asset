@@ -112,16 +112,17 @@ MonoBehaviour:
   - targetAction: {fileID: 0}
     transitionMode: 0
     conditions:
-    - rid: 7294130939930869760
+    - rid: 7294130955636441088
   references:
     version: 2
     RefIds:
-    - rid: 7294130939930869760
+    - rid: 7294130955636441088
       type: {class: ActionDataCondition, ns: , asm: Assembly-CSharp}
       data:
-        actionDataType: 0
-        requiredPhase: 1
-        requiredProgress: 0
+        checkType: 1
+        requiredPhase: 2
+        minProgress: 0
+        maxProgress: 1
 --- !u!114 &3095068669158760833
 MonoBehaviour:
   m_ObjectHideFlags: 1
