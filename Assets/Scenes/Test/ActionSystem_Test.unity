@@ -489,7 +489,7 @@ PrefabInstance:
         type: 3}
       propertyPath: m_PlayableAsset
       value: 
-      objectReference: {fileID: 8044714844424089345, guid: 7bbb83b99bbeb41499ef120a0302d769,
+      objectReference: {fileID: 3100211791337132222, guid: 88e9e45e853ac5c46984972c4df8d1d6,
         type: 2}
     - target: {fileID: 1435419375539216079, guid: 4aefcec7dfa653045b3e829d88e318cf,
         type: 3}
