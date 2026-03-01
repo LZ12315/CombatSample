@@ -1,0 +1,5 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="True">
+    <Style src="project://database/Packages/com.deiveex.tagtree/Editor/TagTreeEditorTool/NoTagSettingsPanel.uss?fileID=7433441132597879392&amp;guid=66ec805282c88db4c8453cdb18635f44&amp;type=3#NoTagSettingsPanel" />
+    <ui:Label tabindex="-1" text="TagTree System could not be initialized!" parse-escape-sequences="true" display-tooltip-when-elided="true" name="title" class="error-title" />
+    <ui:Label tabindex="-1" text="Check the console for more information" parse-escape-sequences="true" display-tooltip-when-elided="true" name="hint" style="padding-top: 7px; padding-bottom: 7px; padding-right: 7px; padding-left: 7px; -unity-text-align: upper-center;" />
+</ui:UXML>

@@ -1,0 +1,4 @@
+.entry-label {
+    margin-top: 1px;
+    padding-top: 1px;
+}

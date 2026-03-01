@@ -6,7 +6,7 @@ using UnityEngine;
 [Serializable]
 public class InputSequenceCondition : TransitionCondition
 {
-    [Header(" Ù–‘")]
+    [Header("????")]
     [SerializeField]
     private float waitTime = 0.4f;
     [SerializeReference, SubclassSelector]

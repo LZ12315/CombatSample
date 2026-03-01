@@ -1,0 +1,8 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="True">
+    <Style src="project://database/Packages/com.deiveex.tagtree/Editor/TagTreeEditorTool/TagNamePopup.uss?fileID=7433441132597879392&amp;guid=794b8d28e8ce9e44d8fbc73e5112059c&amp;type=3#TagNamePopup" />
+    <ui:Label tabindex="-1" text="Create new Tag" parse-escape-sequences="true" display-tooltip-when-elided="true" name="title" class="popup-title" />
+    <ui:TextField picking-mode="Ignore" name="tag-name-input" tabindex="1">
+        <ui:Label tabindex="-1" text="Tag Name" parse-escape-sequences="true" display-tooltip-when-elided="true" name="placeholder" class="placeholder" />
+    </ui:TextField>
+    <ui:Button text="Create" parse-escape-sequences="true" display-tooltip-when-elided="true" name="confirm-button" class="confirm-button" />
+</ui:UXML>

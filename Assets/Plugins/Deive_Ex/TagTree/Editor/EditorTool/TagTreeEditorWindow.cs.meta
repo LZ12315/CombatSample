@@ -1,0 +1,20 @@
+fileFormatVersion: 2
+guid: 94016b4c60632524ab5d28a9e83c46a8
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - m_ViewDataDictionary: {instanceID: 0}
+  - _mainUxmlFile: {fileID: 9197481963319205126, guid: 483cfbdefdc73e4499ffec3d3c43971d,
+      type: 3}
+  - _initErrorUxml: {fileID: 9197481963319205126, guid: 95dd7e52dfff1714ea8112c818965792,
+      type: 3}
+  - _tagEntryUxml: {fileID: 9197481963319205126, guid: 234fb95b8d2c6a749b50c73fd2682a90,
+      type: 3}
+  - _newTagPopupUxml: {fileID: 9197481963319205126, guid: c49b3e25afbf54f4287184d8403b251e,
+      type: 3}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

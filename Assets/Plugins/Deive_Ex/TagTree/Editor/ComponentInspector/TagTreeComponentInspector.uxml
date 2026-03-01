@@ -1,0 +1,8 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="True">
+    <Style src="project://database/Packages/com.deiveex.tagtree/Editor/ComponentInspector/TagTreeComponentInspector.uss?fileID=7433441132597879392&amp;guid=6086a89c07aba5349b2531ea4741afe8&amp;type=3#TagTreeComponentInspector" />
+    <ui:Foldout text="Inspect Tags" name="tags-foldout" class="unity-base-field__inspector-field unity-list-view__foldout-header">
+        <ui:Toggle label="Show full hierarchy" name="show-hierarchy-toggle" tooltip="Should we display the entire Tag hierarchy or just the leaf Tags?" />
+        <ui:Label text="No tags currently added" parse-escape-sequences="true" display-tooltip-when-elided="true" name="no-tags-label" class="no-tags-available unity-base-field" />
+        <ui:ListView focusable="true" name="tags-list" virtualization-method="DynamicHeight" show-alternating-row-backgrounds="ContentOnly" show-border="true" style="max-height: 250px;" />
+    </ui:Foldout>
+</ui:UXML>

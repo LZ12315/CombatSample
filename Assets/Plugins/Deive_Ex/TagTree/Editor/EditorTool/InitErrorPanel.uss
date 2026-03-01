@@ -1,0 +1,10 @@
+.error-title {
+    -unity-text-align: upper-center;
+    padding-top: 7px;
+    padding-bottom: 7px;
+    font-size: 19px;
+    padding-right: 7px;
+    padding-left: 7px;
+    white-space: normal;
+    color: var(--unity-colors-error-text);
+}

@@ -1,0 +1,24 @@
+.popup-title {
+    margin-top: 2px;
+    margin-bottom: 2px;
+    margin-right: 3px;
+    margin-left: 3px;
+    text-overflow: ellipsis;
+    overflow: hidden;
+}
+
+.placeholder {
+    opacity: 0.3;
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    -unity-text-align: middle-left;
+    margin-left: 2px;
+    margin-right: 2px;
+}
+
+.confirm-button {
+    flex-grow: 0;
+}

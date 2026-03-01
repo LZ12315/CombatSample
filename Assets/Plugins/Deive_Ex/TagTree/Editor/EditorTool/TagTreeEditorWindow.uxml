@@ -1,0 +1,21 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="True">
+    <Style src="project://database/Packages/com.deiveex.tagtree/Editor/TagTreeEditorTool/TagTreeEditorWindow.uss?fileID=7433441132597879392&amp;guid=bf7d925c3618176409139ed9c0700e2a&amp;type=3#TagTreeEditorWindow" />
+    <ui:VisualElement name="tag-file-panel" class="flex-horizontal no-flex-shrink">
+        <ui:DropdownField label="Tag File" index="-1" choices="System.Collections.Generic.List`1[System.String]" name="select-tag-file-dropdown" class="flex-grow" />
+        <ui:Button text="Create" parse-escape-sequences="true" display-tooltip-when-elided="true" name="create-tag-file-button" />
+        <ui:Button text="Save" parse-escape-sequences="true" display-tooltip-when-elided="true" name="save-tag-file-button" />
+    </ui:VisualElement>
+    <ui:VisualElement name="tag-tools-panel" class="flex-horizontal no-flex-shrink">
+        <ui:Button text="Expand All" parse-escape-sequences="true" display-tooltip-when-elided="true" name="expand-all-button" />
+        <ui:Button text="Collapse All" parse-escape-sequences="true" display-tooltip-when-elided="true" name="collapse-all-button" />
+        <uie:ToolbarSearchField focusable="true" name="search-tag-input" class="flex-shrink flex-grow">
+            <ui:Label tabindex="-1" text="Search Tag..." parse-escape-sequences="true" display-tooltip-when-elided="true" name="placeholder" style="position: absolute; left: 0; top: 0; right: 0; bottom: 0; overflow: hidden; opacity: 0.3; margin-left: 15px;" />
+        </uie:ToolbarSearchField>
+        <ui:Button text="+" parse-escape-sequences="true" display-tooltip-when-elided="true" name="create-tag-button" class="small-button" />
+    </ui:VisualElement>
+    <ui:VisualElement name="tag-hierarchy-panel" class="flex-grow">
+        <ui:TreeView focusable="true" show-alternating-row-backgrounds="ContentOnly" name="tag-hierarchy-tree" />
+    </ui:VisualElement>
+    <ui:Label tabindex="-1" text="Click the &quot;Create&quot; button above to create a new Tag file." parse-escape-sequences="true" display-tooltip-when-elided="true" name="no-file-label" class="flex-grow" style="-unity-text-align: middle-center;" />
+    <ui:Label tabindex="-1" text="Click the &quot;+&quot; button to create a tag." parse-escape-sequences="true" display-tooltip-when-elided="true" name="no-tags-label" class="flex-grow" style="-unity-text-align: middle-center;" />
+</ui:UXML>

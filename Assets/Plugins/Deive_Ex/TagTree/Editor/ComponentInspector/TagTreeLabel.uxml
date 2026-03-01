@@ -1,0 +1,9 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="True">
+    <Style src="project://database/Packages/com.deiveex.tagtree/Editor/TagTreeComponentInspector/TagTreeLabel.uss?fileID=7433441132597879392&amp;guid=550e887221d118748a3ba1219bab9fdb&amp;type=3#TagTreeLabel" />
+    <ui:VisualElement name="tag-container" class="tag-container">
+        <ui:Label tabindex="-1" text="a.b.c" parse-escape-sequences="true" display-tooltip-when-elided="true" name="tag-name" class="tag-name" />
+        <ui:VisualElement name="fill" style="flex-grow: 1;" />
+        <ui:Label tabindex="-1" text="(id: 12345678)" parse-escape-sequences="true" display-tooltip-when-elided="true" name="tag-id" class="tag-id" />
+        <ui:Label tabindex="-1" text="1" parse-escape-sequences="true" display-tooltip-when-elided="true" name="tag-counter" class="tag-counter" />
+    </ui:VisualElement>
+</ui:UXML>

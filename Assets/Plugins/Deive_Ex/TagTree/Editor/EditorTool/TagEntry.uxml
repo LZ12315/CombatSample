@@ -1,0 +1,10 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="True">
+    <Style src="project://database/Packages/com.deiveex.tagtree/Editor/TagTreeEditorTool/TagTreeEditorWindow.uss?fileID=7433441132597879392&amp;guid=bf7d925c3618176409139ed9c0700e2a&amp;type=3#TagTreeEditorWindow" />
+    <Style src="project://database/Packages/com.deiveex.tagtree/Editor/TagTreeEditorTool/TagEntry.uss?fileID=7433441132597879392&amp;guid=89b7328b4724b0c41a240562e62ca98b&amp;type=3#TagEntry" />
+    <ui:VisualElement name="tag-entry" class="flex-horizontal">
+        <ui:Label tabindex="-1" text="Label" parse-escape-sequences="true" display-tooltip-when-elided="true" name="tag-name-label" class="unity-base-field flex-grow flex-shrink entry-label" />
+        <ui:Label tabindex="-1" text="Children: 0" parse-escape-sequences="true" display-tooltip-when-elided="true" name="child-count-label" class="unity-base-field faded-text entry-label" style="-unity-text-align: upper-right;" />
+        <ui:Button text="+" parse-escape-sequences="true" display-tooltip-when-elided="true" name="add-child-button" class="small-button" />
+        <ui:Button text="-" parse-escape-sequences="true" display-tooltip-when-elided="true" name="remove-tag-button" class="small-button" />
+    </ui:VisualElement>
+</ui:UXML>

@@ -1,0 +1,9 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="True">
+    <Style src="project://database/Packages/com.deiveex.tagtree/Editor/PropertyDrawer/TagReferencePropertyDrawer.uss?fileID=7433441132597879392&amp;guid=cd165b1ddde96954b9ab6eb5a93830a4&amp;type=3#TagReferencePropertyDrawer[UNSUPPORTED_IN_UI_BUILDER]" />
+    <ui:VisualElement name="bg" style="flex-direction: row;">
+        <ui:DropdownField name="tag-selector" label="Tag" class="unity-base-field__aligned" style="flex-grow: 1;" />
+        <ui:Button parse-escape-sequences="true" display-tooltip-when-elided="true" name="open-tag-editor" tooltip="Open Tag Editor" style="padding-top: 0; padding-right: 0; padding-bottom: 0; padding-left: 0; margin-right: 0; margin-left: 5px;">
+            <ui:VisualElement name="icon" class="tag-icon" style="width: 25px; flex-grow: 1;" />
+        </ui:Button>
+    </ui:VisualElement>
+</ui:UXML>

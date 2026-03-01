@@ -1,0 +1,38 @@
+{
+  "name": "com.deiveex.tagtree",
+  "version": "1.0.0",
+  "displayName": "Tag Tree",
+  "description": "An hierarchical Tag system for Unity",
+  "unity": "2022.3",
+  "unityRelease": "42f1",
+  "documentationUrl": "",
+  "changelogUrl": "",
+  "licensesUrl": "",
+  "keywords": [
+    "tag",
+    "system",
+    "multi",
+    "multiple tags", 
+    "hierarchy",
+    "hierarchycal",
+    "tree",
+    "multitag",
+    "nesting",
+    "nested",
+    "stack"
+  ],
+  "author": {
+    "name": "DeiveEx",
+    "url": "https://github.com/DeiveEx"
+  },
+  "dependencies": {
+    "com.unity.editorcoroutines": "1.0.0"
+  },
+  "samples": [
+    {
+      "displayName": "Getting Started",
+      "description": "Contains examples of how to use this package",
+      "path": "Samples~/Getting Started"
+    }
+  ]
+}

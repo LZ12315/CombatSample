@@ -1,0 +1,15 @@
+.invalid-tag {
+}
+
+.invalid-tag .unity-base-popup-field__input {
+    border-color: var(--unity-colors-error-text);
+}
+
+.invalid-tag .unity-base-popup-field__text {
+    color: var(--unity-colors-error-text);
+}
+
+.tag-icon {
+    background-image: url('project://database/Library/unity%20editor%20resources?fileID=-1673784058278515987&guid=0000000000000000d000000000000000&type=0#d_FilterByLabel@2x');
+    -unity-background-scale-mode: scale-to-fit;
+}

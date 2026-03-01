@@ -1,0 +1,14 @@
+{
+    "name": "DeiveEx.TagTree",
+    "rootNamespace": "DeiveEx.TagTree",
+    "references": [],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

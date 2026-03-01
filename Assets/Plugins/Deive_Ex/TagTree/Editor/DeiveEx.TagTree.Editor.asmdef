@@ -1,0 +1,18 @@
+{
+    "name": "DeiveEx.TagTree.Editor",
+    "rootNamespace": "DeiveEx.TagTree.Editor",
+    "references": [
+        "GUID:3db61a13693f2a94daa19ff1140698e0"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
