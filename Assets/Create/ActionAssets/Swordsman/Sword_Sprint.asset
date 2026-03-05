@@ -73,25 +73,22 @@ MonoBehaviour:
   _timelineAsset: {fileID: -2982795146042640533}
   _priority: 0
   isLoop: 1
+  _selfTag:
+    TagId: 0
+  _consumeTagsOnEnter: []
   nextAction: {fileID: 0}
-  _transitions:
-  - targetAction: {fileID: 11400000, guid: 7bbb83b99bbeb41499ef120a0302d769, type: 2}
-    transitionMode: 0
-    conditions:
-    - rid: 7294130662759989248
+  _entryConditions:
+  - rid: 834184185767526400
   references:
     version: 2
     RefIds:
-    - rid: 7294130662759989248
-      type: {class: InputStateCondition, ns: , asm: Assembly-CSharp}
+    - rid: 834184185767526400
+      type: {class: TagCondition, ns: , asm: Assembly-CSharp}
       data:
-        stateCheck:
-          rid: 7294130662759989249
-    - rid: 7294130662759989249
-      type: {class: ButtonStateCheck, ns: , asm: Assembly-CSharp}
-      data:
-        requiredState: 0
-        check: 2
+        invertResult: 0
+        overrideAll: 0
+        requiredTag:
+          TagId: 0
 --- !u!114 &7642955156194458760
 MonoBehaviour:
   m_ObjectHideFlags: 1

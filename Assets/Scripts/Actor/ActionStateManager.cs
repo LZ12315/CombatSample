@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 
 [RequireComponent(typeof(ActionPlayer), typeof(Actor))]
@@ -10,11 +9,11 @@ public class ActionStateManager : MonoBehaviour
     private Actor _actor;
 
     [Header("配置")]
-    [SerializeField, Tooltip("包含角色所有动作和全局转换的资产列表")]
+    [SerializeField, Tooltip("包含角色所有动作资产的列表")]
     private ActionAssetList _actionList;
 
-    private List<ActionAsset> _possibleTransitionsCache = new List<ActionAsset>();
-    private List<ActionTransition> _anyTransitionsClones = new List<ActionTransition>();
+    // 缓存列表，用于存放当前帧所有满足条件的动作候选人
+    private List<ActionAsset> _validCandidatesCache = new List<ActionAsset>(10);
 
     private void Awake()
     {
@@ -26,9 +25,6 @@ public class ActionStateManager : MonoBehaviour
     {
         // 订阅播放器完成事件，以处理动作自然结束的逻辑
         _actionPlayer.OnActionFinished += HandleActionFinished;
-
-        // 为AnyTransitions创建并启用运行时副本
-        InitializeAnyTransitions();
 
         // 游戏开始时，播放默认动作
         if (_actionList != null && _actionList.DefaultAction != null)
@@ -43,17 +39,14 @@ public class ActionStateManager : MonoBehaviour
 
     private void OnDisable()
     {
-        // 取消订阅，防止内存泄漏
         _actionPlayer.OnActionFinished -= HandleActionFinished;
-
-        // 清理AnyTransitions的运行时副本
-        CleanupAnyTransitions();
     }
 
     private void Update()
     {
-        // 每帧检查所有可能的转换条件
+        // 每帧寻找满足准入条件的最佳动作
         ActionAsset nextAction = CheckForTransition();
+        
         if (nextAction != null)
         {
             PlayNewAction(nextAction);
@@ -61,31 +54,44 @@ public class ActionStateManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 检查是否有更高优先级的转换可以触发
+    /// 遍历所有可切换动作
     /// </summary>
     private ActionAsset CheckForTransition()
     {
-        if (_actionPlayer.CurrentAction == null) return null;
+        if (_actionList == null) return null;
 
-        // 【优化】每次检查前清空缓存列表，而不是创建新列表
-        _possibleTransitionsCache.Clear();
+        _validCandidatesCache.Clear();
 
-        // 1. 检查当前动作的私有转换
-        _actionPlayer.CurrentAction.CheckTransitions(_possibleTransitionsCache);
-
-        // 2. 检查全局的AnyTransitions
-        foreach (var transition in _anyTransitionsClones)
+        // 1. 遍历角色拥有的所有动作
+        var allActions = _actionList.GetAllAvailableActions();
+        
+        for (int i = 0; i < allActions.Count; i++)
         {
-            if (transition.Check())
+            ActionAsset action = allActions[i];
+            if (action != null && action.CheckEntry(_actor))
             {
-                _possibleTransitionsCache.Add(transition.TargetAction);
+                _validCandidatesCache.Add(action);
             }
         }
 
-        // 3. 如果有可转换的动作，进行排序并返回最优选
-        if (_possibleTransitionsCache.Count > 0)
+        // 2. 优先级排序
+        if (_validCandidatesCache.Count > 0)
         {
-            return SelectHighestPriorityAction(_possibleTransitionsCache);
+            ActionAsset bestNextAction = SelectHighestPriorityAction(_validCandidatesCache);
+
+            // 防抖保护：如果选出来的动作就是正在播的非循环动作，直接忽略
+            if (_actionPlayer.CurrentAction != null && 
+                _actionPlayer.CurrentAction.Config == bestNextAction && 
+                !bestNextAction.IsLoop)
+            {
+                return null;
+            }
+
+            // 【架构精髓】：为什么这里不需要比较 bestNextAction 和 CurrentAction 的优先级？
+            // 因为如果是普通攻击想打断当前攻击，它的 CheckEntry 根本不会过（因为没有 Cancelable 标签）！
+            // 如果 CheckEntry 过了，说明它在逻辑上绝对是被允许播放的。
+            // 优先级仅仅用于解决“多个动作在同一帧同时满足条件”的竞争！
+            return bestNextAction;
         }
 
         return null;
@@ -102,13 +108,13 @@ public class ActionStateManager : MonoBehaviour
             PlayNewAction(finishedAction.Config);
             return;
         }
-        // 2. 检查是否有默认的下一个动作
+        // 2. 检查是否有强制派生的下一个动作 (比如收刀)
         if (finishedAction.Config.NextAction != null)
         {
             PlayNewAction(finishedAction.Config.NextAction);
             return;
         }
-        // 3. 返回默认的待机动作
+        // 3. 动作彻底打完，返回默认的待机动作
         if (_actionList != null && _actionList.DefaultAction != null)
         {
             PlayNewAction(_actionList.DefaultAction);
@@ -116,26 +122,20 @@ public class ActionStateManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 核心方法：播放一个新的动作，并正确处理新旧实例的生命周期
+    /// 核心方法：状态交接仪式
     /// </summary>
     private void PlayNewAction(ActionAsset actionToPlay)
     {
-        // 防止对同一个动作（非循环）的无效重复请求
-        if (_actionPlayer.CurrentAction != null && _actionPlayer.CurrentAction.Config == actionToPlay && !actionToPlay.IsLoop)
-        {
-            return;
-        }
+        if (actionToPlay == null) return;
 
-        // 【优化】让旧实例自己处理退出逻辑
+        // 让旧实例优雅退场 (回收它的专属Tag)？？？？？？？？？？？？
         if (_actionPlayer.CurrentAction != null)
         {
             _actionPlayer.CurrentAction.OnExit();
         }
 
-        // 命令播放器播放新动作，这会创建一个新的ActionInstance
+        // 播放器切换
         _actionPlayer.Play(actionToPlay);
-
-        // 【优化】让新实例自己处理进入逻辑
         if (_actionPlayer.CurrentAction != null)
         {
             _actionPlayer.CurrentAction.OnEnter(_actor);
@@ -143,43 +143,21 @@ public class ActionStateManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 从候选动作列表中，根据优先级选出最优的动作
+    /// 从候选列表中选出优先级最高的动作
     /// </summary>
     private ActionAsset SelectHighestPriorityAction(List<ActionAsset> actions)
     {
-        if (actions == null || actions.Count == 0) return null;
         if (actions.Count == 1) return actions[0];
 
-        // 按优先级(enum值越大优先级越高)降序
-        return actions.OrderByDescending(a => (int)a.priority)
-                      .FirstOrDefault();
-    }
-
-    #region AnyTransitions管理
-
-    private void InitializeAnyTransitions()
-    {
-        if (_actionList == null) return;
-
-        foreach (var transition in _actionList.AnyTransitions)
+        ActionAsset bestAction = actions[0];
+        for (int i = 1; i < actions.Count; i++)
         {
-            if (transition != null)
+            if ((int)actions[i].Priority > (int)bestAction.Priority)
             {
-                var clone = transition.Clone();
-                clone.Enable(_actor);
-                _anyTransitionsClones.Add(clone);
+                bestAction = actions[i];
             }
         }
-    }
 
-    private void CleanupAnyTransitions()
-    {
-        foreach (var clone in _anyTransitionsClones)
-        {
-            clone.Disable();
-        }
-        _anyTransitionsClones.Clear();
+        return bestAction;
     }
-
-    #endregion
 }

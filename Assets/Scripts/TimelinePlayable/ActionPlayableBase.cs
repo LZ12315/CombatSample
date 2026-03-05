@@ -23,7 +23,7 @@ public abstract class ActionBehaviourBase : PlayableBehaviour
 
     protected virtual void OnClipUpdate(Playable playable, FrameData info) { }
 
-    protected virtual void OnClipFinish(bool isNormal) { }
+    protected virtual void OnClipStop(bool isFinish) { }
 
     protected virtual void CleanUp() { }
 
@@ -63,7 +63,7 @@ public abstract class ActionBehaviourBase : PlayableBehaviour
             // 正常播放完成
 
             state = Enums.ActionClipState.Idle;
-            OnClipFinish(true);
+            OnClipStop(true);
             CleanUp();
         }
         else
@@ -81,7 +81,7 @@ public abstract class ActionBehaviourBase : PlayableBehaviour
             {
                 // 情况2：Timeline无效（切换或选中其他物体）
                 state = Enums.ActionClipState.Idle;
-                OnClipFinish(false);
+                OnClipStop(false);
                 CleanUp();
             }
         }

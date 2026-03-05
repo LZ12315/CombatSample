@@ -1,29 +1,24 @@
 using System;
-using System.Collections.Generic;
 using UnityEngine;
+using DeiveEx.TagTree; // ? 引入标签树插件命名空间
 
 public class ActionInstance
 {
     // 原始配置引用（只读）
     public ActionAsset Config { get; }
 
-    // 运行时独立数据
+    // 运行时独立数据（进度、阶段等）
     public ActionData RuntimeData { get; private set; }
 
-    // 【优化】封装为只读属性，防止外部直接修改列表
-    public IReadOnlyList<ActionTransition> RuntimeTransitions { get; }
-    private readonly List<ActionTransition> _runtimeTransitionsInternal;
+    // 缓存当前正在执行此动作的 Actor
+    private Actor _actor;
 
     public ActionInstance(ActionAsset config)
     {
         Config = config;
 
-        // 初始化运行时数据（独立副本）
+        // 初始化运行时数据
         ResetRuntimeData();
-
-        // 创建Transition的运行时副本
-        _runtimeTransitionsInternal = CreateRuntimeTransitions(config.Transitions);
-        RuntimeTransitions = _runtimeTransitionsInternal.AsReadOnly();
     }
 
     /// <summary>
@@ -31,7 +26,42 @@ public class ActionInstance
     /// </summary>
     public void OnEnter(Actor actor)
     {
-        EnableTransitions(actor);
+        _actor = actor;
+
+        if (_actor != null && _actor.tagContainer != null)
+        {
+            // ==========================================
+            // 1. 强制入场净空 (消耗事件大类标签)
+            // ==========================================
+            if (Config.ConsumeTagsOnEnter != null)
+            {
+                for (int i = 0; i < Config.ConsumeTagsOnEnter.Count; i++)
+                {
+                    if (Config.ConsumeTagsOnEnter[i] != null)
+                    {
+                        Tag tagToConsume = Config.ConsumeTagsOnEnter[i].GetTag();
+                        if (tagToConsume != null)
+                        {
+                            // ? 核心绝杀：彻底连根拔起该标签及其所有子标签！
+                            // 比如 Config 里填了 Event.Hit，那么 Event.Hit.Physical 和 Event.Hit.Magic 都会被一波带走
+                            _actor.tagContainer.RemoveTagCompletely(tagToConsume);
+                        }
+                    }
+                }
+            }
+
+            // ==========================================
+            // 2. 宣告身份 (挂载运行时身份标签)
+            // ==========================================
+            if (Config.SelfTag != null)
+            {
+                Tag selfTagObj = Config.SelfTag.GetTag();
+                if (selfTagObj != null)
+                {
+                    _actor.tagContainer.AddTag(selfTagObj);
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -39,44 +69,23 @@ public class ActionInstance
     /// </summary>
     public void OnExit()
     {
-        DisableTransitions();
-    }
-    /// <summary>
-    /// 检查所有转换条件，并将满足条件的目标动作添加到传入的列表中。
-    /// </summary>
-    /// <param name="outResults">用于接收结果的列表，避免GC Alloc。</param>
-    public void CheckTransitions(List<ActionAsset> outResults)
-    {
-        // 注意：这里不再创建新列表，而是使用外部传入的列表
-        for (int i = 0; i < _runtimeTransitionsInternal.Count; i++)
+        // ==========================================
+        // 3. 安全退场：回收专属身份标签
+        // ==========================================
+        if (_actor != null && _actor.tagContainer != null && Config.SelfTag != null)
         {
-            var transition = _runtimeTransitionsInternal[i];
-            if (transition.Check())
+            Tag selfTagObj = Config.SelfTag.GetTag();
+            if (selfTagObj != null)
             {
-                outResults.Add(transition.TargetAction);
+                // 动作结束，安全回收，不留垃圾
+                _actor.tagContainer.RemoveTag(selfTagObj);
             }
         }
-    }
-    // --- 【优化结束】 ---
 
-
-    #region 内部状态管理
-
-    private void EnableTransitions(Actor actor)
-    {
-        for (int i = 0; i < _runtimeTransitionsInternal.Count; i++)
-            _runtimeTransitionsInternal[i].Enable(actor);
+        _actor = null;
     }
 
-    private void DisableTransitions()
-    {
-        for (int i = 0; i < _runtimeTransitionsInternal.Count; i++)
-            _runtimeTransitionsInternal[i].Disable();
-    }
-    #endregion
-
-
-    #region 数据更新方法
+    #region 数据更新方法 (保留原样，用于记录动作播放的物理进度)
 
     /// <summary>
     /// 更新动作的播放进度
@@ -108,26 +117,6 @@ public class ActionInstance
             normalizedTime = 0,
             phase = Enums.ActionPhase.Neutral
         };
-    }
-    #endregion
-
-
-    #region 辅助方法
-    private List<ActionTransition> CreateRuntimeTransitions(IReadOnlyList<ActionTransition> sourceTransitions)
-    {
-        var runtimeTransitions = new List<ActionTransition>();
-
-        if (sourceTransitions == null) return runtimeTransitions;
-
-        foreach (var sourceTransition in sourceTransitions)
-        {
-            if (sourceTransition != null)
-            {
-                runtimeTransitions.Add(sourceTransition.Clone());
-            }
-        }
-
-        return runtimeTransitions;
     }
     #endregion
 }

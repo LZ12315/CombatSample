@@ -15,39 +15,22 @@ MonoBehaviour:
   _timelineAsset: {fileID: 8044714844424089345}
   _priority: 0
   isLoop: 1
+  _selfTag:
+    TagId: 580189973
+  _consumeTagsOnEnter: []
   nextAction: {fileID: 0}
-  _transitions:
-  - targetAction: {fileID: 11400000, guid: 7b34badc342a7b341aef17dc895685f2, type: 2}
-    transitionMode: 0
-    conditions:
-    - rid: 7294130662759989253
-  - targetAction: {fileID: 11400000, guid: 0b68678e54011cb45a84daae1464e184, type: 2}
-    transitionMode: 0
-    conditions:
-    - rid: 7294130662759989255
+  _entryConditions:
+  - rid: 834184202910695427
   references:
     version: 2
     RefIds:
-    - rid: 7294130662759989253
-      type: {class: InputStateCondition, ns: , asm: Assembly-CSharp}
+    - rid: 834184202910695427
+      type: {class: TagCondition, ns: , asm: Assembly-CSharp}
       data:
-        stateCheck:
-          rid: 7294130662759989254
-    - rid: 7294130662759989254
-      type: {class: JoystickStateCheck, ns: , asm: Assembly-CSharp}
-      data:
-        requiredState: 1
-        check: 2
-    - rid: 7294130662759989255
-      type: {class: InputStateCondition, ns: , asm: Assembly-CSharp}
-      data:
-        stateCheck:
-          rid: 7294130662759989256
-    - rid: 7294130662759989256
-      type: {class: ButtonStateCheck, ns: , asm: Assembly-CSharp}
-      data:
-        requiredState: 1
-        check: 2
+        invertResult: 0
+        overrideAll: 0
+        requiredTag:
+          TagId: 1695958603
 --- !u!114 &7730056272148602694
 MonoBehaviour:
   m_ObjectHideFlags: 1

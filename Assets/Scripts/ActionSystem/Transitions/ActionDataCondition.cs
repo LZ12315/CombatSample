@@ -2,7 +2,7 @@ using UnityEngine;
 using System;
 
 [Serializable]
-public class ActionDataCondition : TransitionCondition
+public class ActionDataCondition : ActionCondition
 {
     // 你的检查类型开关
     public Enums.ActionDataType checkType = Enums.ActionDataType.None;
@@ -14,8 +14,12 @@ public class ActionDataCondition : TransitionCondition
     [Range(0f, 1f)] public float minProgress = 0f;
     [Range(0f, 1f)] public float maxProgress = 1f;
 
-    protected override bool OnCheck()
+    // 1. 签名同步：加上 Actor 参数，直接使用外部传入的 actor
+    protected override bool OnCheck(Actor actor)
     {
+        // 增加一下安全判断
+        if (actor == null || actor.actionPlayer == null) return false;
+
         var currentAction = actor.actionPlayer.CurrentAction;
         if (currentAction == null) return false;
 
@@ -39,11 +43,7 @@ public class ActionDataCondition : TransitionCondition
         return true;
     }
 
-    public override TransitionCondition Clone()
-    {
-        // MemberwiseClone 是浅拷贝，对于值类型字段完全够用，比手写 new 更不容易出错
-        return (ActionDataCondition)this.MemberwiseClone();
-    }
+    // 2. 彻底删除 Clone() 方法！
 }
 
 public static partial class Enums

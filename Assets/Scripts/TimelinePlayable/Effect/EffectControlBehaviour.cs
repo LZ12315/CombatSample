@@ -92,7 +92,7 @@ public class EffectControlBehaviour : ActionBehaviourBase
     /// <summary>
     /// 当Behaviour结束时调用，进行资源清理
     /// </summary>
-    protected override void OnClipFinish(bool isNormal)
+    protected override void OnClipStop(bool isNormal)
     {
         CleanupParticleInstance();
     }

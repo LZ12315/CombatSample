@@ -5,13 +5,14 @@ using UnityEngine;
 using CombatSample.Utils;
 
 [Serializable]
-public class InputStateCondition : TransitionCondition
+public class InputStateCondition : ActionCondition
 {
-    [Header("≈‰÷√")]
+    [Header("??")]
     [SerializeReference, SubclassSelector]
     private InputStateCheckBase stateCheck;
 
-    protected override bool OnCheck()
+    // 1. ??????? Actor ?? (???????? actor ????????????????)
+    protected override bool OnCheck(Actor actor)
     {
         if (stateCheck is ButtonStateCheck buttonCheck)
         {
@@ -34,11 +35,5 @@ public class InputStateCondition : TransitionCondition
         return false;
     }
 
-    public override TransitionCondition Clone()
-    {
-        return new InputStateCondition
-        {
-            stateCheck = this.stateCheck
-        };
-    }
+    // 2. ???? Clone() ?????????????????????
 }

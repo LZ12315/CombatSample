@@ -19,7 +19,7 @@ public class ActionHitBoxBehavior : ActionBehaviourBase
         CreateHitbox();
     }
 
-    protected override void OnClipFinish(bool isNormal)
+    protected override void OnClipStop(bool isNormal)
     {
         DestroyHitbox();
     }

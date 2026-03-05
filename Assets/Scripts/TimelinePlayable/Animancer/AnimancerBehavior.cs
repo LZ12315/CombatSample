@@ -105,7 +105,7 @@ public class AnimancerBehaviour : ActionBehaviourBase
     /// <summary>
     /// 结束 (正常播放完毕 或 被打断)
     /// </summary>
-    protected override void OnClipFinish(bool isNormal)
+    protected override void OnClipStop(bool isNormal)
     {
         // 无论是正常结束还是被打断，我们都不再手动调用 Stop()
         // 而是交由 Animancer 的混合机制处理，避免权重警告和 T-Pose

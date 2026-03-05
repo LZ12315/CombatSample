@@ -12,9 +12,9 @@ public class ActionDataBehavior : ActionBehaviourBase
         SetActionPhase(actionPhase);
     }
 
-    protected override void OnClipFinish(bool isNormal)
+    protected override void OnClipStop(bool isNormal)
     {
-        base.OnClipFinish(isNormal);
+        base.OnClipStop(isNormal);
 
         SetActionPhase(Enums.ActionPhase.Neutral);
     }

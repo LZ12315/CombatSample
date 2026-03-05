@@ -1,3 +1,4 @@
+# 1. ActionTransition
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -6,17 +7,17 @@ using UnityEngine;
 [Serializable]
 public class ActionTransition
 {
-    [Header("ÅäÖÃ")]
-    [SerializeField, Tooltip("ÏÂÒ»¸ö¶¯×÷")]
+    [Header("é…ç½®")]
+    [SerializeField, Tooltip("ä¸‹ä¸€ä¸ªåŠ¨ä½œ")]
     private ActionAsset targetAction;
 
-    [SerializeField, Tooltip("¶¯×÷¼ì²éÄ£Ê½")]
+    [SerializeField, Tooltip("åŠ¨ä½œæ£€æŸ¥æ¨¡å¼")]
     private Enums.ActionTransitionMode transitionMode;
 
-    [SerializeReference, SubclassSelector, Tooltip("TransitionÁĞ±í")]
+    [SerializeReference, SubclassSelector, Tooltip("Transitionåˆ—è¡¨")]
     private List<TransitionCondition> conditions;
 
-    #region ¹«ÓĞÊôĞÔ
+    #region å…¬æœ‰å±æ€§
     public ActionAsset TargetAction { get => targetAction;}
     public IReadOnlyList<TransitionCondition> Conditions => conditions?.AsReadOnly();
     #endregion
