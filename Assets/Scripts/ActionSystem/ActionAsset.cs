@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using CombatSample.Consts;
 using DeiveEx.TagTree; // 引入标签树插件命名空间
 
-[CreateAssetMenu(fileName = "NewAction", menuName = "Action System/Action Asset")]
+[CreateAssetMenu(fileName = "NewAction", menuName = "ActionSystem/ActionAsset")]
 public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
 {
     [Header("资产")]
@@ -27,10 +27,12 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
     private List<TagReference> _consumeTagsOnEnter = new List<TagReference>();
 
     [Header("配置")]
+    [Tooltip("如果勾选，该动作一旦成功触发，将立刻清空玩家的输入缓存，防止乱按的指令带入下一个动作")]
+    public bool FlushInputOnEnter = true; // 默认勾选，大部分攻击技能都需要清空
+
     [SerializeField, Tooltip("动作自然结束后的强制派生动作")]
     private ActionAsset nextAction;
 
-    // ? 完美换回你自定义的 ActionCondition
     [SerializeReference, SubclassSelector, Tooltip("必须满足列表里【所有】条件，本动作才会被系统选中")]
     private List<ActionCondition> _entryConditions = new List<ActionCondition>();
 

@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2ea7bbab686784523a87a1dc87cdd020, type: 3}
+  m_Name: Sword_Normal
+  m_EditorClassIdentifier: 
+  Mixer: {fileID: 11400000, guid: 520c96f11f39e5ef4b3aec9fddb19d9c, type: 2}
+  Conditions:
+  - rid: 834184266665951233
+  Priority: 0
+  FadeTime: 0.2
+  SpeedMultiplier: 1
+  references:
+    version: 2
+    RefIds:
+    - rid: 834184266665951233
+      type: {class: TagCondition, ns: , asm: Assembly-CSharp}
+      data:
+        invertResult: 0
+        overrideAll: 0
+        requiredTag:
+          TagId: 0

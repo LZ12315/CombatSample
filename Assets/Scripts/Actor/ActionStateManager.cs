@@ -25,16 +25,6 @@ public class ActionStateManager : MonoBehaviour
     {
         // 订阅播放器完成事件，以处理动作自然结束的逻辑
         _actionPlayer.OnActionFinished += HandleActionFinished;
-
-        // 游戏开始时，播放默认动作
-        if (_actionList != null && _actionList.DefaultAction != null)
-        {
-            PlayNewAction(_actionList.DefaultAction);
-        }
-        else
-        {
-            Debug.LogError("ActionList或其DefaultAction未在Inspector中设置！", this);
-        }
     }
 
     private void OnDisable()
@@ -49,6 +39,7 @@ public class ActionStateManager : MonoBehaviour
         
         if (nextAction != null)
         {
+            //抢占式独裁：只要拿到入场券，无脑顶替当前动作！
             PlayNewAction(nextAction);
         }
     }
@@ -68,6 +59,7 @@ public class ActionStateManager : MonoBehaviour
         for (int i = 0; i < allActions.Count; i++)
         {
             ActionAsset action = allActions[i];
+            
             if (action != null && action.CheckEntry(_actor))
             {
                 _validCandidatesCache.Add(action);
@@ -77,21 +69,7 @@ public class ActionStateManager : MonoBehaviour
         // 2. 优先级排序
         if (_validCandidatesCache.Count > 0)
         {
-            ActionAsset bestNextAction = SelectHighestPriorityAction(_validCandidatesCache);
-
-            // 防抖保护：如果选出来的动作就是正在播的非循环动作，直接忽略
-            if (_actionPlayer.CurrentAction != null && 
-                _actionPlayer.CurrentAction.Config == bestNextAction && 
-                !bestNextAction.IsLoop)
-            {
-                return null;
-            }
-
-            // 【架构精髓】：为什么这里不需要比较 bestNextAction 和 CurrentAction 的优先级？
-            // 因为如果是普通攻击想打断当前攻击，它的 CheckEntry 根本不会过（因为没有 Cancelable 标签）！
-            // 如果 CheckEntry 过了，说明它在逻辑上绝对是被允许播放的。
-            // 优先级仅仅用于解决“多个动作在同一帧同时满足条件”的竞争！
-            return bestNextAction;
+            return SelectHighestPriorityAction(_validCandidatesCache);
         }
 
         return null;
@@ -114,11 +92,9 @@ public class ActionStateManager : MonoBehaviour
             PlayNewAction(finishedAction.Config.NextAction);
             return;
         }
-        // 3. 动作彻底打完，返回默认的待机动作
-        if (_actionList != null && _actionList.DefaultAction != null)
-        {
-            PlayNewAction(_actionList.DefaultAction);
-        }
+        
+        // 3. 动作彻底打完，主动放手
+        StopCurrentAction();
     }
 
     /// <summary>
@@ -128,7 +104,13 @@ public class ActionStateManager : MonoBehaviour
     {
         if (actionToPlay == null) return;
 
-        // 让旧实例优雅退场 (回收它的专属Tag)？？？？？？？？？？？？
+        // 只有在确定要进入这个动作时，才根据配置决定是否清空玩家输入。
+        if (actionToPlay.FlushInputOnEnter && _actor.logicInput != null)
+        {
+            _actor.logicInput.ClearBuffer();
+        }
+
+        // 让旧实例退场
         if (_actionPlayer.CurrentAction != null)
         {
             _actionPlayer.CurrentAction.OnExit();
@@ -136,9 +118,23 @@ public class ActionStateManager : MonoBehaviour
 
         // 播放器切换
         _actionPlayer.Play(actionToPlay);
+        
+        // 新实例入场
         if (_actionPlayer.CurrentAction != null)
         {
             _actionPlayer.CurrentAction.OnEnter(_actor);
+        }
+    }
+
+    /// <summary>
+    /// 停止当前动作，交出角色控制权
+    /// </summary>
+    private void StopCurrentAction()
+    {
+        if (_actionPlayer.CurrentAction != null)
+        {
+            _actionPlayer.CurrentAction.OnExit();
+            _actionPlayer.Stop(); 
         }
     }
 

@@ -49,18 +49,17 @@ public static partial class Enums
         None = 0,
         ShortPress = 2,
         LongPress_Start = 4,
-        LongPress_Cancel = 8
+        LongPress_Stop = 8
     }
 
     [System.Flags]
     public enum InputJoystick
     {
-        None = 0,
-        Idle = 2,
-        East = 4,
-        South = 8,
-        West = 16,
-        North = 32,
+        Idle = 0,
+        East = 2,
+        South = 4,
+        West = 8,
+        North = 16,
     }
 
     [System.Flags]

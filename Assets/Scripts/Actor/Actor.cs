@@ -1,13 +1,7 @@
 using Animancer;
 using DeiveEx.TagTree;
 using DeiveEx.TagTree.GameObjects; // 必须引入这个命名空间，才能使用 GetTagContainer() 扩展方法
-using NodeCanvas.Framework;
-using NodeCanvas.StateMachines;
-using System;
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.Playables;
 
 [RequireComponent(typeof(CharacterController))]
 public class Actor : MonoBehaviour

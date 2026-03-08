@@ -265,7 +265,7 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
             if (state.elapsedFrame < ShortPress_Frame)
                 SendButtonInputData(button, Enums.ButtonState.ShortPress);
             else
-                SendButtonInputData(button, Enums.ButtonState.LongPress_Cancel);
+                SendButtonInputData(button, Enums.ButtonState.LongPress_Stop);
         }
     }
 
@@ -303,7 +303,7 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
 
             if (state.elapsedFrame > LongPress_Frame)
             {
-                SendButtonInputData(pair.Key, Enums.ButtonState.LongPress_Cancel);
+                SendButtonInputData(pair.Key, Enums.ButtonState.LongPress_Stop);
                 state.isActive = false;
                 continue;
             }
