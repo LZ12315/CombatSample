@@ -6,27 +6,32 @@ using Animancer;
 public class ActorLocomotion : MonoBehaviour
 {
     private Actor _actor;
+    private bool _isActive = false;
 
-    [Header("基础配置")]
+    [Header("配置")]
     [SerializeField, Tooltip("基础移动速度")] 
     private float _baseMoveSpeed = 5f;
     
     [SerializeReference, SubclassSelector, Tooltip("Locomotion自身的准入条件组")] 
     private List<ActionCondition> _entryConditions = new List<ActionCondition>();
 
-    [Header("移动模式配置")]
-    [SerializeField, Tooltip("默认的移动模式 (无需条件)")]
+    [SerializeField, Tooltip("默认的移动模式 (如: 普通自由移动)")]
     private LocomotionModeAsset _defaultMode;
 
-    [SerializeField, Tooltip("特殊的移动模式列表")]
+    [SerializeField, Tooltip("特殊的移动模式列表 (按Priority仲裁)")]
     private List<LocomotionModeAsset> _specialModes = new List<LocomotionModeAsset>();
 
+    // 缓存当前正在执行的模式
     private LocomotionModeAsset _currentMode;
 
     private void Awake()
     {
         _actor = GetComponent<Actor>();
     }
+
+    // ==========================================
+    // 供外部调用的显式接口
+    // ==========================================
 
     public bool CheckConditions() 
     {
@@ -38,23 +43,37 @@ public class ActorLocomotion : MonoBehaviour
         return true;
     }
 
-    private void OnEnable()
+    public void StartLocomotion()
     {
-        if (_actor == null) return; 
-
+        _isActive = true; // 记下自己被唤醒了
+        
         _actor.movement.SetMovementMode(ActorMovement.MovementMode.CodeDriven);
+        
+        // 唤醒瞬间立刻评估并播放动画，保证0帧延迟的无缝衔接
         EvaluateAndPlayMode(); 
     }
 
-    private void OnDisable()
+    public void StopLocomotion()
     {
-        if (_actor == null) return;
+        _isActive = false; // 记下自己被关停了
+        
+        // 彻底刹车
         _actor.movement.SetCodeVelocity(Vector3.zero);
+        
+        // 清理缓存，保证下次重新启动时正常触发动画 Play
         _currentMode = null; 
     }
 
+    // ==========================================
+    // 业务逻辑 (小脑本职工作)
+    // ==========================================
+
     private void Update()
     {
+        // 极其纯粹：只要我没被激活，我就休息。
+        if (!_isActive) 
+            return;
+
         EvaluateAndPlayMode();
         ProcessLocomotion();
     }
@@ -62,15 +81,14 @@ public class ActorLocomotion : MonoBehaviour
     private void EvaluateAndPlayMode()
     {
         LocomotionModeAsset targetMode = _defaultMode;
-        int highestPriority = -1; // 记录当前找到的最高优先级
+        int highestPriority = -1; 
 
-        // 遍历所有特殊模式，找出满足条件且优先级最高的
+        // 寻找优先级最高的特殊模式（比如冲刺、瘸腿走）
         foreach (var mode in _specialModes)
         {
             if (mode != null && mode.CheckConditions(_actor))
             {
                 int modePriority = (int)mode.Priority;
-                // 如果优先级更高，则替换为目标模式
                 if (modePriority > highestPriority)
                 {
                     highestPriority = modePriority;
@@ -79,7 +97,7 @@ public class ActorLocomotion : MonoBehaviour
             }
         }
 
-        // 如果目标模式发生了改变，执行平滑切换
+        // 如果模式改变（或者刚被 StartLocomotion 唤醒），命令 Animancer 切换动画
         if (targetMode != _currentMode)
         {
             _currentMode = targetMode;
@@ -98,38 +116,37 @@ public class ActorLocomotion : MonoBehaviour
 
         if (moveInput.sqrMagnitude > 0.01f)
         {
+            // 算方向、转体
             Vector3 targetDir = _actor.cameraControl.CalculateWorldDirection(moveInput);
             _actor.movement.UpdateRotation(targetDir);
 
+            // 算速度、移动
             Vector3 targetVelocity = targetDir * (moveInput.magnitude * currentSpeed);
             _actor.movement.SetCodeVelocity(targetVelocity);
             
+            // 给混合树喂参数
             InjectAnimancerParameter(moveInput);
         }
         else
         {
+            // 没推摇杆时刹车，并让混合树回到 Idle
             _actor.movement.SetCodeVelocity(Vector3.zero);
             InjectAnimancerParameter(Vector2.zero);
         }
     }
 
-    // 独立出参数注入方法，处理不同类型的混合树
     private void InjectAnimancerParameter(Vector2 input)
     {
         if (_currentMode == null || _currentMode.Mixer == null) return;
 
-        // 通过 TransitionAsset 获取正在运行的 AnimancerState
         AnimancerState state = _actor.animancer.States.GetOrCreate(_currentMode.Mixer);
 
-        // 判断当前播放的是什么类型的动画，并注入相应的参数
         if (state is MixerState<Vector2> mixer2D)
         {
-            // 如果是 2D 八向/自由视角混合树，传入 Vector2
-            mixer2D.Parameter = input;
+            mixer2D.Parameter = input; 
         }
         else if (state is MixerState<float> mixer1D)
         {
-            // 如果是 1D 混合树 (如 Idle-Walk-Run)，传入推杆力度
             mixer1D.Parameter = input.magnitude; 
         }
     }

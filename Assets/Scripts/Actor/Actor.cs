@@ -8,18 +8,18 @@ public class Actor : MonoBehaviour
 {
     public CharacterController characterController;
     public ActorLogicInput logicInput;
+    public ActionStateManager actionManager;
+    public ActorLocomotion locomotion;
     public ActorMovement movement;
     public ActionPlayer actionPlayer;
     public AnimancerComponent animancer;
     public ActorCameraControl cameraControl;
     public ActorCombater combater;
-
-    // 🌟 直接声明插件原生的黑板容器
-    public TagContainer tagContainer;
+    public TagContainer tagContainer; //插件原生的黑板容器
 
     private void Awake()
     {
-        // 🌟 使用插件提供的安全扩展方法，为这个 GameObject 绑定或获取一个黑板实例
+        // 为这个 GameObject 绑定或获取一个黑板实例
         tagContainer = this.gameObject.GetTagContainer();
     }
 }
