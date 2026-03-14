@@ -10,10 +10,8 @@ GameObject:
   m_Component:
   - component: {fileID: 6975312938893648710}
   - component: {fileID: 919094109243400488}
-  - component: {fileID: 3354261299216637628}
   - component: {fileID: 3617314882186939484}
   - component: {fileID: 4638743967393742353}
-  - component: {fileID: 1167365505214070835}
   m_Layer: 0
   m_Name: ActorRoot
   m_TagString: Untagged
@@ -34,8 +32,8 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 5699992550280320252}
   - {fileID: 2378870619860012620}
+  - {fileID: 5699992550280320252}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!143 &919094109243400488
@@ -64,71 +62,6 @@ CharacterController:
   m_SkinWidth: 0.08
   m_MinMoveDistance: 0.001
   m_Center: {x: 0, y: 0, z: 0}
---- !u!320 &3354261299216637628
-PlayableDirector:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1264656311839001196}
-  m_Enabled: 1
-  serializedVersion: 3
-  m_PlayableAsset: {fileID: 0}
-  m_InitialState: 1
-  m_WrapMode: 2
-  m_DirectorUpdateMode: 1
-  m_InitialTime: 0
-  m_SceneBindings:
-  - key: {fileID: 2259100303738914268, guid: e26f839a7e52e794993330052ed6d628, type: 2}
-    value: {fileID: 0}
-  - key: {fileID: 8894267901713026498, guid: f75ff7ec019e9d246a518244e04a774a, type: 2}
-    value: {fileID: 0}
-  - key: {fileID: -9129762027064860335, guid: d678db735f8a6a54987b7233397219d5, type: 2}
-    value: {fileID: 0}
-  - key: {fileID: 6636448727369895916, guid: 6009959a459e7764a845ffbc39cffe67, type: 2}
-    value: {fileID: 0}
-  - key: {fileID: 6909747588228758239, guid: 2efc6937c552ffa4592259ace32bd072, type: 2}
-    value: {fileID: 0}
-  - key: {fileID: 4842499773165861987, guid: 2c603e7f864732e4a93093dafb0f1adf, type: 2}
-    value: {fileID: 0}
-  - key: {fileID: -6657361347850134263, guid: 6ded26eb8cf81ee4cb5bf55959359abd, type: 2}
-    value: {fileID: 0}
-  - key: {fileID: -1251024002980900574, guid: 3ccc098b924e3ba418e782c5f626d2e0, type: 2}
-    value: {fileID: 0}
-  - key: {fileID: -8571747202589949073, guid: ce524a8867cf65347a31c41745ea724e, type: 2}
-    value: {fileID: 0}
-  m_ExposedReferences:
-    m_References:
-    - 349b37e8217571b4e9a999b84c051e2d: {fileID: 0}
-    - 7bcf439672997ee4fa8e868e08cadc9a: {fileID: 0}
-    - 79b3af5bd7b7b0d4a9dca72936952a18: {fileID: 0}
-    - dd2c87250b7df534aba32e14957ad7de: {fileID: 0}
-    - 9b51f8882c92cc747b353d3debcef512: {fileID: 0}
-    - 93e172712e8c08a4294e7a478ef38c4f: {fileID: 0}
-    - 724304e222acd1a40bcb03d82dea0f79: {fileID: 0}
-    - 64b8adf7db0284745a7967d4aaee722f: {fileID: 0}
-    - 83a7f450035e1d14398b49ad9f518e2e: {fileID: 0}
-    - bd34f5d098fea464a8dcd16bf4ef74cf: {fileID: 0}
-    - f7f0bfe3c4956d942ad4be16fd3c3124: {fileID: 0}
-    - 14abdb40b6c29944d9b629d30e6c78d7: {fileID: 0}
-    - f9874b03bd75dc643ac57a76f4c537b4: {fileID: 0}
-    - 4387fdb496663ad4682fd41b4604da62: {fileID: 0}
-    - 9ba9fda2b790cbe4294a3086314fd029: {fileID: 0}
-    - 8789dd9929db5924499548007611ba32: {fileID: 0}
-    - 060d50b94919a0742ab872c76096c98c: {fileID: 0}
-    - 75cee74fa2a4a6b43938a917a1b4fc8b: {fileID: 0}
-    - 792a445194b9ce9408d8be13cb0bb85a: {fileID: 0}
-    - 81dfc52b27166fa48812676f70016cb2: {fileID: 0}
-    - 2d9bc5505cec87544ad3effaa4c7d2db: {fileID: 0}
-    - 56d3b803a126a8149bf9df2e93140614: {fileID: 0}
-    - 39d4de501c4901f47b649fe6922dc552: {fileID: 0}
-    - b6899f36c92288b4aa02dabe1c6e7ed5: {fileID: 0}
-    - dccc790ddbe16fb41afeaa30380e2678: {fileID: 0}
-    - f57004f1fde92024ca90f73ac37beb34: {fileID: 0}
-    - 51ffa3cc2526faa49a630be1d8c59a93: {fileID: 0}
-    - a7176389ceca1744a837188ffe1ebecb: {fileID: 0}
-    - d138b830d7c377d42aeb710c36760b6f: {fileID: 0}
-    - c9feb281bce357e4ca73b700676f072e: {fileID: 0}
 --- !u!114 &3617314882186939484
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -141,15 +74,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 97740e3c55b7f354286e934df5286f43, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  logicInput: {fileID: 4638743967393742353}
-  movement: {fileID: 0}
-  actionPlayerDirector: {fileID: 1167365505214070835}
   characterController: {fileID: 919094109243400488}
+  logicInput: {fileID: 4638743967393742353}
+  actionManager: {fileID: 0}
+  locomotion: {fileID: 0}
+  movement: {fileID: 0}
+  actionPlayer: {fileID: 0}
   animancer: {fileID: 205849317729812308}
   cameraControl: {fileID: 7979688053302251136}
   combater: {fileID: 0}
-  FSMOwner: {fileID: 0}
-  blackboard: {fileID: 0}
 --- !u!114 &4638743967393742353
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -162,22 +95,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d85b46a47ec553048bb4c214eb66851b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  actor: {fileID: 3617314882186939484}
---- !u!114 &1167365505214070835
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1264656311839001196}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fd23beebde2badb4a8832cbb9a84b020, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  actor: {fileID: 3617314882186939484}
-  director: {fileID: 3354261299216637628}
-  controlActionTransition: 0
+  _bufferValidTime: 0.2
 --- !u!1 &5276626400589506912
 GameObject:
   m_ObjectHideFlags: 0
@@ -189,6 +107,7 @@ GameObject:
   - component: {fileID: 2378870619860012620}
   - component: {fileID: 4074301134818915425}
   - component: {fileID: 205849317729812308}
+  - component: {fileID: 5124414948518637136}
   m_Layer: 0
   m_Name: ModelRoot
   m_TagString: Untagged
@@ -247,6 +166,71 @@ MonoBehaviour:
   _Animator: {fileID: 4074301134818915425}
   _Transitions: {fileID: 0}
   _ActionOnDisable: 1
+--- !u!320 &5124414948518637136
+PlayableDirector:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5276626400589506912}
+  m_Enabled: 1
+  serializedVersion: 3
+  m_PlayableAsset: {fileID: 0}
+  m_InitialState: 1
+  m_WrapMode: 2
+  m_DirectorUpdateMode: 1
+  m_InitialTime: 0
+  m_SceneBindings:
+  - key: {fileID: 2259100303738914268, guid: e26f839a7e52e794993330052ed6d628, type: 2}
+    value: {fileID: 0}
+  - key: {fileID: 8894267901713026498, guid: f75ff7ec019e9d246a518244e04a774a, type: 2}
+    value: {fileID: 0}
+  - key: {fileID: -9129762027064860335, guid: d678db735f8a6a54987b7233397219d5, type: 2}
+    value: {fileID: 0}
+  - key: {fileID: 6636448727369895916, guid: 6009959a459e7764a845ffbc39cffe67, type: 2}
+    value: {fileID: 0}
+  - key: {fileID: 6909747588228758239, guid: 2efc6937c552ffa4592259ace32bd072, type: 2}
+    value: {fileID: 0}
+  - key: {fileID: 4842499773165861987, guid: 2c603e7f864732e4a93093dafb0f1adf, type: 2}
+    value: {fileID: 0}
+  - key: {fileID: -6657361347850134263, guid: 6ded26eb8cf81ee4cb5bf55959359abd, type: 2}
+    value: {fileID: 0}
+  - key: {fileID: -1251024002980900574, guid: 3ccc098b924e3ba418e782c5f626d2e0, type: 2}
+    value: {fileID: 0}
+  - key: {fileID: -8571747202589949073, guid: ce524a8867cf65347a31c41745ea724e, type: 2}
+    value: {fileID: 0}
+  m_ExposedReferences:
+    m_References:
+    - 349b37e8217571b4e9a999b84c051e2d: {fileID: 0}
+    - 7bcf439672997ee4fa8e868e08cadc9a: {fileID: 0}
+    - 79b3af5bd7b7b0d4a9dca72936952a18: {fileID: 0}
+    - dd2c87250b7df534aba32e14957ad7de: {fileID: 0}
+    - 9b51f8882c92cc747b353d3debcef512: {fileID: 0}
+    - 93e172712e8c08a4294e7a478ef38c4f: {fileID: 0}
+    - 724304e222acd1a40bcb03d82dea0f79: {fileID: 0}
+    - 64b8adf7db0284745a7967d4aaee722f: {fileID: 0}
+    - 83a7f450035e1d14398b49ad9f518e2e: {fileID: 0}
+    - bd34f5d098fea464a8dcd16bf4ef74cf: {fileID: 0}
+    - f7f0bfe3c4956d942ad4be16fd3c3124: {fileID: 0}
+    - 14abdb40b6c29944d9b629d30e6c78d7: {fileID: 0}
+    - f9874b03bd75dc643ac57a76f4c537b4: {fileID: 0}
+    - 4387fdb496663ad4682fd41b4604da62: {fileID: 0}
+    - 9ba9fda2b790cbe4294a3086314fd029: {fileID: 0}
+    - 8789dd9929db5924499548007611ba32: {fileID: 0}
+    - 060d50b94919a0742ab872c76096c98c: {fileID: 0}
+    - 75cee74fa2a4a6b43938a917a1b4fc8b: {fileID: 0}
+    - 792a445194b9ce9408d8be13cb0bb85a: {fileID: 0}
+    - 81dfc52b27166fa48812676f70016cb2: {fileID: 0}
+    - 2d9bc5505cec87544ad3effaa4c7d2db: {fileID: 0}
+    - 56d3b803a126a8149bf9df2e93140614: {fileID: 0}
+    - 39d4de501c4901f47b649fe6922dc552: {fileID: 0}
+    - b6899f36c92288b4aa02dabe1c6e7ed5: {fileID: 0}
+    - dccc790ddbe16fb41afeaa30380e2678: {fileID: 0}
+    - f57004f1fde92024ca90f73ac37beb34: {fileID: 0}
+    - 51ffa3cc2526faa49a630be1d8c59a93: {fileID: 0}
+    - a7176389ceca1744a837188ffe1ebecb: {fileID: 0}
+    - d138b830d7c377d42aeb710c36760b6f: {fileID: 0}
+    - c9feb281bce357e4ca73b700676f072e: {fileID: 0}
 --- !u!1 &7899385996058628002
 GameObject:
   m_ObjectHideFlags: 0
@@ -292,8 +276,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   actor: {fileID: 3617314882186939484}
-  cinemachineBrain: {fileID: 0}
-  normalVirtualCamera: {fileID: 0}
-  freeLookVirtualCamera: {fileID: 0}
-  combatVirtualCamera: {fileID: 0}
+  normalFreeLookCamera: {fileID: 0}
+  softLockCamera: {fileID: 0}
+  hardLockCamera: {fileID: 0}
+  pivotRotationSpeed: 10
+  freeModeResetSpeed: 5
+  fixedOffsetAngle: 15
+  offsetSmoothTime: 0.2
+  shoulderSwitchThreshold: 0.1
   currentState: 0

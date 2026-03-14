@@ -15,6 +15,7 @@ public class ActionPlayer : MonoBehaviour
     {
         _director = GetComponent<PlayableDirector>();
         _director.extrapolationMode = DirectorWrapMode.None;
+        _director.playableAsset = null; // 确保初始时没有绑定任何 Timeline
     }
 
     private void OnEnable()

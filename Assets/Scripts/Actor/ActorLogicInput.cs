@@ -6,7 +6,7 @@ using UnityEngine;
 public class ActorLogicInput : MonoBehaviour
 {
     [Header("组件引用")]
-    private Actor actor;
+    [SerializeField] private Actor actor;
 
     [Header("输入缓冲配置")]
     [SerializeField, Tooltip("指令在缓冲池中存活的时间（秒）")]

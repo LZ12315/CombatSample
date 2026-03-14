@@ -31,27 +31,7 @@ public class ActionInstance
         if (_actor != null && _actor.tagContainer != null)
         {
             // ==========================================
-            // 1. 强制入场净空 (消耗事件大类标签)
-            // ==========================================
-            if (Config.ConsumeTagsOnEnter != null)
-            {
-                for (int i = 0; i < Config.ConsumeTagsOnEnter.Count; i++)
-                {
-                    if (Config.ConsumeTagsOnEnter[i] != null)
-                    {
-                        Tag tagToConsume = Config.ConsumeTagsOnEnter[i].GetTag();
-                        if (tagToConsume != null)
-                        {
-                            // ? 核心绝杀：彻底连根拔起该标签及其所有子标签！
-                            // 比如 Config 里填了 Event.Hit，那么 Event.Hit.Physical 和 Event.Hit.Magic 都会被一波带走
-                            _actor.tagContainer.RemoveTagCompletely(tagToConsume);
-                        }
-                    }
-                }
-            }
-
-            // ==========================================
-            // 2. 宣告身份 (挂载运行时身份标签)
+            // 1. 宣告身份 (挂载运行时身份标签)
             // ==========================================
             if (Config.SelfTag != null)
             {
@@ -70,7 +50,7 @@ public class ActionInstance
     public void OnExit()
     {
         // ==========================================
-        // 3. 安全退场：回收专属身份标签
+        // 2. 安全退场：回收专属身份标签
         // ==========================================
         if (_actor != null && _actor.tagContainer != null && Config.SelfTag != null)
         {

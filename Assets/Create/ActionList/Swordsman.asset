@@ -12,8 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6d74fd96203a6cc489df152c36791b43, type: 3}
   m_Name: Swordsman
   m_EditorClassIdentifier: 
-  defaultAction: {fileID: 11400000, guid: 7b34badc342a7b341aef17dc895685f2, type: 2}
-  anyTransitions: []
-  references:
-    version: 2
-    RefIds: []
+  _globalActions:
+  - {fileID: 11400000, guid: 4132ae1d84783db42b5e5ea35d871e65, type: 2}
+  - {fileID: 11400000, guid: dafea63ec470d374fbc9b5ab0d01c7c9, type: 2}
+  - {fileID: 11400000, guid: 368882d5105a9a54a9c09b66b5162f0a, type: 2}
+  - {fileID: 11400000, guid: fb0290b998afb9941a18559a4f8e7e4a, type: 2}

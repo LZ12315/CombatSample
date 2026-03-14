@@ -2,11 +2,10 @@ using System.Collections.Generic;
 using UnityEngine;
 using Animancer; 
 
-[RequireComponent(typeof(Actor))]
 public class ActorLocomotion : MonoBehaviour
 {
-    private Actor _actor;
-    private bool _isActive = false;
+    [Header("组件引用")]
+    [SerializeField] private Actor _actor;
 
     [Header("配置")]
     [SerializeField, Tooltip("基础移动速度")] 
@@ -21,13 +20,10 @@ public class ActorLocomotion : MonoBehaviour
     [SerializeField, Tooltip("特殊的移动模式列表 (按Priority仲裁)")]
     private List<LocomotionModeAsset> _specialModes = new List<LocomotionModeAsset>();
 
+    // 是否被激活（StartLocomotion）
+    private bool _isActive = false;
     // 缓存当前正在执行的模式
     private LocomotionModeAsset _currentMode;
-
-    private void Awake()
-    {
-        _actor = GetComponent<Actor>();
-    }
 
     // ==========================================
     // 供外部调用的显式接口
@@ -71,9 +67,10 @@ public class ActorLocomotion : MonoBehaviour
     private void Update()
     {
         // 极其纯粹：只要我没被激活，我就休息。
-        if (!_isActive) 
+        if (!_isActive)
+        {
             return;
-
+        }
         EvaluateAndPlayMode();
         ProcessLocomotion();
     }
@@ -111,21 +108,59 @@ public class ActorLocomotion : MonoBehaviour
 
     private void ProcessLocomotion()
     {
-        Vector2 moveInput = _actor.logicInput.MoveInput; 
+        // 限制输入向量的模长最大为1，解决斜向加速问题
+        Vector2 rawInput = _actor.logicInput.MoveInput;
+        Vector2 moveInput = Vector2.ClampMagnitude(rawInput, 1f);
         float currentSpeed = _baseMoveSpeed * (_currentMode != null ? _currentMode.SpeedMultiplier : 1f);
 
         if (moveInput.sqrMagnitude > 0.01f)
         {
-            // 算方向、转体
-            Vector3 targetDir = _actor.cameraControl.CalculateWorldDirection(moveInput);
-            _actor.movement.UpdateRotation(targetDir);
+            // 1. 计算世界空间下的移动方向，并设置物理速度 (这部分不变，摇杆推哪往哪走)
+            Vector3 targetVelocityDir = _actor.cameraControl.CalculateWorldDirection(moveInput);
+            _actor.movement.SetCodeVelocity(targetVelocityDir * (moveInput.magnitude * currentSpeed));
 
-            // 算速度、移动
-            Vector3 targetVelocity = targetDir * (moveInput.magnitude * currentSpeed);
-            _actor.movement.SetCodeVelocity(targetVelocity);
-            
-            // 给混合树喂参数
-            InjectAnimancerParameter(moveInput);
+            // 🌟 核心修正：判断当前是否是锁定模式
+            bool isLockOn = _actor.cameraControl.CinemachineState != Enums.PlayerCameraState.Free;
+
+            if (isLockOn)
+            {
+                // ==========================================
+                // 锁定模式 (Lock)：八向移动跑法
+                // ==========================================
+                // 1. 旋转：强制面朝敌人 (或者面朝相机前方)
+                Transform enemy = _actor.combater.CombatTarget?.transform;
+                if (enemy != null)
+                {
+                    Vector3 dirToEnemy = enemy.position - _actor.transform.position;
+                    dirToEnemy.y = 0;
+                    if (dirToEnemy.sqrMagnitude > 0.001f)
+                    {
+                        _actor.movement.UpdateRotation(dirToEnemy.normalized);
+                    }
+                }
+                else 
+                {
+                    // 如果没有敌人但处于某种锁定态，面朝相机正前方
+                    Vector3 camForward = Camera.main.transform.forward;
+                    camForward.y = 0;
+                    _actor.movement.UpdateRotation(camForward.normalized);
+                }
+
+                // 2. 动画：原汁原味注入摇杆 (X左右，Y前后)，触发侧滑和后退动画
+                InjectAnimancerParameter(moveInput);
+            }
+            else
+            {
+                // ==========================================
+                // 自由模式 (Free)：传统跟随摇杆跑法
+                // ==========================================
+                // 1. 旋转：转向摇杆推的方向
+                _actor.movement.UpdateRotation(targetVelocityDir);
+
+                // 2. 动画：因为角色已经转过去面朝目标了，所以对他来说永远是在"往前走"
+                // 强行把 X 轴设为 0，Y 轴设为摇杆推力，只触发 Run Forward 动画！
+                InjectAnimancerParameter(new Vector2(0f, moveInput.magnitude));
+            }
         }
         else
         {
@@ -138,7 +173,6 @@ public class ActorLocomotion : MonoBehaviour
     private void InjectAnimancerParameter(Vector2 input)
     {
         if (_currentMode == null || _currentMode.Mixer == null) return;
-
         AnimancerState state = _actor.animancer.States.GetOrCreate(_currentMode.Mixer);
 
         if (state is MixerState<Vector2> mixer2D)

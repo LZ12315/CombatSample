@@ -1,43 +1,54 @@
 using UnityEditor;
 using UnityEditor.Callbacks;
 using UnityEditor.SceneManagement;
-using UnityEditor.Timeline;
 using UnityEngine;
 using UnityEngine.Playables;
 using UnityEngine.Timeline;
 
 public class ActionAssetHelper
 {
-    [OnOpenAsset(1)] // 优先级设为1，优先处理我们的ActionAsset
+    [OnOpenAsset(1)] 
     public static bool OnOpenActionAsset(int instanceID, int line)
     {
         var actionAsset = EditorUtility.InstanceIDToObject(instanceID) as ActionAsset;
-        if (actionAsset == null || actionAsset.TimelineAsset == null)
-            return false; // 如果不是ActionAsset或者它没有Timeline，则不做任何事
+        if (actionAsset == null) return false; 
 
-        // 查找并设置 PlayableDirector
+        if (actionAsset.TimelineAsset == null)
+        {
+            Debug.LogWarning($"[ActionAssetHelper] {actionAsset.name} 没有关联的 TimelineAsset！");
+            return false;
+        }
+
+        // 查找最佳的 PlayableDirector
         var director = FindBestPlayableDirector();
+        
         if (director != null)
         {
-            // 【改进2】记录撤销操作，并设置Timeline
+            // 记录撤销操作，并替换 Director 正在播放的 Timeline
             Undo.RecordObject(director, "Set Timeline Asset");
             director.playableAsset = actionAsset.TimelineAsset;
-            EditorUtility.SetDirty(director); // 标记为已修改
+            EditorUtility.SetDirty(director); 
 
-            // 选中并高亮显示目标对象
+            // ? 第一步：选中挂载了 Director 的游戏物体
             Selection.activeGameObject = director.gameObject;
             EditorGUIUtility.PingObject(director.gameObject);
         }
+        else
+        {
+            // 兜底方案：如果没有 Director，就选中 Timeline 资产本身
+            Selection.activeObject = actionAsset.TimelineAsset;
+            Debug.LogWarning("[ActionAssetHelper] 场景或预制体中未找到 PlayableDirector，已进入纯资产预览模式。");
+        }
 
-        // 【改进3】使用更健壮的方式打开Timeline窗口
-        var timelineWindow = EditorWindow.GetWindow<TimelineEditorWindow>();
-        timelineWindow.SetTimeline(actionAsset.TimelineAsset);
+        // ? 第二步：最暴力的跨版本绝招 —— 模拟点击菜单栏强制呼出 Timeline 窗口
+        // 窗口一旦打开，就会自动读取上面的 Selection 焦点并完美加载数据！
+        EditorApplication.ExecuteMenuItem("Window/Sequencing/Timeline");
 
-        return true; // 返回true表示我们已经处理了这个打开事件
+        return true; 
     }
 
     /// <summary>
-    /// 【改进1】按优先级查找最合适的PlayableDirector
+    /// 按优先级查找最合适的PlayableDirector
     /// </summary>
     private static PlayableDirector FindBestPlayableDirector()
     {
@@ -45,11 +56,7 @@ public class ActionAssetHelper
         if (Selection.activeGameObject != null)
         {
             var directorInSelection = Selection.activeGameObject.GetComponentInChildren<PlayableDirector>();
-            if (directorInSelection != null)
-            {
-                Debug.Log($"[ActionAssetHelper] 找到了选中对象 '{Selection.activeGameObject.name}' 上的PlayableDirector。");
-                return directorInSelection;
-            }
+            if (directorInSelection != null) return directorInSelection;
         }
 
         // 优先级2: 在预制件编辑模式下查找
@@ -59,17 +66,11 @@ public class ActionAssetHelper
             foreach (var rootGo in prefabStage.scene.GetRootGameObjects())
             {
                 var directorInPrefab = rootGo.GetComponentInChildren<PlayableDirector>();
-                if (directorInPrefab != null)
-                {
-                    Debug.Log($"[ActionAssetHelper] 在预制件舞台中找到了 '{directorInPrefab.name}'。");
-                    return directorInPrefab;
-                }
+                if (directorInPrefab != null) return directorInPrefab;
             }
         }
 
-        // 优先级3: (备用方案) 全局查找任意一个
-        var anyDirector = Object.FindObjectOfType<PlayableDirector>();
-
-        return anyDirector;
+        // 优先级3: 全局查找任意一个
+        return Object.FindObjectOfType<PlayableDirector>();
     }
 }

@@ -1,71 +1,56 @@
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Timeline;
+using System.IO;
 
 public class ActionAssetCreater
 {
-    /// <summary>
-    /// 创建并持久化ActionAsset的核心方法
-    /// </summary>
     public static ActionAsset CreateActionAsset(string path)
     {
-        // 【推荐】开始批量资产编辑，提高性能和操作的原子性
-        AssetDatabase.StartAssetEditing();
+        ActionAsset actionAsset = ScriptableObject.CreateInstance<ActionAsset>();
+        AssetDatabase.CreateAsset(actionAsset, path);
 
-        ActionAsset actionAsset = null;
-        try
-        {
-            // 创建主资源
-            actionAsset = ScriptableObject.CreateInstance<ActionAsset>();
-            AssetDatabase.CreateAsset(actionAsset, path);
+        CreateAndLinkTimeline(actionAsset, path);
 
-            // 创建并附加Timeline资源
-            CreateAndAttachTimeline(actionAsset);
-        }
-        finally
-        {
-            // 【推荐】结束批量资产编辑，并让Unity一次性处理所有变更
-            AssetDatabase.StopAssetEditing();
-
-            // 确保即使在try块中发生错误，我们也能保存已经创建的部分
-            if (actionAsset != null)
-            {
-                EditorUtility.SetDirty(actionAsset);
-            }
-            AssetDatabase.SaveAssets();
-            AssetDatabase.Refresh(); // 确保Project窗口状态最新
-        }
+        EditorUtility.SetDirty(actionAsset);
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
 
         return actionAsset;
     }
 
-    private static void CreateAndAttachTimeline(ActionAsset actionAsset)
+private static void CreateAndLinkTimeline(ActionAsset actionAsset, string actionPath)
     {
-        // 创建Timeline资源
+        string directory = Path.GetDirectoryName(actionPath);
+        string actionName = Path.GetFileNameWithoutExtension(actionPath);
+        
+        string timelinePath = Path.Combine(directory, $"{actionName}_Timeline.playable").Replace("\\", "/");
+
+        // 1. 创建纯净的 Timeline 资源
         var timeline = ScriptableObject.CreateInstance<TimelineAsset>();
-        timeline.name = $"{actionAsset.name}_Timeline";
         timeline.editorSettings.frameRate = TimelineProjectSettings.instance.defaultFrameRate;
-        timeline.hideFlags = HideFlags.HideInHierarchy;
+        
+        // ? 必须先让 Timeline 成为磁盘上的独立实体文件
+        AssetDatabase.CreateAsset(timeline, timelinePath);
 
-        // 创建轨道
+        // ==========================================
+        // ? 2. 添加默认轨道
+        // 因为 Timeline 已经是独立文件了，CreateTrack 会自动把轨道保存在 .playable 内部，绝对不会污染 ActionAsset
+        // ==========================================
+        
+        // 添加 Animancer 动画轨道
         var animancerTrack = timeline.CreateTrack<AnimancerTrack>(null, "Animancer");
-        animancerTrack.hideFlags = HideFlags.HideInHierarchy;
+        
+        // 添加 Tag/Data 轨道 (根据你之前的代码，我猜你的类名叫 ActionDataTrack)
+        var tagTrack = timeline.CreateTrack<ActionTagTrack>(null, "ActionTag"); 
 
-        var transitionTrack = timeline.CreateTrack<ActionDataTrack>(null, "ActionTransition");
-        transitionTrack.hideFlags = HideFlags.HideInHierarchy;
+        // ==========================================
 
-        // 关联资源
+        // 3. 逻辑关联
         actionAsset.SetTimelineAsset(timeline);
 
-        // 持久化子资源
-        AssetDatabase.AddObjectToAsset(timeline, actionAsset);
-        AssetDatabase.AddObjectToAsset(animancerTrack, actionAsset);
-        AssetDatabase.AddObjectToAsset(transitionTrack, actionAsset);
-
-        // 在批量编辑模式下，SetDirty可以放在最后一起做，但放在这里也无妨
+        // 标记脏数据，等待保存
         EditorUtility.SetDirty(timeline);
-        EditorUtility.SetDirty(animancerTrack);
-        EditorUtility.SetDirty(transitionTrack);
     }
 
     [MenuItem("Assets/Create/ActionSystem/ActionAsset", priority = 0)]
@@ -74,8 +59,8 @@ public class ActionAssetCreater
         ProjectWindowUtil.StartNameEditingIfProjectWindowExists(
             0,
             ScriptableObject.CreateInstance<CreateActionAssetCallback>(),
-            "New ActionTimeline.asset",
-            EditorGUIUtility.IconContent("TimelineAsset Icon").image as Texture2D,
+            "New Action", // 默认名字
+            EditorGUIUtility.IconContent("ScriptableObject Icon").image as Texture2D,
             null
         );
     }
@@ -84,9 +69,27 @@ public class ActionAssetCreater
     {
         public override void Action(int instanceId, string path, string resourceFile)
         {
-            var asset = CreateActionAsset(path);
+            // ? 核心优化：拦截路径，自动创建专属文件夹
+            string directory = Path.GetDirectoryName(path);
+            string actionName = Path.GetFileNameWithoutExtension(path);
+
+            // 算出专属文件夹的路径
+            string folderPath = Path.Combine(directory, actionName).Replace("\\", "/");
+            
+            // 如果文件夹不存在，就创建一个
+            if (!AssetDatabase.IsValidFolder(folderPath))
+            {
+                // CreateFolder 的参数是 (父目录, 新文件夹名)
+                AssetDatabase.CreateFolder(directory, actionName);
+            }
+
+            // 更新最终资产要保存的路径（放到刚建好的文件夹里）
+            string finalAssetPath = Path.Combine(folderPath, $"{actionName}.asset").Replace("\\", "/");
+
+            var asset = CreateActionAsset(finalAssetPath);
             if (asset != null)
             {
+                // 创建完毕后，高亮选中生成的 ActionAsset
                 ProjectWindowUtil.ShowCreatedAsset(asset);
             }
         }

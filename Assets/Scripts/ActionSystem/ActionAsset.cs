@@ -15,20 +15,15 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
     [Header("属性")]
     [SerializeField, Tooltip("动作优先级")]
     private Enums.ActionPriority _priority = Enums.ActionPriority.Normal;
-
-    [SerializeField, Tooltip("动作是否循环播放")]
-    private bool isLoop = false;
     
     [Header("标签管理 (Tag Management)")]
     [SerializeField, Tooltip("动作播放期间持续拥有的身份标签 (例如：State.Action.Attack)")]
     private TagReference _selfTag;
 
-    [SerializeField, Tooltip("进入该动作时，需要立刻彻底消耗掉的事件标签 (例如：Event.Hit)")]
-    private List<TagReference> _consumeTagsOnEnter = new List<TagReference>();
-
     [Header("配置")]
-    [Tooltip("如果勾选，该动作一旦成功触发，将立刻清空玩家的输入缓存，防止乱按的指令带入下一个动作")]
-    public bool FlushInputOnEnter = true; // 默认勾选，大部分攻击技能都需要清空
+
+    [SerializeField, Tooltip("动作是否循环播放")]
+    private bool isLoop = false;
 
     [SerializeField, Tooltip("动作自然结束后的强制派生动作")]
     private ActionAsset nextAction;
@@ -49,9 +44,7 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
     
     // 标签数据
     public TagReference SelfTag => _selfTag;
-    public IReadOnlyList<TagReference> ConsumeTagsOnEnter => _consumeTagsOnEnter.AsReadOnly();
 
-    // ? 对应修改为 ActionCondition
     public IReadOnlyList<ActionCondition> EntryConditions => _entryConditions.AsReadOnly();
 
     #endregion

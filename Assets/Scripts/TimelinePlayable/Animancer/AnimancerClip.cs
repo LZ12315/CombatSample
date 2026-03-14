@@ -8,7 +8,7 @@ public class AnimancerClip : PlayableAsset, ITimelineClipAsset
 {
     public TransitionAsset transitionAsset;
 
-    public ClipCaps clipCaps => ClipCaps.None;
+    public ClipCaps clipCaps => ClipCaps.SpeedMultiplier;
 
     public override double duration
     {

@@ -1,2 +1,7 @@
 Attck.Combo.LightAttack.1
-State.A
+Attck.Combo.LightAttack.2
+Attck.Combo.LightAttack.3
+Attck.Combo.LightAttack.4
+State.Block.Move
+State.Block.Attack
+State.Block.Dodge

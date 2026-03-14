@@ -4,51 +4,55 @@ using Animancer;
 
 /// <summary>
 /// Timeline 的运行时行为逻辑。
-/// 负责在 Timeline 播放期间控制 Animancer 播放对应的动画。
-/// 支持编辑器预览和运行时方向动画切换。
+/// 继承自你编写的 ActionBehaviourBase。
+/// 支持普通单体动画，以及带方向的动作（如八向闪避），且遵循“动作承诺”原则。
 /// </summary>
 public class AnimancerBehaviour : ActionBehaviourBase
 {
     // --- 配置数据 ---
+    [Tooltip("可以拖入 ClipTransition (普通攻击) 或 MixerTransition2D (八向闪避)")]
     public TransitionAsset transitionAsset;
 
     // --- 运行时状态 ---
     private AnimancerState _currentState;
-    private DirectionalAnimationHandler _directionalHandler;
 
-    #region 基类方法重写 (生命周期实现)
+    #region 基类方法实现
 
     /// <summary>
-    /// 开始播放 (对应之前的 OnEnter)
-    /// 基类已确保 actor 不为空
+    /// 开始播放 (对应基类的 OnClipStart)
     /// </summary>
     protected override void OnClipStart(Playable playable)
     {
-        if (!IsValidTransition()) return;
+        if (transitionAsset == null || transitionAsset.Transition == null) return;
+        if (actor == null || actor.animancer == null) return;
 
-        ITransition aTransition = transitionAsset.Transition;
-        bool isEditorPreview = !Application.isPlaying;
+        ITransition transition = transitionAsset.Transition;
 
-        // 1. 处理方向动画逻辑
-        if (isEditorPreview && aTransition is DirectionalClipTransition directional)
-        {
-            // 编辑器预览：默认向前
-            directional.SetDirection(0);
-            _currentState = actor.animancer.Play(aTransition, 0.15f);
-        }
-        else if (!isEditorPreview && aTransition is DirectionalClipTransition dirTransition)
-        {
-            // 运行时：创建 Handler 并初始化播放
-            _directionalHandler = new DirectionalAnimationHandler(actor, dirTransition);
-            _currentState = _directionalHandler.Initialize();
-        }
-        else
-        {
-            // 2. 普通动画逻辑
-            _currentState = actor.animancer.Play(aTransition, 0.15f);
-        }
+        // 1. 无论什么类型，先播放！这会返回真正运行时的 AnimancerState
+        _currentState = actor.animancer.Play(transition);
 
-        // 3. 同步时间 (防止从中间开始播放时的跳变)
+        // ==========================================
+        // ? 亮点：如果运行时状态是一个 2D 混合树 (如八向闪避)
+        // ==========================================
+        if (_currentState is MixerState<Vector2> mixerState)
+        {
+            // 仅仅在动作开始的第一帧，获取一次玩家的摇杆输入
+            Vector2 dodgeInput = actor.logicInput != null ? actor.logicInput.MoveInput : Vector2.zero;
+            
+            // 动作承诺：哪怕玩家摇杆没推到底，也按极限方向翻滚
+            if (dodgeInput.sqrMagnitude > 0.01f)
+            {
+                mixerState.Parameter = dodgeInput.normalized; 
+            }
+            else
+            {
+                // 默认向后闪避 (0, -1)
+                mixerState.Parameter = new Vector2(0, -1f); 
+            }
+        }
+        // ==========================================
+
+        // 同步时间 (防止跳帧)
         if (_currentState != null)
         {
             _currentState.IsPlaying = true;
@@ -57,11 +61,11 @@ public class AnimancerBehaviour : ActionBehaviourBase
     }
 
     /// <summary>
-    /// 每帧更新 (对应之前的 OnUpdate)
+    /// 每帧更新 (对应基类的 OnClipUpdate)
     /// </summary>
     protected override void OnClipUpdate(Playable playable, FrameData info)
     {
-        // --- 编辑器预览 ---
+        // --- 编辑器预览模式 ---
         if (!Application.isPlaying)
         {
             if (actor != null && actor.animancer != null && _currentState != null)
@@ -73,26 +77,16 @@ public class AnimancerBehaviour : ActionBehaviourBase
             return;
         }
 
-        // --- 运行时 ---
+        // --- 运行时模式 ---
         if (_currentState == null) return;
 
-        // 1. 同步速度
+        // 仅仅同步 Timeline 速度给 Animancer，【绝对不要】在这里更新 mixer2D.Parameter！
+        // 因为动作游戏里，招式一旦出手，就不受摇杆控制了。
         _currentState.Speed = info.effectiveSpeed;
-
-        // 2. 更新方向
-        if (_directionalHandler != null)
-        {
-            AnimancerState newState = _directionalHandler.Update();
-            if (newState != null)
-            {
-                _currentState = newState;
-                _currentState.Speed = info.effectiveSpeed;
-            }
-        }
     }
 
     /// <summary>
-    /// 暂停 (Timeline 暂停但未退出)
+    /// 暂停
     /// </summary>
     protected override void OnClipPause()
     {
@@ -103,12 +97,21 @@ public class AnimancerBehaviour : ActionBehaviourBase
     }
 
     /// <summary>
-    /// 结束 (正常播放完毕 或 被打断)
+    /// 恢复
     /// </summary>
-    protected override void OnClipStop(bool isNormal)
+    protected override void OnClipResume(Playable playable)
     {
-        // 无论是正常结束还是被打断，我们都不再手动调用 Stop()
-        // 而是交由 Animancer 的混合机制处理，避免权重警告和 T-Pose
+        if (_currentState != null)
+        {
+            _currentState.IsPlaying = true;
+        }
+    }
+
+    /// <summary>
+    /// 结束 (正常播完 或 被打断)
+    /// </summary>
+    protected override void OnClipStop(bool isFinish)
+    {
         if (_currentState != null)
         {
             _currentState.IsPlaying = false;
@@ -121,28 +124,6 @@ public class AnimancerBehaviour : ActionBehaviourBase
     protected override void CleanUp()
     {
         _currentState = null;
-        _directionalHandler = null;
-        // actor 引用由基类管理，无需在此清理
-    }
-
-    #endregion
-
-    #region 数据验证
-
-    private bool IsValidTransition()
-    {
-        if (transitionAsset == null || transitionAsset.Transition == null) return false;
-
-        if (transitionAsset.Transition is ClipTransition c && c.Clip == null) return false;
-
-        // 使用 AnimationSet 属性避免编译歧义
-        if (transitionAsset.Transition is DirectionalClipTransition d)
-        {
-            if (d.AnimationSet == null) return false;
-            if (d.AnimationSet.GetClip(0) == null) return false;
-        }
-
-        return true;
     }
 
     #endregion

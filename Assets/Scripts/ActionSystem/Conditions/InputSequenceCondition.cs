@@ -10,7 +10,7 @@ public class InputSequenceCondition : ActionCondition
     [SerializeField]
     private float maxInputInterval = 0.25f;
     
-    // 你的多态配置列表（单键就只配 1 个，搓招就配多个）
+    // 你的多态配置列表
     [SerializeReference, SubclassSelector]
     private List<InputCheckBase> inputSequence = new List<InputCheckBase>();
 

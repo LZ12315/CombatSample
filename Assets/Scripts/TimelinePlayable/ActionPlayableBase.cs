@@ -37,7 +37,15 @@ public abstract class ActionBehaviourBase : PlayableBehaviour
         if (director == null) return;
 
         actor = director.GetComponent<Actor>();
-        if (actor == null) return;
+        if (actor == null)
+        {
+            actor = director.GetComponentInParent<Actor>();
+            if (actor == null)
+            {
+                Debug.LogWarning("ActionPlayableBase: No Actor found on PlayableDirector or its parents.");
+                return;
+            }
+        }
 
         OnClipInit(playable);
     }
