@@ -14,14 +14,6 @@ public class ActionClipEditorBase : ClipEditor
 
     protected virtual void OnClipChange(TimelineClip clip){ }
 
-    protected virtual void AdjustClipStartTime(TimelineClip clip)
-    {
-        //防止Clip起始时间过于靠近0
-        //否则会导致逻辑错误: OnBehavior的方法被错误触发
-        if (clip.start < 0.0001f)
-            clip.start = 0.0001f;
-    }
-
     protected virtual void SetClipDurationOnStart(TimelineClip clip, TrackAsset track, TimelineClip clonedFrom)
     {
         // 如果是Copy其他Clip 则不改变长度
@@ -54,7 +46,6 @@ public class ActionClipEditorBase : ClipEditor
         if (clip == null ||clip.asset == null) return;
 
         OnClipChange(clip);
-        AdjustClipStartTime(clip);
         TimelineEditor.Refresh(RefreshReason.ContentsModified);
     }
 

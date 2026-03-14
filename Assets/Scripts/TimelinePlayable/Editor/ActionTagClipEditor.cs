@@ -12,7 +12,7 @@ public class ActionTagClipEditor : ActionClipEditorBase
         var tagName = "None";
         if(asset.tag.GetTag() != null)
         {
-            tagName = asset.tag.GetTag().FullTagName.ToString();
+            tagName = asset.tag.GetTag().FullTagName;
         }
         
         clip.displayName = $"{tagName}";

@@ -26,18 +26,18 @@ public class ActionStateManager : MonoBehaviour
 
     private void OnEnable() 
     { 
-        _actionPlayer.OnActionFinished += HandleActionFinished; 
+        _actionPlayer.OnActionFinished += HandleActionFinished;
     }
 
     private void OnDisable() 
     { 
-        _actionPlayer.OnActionFinished -= HandleActionFinished; 
+        _actionPlayer.OnActionFinished -= HandleActionFinished;
     }
 
     private void Update()
     {
         ActionAsset nextAction = CheckForTransition();
-        Debug.Log(CurrentControl);
+
         if (nextAction != null)
         {
             // === 状态 A：Action夺权 ===
@@ -95,6 +95,7 @@ public class ActionStateManager : MonoBehaviour
 
     private void HandleActionFinished(ActionInstance finishedAction)
     {
+        // 只有自然结束的，才走你的循环、派生、或者回 Locomotion 逻辑
         if (finishedAction.Config.IsLoop)
         {
             PlayNewAction(finishedAction.Config);

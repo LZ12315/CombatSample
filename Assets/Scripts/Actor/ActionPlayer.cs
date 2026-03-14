@@ -8,8 +8,9 @@ public class ActionPlayer : MonoBehaviour
     private PlayableDirector _director;
     public ActionInstance CurrentAction { get; private set; }
 
-    // 使用事件来通知外部系统动作已完成
+    // 使用事件来通知外部系统动作已完成或被打断
     public event Action<ActionInstance> OnActionFinished;
+    public event Action<ActionInstance> OnActionInterrupted;
 
     private void Awake()
     {
@@ -45,6 +46,10 @@ public class ActionPlayer : MonoBehaviour
         _director.playableAsset = CurrentAction.Config.TimelineAsset;
         _director.time = 0;
         _director.Play();
+        // ? 核心魔法：消除一帧延迟！
+        // 强制 Timeline 瞬间计算时间轴的当前时刻（第 0 帧）。
+        // 这会让你的 Tag 轨道立刻把 Block.Move 塞进黑板，绝不拖延到下一帧！
+        _director.Evaluate();
     }
 
     /// <summary>
@@ -56,6 +61,7 @@ public class ActionPlayer : MonoBehaviour
         {
             _director.Stop();
         }
+        _director.playableAsset = null; // 清理绑定，确保下次播放时能正确触发事件
         CurrentAction = null;
     }
 
@@ -94,14 +100,26 @@ public class ActionPlayer : MonoBehaviour
     }
 
     /// <summary>
-    /// 当Director播放完毕时，这个方法会被调用
+    /// 当Director播放完毕或停止时调用
     /// </summary>
     private void HandleDirectorStopped(PlayableDirector director)
     {
-        // 如果当前有动作实例，则触发事件，让状态机去决定下一步做什么
         if (CurrentAction != null)
         {
-            OnActionFinished?.Invoke(CurrentAction);
+            // 先把当前动作存下来，防止后续逻辑中 CurrentAction 被覆盖
+            ActionInstance actionToNotify = CurrentAction;
+            CurrentAction = null;
+
+            // ? 核心分流：利用你已有的 NormalizedTime (给 0.05 的浮点误差容限)
+            // 假设你的 ActionInstance 中获取该值的属性叫 NormalizedTime
+            if (actionToNotify.RuntimeData.normalizedTime >= 0.95f) 
+            {
+                OnActionFinished?.Invoke(actionToNotify);
+            }
+            else
+            {
+                OnActionInterrupted?.Invoke(actionToNotify);
+            }
         }
     }
 }
