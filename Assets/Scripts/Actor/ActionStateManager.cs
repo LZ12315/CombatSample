@@ -3,9 +3,9 @@ using UnityEngine;
 
 public enum ControlState
 {
-    None,       
-    Action,     
-    Locomotion  
+    None,
+    Action,
+    Locomotion
 }
 
 [RequireComponent(typeof(Actor))]
@@ -21,16 +21,23 @@ public class ActionStateManager : MonoBehaviour
     [Header("状态")]
     [SerializeField] private ControlState _currentControl = ControlState.None;
     public ControlState CurrentControl => _currentControl;
-    
+
     private List<ActionAsset> _validCandidatesCache = new List<ActionAsset>(10);
 
-    private void OnEnable() { _actionPlayer.OnActionFinished += HandleActionFinished; }
-    private void OnDisable() { _actionPlayer.OnActionFinished -= HandleActionFinished; }
+    private void OnEnable() 
+    { 
+        _actionPlayer.OnActionFinished += HandleActionFinished; 
+    }
+
+    private void OnDisable() 
+    { 
+        _actionPlayer.OnActionFinished -= HandleActionFinished; 
+    }
 
     private void Update()
     {
         ActionAsset nextAction = CheckForTransition();
-
+        Debug.Log(CurrentControl);
         if (nextAction != null)
         {
             // === 状态 A：Action夺权 ===
@@ -38,7 +45,7 @@ public class ActionStateManager : MonoBehaviour
             {
                 _actor.locomotion.StopLocomotion();
             }
-            
+
             _currentControl = ControlState.Action;
             PlayNewAction(nextAction);
         }
@@ -51,18 +58,18 @@ public class ActionStateManager : MonoBehaviour
                 StopCurrentAction();
 
                 _currentControl = ControlState.Locomotion;
-                _actor.locomotion.StartLocomotion(); 
+                _actor.locomotion.StartLocomotion();
             }
         }
     }
 
     private void PlayNewAction(ActionAsset actionToPlay)
-    { 
+    {
         // 在播新动作前关掉旧动作
         StopCurrentAction();
 
         _actionPlayer.Play(actionToPlay);
-        
+
         if (_actionPlayer.CurrentAction != null)
         {
             _actionPlayer.CurrentAction.OnEnter(_actor);
@@ -99,21 +106,21 @@ public class ActionStateManager : MonoBehaviour
             PlayNewAction(finishedAction.Config.NextAction);
             return;
         }
-        
+
         // locomotion接管
         StopCurrentAction();
         _currentControl = ControlState.Locomotion;
-        _actor.locomotion.StartLocomotion(); 
+        _actor.locomotion.StartLocomotion();
     }
 
-#region Action切换
+    #region Action切换
     private ActionAsset CheckForTransition()
     {
         if (_actionList == null) return null;
 
         _validCandidatesCache.Clear();
         var allActions = _actionList.GetAllAvailableActions();
-        
+
         for (int i = 0; i < allActions.Count; i++)
         {
             ActionAsset action = allActions[i];
@@ -140,6 +147,5 @@ public class ActionStateManager : MonoBehaviour
         }
         return bestAction;
     }
-#endregion
-
+    #endregion
 }

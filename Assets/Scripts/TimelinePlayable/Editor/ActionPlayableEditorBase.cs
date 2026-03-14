@@ -51,7 +51,7 @@ public class ActionClipEditorBase : ClipEditor
 
     public override void OnClipChanged(TimelineClip clip)
     {
-        if (clip.asset == null) return;
+        if (clip == null ||clip.asset == null) return;
 
         OnClipChange(clip);
         AdjustClipStartTime(clip);

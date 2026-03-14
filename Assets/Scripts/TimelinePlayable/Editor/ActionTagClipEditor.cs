@@ -8,8 +8,13 @@ public class ActionTagClipEditor : ActionClipEditorBase
     protected override void OnClipChange(TimelineClip clip)
     {
         var asset = clip.asset as ActionTagClip;
-        var phaseType = asset.tag.GetTag().TagName.ToString();
 
-        clip.displayName = $"{phaseType}";
+        var tagName = "None";
+        if(asset.tag.GetTag() != null)
+        {
+            tagName = asset.tag.GetTag().FullTagName.ToString();
+        }
+        
+        clip.displayName = $"{tagName}";
     }
 }

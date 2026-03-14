@@ -13,7 +13,6 @@ MonoBehaviour:
   m_Name: Swordsman
   m_EditorClassIdentifier: 
   _globalActions:
-  - {fileID: 11400000, guid: 4132ae1d84783db42b5e5ea35d871e65, type: 2}
-  - {fileID: 11400000, guid: dafea63ec470d374fbc9b5ab0d01c7c9, type: 2}
-  - {fileID: 11400000, guid: 368882d5105a9a54a9c09b66b5162f0a, type: 2}
-  - {fileID: 11400000, guid: fb0290b998afb9941a18559a4f8e7e4a, type: 2}
+  - {fileID: 11400000, guid: 19ee6c70889a3e995bfbd47c21872696, type: 2}
+  - {fileID: 11400000, guid: 123bc3a257330f394816060fa25a9a5a, type: 2}
+  - {fileID: 11400000, guid: 1fba6194b28f1e73a9ccc3f622a04d95, type: 2}

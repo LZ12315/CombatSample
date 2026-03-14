@@ -1,0 +1,46 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d4a14c808be2c4f4a8f1b6d45ebd172f, type: 3}
+  m_Name: Sword_LightAttack_1
+  m_EditorClassIdentifier: 
+  _timelineAsset: {fileID: 11400000, guid: c27c31b9fa44882c898bdbbad2486afc, type: 2}
+  _priority: 0
+  _selfTag:
+    TagId: -1028083768
+  isLoop: 0
+  nextAction: {fileID: 0}
+  _entryConditions:
+  - rid: 834184411378876417
+  - rid: 834184411378876419
+  references:
+    version: 2
+    RefIds:
+    - rid: 834184411378876417
+      type: {class: InputSequenceCondition, ns: , asm: Assembly-CSharp}
+      data:
+        invertResult: 0
+        overrideAll: 0
+        maxInputInterval: 0.25
+        inputSequence:
+        - rid: 834184411378876418
+    - rid: 834184411378876418
+      type: {class: ButtonInputCheck, ns: , asm: Assembly-CSharp}
+      data:
+        requiredButtons: 8
+        requiredState: 2
+    - rid: 834184411378876419
+      type: {class: TagCondition, ns: , asm: Assembly-CSharp}
+      data:
+        invertResult: 1
+        overrideAll: 0
+        requiredTag:
+          TagId: 305494886

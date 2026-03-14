@@ -13,7 +13,7 @@ public class ActionTagClip : PlayableAsset
     {
         var playable = ScriptPlayable<ActionTagBehaviour>.Create(graph);
         ActionTagBehaviour behaviour = playable.GetBehaviour();
-        behaviour.tag = this.tag;
+        behaviour.tag = tag;
         return playable;
     }
 }

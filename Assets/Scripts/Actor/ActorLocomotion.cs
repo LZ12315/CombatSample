@@ -55,6 +55,7 @@ public class ActorLocomotion : MonoBehaviour
         
         // 彻底刹车
         _actor.movement.SetCodeVelocity(Vector3.zero);
+        _actor.movement.SetMovementMode(ActorMovement.MovementMode.RootMotion);
         
         // 清理缓存，保证下次重新启动时正常触发动画 Play
         _currentMode = null; 
