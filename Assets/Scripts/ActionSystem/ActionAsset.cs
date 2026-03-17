@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using CombatSample.Consts;
 using DeiveEx.TagTree; // 引入标签树插件命名空间
 
-[CreateAssetMenu(fileName = "NewAction", menuName = "ActionSystem/ActionAsset")]
 public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
 {
     [Header("资产")]
