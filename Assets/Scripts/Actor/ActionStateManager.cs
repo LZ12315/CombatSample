@@ -54,7 +54,6 @@ public class ActionStateManager : MonoBehaviour
             // === 状态 B：locomotion接管（自由移动 or 移动打断） ===
             if (_currentControl != ControlState.Locomotion)
             {
-                // 无论当前是在播动作还是已经结束，统一执行清理！
                 StopCurrentAction();
 
                 _currentControl = ControlState.Locomotion;
@@ -84,17 +83,17 @@ public class ActionStateManager : MonoBehaviour
             _actionPlayer.Stop();
         }
 
-        // 清理输入缓存的逻辑暂时放在这里
-        if (_actor.logicInput != null)
-            _actor.logicInput.ClearBuffer();
-
-        // 清理黑板标签，避免残留影响后续动作的条件判断
-        if(_actor.tagContainer != null)
-            _actor.tagContainer.ClearTags();
+        // 注意：不再在这里清理输入缓冲和标签
+        // - 输入缓冲由 _bufferValidTime 自动过期（见 ActorLogicInput）
+        // - 标签由 Timeline 的 OnClipStop 回调自动清理（见 ActionTagBehaviour）
+        // - 清理逻辑由 ActionInstance 的 OnEnter/OnExit 执行（见 ActionAsset.cleanupOnEnter/cleanupOnExit）
     }
 
     private void HandleActionFinished(ActionInstance finishedAction)
     {
+        // 动作结束时的清理由 ActionInstance.OnExit() 处理
+        // 详见 ActionAsset.cleanupOnExit 配置
+
         // 只有自然结束的，才走你的循环、派生、或者回 Locomotion 逻辑
         if (finishedAction.Config.IsLoop)
         {

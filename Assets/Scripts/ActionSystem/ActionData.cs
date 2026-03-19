@@ -5,7 +5,6 @@ using System;
 public struct ActionData
 {
     [SerializeField, Range(0, 1)] private double _normalizedTime;
-    [SerializeField] private Enums.ActionPhase _phase;
 
     public double normalizedTime
     {
@@ -13,36 +12,15 @@ public struct ActionData
         set => _normalizedTime = Math.Clamp(value, 0, 1);
     }
 
-    public Enums.ActionPhase phase
-    {
-        get => _phase;
-        set
-        {
-            if (!Enum.IsDefined(typeof(Enums.ActionPhase), value))
-                throw new ArgumentException($"Invalid ActionPhase: {value}");
-            _phase = value;
-        }
-    }
-
     public static readonly ActionData Default = new ActionData
     {
-        _normalizedTime = 0,
-        _phase = Enums.ActionPhase.Neutral
+        _normalizedTime = 0
     };
 }
 
 
 public static partial class Enums
 {
-    [System.Flags]
-    public enum ActionPhase
-    {
-        None = 0,
-        Neutral = 1 << 0,
-        Recovery = 1 << 1,
-        Effect = 1 << 2
-    }
-
     public enum ActionPriority
     {
         Normal,
@@ -51,19 +29,11 @@ public static partial class Enums
     }
 
     [Flags]
-    public enum ActionMoveFlags
+    public enum CleanupTarget
     {
         None = 0,
-        CanMove = 1 << 0, // (1) ÔÊÐíÒ¡¸Ë¿ØÖÆÎ»ÒÆ
-        CanRotate = 1 << 1, // (2) ÔÊÐíÒ¡¸Ë¿ØÖÆ³¯Ïò
-        IgnoreGravity = 1 << 2, // (4) ºöÂÔÖØÁ¦ (ÖÍ¿Õ/¿ÕÖÐÁ¬ÕÐ)
-    }
-
-    public enum ActionType
-    {
-        Idle,           // ´ý»ú
-        Locomotion,     // ÒÆ¶¯ (Run/Walk)
-        GroundAttack,   // µØÃæ¹¥»÷
-        AirAttack,      // ¿ÕÖÐ¹¥»÷
+        Input = 1 << 0,
+        Tags = 1 << 1,
+        All = Input | Tags
     }
 }

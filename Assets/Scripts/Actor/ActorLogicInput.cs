@@ -5,11 +5,11 @@ using UnityEngine;
 [RequireComponent(typeof(Actor))]
 public class ActorLogicInput : MonoBehaviour
 {
-    [Header("组件引用")]
+    [Header("???????")]
     [SerializeField] private Actor actor;
 
-    [Header("输入缓冲配置")]
-    [SerializeField, Tooltip("指令在缓冲池中存活的时间（秒）")]
+    [Header("??????????")]
+    [SerializeField, Tooltip("??????????潩????????")]
     private float _bufferValidTime = 0.2f;
 
     private Vector2 _moveInput = Vector2.zero;
@@ -39,13 +39,13 @@ public class ActorLogicInput : MonoBehaviour
     }
 
     /// <summary>
-    /// 接收外部（如 InputSystem）传来的按键事件
+    /// ?????????? InputSystem??????????????
     /// </summary>
     public void GetInputData(InputData inputData)
     {
         RaiseInputEvent(inputData);
         
-        // 压入带时间戳的缓冲池 (? 删除了冗余的 IsConsumed)
+        // ?????????????? (? ?????????? IsConsumed)
         _inputBuffer.Add(new BufferedInput 
         { 
             Data = inputData, 
@@ -53,9 +53,9 @@ public class ActorLogicInput : MonoBehaviour
         });
     }
 
-    #region === 输入缓冲 ===
+    #region === ?????? ===
 
-    // === 内部类：带时间戳的输入指令 ===
+    // === ???????????????????? ===
     public class BufferedInput
     {
         public InputData Data;
@@ -64,12 +64,12 @@ public class ActorLogicInput : MonoBehaviour
 
     private List<BufferedInput> _inputBuffer = new List<BufferedInput>();
 
-    // ? 新增：对外暴露只读的缓冲池，供所有 Condition 公平、无副作用地查阅
+    // ? ??????????????????????????? Condition ????????????????
     public IReadOnlyList<BufferedInput> InputBuffer => _inputBuffer;
 
     private void MaintainBuffer()
     {
-        // 倒序遍历安全删除：仅剔除过期时间 (> _bufferValidTime) 的指令
+        // ??????????????????????????? (> _bufferValidTime) ?????
         for (int i = _inputBuffer.Count - 1; i >= 0; i--)
         {
             if (Time.time - _inputBuffer[i].Timestamp > _bufferValidTime)
@@ -79,7 +79,7 @@ public class ActorLogicInput : MonoBehaviour
         }
     }
 
-    // ? 新增：最核心的清空接口。由 ActionStateManager 在成功切动作时调用！
+    // ? ???????????????????? ActionStateManager ?????潩?????????
     public void ClearBuffer()
     {
         _inputBuffer.Clear();
@@ -87,7 +87,7 @@ public class ActorLogicInput : MonoBehaviour
 
     #endregion
 
-    #region === 输入事件 ===
+    #region === ??????? ===
 
     private GenericEventManager<InputData> _inputEventManager = new GenericEventManager<InputData>();
 
