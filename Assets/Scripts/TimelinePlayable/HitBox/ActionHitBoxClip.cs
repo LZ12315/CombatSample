@@ -18,7 +18,7 @@ public class ActionHitBoxClip : PlayableAsset, ITimelineClipAsset
 {
     public ExposedReference<Transform> boneTransform;
     public ActionHitBoxConfig hitboxConfig = new ActionHitBoxConfig();
-    public AttackImpactConfig impactConfig = new AttackImpactConfig();
+    public ImpactConfig impactConfig = new ImpactConfig();
     public AttackDataConfig dataConfig = new AttackDataConfig();
 
     [HideInInspector]

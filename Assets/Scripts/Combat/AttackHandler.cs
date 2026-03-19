@@ -7,14 +7,15 @@ using UnityEngine;
 [Serializable]
 public class AttackHandler : MonoBehaviour
 {
-    public ActorCombater combater;
+    public ActorCombater combating;
     public AttackDataConfig config;
+    public ImpactConfig impactConfig;
 
     private List<Collider> attackedObjects = new List<Collider>();
 
-    public void Init(ActorCombater combater, AttackDataConfig config)
+    public void Init(ActorCombater combating, AttackDataConfig config)
     {
-        this.combater = combater;
+        this.combating = combating;
         this.config = config;
     }
 
@@ -26,26 +27,30 @@ public class AttackHandler : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        // 检查是否在目标层
+        // Check layer
+        Debug.Log("Hit: " + other.name + " Layer:" + other.gameObject.layer);
         if (((1 << other.gameObject.layer) & config.targetLayers) != 0)
         {
-            // 排除已经处理过的对象
+            // Layer OK
+            Debug.Log("Hit OK: " + other.name);
             if(attackedObjects.Contains(other)) return;
 
             if (other.TryGetComponent<IDamageable>(out var damageable))
             {
-                // 创建攻击数据
+                // Create hit data - FIXED: added target parameter
                 AttackHitData hitData = new AttackHitData(
                     damage: config._baseDamage,
-                    attacker: combater,
+                    attacker: combating,
+                    target: other.gameObject,
                     hitPoint: other.ClosestPoint(gameObject.transform.position)
                 );
 
-                // 处理伤害
+                // Take damage
                 if(damageable != null)
                     damageable.TakeDamage(hitData);
 
-                // 广播攻击开始事件
+                // Fire event
+                Debug.Log("Event fire");
                 InvokeHitStartEvent(hitData);
 
                 attackedObjects.Add(other);
@@ -55,26 +60,28 @@ public class AttackHandler : MonoBehaviour
 
     private void OnTriggerExit(Collider other)
     {
-        // 检查是否在目标层
+        // Check layer
         if (((1 << other.gameObject.layer) & config.targetLayers) != 0)
         {
-            // 如果没有接触过则不处理
+            // Has IDamageable
             if (!attackedObjects.Contains(other)) return;
 
             if (other.TryGetComponent<IDamageable>(out var damageable))
             {
-                // 创建攻击数据
+                // Has IDamageable
+                Debug.Log("Has IDamageable: " + other.name);
                 AttackHitData hitData = new AttackHitData(
                     damage: config._baseDamage,
-                    attacker: combater,
+                    attacker: combating,
+                    target: other.gameObject,
                     hitPoint: other.ClosestPoint(gameObject.transform.position)
                 );
 
-                // 处理伤害
+                // Take damage
                 if (damageable != null)
                     damageable.TakeDamage(hitData);
 
-                // 广播攻击结束事件
+                // Fire over event
                 InvokeHitOverEvent(hitData);
 
                 attackedObjects.Remove(other);
@@ -82,7 +89,7 @@ public class AttackHandler : MonoBehaviour
         }
     }
 
-    #region 攻击接触事件
+    #region Hit Start Event
 
     private GenericEventManager<AttackHitData> hitStartEventManager = new GenericEventManager<AttackHitData>();
 
@@ -108,7 +115,7 @@ public class AttackHandler : MonoBehaviour
 
     #endregion
 
-    #region  攻击脱离事件
+    #region Hit Over Event
 
     private GenericEventManager<AttackHitData> hitOverEventManager = new GenericEventManager<AttackHitData>();
 

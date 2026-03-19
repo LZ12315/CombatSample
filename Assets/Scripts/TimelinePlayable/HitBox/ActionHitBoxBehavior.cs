@@ -8,7 +8,7 @@ public class ActionHitBoxBehavior : ActionBehaviourBase
 {
     public Transform boneTransform;
     public ActionHitBoxConfig hitboxConfig;
-    public AttackImpactConfig impactConfig;
+    public ImpactConfig impactConfig;
     public AttackDataConfig dataConfig;
 
     public GameObject hitboxObject;
@@ -24,7 +24,7 @@ public class ActionHitBoxBehavior : ActionBehaviourBase
         DestroyHitbox();
     }
 
-    #region HitBox管理方法
+    #region HitBox Create/Destroy
 
     private void CreateHitbox()
     {
@@ -33,19 +33,19 @@ public class ActionHitBoxBehavior : ActionBehaviourBase
         hitboxObject = new GameObject("HitBox");
         hitboxObject.hideFlags = HideFlags.HideInHierarchy;
 
-        // 添加Collider
+        // Add Collider
         collider = hitboxObject.AddComponent<CapsuleCollider>();
         collider.isTrigger = true;
 
-        // 添加AttackHandler
+        // Add AttackHandler
         var hitbox = collider.gameObject.AddComponent<AttackHandler>();
         hitbox.Init(actor.combater, dataConfig);
 
-        // 注册攻击事件
+        // Register event
         hitbox.RegisterHitStartEvent(this, OnHitStart);
         hitbox.RegisterHitOverEvent(this, OnHitOver);
 
-        //添加辅助组件Updater
+        // Add Updater
         var updater = hitboxObject.AddComponent<HitBoxUpdater>();
         updater.Init(this);
     }
@@ -54,30 +54,30 @@ public class ActionHitBoxBehavior : ActionBehaviourBase
     {
         if (hitboxObject == null || boneTransform == null) return;
 
-        // 更新位置和旋转
+        // Update position
         hitboxObject.transform.position = boneTransform.TransformPoint(hitboxConfig.center);
         hitboxObject.transform.rotation = boneTransform.rotation * hitboxConfig.rotation;
 
         if (collider == null) return;
 
-        // 更新碰撞体参数
+        // Update size
         collider.height = hitboxConfig.height;
         collider.radius = hitboxConfig.radius;
 
-        // 设置胶囊方向（默认为Y轴）
-        collider.direction = 1; // 1 = Y轴
+        // Y axis
+        collider.direction = 1; // 1 = Y
     }
 
     private void DestroyHitbox()
     {
         if (hitboxObject == null) return;
 
-        // 取消注册攻击事件
+        // Unregister event
         var hitbox = collider.gameObject.GetComponent<AttackHandler>();
         hitbox.UnregisterHitStartEvent(this);
         hitbox.UnregisterHitOverEvent(this);
 
-        // 销毁辅助组件
+        // Remove Updater
         var updater = hitboxObject.GetComponent<HitBoxUpdater>();
         if (updater != null)
         {
@@ -87,7 +87,7 @@ public class ActionHitBoxBehavior : ActionBehaviourBase
                 Object.DestroyImmediate(updater);
         }
 
-            // 销毁游戏对象
+            // Destroy in edit mode
         if (Application.isPlaying)
             Object.Destroy(hitboxObject);
         else
@@ -99,45 +99,52 @@ public class ActionHitBoxBehavior : ActionBehaviourBase
 
     #endregion
 
-    #region 攻击反馈方法
+    #region Hit Event
 
     void OnHitStart(AttackHitData data)
     {
-        switch (impactConfig.impactType)
+        // Now all effects are handled by ImpactSystem
+        TriggerImpactEffect(data);
+    }
+    
+    private void TriggerImpactEffect(AttackHitData hitData)
+    {
+        try
         {
-            case Enums.HitImpactType.HitStop:
-                actor.StartCoroutine(HitStop(impactConfig.stopTime));
-                break;
-            case Enums.HitImpactType.HitStick:
-                actor.actionPlayer.SetSpeed(impactConfig.stickStrength);
-                break;
+            // Ensure ImpactSystem exists
+            ImpactSystem.EnsureExists();
+            
+            // Create ImpactData - FIXED: use hitData.Target instead of attacker
+            ImpactData impactData = new ImpactData(
+                attacker: hitData.Attacker,
+                target: hitData.Target?.GetComponent<IDamageable>(),
+                hitPoint: hitData.HitPoint,
+                damage: hitData.Damage,
+                impactForce: 1f,
+                config: impactConfig,
+                weaponType: WeaponType.Sword,
+                attackType: AttackType.Light
+            );
+            
+            // Direct call to ImpactSystem (instead of EventCenter)
+            ImpactSystem.Instance.ApplyImpact(impactData);
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError("Error: " + e.Message);
         }
     }
 
     void OnHitOver(AttackHitData data)
     {
-        switch (impactConfig.impactType)
-        {
-            case Enums.HitImpactType.HitStick:
-                actor.actionPlayer.SetSpeed(1);
-                break;
-        }
-    }
-
-    IEnumerator HitStop(float stopTime)
-    {
-        actor.actionPlayer.Stop();
-
-        yield return new WaitForSeconds(stopTime);
-
-        actor.actionPlayer.Resume();
+        // Now handled by ImpactSystem
     }
 
     #endregion
 
-    #region 辅助工具
+    #region HitBox Updater
 
-    //辅助更新组件 用于更新HitBox状态 否则其相对动画会慢一帧
+    // Update HitBox position in edit mode
     [ExecuteInEditMode]
     private class HitBoxUpdater : MonoBehaviour
     {
