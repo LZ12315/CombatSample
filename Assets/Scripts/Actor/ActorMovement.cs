@@ -6,6 +6,9 @@ public class ActorMovement : MonoBehaviour
     public Animator animator;
     [SerializeField] private float rotateSpeed = 600f; // 稍微调快一点旋转速度
 
+    // Timeline/Action 系统（例如攻击吸附）可临时覆盖旋转速度
+    private float _rotationSpeedOverride = -1f;
+
     // === 【新增核心】移动模式枚举 ===
     public enum MovementMode
     {
@@ -59,6 +62,26 @@ public class ActorMovement : MonoBehaviour
         // 计算目标旋转
         targetRotation = Quaternion.LookRotation(faceDirection, Vector3.up);
     }
+
+    /// <summary>
+    /// 设置外部旋转速度覆盖（度/秒）。
+    /// speed < 0 表示清除覆盖，回退到内部 rotateSpeed。
+    /// </summary>
+    public void SetRotationSpeedOverride(float speed)
+    {
+        _rotationSpeedOverride = speed;
+    }
+
+    /// <summary>
+    /// 立即转向指定朝向，并同步 targetRotation，避免下一帧被平滑逻辑“拉回去”。
+    /// </summary>
+    public void SetRotationInstant(Vector3 faceDirection)
+    {
+        if (faceDirection.sqrMagnitude < 0.01f) return;
+
+        targetRotation = Quaternion.LookRotation(faceDirection, Vector3.up);
+        transform.rotation = targetRotation;
+    }
     
     internal void ResetRotation()
     {
@@ -83,10 +106,11 @@ public class ActorMovement : MonoBehaviour
     private void Update()
     {
         // --- 平滑旋转 ---
+        float usedRotateSpeed = _rotationSpeedOverride >= 0f ? _rotationSpeedOverride : rotateSpeed;
         transform.rotation = Quaternion.RotateTowards(
             transform.rotation,
             targetRotation,
-            rotateSpeed * Time.deltaTime
+            usedRotateSpeed * Time.deltaTime
         );
 
         // --- 计算水平最终位移 ---

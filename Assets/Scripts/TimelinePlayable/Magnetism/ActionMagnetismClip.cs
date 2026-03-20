@@ -30,6 +30,10 @@ public class ActionMagnetismClip : PlayableAsset
     [Tooltip("旋转速度 (度/秒). 0=瞬转")]
     public float rotateSpeed = 360f;
 
+    [Header("Debug")]
+    [Tooltip("输出吸附移动/旋转的调试日志，用于定位“距离生效但旋转不生效”的原因")]
+    public bool debugLog = true;
+
     public enum MagnetismMode
     {
         Instant,   // Clip开始时一次性吸附
@@ -48,6 +52,7 @@ public class ActionMagnetismClip : PlayableAsset
         behaviour.magnetSpeed = magnetSpeed;
         behaviour.rotateToTarget = rotateToTarget;
         behaviour.rotateSpeed = rotateSpeed;
+        behaviour.debugLog = debugLog;
 
         return playable;
     }
