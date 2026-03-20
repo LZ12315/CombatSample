@@ -1,12 +1,13 @@
 # 战斗锚点配表（方案 A：角色 Prefab 挂载 + List）
 
-> **更新**：锚点**不单独挂组件**，已定为嵌入 **`Actor` 上的序列化列表**。全链路请以  
-> **`plans/攻击吸附与战斗锚点_最终实现方案.md`** 为准。
+> **更新**：锚点**不单独挂组件**，已定为嵌入 **`Actor` 上的序列化列表**。吸附与迁移请以  
+> **`plans/攻击吸附_根节点到表面_方案与迁移.md`** 为准；本文件侧重锚点配表本身。
 
 ## 1. 目标
 
-- **默认**：从角色身上的配表按 `CombatAnchorId` 解析出 `Transform`（如剑身中心），供吸附、后续其他系统复用。
-- **覆盖**：Timeline / Clip 上可选 `ExposedReference<Transform>`，非空则**优先于配表**。
+- **默认**：从角色身上的配表按 `CombatAnchorId` 解析出 `Transform`（如剑身中心），供 **HitBox / VFX / UI** 等复用。
+- **Magnetism V2**：**不再**使用武器锚点；根节点↔敌人胶囊表面间隙见迁移文档。
+- **覆盖**（其他 Track）：Timeline / Clip 上可选 `ExposedReference<Transform>`，非空则**优先于配表**。
 - **不**增加额外 MonoBehaviour：配表在 **`Actor` 组件内**一块 Inspector 区域。
 
 ---
@@ -72,46 +73,25 @@ Transform GetAnchorOrNull(CombatAnchorId id);
 
 ---
 
-## 4. 与 Magnetism（V2）的协作
+## 4. 与 Magnetism V2 的关系（当前实现）
 
-### 4.1 `MagnetismConfig` 扩展（逻辑字段）
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `weaponAnchorId` | `CombatAnchorId` | 默认从角色配表取武器参考点，如 `WeaponBladeMid` |
-| `useExposedAnchorOverride` | bool | 是否启用 Timeline 覆盖（可选，也可用「Exposed 非空即覆盖」） |
-
-### 4.2 `ActionMagnetismV2Clip`
-
-- `ExposedReference<Transform> anchorOverride`（名字随意）
-- **解析顺序**（固定，便于排查）：
-  1. 若 `anchorOverride` 在 Director 上解析成功且非 null → **用覆盖**。
-  2. 否则 `actor.combatAnchors.TryGetAnchor(weaponAnchorId, out t)` → **用配表**。
-  3. 否则：吸附里「表面间隙」分支**跳过**或打 Log，回退为仅根节点 `attachDistance`（实现时二选一，建议 **Log + 跳过表面修正**）。
-
-### 4.3 `ActionMagnetismSession`（未来从 Behavior 抽出时）
-
-- 构造或 `Tick` 入参：`(Actor actor, Transform target, MagnetismConfig config, Transform weaponOverride)`
-- `weaponOverride` 由 **V2Behavior** 在 `OnClipStart` / 每帧前按上面顺序解析好传入。
+- **吸附不再读战斗锚点**：V2 用 **Actor 根节点 ↔ 敌人 `CapsuleCollider` 壳** 的间隙带，配置在 `MagnetismConfig`（`idealSurfaceGap`、`gapDeadZone`、`pullSpeed`、`pushSpeed` 等）。详见 **`plans/攻击吸附_根节点到表面_方案与迁移.md`**。
+- **`ActionMagnetismV2Clip`** 无 `ExposedReference` 武器覆盖；目标仍为 `CombatTarget` 或 `customTarget`。
 
 ---
 
 ## 5. Prefab 工作流（策划 / 程序）
 
 1. 打开角色 Prefab（如 `Player`）。
-2. 选中挂有 `Actor` 的物体，在 **Combat Anchors** 列表里为 `WeaponBladeMid` 拖入「剑身中心」空物体或骨。
-3. Timeline 里 Magnetism Clip：**不配 Exposed** 即走配表；特殊招式再绑 `anchorOverride`。
+2. 选中挂有 `Actor` 的物体，在 **Combat Anchors** 列表里为 `WeaponBladeMid` / 手骨等拖入 Transform（供 **HitBox、特效、UI** 等）。
+3. Timeline 使用 **Action Magnetism V2** 轨道，在 Clip 的 `MagnetismConfig` 里调间隙与速度。
 
 ---
 
 ## 6. 与 HitBox 的关系（避免两套真理）
 
 - **Prefab 表**：放**长期稳定**、与具体招式无关的点（剑身中心、手）。
-- **HitBox Clip**：招式相关的碰撞体父骨；若某招吸附必须与 HitBox 骨一致，有两种做法：
-  - **做法 1**：该招 `weaponAnchorId` 仍用 `WeaponBladeMid`，但 Prefab 上该点与 HitBox 父骨**父子对齐**（美术摆空物体）。
-  - **做法 2（第二版）**：Clip 增加「使用当前 HitBox bone」标志，由 Action 运行时注入（需 Action 上下文，实现成本高）。
-
-第一版推荐 **做法 1**。
+- **HitBox Clip**：招式相关的碰撞体父骨。若希望「视觉参考点」与 HitBox 父骨一致，可在 Prefab 上让 `WeaponBladeMid` 与 HitBox 父骨**父子对齐**（美术摆空物体）。这与吸附几何**无强制耦合**。
 
 ---
 
@@ -119,20 +99,19 @@ Transform GetAnchorOrNull(CombatAnchorId id);
 
 - `Actor.OnValidate`（可选）：检查锚点列表重复 id、空引用。
 - 可选：`[ContextMenu("Log Anchors")]` 打印缓存。
-- Magnetism `debugLog`：打印最终选用的是 **Override** 还是 **AnchorId:xxx**。
+- Magnetism V2：`MagnetismConfig.debugLog` 可打距离门控、缺胶囊等（见 `ActionMagnetismSession`）。
 
 ---
 
-## 8. 实现顺序建议（代码阶段）
+## 8. 实现状态（代码）
 
-1. `CombatAnchorId` + `CombatAnchorEntry` + **`Actor` 内列表与 TryGet**。
-2. 给 `Player`（等）Prefab 填 `WeaponBladeMid`。
-3. `MagnetismConfig` + `ActionMagnetismV2Clip` 增加 `weaponAnchorId` 与 `ExposedReference`。
-4. `ActionMagnetismV2Behavior` 解析武器 Transform 并传入 Session（或内联逻辑）。
-5. 再接入 `MagnetismCapsuleGeometry` 表面间隙（与本文档第 4 节衔接）。
+1. `CombatAnchorId` + `CombatAnchorEntry` + **`Actor` 内列表与 TryGet** — 已完成。  
+2. Magnetism V2 根表面方案 — 已完成（见迁移文档）。  
+3. 旧轨道 `ActionMagnetismTrack` / `ActionMagnetismClip` — 已标 `[Obsolete]`，新招式请只用 V2。
 
 ---
 
 ## 9. 文档版本
 
-- 初稿：方案 A Prefab List + 枚举，默认表 + Exposed 覆盖，与 Magnetism V2 协作顺序。
+- 初稿：方案 A Prefab List + 枚举。  
+- 更新：吸附改为根表面方案后，第 4～8 节已同步；Magnetism 与锚点解耦。

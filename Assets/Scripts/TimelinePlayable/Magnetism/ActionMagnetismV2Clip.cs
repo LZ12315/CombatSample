@@ -16,7 +16,7 @@ namespace CombatSample.TimelinePlayable.Magnetism
 
         public override Playable CreatePlayable(PlayableGraph graph, GameObject owner)
         {
-            var playable = UnityEngine.Playables.ScriptPlayable<ActionMagnetismV2Behavior>.Create(graph);
+            var playable = ScriptPlayable<ActionMagnetismV2Behavior>.Create(graph);
             var behaviour = playable.GetBehaviour();
             behaviour.useCombatTarget = useCombatTarget;
             behaviour.customTarget = customTarget;
@@ -25,4 +25,3 @@ namespace CombatSample.TimelinePlayable.Magnetism
         }
     }
 }
-

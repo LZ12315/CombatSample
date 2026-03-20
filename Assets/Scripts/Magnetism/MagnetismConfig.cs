@@ -5,43 +5,56 @@ namespace CombatSample.Magnetism
 {
     public enum MagnetismApproachMode
     {
-        InstantMove, // 一开始瞬移到贴近点，然后只做旋转/持续保持（可选）
-        SpeedMove,   // 按速度持续逼近贴近点
+        /// <summary>首帧将根节点一次修正到理想表面间隙（水平分量）。</summary>
+        InstantMove,
+        /// <summary>按 pull/push 速度持续把间隙维持在理想值±死区内。</summary>
+        SpeedMove,
     }
 
     public enum MagnetismRotationMode
     {
         None,
-        InstantSnap,  // 直接把朝向摆到目标
-        AngularSpeed, // 按角速度平滑转向（由 ActorMovement 统一执行）
+        InstantSnap,
+        AngularSpeed,
     }
 
     public enum MagnetismRotationAxis
     {
-        YawOnly, // 只在XZ平面转（战斗常用）
-        Full,    // 全轴（不建议，除非你确实需要）
+        YawOnly,
+        Full,
     }
 
+    /// <summary>
+    /// Magnetism V2：根节点采样点 ↔ 敌人 Capsule 表面的间隙带（双向修正）。
+    /// 已移除：attachDistance、武器锚点、武器表面单向 clearance（见 plans/攻击吸附_根节点到表面_方案与迁移.md）。
+    /// </summary>
     [Serializable]
     public class MagnetismConfig
     {
         [Header("Distance")]
-        [Tooltip("超过此距离不吸附（0=无限制）")]
+        [Tooltip("玩家根与敌人 Transform 的水平距离超过此值则整段不吸附（0=无限制）")]
         public float maxDistance = 0f;
 
-        [Tooltip("到目标点保持的贴身距离（>=0）。当距离<=attachDistance 时认为已贴上")]
-        public float attachDistance = 0.5f;
+        [Header("Surface gap (actor root ↔ enemy capsule shell)")]
+        [Tooltip("根节点世界坐标到敌人胶囊壳的最短间隙目标值（米），主调参")]
+        public float idealSurfaceGap = 0.35f;
+
+        [Tooltip("理想值±死区内不做位移修正")]
+        public float gapDeadZone = 0.05f;
 
         [Header("Approach")]
         public MagnetismApproachMode approachMode = MagnetismApproachMode.SpeedMove;
 
-        [Tooltip("贴近速度（米/秒）。InstantMove 下仅用于旋转/可选的保持逻辑")]
-        public float approachSpeed = 8f;
+        [Tooltip("间隙偏大（离表面过远）时沿靠近敌人方向移动根的速度（米/秒）")]
+        public float pullSpeed = 8f;
+
+        [Tooltip("间隙偏小（过近或穿入壳内）时沿离开表面法线移动根的速度（米/秒）")]
+        public float pushSpeed = 8f;
 
         [Header("Rotation")]
         public bool rotateToTarget = true;
         public MagnetismRotationMode rotationMode = MagnetismRotationMode.AngularSpeed;
-        [Tooltip("旋转角速度（度/秒）。rotationMode=AngularSpeed 时有效；0=不做旋转覆盖")]
+        [Tooltip("rotationMode=AngularSpeed 时有效；0=不做旋转覆盖")]
         public float rotationAngularSpeed = 360f;
         public MagnetismRotationAxis rotationAxis = MagnetismRotationAxis.YawOnly;
 
@@ -49,4 +62,3 @@ namespace CombatSample.Magnetism
         public bool debugLog = false;
     }
 }
-

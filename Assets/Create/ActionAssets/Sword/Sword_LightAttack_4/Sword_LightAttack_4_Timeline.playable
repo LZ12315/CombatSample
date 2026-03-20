@@ -539,10 +539,12 @@ MonoBehaviour:
   useCombatTarget: 1
   customTarget: {fileID: 0}
   config:
-    maxDistance: 2
-    attachDistance: 0.5
+    maxDistance: 3
+    idealSurfaceGap: 1.75
+    gapDeadZone: 0.05
     approachMode: 1
-    approachSpeed: 8
+    pullSpeed: 8
+    pushSpeed: 8
     rotateToTarget: 1
     rotationMode: 2
     rotationAngularSpeed: 360

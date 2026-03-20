@@ -1,8 +1,10 @@
+using System;
 using UnityEngine;
 using UnityEngine.Playables;
 using UnityEngine.Timeline;
 
 [System.Serializable]
+[Obsolete("请改用 Action Magnetism V2 轨道：根节点↔敌人胶囊表面间隙带（MagnetismConfig）。")]
 public class ActionMagnetismClip : PlayableAsset
 {
     [Header("吸附模式")]

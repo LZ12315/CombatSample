@@ -1,6 +1,8 @@
+using System;
 using UnityEngine;
 using UnityEngine.Playables;
 
+[Obsolete("配合旧 ActionMagnetismClip 使用；请改用 ActionMagnetismV2Behavior。")]
 public class ActionMagnetismBehavior : ActionBehaviourBase
 {
     public ActionMagnetismClip.MagnetismMode mode;
