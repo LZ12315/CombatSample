@@ -1,7 +1,7 @@
 # 战斗锚点配表（方案 A：角色 Prefab 挂载 + List）
 
-> **更新**：锚点**不单独挂组件**，已定为嵌入 **`Actor` 上的序列化列表**。吸附与迁移请以  
-> **`plans/攻击吸附_根节点到表面_方案与迁移.md`** 为准；本文件侧重锚点配表本身。
+> **⚠️ 代码已移除**：`CombatAnchors.cs` 与 `Actor` 内嵌锚点表已从工程删除；本文档**仅作将来若要做 HitBox/VFX 锚点时的设计备忘**。  
+> 当前 Magnetism 见 **`plans/MagnetismV2_收束说明.md`**。
 
 ## 1. 目标
 
@@ -76,7 +76,7 @@ Transform GetAnchorOrNull(CombatAnchorId id);
 ## 4. 与 Magnetism V2 的关系（当前实现）
 
 - **吸附不再读战斗锚点**：V2 用 **Actor 根节点 ↔ 敌人 `CapsuleCollider` 壳** 的间隙带，配置在 `MagnetismConfig`（`idealSurfaceGap`、`gapDeadZone`、`pullSpeed`、`pushSpeed` 等）。详见 **`plans/攻击吸附_根节点到表面_方案与迁移.md`**。
-- **`ActionMagnetismV2Clip`** 无 `ExposedReference` 武器覆盖；目标仍为 `CombatTarget` 或 `customTarget`。
+- **`ActionMagnetismClip`** 无武器锚点；目标仍为 `CombatTarget` 或 `customTarget`。
 
 ---
 

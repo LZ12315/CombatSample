@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e3c392bdeaac7c782846f2ce14ae5b64, type: 3}
-  m_Name: Action Magnetism V2 Track
+  m_Name: Action Magnetism Track
   m_EditorClassIdentifier: 
   m_Version: 3
   m_AnimClip: {fileID: 0}
@@ -89,7 +89,7 @@ MonoBehaviour:
     m_PreExtrapolationMode: 0
     m_PostExtrapolationTime: 0
     m_PreExtrapolationTime: 0
-    m_DisplayName: ActionMagnetismV2Clip
+    m_DisplayName: ActionMagnetismClip
   m_Markers:
     m_Objects: []
 --- !u!114 &-6740530263690970565
@@ -515,9 +515,9 @@ MonoBehaviour:
   - {fileID: -5353461761888860580}
   - {fileID: -466064951921435853}
   - {fileID: 8358623440070932095}
-  - {fileID: -4055928367981129722}
   - {fileID: -5536327747054647913}
   - {fileID: -7080986119566761682}
+  - {fileID: -4055928367981129722}
   m_FixedDuration: 0
   m_EditorSettings:
     m_Framerate: 60
@@ -534,17 +534,12 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0a6fcea7aaf0fc429a57e2815ab8d66c, type: 3}
-  m_Name: ActionMagnetismV2Clip
+  m_Name: ActionMagnetismClip
   m_EditorClassIdentifier: 
   useCombatTarget: 1
   customTarget: {fileID: 0}
   config:
     maxDistance: 3
-    idealSurfaceGap: 1.75
-    gapDeadZone: 0.05
-    approachMode: 1
-    pullSpeed: 8
-    pushSpeed: 8
     rotateToTarget: 1
     rotationMode: 2
     rotationAngularSpeed: 360
@@ -585,9 +580,9 @@ MonoBehaviour:
     radius: 0.2
   impactConfig:
     EnableHitStop: 0
-    HitStopDuration: 0.35
+    HitStopDuration: 0.175
     HitStopTimeScale: 0.05
-    EnableHitStick: 1
+    EnableHitStick: 0
     StickStrength: 0.1
     StickDuration: 0.35
     EnableScreenShake: 0

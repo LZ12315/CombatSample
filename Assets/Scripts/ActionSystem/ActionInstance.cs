@@ -20,7 +20,7 @@ public class ActionInstance
     {
         _actor = actor;
 
-        // Ìí¼Ó SelfTag
+        // ï¿½ï¿½ï¿½ï¿½ SelfTag
         if (_actor != null && _actor.tagContainer != null && Config.SelfTag != null)
         {
             Tag selfTagObj = Config.SelfTag.GetTag();
@@ -30,13 +30,13 @@ public class ActionInstance
             }
         }
         
-        // Enter ÇåÀí
+        // Enter ï¿½ï¿½ï¿½ï¿½
         ExecuteCleanup(Config.cleanupOnEnter);
     }
 
     public void OnExit()
     {
-        // ÒÆ³ý SelfTag
+        // ï¿½Æ³ï¿½ SelfTag
         if (_actor != null && _actor.tagContainer != null && Config.SelfTag != null)
         {
             Tag selfTagObj = Config.SelfTag.GetTag();
@@ -46,7 +46,7 @@ public class ActionInstance
             }
         }
         
-        // Exit ÇåÀí
+        // Exit ï¿½ï¿½ï¿½ï¿½
         ExecuteCleanup(Config.cleanupOnExit);
 
         _actor = null;
