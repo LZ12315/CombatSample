@@ -208,8 +208,8 @@ MonoBehaviour:
     height: 1.34
     radius: 0.2
   impactConfig:
-    EnableHitStop: 0
-    HitStopDuration: 0.25
+    EnableHitStop: 1
+    HitStopDuration: 0.15
     HitStopTimeScale: 0.05
     EnableHitStick: 0
     StickStrength: 0.25
@@ -225,7 +225,7 @@ MonoBehaviour:
   dataConfig:
     targetLayers:
       serializedVersion: 2
-      m_Bits: 16
+      m_Bits: 64
     _baseDamage: 10
 --- !u!114 &11400000
 MonoBehaviour:

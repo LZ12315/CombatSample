@@ -580,9 +580,9 @@ MonoBehaviour:
     radius: 0.2
   impactConfig:
     EnableHitStop: 0
-    HitStopDuration: 0.175
+    HitStopDuration: 0.15
     HitStopTimeScale: 0.05
-    EnableHitStick: 0
+    EnableHitStick: 1
     StickStrength: 0.1
     StickDuration: 0.35
     EnableScreenShake: 0
@@ -596,7 +596,7 @@ MonoBehaviour:
   dataConfig:
     targetLayers:
       serializedVersion: 2
-      m_Bits: 16
+      m_Bits: 64
     _baseDamage: 10
 --- !u!114 &7263589157808658523
 MonoBehaviour:
