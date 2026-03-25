@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
@@ -8,8 +7,8 @@ public class ActionHitBoxBehavior : ActionBehaviourBase
 {
     public Transform boneTransform;
     public ActionHitBoxConfig hitboxConfig;
-    public ImpactConfig impactConfig;
     public AttackDataConfig dataConfig;
+    public List<ImpactEffectConfig> effects;
 
     public GameObject hitboxObject;
     public CapsuleCollider collider;
@@ -54,30 +53,25 @@ public class ActionHitBoxBehavior : ActionBehaviourBase
     {
         if (hitboxObject == null || boneTransform == null) return;
 
-        // Update position
         hitboxObject.transform.position = boneTransform.TransformPoint(hitboxConfig.center);
         hitboxObject.transform.rotation = boneTransform.rotation * hitboxConfig.rotation;
 
         if (collider == null) return;
 
-        // Update size
         collider.height = hitboxConfig.height;
         collider.radius = hitboxConfig.radius;
 
-        // Y axis
-        collider.direction = 1; // 1 = Y
+        collider.direction = 1;
     }
 
     private void DestroyHitbox()
     {
         if (hitboxObject == null) return;
 
-        // Unregister event
         var hitbox = collider.gameObject.GetComponent<AttackHandler>();
         hitbox.UnregisterHitStartEvent(this);
         hitbox.UnregisterHitOverEvent(this);
 
-        // Remove Updater
         var updater = hitboxObject.GetComponent<HitBoxUpdater>();
         if (updater != null)
         {
@@ -87,7 +81,6 @@ public class ActionHitBoxBehavior : ActionBehaviourBase
                 Object.DestroyImmediate(updater);
         }
 
-            // Destroy in edit mode
         if (Application.isPlaying)
             Object.Destroy(hitboxObject);
         else
@@ -103,48 +96,44 @@ public class ActionHitBoxBehavior : ActionBehaviourBase
 
     void OnHitStart(AttackHitData data)
     {
-        // Now all effects are handled by ImpactSystem
         TriggerImpactEffect(data);
     }
-    
+
     private void TriggerImpactEffect(AttackHitData hitData)
     {
-        try
-        {
-            // Ensure ImpactSystem exists
-            ImpactSystem.EnsureExists();
-            
-            // Create ImpactData - FIXED: use hitData.Target instead of attacker
-            ImpactData impactData = new ImpactData(
-                attacker: hitData.Attacker,
-                target: hitData.Target?.GetComponent<IDamageable>(),
-                hitPoint: hitData.HitPoint,
-                damage: hitData.Damage,
-                impactForce: 1f,
-                config: impactConfig,
-                weaponType: WeaponType.Sword,
-                attackType: AttackType.Light
-            );
-            
-            // Direct call to ImpactSystem (instead of EventCenter)
-            ImpactSystem.Instance.ApplyImpact(impactData);
-        }
-        catch (System.Exception e)
-        {
-            Debug.LogError("Error: " + e.Message);
-        }
+        ImpactSystem.EnsureExists();
+        if (ImpactSystem.Instance == null) return;
+
+        var impactData = new ImpactData(
+            attacker: hitData.Attacker,
+            targetObject: hitData.Target,
+            hitPoint: hitData.HitPoint,
+            damage: hitData.Damage
+        );
+
+        Vector3 rayOrigin = HitVfxAnchorUtility.GetDefaultAttackerRayOrigin(hitData.Attacker);
+
+        impactData.VfxSpawnPoint = HitVfxAnchorUtility.ComputeVfxSpawnPoint(
+            rayOrigin,
+            hitData.Attacker,
+            hitData.Target,
+            hitData.HitPoint);
+
+        impactData.FacingReferenceWorldPosition = HitVfxFacingUtility.ResolveFacingWorldPosition(
+            null,
+            hitData.Attacker);
+
+        ImpactSystem.Instance.ApplyImpact(impactData, effects);
     }
 
     void OnHitOver(AttackHitData data)
     {
-        // Now handled by ImpactSystem
     }
 
     #endregion
 
     #region HitBox Updater
 
-    // Update HitBox position in edit mode
     [ExecuteInEditMode]
     private class HitBoxUpdater : MonoBehaviour
     {

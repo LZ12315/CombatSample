@@ -79,6 +79,22 @@ public class ActorCameraControl : MonoBehaviour
 
         // ³õÊ¼»¯×´Ì¬
         SetCameraState(currentState, true);
+
+        ValidateImpulseListenersOnVirtualCameras();
+    }
+
+    static void ValidateImpulseListenerOn(CinemachineVirtualCameraBase vcam)
+    {
+        if (vcam == null) return;
+        if (vcam.GetComponent<CinemachineImpulseListener>() != null) return;
+        Debug.LogWarning($"Virtual camera '{vcam.name}' has no CinemachineImpulseListener. Impact screen shake will not affect it.", vcam);
+    }
+
+    void ValidateImpulseListenersOnVirtualCameras()
+    {
+        if (normalFreeLookCamera != null) ValidateImpulseListenerOn(normalFreeLookCamera);
+        if (softLockCamera != null) ValidateImpulseListenerOn(softLockCamera);
+        if (hardLockCamera != null) ValidateImpulseListenerOn(hardLockCamera);
     }
 
     void InitializeCameraMap()

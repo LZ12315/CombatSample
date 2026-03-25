@@ -1,20 +1,22 @@
-using System;
 using System.Collections.Generic;
+using Cinemachine;
 using UnityEngine;
 
 /// <summary>
-/// 打击感系统管理器 - 场景单例
-/// 负责接收打击事件并执行对应的打击效果
+/// 打击感系统管理器 - 场景单例。
+/// 场景中应显式放置并配置；ActionHitBoxBehavior 仅向其发送命中上下文与效果列表。
 /// </summary>
 public class ImpactSystem : MonoBehaviour
 {
     #region Singleton Pattern
     private static ImpactSystem _instance;
+    private static bool _hasWarnedMissingInstance;
     public static ImpactSystem Instance => _instance;
-    
-    [Tooltip("如果场景中不存在ImpactSystem，是否自动创建")]
-    private static bool autoCreate = true;
-    
+    private bool _hasWarnedMissingImpulseSource;
+
+    [Tooltip("命中震屏：向 Cinemachine 广播 Impulse。留空则在本物体上自动添加")]
+    [SerializeField] private CinemachineImpulseSource _impulseSource;
+
     void Awake()
     {
         if (_instance != null && _instance != this)
@@ -22,100 +24,193 @@ public class ImpactSystem : MonoBehaviour
             Destroy(gameObject);
             return;
         }
-        
+
         _instance = this;
+        _hasWarnedMissingInstance = false;
+        EnsureImpulseSource();
         Initialize();
     }
-    
+
     void OnDestroy()
     {
         if (_instance == this)
         {
             _instance = null;
+            _hasWarnedMissingInstance = false;
         }
     }
-    
-    /// <summary>
-    /// 确保场景中存在ImpactSystem实例
-    /// </summary>
+
     public static void EnsureExists()
     {
-        if (_instance == null && autoCreate)
+        if (_instance == null)
         {
-            GameObject go = new GameObject("ImpactSystem");
-            _instance = go.AddComponent<ImpactSystem>();
+            if (_hasWarnedMissingInstance) return;
+            _hasWarnedMissingInstance = true;
+            Debug.LogWarning("ImpactSystem is missing in scene. Please place a preconfigured ImpactSystem/Manager object.");
         }
     }
     #endregion
-    
+
     #region 效果管理
     private List<ImpactEffect> activeEffects = new List<ImpactEffect>();
-    
-    /// <summary>
-    /// 执行打击效果
-    /// </summary>
-    public void ApplyImpact(ImpactData impactData)
+
+    public void ApplyImpact(ImpactData impactData, IReadOnlyList<ImpactEffectConfig> effects)
     {
-        Debug.Log($"[ImpactSystem] 接收到打击数据: {impactData?.ToString() ?? "null"}");
-        
-        if (impactData == null || impactData.Config == null)
+        if (impactData == null) return;
+
+        HitStopEffectConfig hitStopConfig = null;
+        HitStickEffectConfig hitStickConfig = null;
+        ScreenShakeEffectConfig screenShakeConfig = null;
+        TargetFeedbackEffectConfig targetFeedbackConfig = null;
+
+        if (effects != null)
         {
-            Debug.LogWarning("ImpactSystem: 无效的ImpactData");
-            return;
+            foreach (var effect in effects)
+            {
+                if (effect == null || !effect.enabled) continue;
+
+                switch (effect)
+                {
+                    case HitStopEffectConfig stop:
+                        if (hitStopConfig == null)
+                            hitStopConfig = stop;
+                        else
+                            Debug.LogWarning("Duplicate HitStopEffectConfig found. Only the first one will be used.", this);
+                        break;
+                    case HitStickEffectConfig stick:
+                        if (hitStickConfig == null)
+                            hitStickConfig = stick;
+                        else
+                            Debug.LogWarning("Duplicate HitStickEffectConfig found. Only the first one will be used.", this);
+                        break;
+                    case HitConfirmVfxEffectConfig vfx:
+                        SpawnHitConfirmVFX(impactData, vfx);
+                        break;
+                    case ScreenShakeEffectConfig shake:
+                        if (screenShakeConfig == null)
+                            screenShakeConfig = shake;
+                        else
+                            Debug.LogWarning("Duplicate ScreenShakeEffectConfig found. Only the first one will be used.", this);
+                        break;
+                    case TargetFeedbackEffectConfig targetFeedback:
+                        if (targetFeedbackConfig == null)
+                            targetFeedbackConfig = targetFeedback;
+                        else
+                            Debug.LogWarning("Duplicate TargetFeedbackEffectConfig found. Only the first one will be used.", this);
+                        break;
+                }
+            }
         }
-        
-        Debug.Log($"[ImpactSystem] 配置: HitStop={impactData.Config.EnableHitStop}, HitStick={impactData.Config.EnableHitStick}, ScreenShake={impactData.Config.EnableScreenShake}");
-        
-        // 执行所有启用的效果（直接创建新实例，无需对象池）
-        ExecuteEffectIfEnabled<HitStopEffect>(impactData, impactData.Config.EnableHitStop);
-        ExecuteEffectIfEnabled<HitStickEffect>(impactData, impactData.Config.EnableHitStick);
-        ExecuteEffectIfEnabled<ScreenShakeEffect>(impactData, impactData.Config.EnableScreenShake);
-        
-        Debug.Log("[ImpactSystem] 效果执行完毕");
+
+        if (hitStopConfig != null || hitStickConfig != null)
+        {
+            var speedEffect = new AttackerSpeedEffect();
+            speedEffect.Execute(impactData.Attacker, hitStopConfig, hitStickConfig);
+            if (speedEffect.IsActive)
+                activeEffects.Add(speedEffect);
+        }
+
+        if (screenShakeConfig != null)
+            TriggerScreenShake(impactData, screenShakeConfig);
+
+        if (targetFeedbackConfig != null)
+            ApplyTargetFeedback(impactData);
     }
-    
-    private void ExecuteEffectIfEnabled<T>(ImpactData impactData, bool enabled) where T : ImpactEffect, new()
+
+    private void SpawnHitConfirmVFX(ImpactData impactData, HitConfirmVfxEffectConfig config)
     {
-        if (!enabled) return;
-        
-        // 直接创建新实例（效果对象很轻量，不需要对象池）
-        T effect = new T();
-        effect.Execute(impactData);
-        activeEffects.Add(effect);
+        if (config == null || config.prefab == null) return;
+
+        Vector3 spawnPos = impactData.VfxSpawnPoint;
+        var rotation = VFXRotationResolver.Resolve(
+            config.orientation,
+            config.rollMode,
+            spawnPos,
+            impactData.FacingReferenceWorldPosition,
+            config.rollPresetDegrees,
+            config.rollRandomRange);
+        var vfx = Instantiate(config.prefab, spawnPos, rotation);
+        vfx.transform.localScale = Vector3.one * config.scale;
+
+        float speed = Mathf.Max(config.simulationSpeed, 0.01f);
+        foreach (var ps in vfx.GetComponentsInChildren<ParticleSystem>(true))
+        {
+            var main = ps.main;
+            main.simulationSpeed = speed;
+        }
+
+        Destroy(vfx, config.lifetime / speed);
     }
+
+    private void ApplyTargetFeedback(ImpactData impactData)
+    {
+        if (impactData.TargetObject == null) return;
+
+        var receiver = impactData.TargetObject.GetComponentInParent<HitFeedbackReceiver>();
+        if (receiver == null) return;
+
+        var profile = receiver.Profile;
+        if (profile == null) return;
+
+        Vector3 facingRef = HitVfxFacingUtility.ResolveFacingWorldPosition(
+            receiver.HitFacingTargetOverride,
+            impactData.Attacker);
+        Quaternion rot = VFXRotationResolver.Resolve(
+            profile.hitVfxOrientation,
+            profile.hitVfxRollMode,
+            impactData.VfxSpawnPoint,
+            facingRef,
+            profile.hitVfxRollPresetDegrees,
+            profile.hitVfxRollRandomRange);
+
+        receiver.PlayFeedback(impactData.VfxSpawnPoint, rot);
+    }
+
+    void EnsureImpulseSource()
+    {
+        if (_impulseSource != null) return;
+        _impulseSource = GetComponent<CinemachineImpulseSource>();
+        if (_impulseSource == null && !_hasWarnedMissingImpulseSource)
+        {
+            _hasWarnedMissingImpulseSource = true;
+            Debug.LogWarning("ImpactSystem has no CinemachineImpulseSource. ScreenShakeEffectConfig will be ignored until one is assigned.", this);
+        }
+    }
+
+    void TriggerScreenShake(ImpactData impactData, ScreenShakeEffectConfig config)
+    {
+        if (config == null) return;
+
+        EnsureImpulseSource();
+        if (_impulseSource == null) return;
+
+        float force = config.intensity;
+        if (force <= 0f) return;
+
+        Vector3 velocity = Random.onUnitSphere * force;
+        _impulseSource.GenerateImpulseAtPositionWithVelocity(impactData.VfxSpawnPoint, velocity);
+    }
+
     #endregion
-    
+
     #region Unity事件
-    private void Initialize()
-    {
-        // Direct call mode - no EventCenter listener needed
-        Debug.Log("ImpactSystem 初始化完成 (Direct Call Mode)");
-    }
-    
+    private void Initialize() { }
+
     void Update()
     {
-        // 更新所有活跃效果
         for (int i = activeEffects.Count - 1; i >= 0; i--)
         {
             if (!activeEffects[i].Update())
             {
-                // 效果结束，重置并移除（无需回收到对象池）
                 activeEffects[i].Reset();
                 activeEffects.RemoveAt(i);
             }
         }
     }
-    
-    void OnEnable()
-    {
-        EnsureExists();
-    }
+
     #endregion
-    
+
     #region 工具方法
-    /// <summary>
-    /// 清除所有活跃效果（例如在游戏暂停时）
-    /// </summary>
     public void ClearAllEffects()
     {
         foreach (var effect in activeEffects)
@@ -124,10 +219,7 @@ public class ImpactSystem : MonoBehaviour
         }
         activeEffects.Clear();
     }
-    
-    /// <summary>
-    /// 检查是否有效果正在运行
-    /// </summary>
+
     public bool HasActiveEffects()
     {
         return activeEffects.Count > 0;

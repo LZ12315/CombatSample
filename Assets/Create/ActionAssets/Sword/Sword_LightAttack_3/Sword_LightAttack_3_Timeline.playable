@@ -395,26 +395,36 @@ MonoBehaviour:
     rotation: {x: 0, y: 0, z: 0, w: 1}
     height: 1.34
     radius: 0.2
-  impactConfig:
-    EnableHitStop: 1
-    HitStopDuration: 0.15
-    HitStopTimeScale: 0.05
-    EnableHitStick: 0
-    StickStrength: 0.05
-    StickDuration: 0.5
-    EnableScreenShake: 0
-    ShakeIntensity: 0.3
-    ShakeFrequency: 20
-    ShakeDuration: 0.2
-    OverallIntensity: 1
-    DifferentiateAttackerTarget: 0
-    AttackerIntensity: 1
-    TargetIntensity: 1
   dataConfig:
     targetLayers:
       serializedVersion: 2
       m_Bits: 64
     _baseDamage: 10
+  effects:
+  - rid: 3001
+  - rid: 3002
+  references:
+    version: 2
+    RefIds:
+    - rid: 3001
+      type: {class: HitStopEffectConfig, ns: , asm: Assembly-CSharp}
+      data:
+        enabled: 1
+        duration: 0.15
+        timeScale: 0
+    - rid: 3002
+      type: {class: HitConfirmVfxEffectConfig, ns: , asm: Assembly-CSharp}
+      data:
+        enabled: 1
+        prefab: {fileID: 5631647144167759754, guid: b8e16118d4ddc3b4b9613ed8d50af917,
+          type: 3}
+        orientation: 0
+        rollMode: 0
+        rollPresetDegrees: 15
+        rollRandomRange: 360
+        scale: 0.6
+        lifetime: 0.75
+        simulationSpeed: 0.5
 --- !u!114 &3306332228180894404
 MonoBehaviour:
   m_ObjectHideFlags: 1

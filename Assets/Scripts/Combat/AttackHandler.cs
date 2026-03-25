@@ -9,7 +9,6 @@ public class AttackHandler : MonoBehaviour
 {
     public ActorCombater combating;
     public AttackDataConfig config;
-    public ImpactConfig impactConfig;
 
     private List<Collider> attackedObjects = new List<Collider>();
 

@@ -6,6 +6,9 @@ using System;
 public class ActionPlayer : MonoBehaviour
 {
     private PlayableDirector _director;
+    private double _playbackSpeed = 1.0;
+    public double PlaybackSpeed => _playbackSpeed;
+
     public ActionInstance CurrentAction { get; private set; }
 
     // ??????????????????????????
@@ -45,6 +48,7 @@ public class ActionPlayer : MonoBehaviour
         CurrentAction = actionAsset.CreateActionInstance();
         _director.playableAsset = CurrentAction.Config.TimelineAsset;
         _director.time = 0;
+        _playbackSpeed = 1.0;
         _director.Play();
         // ? ???????????????????
         // ??? Timeline ???????????????????? 0 ?????
@@ -61,7 +65,8 @@ public class ActionPlayer : MonoBehaviour
         {
             _director.Stop();
         }
-        _director.playableAsset = null; // ??????????????????????????????
+        _director.playableAsset = null;
+        _playbackSpeed = 1.0;
         CurrentAction = null;
     }
 
@@ -83,6 +88,7 @@ public class ActionPlayer : MonoBehaviour
 
     public void SetSpeed(double speed)
     {
+        _playbackSpeed = speed;
         if (_director.playableGraph.IsValid())
         {
             _director.playableGraph.GetRootPlayable(0).SetSpeed(speed);

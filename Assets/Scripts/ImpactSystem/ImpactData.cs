@@ -1,84 +1,36 @@
 using UnityEngine;
 
 /// <summary>
-/// 武器类型（用于差异化打击感）
-/// </summary>
-public enum WeaponType
-{
-    Sword = 0,      // 剑
-    Fist = 1,       // 拳
-    Hammer = 2,     // 锤
-    Spear = 3,      // 枪
-    Magic = 4,      // 魔法
-    Other = 99      // 其他
-}
-
-/// <summary>
-/// 攻击类型（用于差异化打击感）
-/// </summary>
-public enum AttackType
-{
-    Light = 0,      // 轻攻击
-    Heavy = 1,      // 重攻击
-    Special = 2,    // 特殊技
-    Combo = 3,      // 连击
-    Finisher = 4,   // 终结技
-    Other = 99      // 其他
-}
-
-/// <summary>
 /// 打击数据包
 /// 包含一次打击的所有相关信息
 /// </summary>
 public class ImpactData
 {
-    public ActorCombater Attacker;      // 攻击者
-    public IDamageable Target;          // 受击者（IDamageable接口）
-    public Vector3 HitPoint;           // 击中点（世界坐标）
-    public float Damage;               // 伤害值
-    public float ImpactForce;          // 打击力度（用于物理反馈）
-    public ImpactConfig Config;        // 打击配置
-    
-    // 用于差异化打击感
-    public WeaponType WeaponType;
-    public AttackType AttackType;
-    
+    public ActorCombater Attacker;
+    public GameObject TargetObject;
+    public Vector3 HitPoint;
+    public float Damage;
+
     /// <summary>
-    /// 创建打击数据
+    /// VFX 专用生成点（攻击者→目标 Collider 中心射线与目标表面的交点等），由命中流程写入。
     /// </summary>
+    public Vector3 VfxSpawnPoint;
+
+    /// <summary>
+    /// FaceAttacker 时「看向」的世界坐标（默认攻击者 CC 中心），命中时由 ActionHitBoxBehavior 写入。
+    /// </summary>
+    public Vector3 FacingReferenceWorldPosition;
+
     public ImpactData(
         ActorCombater attacker,
-        IDamageable target,
+        GameObject targetObject,
         Vector3 hitPoint,
-        float damage,
-        float impactForce,
-        ImpactConfig config,
-        WeaponType weaponType = WeaponType.Sword,
-        AttackType attackType = AttackType.Light)
+        float damage)
     {
         Attacker = attacker;
-        Target = target;
+        TargetObject = targetObject;
         HitPoint = hitPoint;
         Damage = damage;
-        ImpactForce = impactForce;
-        Config = config;
-        WeaponType = weaponType;
-        AttackType = attackType;
-    }
-    
-    /// <summary>
-    /// 检查数据是否有效
-    /// </summary>
-    public bool IsValid()
-    {
-        return Attacker != null && Config != null;
-    }
-    
-    /// <summary>
-    /// 获取简短的描述信息（用于调试）
-    /// </summary>
-    public override string ToString()
-    {
-        return $"ImpactData: {WeaponType} {AttackType}, Damage={Damage}, Force={ImpactForce}";
+        VfxSpawnPoint = hitPoint;
     }
 }

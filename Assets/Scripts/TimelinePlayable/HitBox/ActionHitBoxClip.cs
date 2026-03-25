@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Playables;
 using UnityEngine.Timeline;
@@ -16,10 +17,15 @@ public class ActionHitBoxConfig
 
 public class ActionHitBoxClip : PlayableAsset, ITimelineClipAsset
 {
+    [Tooltip("命中盒挂载到的骨骼/节点。")]
     public ExposedReference<Transform> boneTransform;
+
     public ActionHitBoxConfig hitboxConfig = new ActionHitBoxConfig();
-    public ImpactConfig impactConfig = new ImpactConfig();
     public AttackDataConfig dataConfig = new AttackDataConfig();
+
+    [Tooltip("本次命中要触发的打击效果列表。只添加这招真正需要的效果。")]
+    [SerializeReference, SubclassSelector]
+    public List<ImpactEffectConfig> effects = new List<ImpactEffectConfig>();
 
     [HideInInspector]
     public ActionHitBoxBehavior behavior;
@@ -32,18 +38,9 @@ public class ActionHitBoxClip : PlayableAsset, ITimelineClipAsset
 
         behavior.boneTransform = boneTransform.Resolve(graph.GetResolver());
         behavior.hitboxConfig = hitboxConfig;
-        behavior.impactConfig = impactConfig;
         behavior.dataConfig = dataConfig;
+        behavior.effects = effects;
 
         return playable;
-    }
-}
-
-
-public static partial class Enums
-{
-    public enum HitImpactType
-    {
-        None, HitStop, HitStick
     }
 }
