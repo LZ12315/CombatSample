@@ -2,6 +2,13 @@ using System;
 using UnityEngine;
 
 [Serializable]
+public enum HitConfirmVfxOcclusionMode
+{
+    DefaultDepth = 0,
+    EnvironmentOnly = 1,
+}
+
+[Serializable]
 public abstract class ImpactEffectConfig
 {
     [Tooltip("关闭后保留此效果块，但本次命中不执行。")]
@@ -9,7 +16,7 @@ public abstract class ImpactEffectConfig
 }
 
 [Serializable]
-[AddTypeMenu("Impact/Hit Stop", 0)]
+[AddTypeMenu("Hit Stop", 0)]
 public class HitStopEffectConfig : ImpactEffectConfig
 {
     [Tooltip("命中停顿时长（秒）。")]
@@ -22,7 +29,7 @@ public class HitStopEffectConfig : ImpactEffectConfig
 }
 
 [Serializable]
-[AddTypeMenu("Impact/Hit Stick", 1)]
+[AddTypeMenu("Hit Stick", 1)]
 public class HitStickEffectConfig : ImpactEffectConfig
 {
     [Tooltip("动作黏滞期间攻击者 Timeline 播放速度。")]
@@ -35,11 +42,14 @@ public class HitStickEffectConfig : ImpactEffectConfig
 }
 
 [Serializable]
-[AddTypeMenu("Impact/Hit Confirm VFX", 2)]
+[AddTypeMenu("Hit Confirm VFX", 2)]
 public class HitConfirmVfxEffectConfig : ImpactEffectConfig
 {
     [Tooltip("命中确认特效预制体；留空则不生成。")]
     public GameObject prefab;
+
+    [Tooltip("DefaultDepth 使用普通深度测试；EnvironmentOnly 只受环境遮挡，不受角色层遮挡。")]
+    public HitConfirmVfxOcclusionMode occlusionMode = HitConfirmVfxOcclusionMode.EnvironmentOnly;
 
     [Tooltip("特效主朝向：面向出手者，或朝上。")]
     public VFXOrientationMode orientation = VFXOrientationMode.FaceAttacker;
@@ -68,7 +78,7 @@ public class HitConfirmVfxEffectConfig : ImpactEffectConfig
 }
 
 [Serializable]
-[AddTypeMenu("Impact/Screen Shake", 3)]
+[AddTypeMenu("Screen Shake", 3)]
 public class ScreenShakeEffectConfig : ImpactEffectConfig
 {
     [Tooltip("传给 Cinemachine Impulse 的强度。")]
@@ -77,7 +87,7 @@ public class ScreenShakeEffectConfig : ImpactEffectConfig
 }
 
 [Serializable]
-[AddTypeMenu("Impact/Target Feedback", 4)]
+[AddTypeMenu("Target Feedback", 4)]
 public class TargetFeedbackEffectConfig : ImpactEffectConfig
 {
 }

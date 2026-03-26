@@ -13,6 +13,7 @@ public class ImpactSystem : MonoBehaviour
     private static bool _hasWarnedMissingInstance;
     public static ImpactSystem Instance => _instance;
     private bool _hasWarnedMissingImpulseSource;
+    private bool _hasWarnedMissingHitConfirmLayer;
 
     [Tooltip("命中震屏：向 Cinemachine 广播 Impulse。留空则在本物体上自动添加")]
     [SerializeField] private CinemachineImpulseSource _impulseSource;
@@ -130,6 +131,13 @@ public class ImpactSystem : MonoBehaviour
             config.rollPresetDegrees,
             config.rollRandomRange);
         var vfx = Instantiate(config.prefab, spawnPos, rotation);
+        if (config.occlusionMode == HitConfirmVfxOcclusionMode.EnvironmentOnly
+            && !HitConfirmVfxRenderUtility.TrySetHitConfirmLayer(vfx)
+            && !_hasWarnedMissingHitConfirmLayer)
+        {
+            _hasWarnedMissingHitConfirmLayer = true;
+            Debug.LogWarning($"Layer '{HitConfirmVfxRenderUtility.HitConfirmVfxLayerName}' is missing. Hit confirm VFX will fall back to normal depth.", this);
+        }
         vfx.transform.localScale = Vector3.one * config.scale;
 
         float speed = Mathf.Max(config.simulationSpeed, 0.01f);

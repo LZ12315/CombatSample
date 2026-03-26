@@ -418,6 +418,7 @@ MonoBehaviour:
         enabled: 1
         prefab: {fileID: 5631647144167759754, guid: b8e16118d4ddc3b4b9613ed8d50af917,
           type: 3}
+        occlusionMode: 1
         orientation: 0
         rollMode: 0
         rollPresetDegrees: 15
