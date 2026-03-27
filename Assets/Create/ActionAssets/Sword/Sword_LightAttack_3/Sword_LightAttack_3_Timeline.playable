@@ -294,18 +294,18 @@ MonoBehaviour:
       data:
         enabled: 1
         duration: 0.15
-        timeScale: 0
+        timeScale: 0.05
     - rid: 3002
       type: {class: ScreenOrientedImpactEffectConfig, ns: , asm: Assembly-CSharp}
       data:
         enabled: 1
-        prefab: {fileID: 1107029698261400, guid: a1076c3c7e8bc484faf518679bb3faa4,
+        prefab: {fileID: 1035977224672214417, guid: 057aa477789506a44bd206e9c5acad19,
           type: 3}
         occlusionMode: 1
-        angleMode: 1
-        anglePresetDegrees: 0
+        angleMode: 0
+        anglePresetDegrees: -50
         angleRandomRange: 360
-        scale: 0.8
+        scale: 0.5
         lifetime: 1
         simulationSpeed: 1
 --- !u!114 &3306332228180894404
