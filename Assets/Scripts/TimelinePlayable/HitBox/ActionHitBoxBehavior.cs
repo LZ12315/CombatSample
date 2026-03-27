@@ -104,24 +104,19 @@ public class ActionHitBoxBehavior : ActionBehaviourBase
         ImpactSystem.EnsureExists();
         if (ImpactSystem.Instance == null) return;
 
-        var impactData = new ImpactData(
-            attacker: hitData.Attacker,
-            targetObject: hitData.Target,
-            hitPoint: hitData.HitPoint,
-            damage: hitData.Damage
-        );
+        var impactData = ImpactData.FromAttackHit(hitData);
 
         Vector3 rayOrigin = HitVfxAnchorUtility.GetDefaultAttackerRayOrigin(hitData.Attacker);
 
-        impactData.VfxSpawnPoint = HitVfxAnchorUtility.ComputeVfxSpawnPoint(
-            rayOrigin,
-            hitData.Attacker,
-            hitData.Target,
-            hitData.HitPoint);
+        impactData.ContactPointWorld = hitData.HitPoint;
+        impactData.ScreenPointWorld = HitVfxAnchorUtility.ComputeScreenPointFromCamera(hitData.Target, hitData.HitPoint);
+        impactData.VfxSpawnPoint = impactData.ScreenPointWorld;
 
         impactData.FacingReferenceWorldPosition = HitVfxFacingUtility.ResolveFacingWorldPosition(
-            null,
+            impactData.TargetReceiver != null ? impactData.TargetReceiver.HitFacingTargetOverride : null,
             hitData.Attacker);
+
+        impactData.PopulateDirectionalReferences(rayOrigin);
 
         ImpactSystem.Instance.ApplyImpact(impactData, effects);
     }

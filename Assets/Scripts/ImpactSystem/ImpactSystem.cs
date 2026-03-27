@@ -4,7 +4,7 @@ using UnityEngine;
 
 /// <summary>
 /// 打击感系统管理器 - 场景单例。
-/// 场景中应显式放置并配置；ActionHitBoxBehavior 仅向其发送命中上下文与效果列表。
+/// Clip 与 <see cref="HitFeedbackProfile"/> 共用同一套 <see cref="ImpactEffectConfig"/>，由本类按顺序调度。
 /// </summary>
 public class ImpactSystem : MonoBehaviour
 {
@@ -13,7 +13,7 @@ public class ImpactSystem : MonoBehaviour
     private static bool _hasWarnedMissingInstance;
     public static ImpactSystem Instance => _instance;
     private bool _hasWarnedMissingImpulseSource;
-    private bool _hasWarnedMissingHitConfirmLayer;
+    private bool _hasWarnedMissingHitVfxLayer;
 
     [Tooltip("命中震屏：向 Cinemachine 广播 Impulse。留空则在本物体上自动添加")]
     [SerializeField] private CinemachineImpulseSource _impulseSource;
@@ -52,126 +52,187 @@ public class ImpactSystem : MonoBehaviour
     }
     #endregion
 
+    enum ImpactEffectSource
+    {
+        Clip,
+        TargetProfile,
+    }
+
+    struct GatheredAttackerEffects
+    {
+        public HitStopEffectConfig HitStop;
+        public HitStickEffectConfig HitStick;
+        public ScreenShakeEffectConfig ScreenShake;
+    }
+
     #region 效果管理
     private List<ImpactEffect> activeEffects = new List<ImpactEffect>();
 
-    public void ApplyImpact(ImpactData impactData, IReadOnlyList<ImpactEffectConfig> effects)
+    public void ApplyImpact(ImpactData impactData, IReadOnlyList<ImpactEffectConfig> clipEffects)
     {
         if (impactData == null) return;
 
-        HitStopEffectConfig hitStopConfig = null;
-        HitStickEffectConfig hitStickConfig = null;
-        ScreenShakeEffectConfig screenShakeConfig = null;
-        TargetFeedbackEffectConfig targetFeedbackConfig = null;
+        var gathered = new GatheredAttackerEffects();
 
-        if (effects != null)
+        if (clipEffects != null)
         {
-            foreach (var effect in effects)
-            {
-                if (effect == null || !effect.enabled) continue;
-
-                switch (effect)
-                {
-                    case HitStopEffectConfig stop:
-                        if (hitStopConfig == null)
-                            hitStopConfig = stop;
-                        else
-                            Debug.LogWarning("Duplicate HitStopEffectConfig found. Only the first one will be used.", this);
-                        break;
-                    case HitStickEffectConfig stick:
-                        if (hitStickConfig == null)
-                            hitStickConfig = stick;
-                        else
-                            Debug.LogWarning("Duplicate HitStickEffectConfig found. Only the first one will be used.", this);
-                        break;
-                    case HitConfirmVfxEffectConfig vfx:
-                        SpawnHitConfirmVFX(impactData, vfx);
-                        break;
-                    case ScreenShakeEffectConfig shake:
-                        if (screenShakeConfig == null)
-                            screenShakeConfig = shake;
-                        else
-                            Debug.LogWarning("Duplicate ScreenShakeEffectConfig found. Only the first one will be used.", this);
-                        break;
-                    case TargetFeedbackEffectConfig targetFeedback:
-                        if (targetFeedbackConfig == null)
-                            targetFeedbackConfig = targetFeedback;
-                        else
-                            Debug.LogWarning("Duplicate TargetFeedbackEffectConfig found. Only the first one will be used.", this);
-                        break;
-                }
-            }
+            foreach (var effect in clipEffects)
+                HandleEffect(impactData, effect, ImpactEffectSource.Clip, ref gathered);
         }
 
-        if (hitStopConfig != null || hitStickConfig != null)
+        var receiver = impactData.TargetReceiver;
+        if (receiver == null && impactData.TargetObject != null)
+            receiver = impactData.TargetObject.GetComponentInParent<HitFeedbackReceiver>();
+
+        var profile = impactData.TargetProfile ?? receiver?.Profile;
+        if (receiver != null && profile != null && profile.HasConfiguredImpactEffects())
+        {
+            foreach (var effect in profile.effects)
+                HandleEffect(impactData, effect, ImpactEffectSource.TargetProfile, ref gathered);
+        }
+
+        if (gathered.HitStop != null || gathered.HitStick != null)
         {
             var speedEffect = new AttackerSpeedEffect();
-            speedEffect.Execute(impactData.Attacker, hitStopConfig, hitStickConfig);
+            speedEffect.Execute(impactData.Attacker, gathered.HitStop, gathered.HitStick);
             if (speedEffect.IsActive)
                 activeEffects.Add(speedEffect);
         }
 
-        if (screenShakeConfig != null)
-            TriggerScreenShake(impactData, screenShakeConfig);
-
-        if (targetFeedbackConfig != null)
-            ApplyTargetFeedback(impactData);
+        if (gathered.ScreenShake != null)
+            TriggerScreenShake(impactData, gathered.ScreenShake);
     }
 
-    private void SpawnHitConfirmVFX(ImpactData impactData, HitConfirmVfxEffectConfig config)
+    void HandleEffect(
+        ImpactData impactData,
+        ImpactEffectConfig effect,
+        ImpactEffectSource source,
+        ref GatheredAttackerEffects gathered)
+    {
+        if (effect == null || !effect.enabled) return;
+
+        switch (effect)
+        {
+            case HitStopEffectConfig stop:
+                if (gathered.HitStop == null)
+                    gathered.HitStop = stop;
+                else
+                    Debug.LogWarning("Duplicate HitStopEffectConfig found. Only the first one will be used.", this);
+                break;
+            case HitStickEffectConfig stick:
+                if (gathered.HitStick == null)
+                    gathered.HitStick = stick;
+                else
+                    Debug.LogWarning("Duplicate HitStickEffectConfig found. Only the first one will be used.", this);
+                break;
+            case ScreenOrientedImpactEffectConfig screenOriented:
+                SpawnScreenOrientedImpactVfx(impactData, screenOriented);
+                break;
+            case WorldDirectionalImpactEffectConfig worldDirectional:
+                SpawnWorldDirectionalImpactVfx(impactData, worldDirectional);
+                break;
+            case ScreenShakeEffectConfig shake:
+                if (gathered.ScreenShake == null)
+                    gathered.ScreenShake = shake;
+                else
+                    Debug.LogWarning("Duplicate ScreenShakeEffectConfig found. Only the first one will be used.", this);
+                break;
+            case HitSoundEffectConfig sound:
+                PlayHitSound(impactData, sound, source);
+                break;
+        }
+    }
+
+    static void PlayHitSound(ImpactData impactData, HitSoundEffectConfig config, ImpactEffectSource source)
+    {
+        if (config == null || config.clips == null || config.clips.Length == 0) return;
+
+        var clip = config.clips[Random.Range(0, config.clips.Length)];
+        if (clip == null) return;
+
+        AudioSource src = null;
+        if (source == ImpactEffectSource.TargetProfile)
+        {
+            var receiver = impactData.TargetReceiver
+                           ?? impactData.TargetObject?.GetComponentInParent<HitFeedbackReceiver>();
+            src = receiver?.FeedbackAudioSource;
+        }
+
+        if (src == null && impactData.Attacker != null)
+            src = GetOrAddWorldAudioSource(impactData.Attacker.gameObject);
+
+        if (src == null) return;
+
+        src.pitch = 1f + Random.Range(-config.pitchVariation, config.pitchVariation);
+        src.PlayOneShot(clip, config.volume);
+    }
+
+    static AudioSource GetOrAddWorldAudioSource(GameObject root)
+    {
+        if (root == null) return null;
+        var src = root.GetComponent<AudioSource>();
+        if (src == null)
+            src = root.AddComponent<AudioSource>();
+        src.spatialBlend = 1f;
+        src.playOnAwake = false;
+        return src;
+    }
+
+    void SpawnScreenOrientedImpactVfx(ImpactData impactData, ScreenOrientedImpactEffectConfig config)
     {
         if (config == null || config.prefab == null) return;
 
-        Vector3 spawnPos = impactData.VfxSpawnPoint;
-        var rotation = VFXRotationResolver.Resolve(
-            config.orientation,
-            config.rollMode,
-            spawnPos,
-            impactData.FacingReferenceWorldPosition,
-            config.rollPresetDegrees,
-            config.rollRandomRange);
-        var vfx = Instantiate(config.prefab, spawnPos, rotation);
-        if (config.occlusionMode == HitConfirmVfxOcclusionMode.EnvironmentOnly
-            && !HitConfirmVfxRenderUtility.TrySetHitConfirmLayer(vfx)
-            && !_hasWarnedMissingHitConfirmLayer)
-        {
-            _hasWarnedMissingHitConfirmLayer = true;
-            Debug.LogWarning($"Layer '{HitConfirmVfxRenderUtility.HitConfirmVfxLayerName}' is missing. Hit confirm VFX will fall back to normal depth.", this);
-        }
-        vfx.transform.localScale = Vector3.one * config.scale;
+        Vector3 spawnPos = impactData.ScreenPointWorld;
+        var rotation = ScreenOrientedImpactRotationResolver.Resolve(
+            config.angleMode,
+            config.anglePresetDegrees,
+            config.angleRandomRange,
+            spawnPos);
+        SpawnHitVfxInstance(config.prefab, spawnPos, rotation, config.occlusionMode, config.scale, config.lifetime, config.simulationSpeed);
+    }
 
-        float speed = Mathf.Max(config.simulationSpeed, 0.01f);
+    void SpawnWorldDirectionalImpactVfx(ImpactData impactData, WorldDirectionalImpactEffectConfig config)
+    {
+        if (config == null || config.prefab == null) return;
+
+        Vector3 spawnPos = impactData.ContactPointWorld;
+        var rotation = WorldDirectionalImpactRotationResolver.Resolve(
+            config.directionMode,
+            config.rollMode,
+            config.rollPresetDegrees,
+            config.rollRandomRange,
+            impactData);
+        SpawnHitVfxInstance(config.prefab, spawnPos, rotation, config.occlusionMode, config.scale, config.lifetime, config.simulationSpeed);
+    }
+
+    void SpawnHitVfxInstance(
+        GameObject prefab,
+        Vector3 spawnPos,
+        Quaternion rotation,
+        HitVfxOcclusionMode occlusionMode,
+        float scale,
+        float lifetime,
+        float simulationSpeed)
+    {
+        var vfx = Instantiate(prefab, spawnPos, rotation);
+        if (occlusionMode == HitVfxOcclusionMode.EnvironmentOnly
+            && !HitConfirmVfxRenderUtility.TrySetHitConfirmLayer(vfx)
+            && !_hasWarnedMissingHitVfxLayer)
+        {
+            _hasWarnedMissingHitVfxLayer = true;
+            Debug.LogWarning($"Layer '{HitConfirmVfxRenderUtility.HitConfirmVfxLayerName}' is missing. Hit VFX will fall back to normal depth.", this);
+        }
+
+        vfx.transform.localScale = Vector3.one * scale;
+
+        float speed = Mathf.Max(simulationSpeed, 0.01f);
         foreach (var ps in vfx.GetComponentsInChildren<ParticleSystem>(true))
         {
             var main = ps.main;
             main.simulationSpeed = speed;
         }
 
-        Destroy(vfx, config.lifetime / speed);
-    }
-
-    private void ApplyTargetFeedback(ImpactData impactData)
-    {
-        if (impactData.TargetObject == null) return;
-
-        var receiver = impactData.TargetObject.GetComponentInParent<HitFeedbackReceiver>();
-        if (receiver == null) return;
-
-        var profile = receiver.Profile;
-        if (profile == null) return;
-
-        Vector3 facingRef = HitVfxFacingUtility.ResolveFacingWorldPosition(
-            receiver.HitFacingTargetOverride,
-            impactData.Attacker);
-        Quaternion rot = VFXRotationResolver.Resolve(
-            profile.hitVfxOrientation,
-            profile.hitVfxRollMode,
-            impactData.VfxSpawnPoint,
-            facingRef,
-            profile.hitVfxRollPresetDegrees,
-            profile.hitVfxRollRandomRange);
-
-        receiver.PlayFeedback(impactData.VfxSpawnPoint, rot);
+        Destroy(vfx, lifetime / speed);
     }
 
     void EnsureImpulseSource()
@@ -196,7 +257,7 @@ public class ImpactSystem : MonoBehaviour
         if (force <= 0f) return;
 
         Vector3 velocity = Random.onUnitSphere * force;
-        _impulseSource.GenerateImpulseAtPositionWithVelocity(impactData.VfxSpawnPoint, velocity);
+        _impulseSource.GenerateImpulseAtPositionWithVelocity(impactData.ContactPointWorld, velocity);
     }
 
     #endregion

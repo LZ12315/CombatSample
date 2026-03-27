@@ -191,6 +191,7 @@ MonoBehaviour:
   effects:
   - rid: 1001
   - rid: 1002
+  - rid: 1003
   references:
     version: 2
     RefIds:
@@ -201,19 +202,32 @@ MonoBehaviour:
         duration: 0.15
         timeScale: 0
     - rid: 1002
-      type: {class: HitConfirmVfxEffectConfig, ns: , asm: Assembly-CSharp}
+      type: {class: ScreenOrientedImpactEffectConfig, ns: , asm: Assembly-CSharp}
       data:
         enabled: 1
         prefab: {fileID: 5631647144167759754, guid: b8e16118d4ddc3b4b9613ed8d50af917,
           type: 3}
         occlusionMode: 1
-        orientation: 0
-        rollMode: 0
-        rollPresetDegrees: 15
-        rollRandomRange: 360
+        angleMode: 0
+        anglePresetDegrees: -135
+        angleRandomRange: 360
         scale: 0.6
         lifetime: 0.75
         simulationSpeed: 0.5
+    - rid: 1003
+      type: {class: WorldDirectionalImpactEffectConfig, ns: , asm: Assembly-CSharp}
+      data:
+        enabled: 1
+        prefab: {fileID: 401131942215140516, guid: 743b11653b3fcfa4799088353e5f2529,
+          type: 3}
+        occlusionMode: 0
+        directionMode: 0
+        rollMode: 0
+        rollPresetDegrees: 0
+        rollRandomRange: 360
+        scale: 1
+        lifetime: 0.5
+        simulationSpeed: 1
 --- !u!114 &11400000
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -420,7 +434,7 @@ MonoBehaviour:
     m_PreExtrapolationMode: 0
     m_PostExtrapolationTime: 0
     m_PreExtrapolationTime: 0
-    m_DisplayName: None
+    m_DisplayName: State.Block.Attack
   m_Markers:
     m_Objects: []
 --- !u!114 &5315839517025902601
@@ -618,6 +632,6 @@ MonoBehaviour:
     m_PreExtrapolationMode: 0
     m_PostExtrapolationTime: 0
     m_PreExtrapolationTime: 0
-    m_DisplayName: None
+    m_DisplayName: State.Block.Move
   m_Markers:
     m_Objects: []

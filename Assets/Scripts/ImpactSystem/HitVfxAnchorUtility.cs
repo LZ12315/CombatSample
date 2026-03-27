@@ -39,6 +39,18 @@ public static class HitVfxAnchorUtility
         return new Vector3(b.center.x, y, b.center.z);
     }
 
+    /// <summary>目标参考点：首个子 Collider 包围盒中心，否则根位置。</summary>
+    public static Vector3 GetTargetReferenceWorldPosition(GameObject targetObject)
+    {
+        if (targetObject == null) return Vector3.zero;
+
+        var col = targetObject.GetComponentInChildren<Collider>();
+        if (col != null)
+            return col.bounds.center;
+
+        return targetObject.transform.position;
+    }
+
     public static Vector3 ComputeVfxSpawnPoint(
         Vector3 rayOriginWorld,
         ActorCombater attacker,
@@ -83,10 +95,63 @@ public static class HitVfxAnchorUtility
         return FallbackClosestToAttacker(col, attacker, hitPointFallback);
     }
 
+    /// <summary>
+    /// 屏幕语义点：从主摄像机朝目标参考点做射线，取目标表面命中点。
+    /// 失败时 fallback 到 hitPointFallback。
+    /// </summary>
+    public static Vector3 ComputeScreenPointFromCamera(GameObject targetObject, Vector3 hitPointFallback)
+    {
+        if (targetObject == null)
+            return hitPointFallback;
+
+        var col = targetObject.GetComponentInChildren<Collider>();
+        if (col == null)
+            return hitPointFallback;
+
+        if (!TryGetPrimaryCameraWorldPosition(out Vector3 camWorld))
+            return hitPointFallback;
+
+        Vector3 targetRef = GetTargetReferenceWorldPosition(targetObject);
+        Vector3 toTarget = targetRef - camWorld;
+        if (toTarget.sqrMagnitude < 1e-8f)
+            return FallbackClosestToWorldPosition(col, camWorld, hitPointFallback);
+
+        Vector3 dir = toTarget.normalized;
+        float maxDist = toTarget.magnitude + RayExtraLength;
+        Vector3 rayOrigin = camWorld + dir * RayOriginPush;
+
+        var hits = Physics.RaycastAll(
+            rayOrigin,
+            dir,
+            maxDist,
+            Physics.DefaultRaycastLayers,
+            QueryTriggerInteraction.Ignore);
+
+        if (hits != null && hits.Length > 0)
+        {
+            Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+            foreach (var h in hits)
+            {
+                if (IsUnderTarget(h.collider, targetObject))
+                    return h.point;
+            }
+        }
+
+        return FallbackClosestToWorldPosition(col, camWorld, hitPointFallback);
+    }
+
     static Vector3 FallbackClosestToAttacker(Collider col, ActorCombater attacker, Vector3 hitPointFallback)
     {
         Vector3 p = col.ClosestPoint(attacker.transform.position);
         if ((p - attacker.transform.position).sqrMagnitude > 1e-10f)
+            return p;
+        return hitPointFallback;
+    }
+
+    static Vector3 FallbackClosestToWorldPosition(Collider col, Vector3 worldPosition, Vector3 hitPointFallback)
+    {
+        Vector3 p = col.ClosestPoint(worldPosition);
+        if ((p - worldPosition).sqrMagnitude > 1e-10f)
             return p;
         return hitPointFallback;
     }
@@ -102,5 +167,35 @@ public static class HitVfxAnchorUtility
         Transform t = c.transform;
         Transform root = attacker.transform;
         return t == root || t.IsChildOf(root);
+    }
+
+    static bool TryGetPrimaryCameraWorldPosition(out Vector3 worldPosition)
+    {
+        worldPosition = default;
+        if (Camera.main != null && Camera.main.enabled)
+        {
+            worldPosition = Camera.main.transform.position;
+            return true;
+        }
+
+        var tagged = GameObject.FindGameObjectWithTag("MainCamera");
+        if (tagged != null)
+        {
+            var cam = tagged.GetComponent<Camera>();
+            if (cam != null && cam.enabled)
+            {
+                worldPosition = cam.transform.position;
+                return true;
+            }
+        }
+
+        var any = UnityEngine.Object.FindObjectOfType<Camera>();
+        if (any != null && any.enabled)
+        {
+            worldPosition = any.transform.position;
+            return true;
+        }
+
+        return false;
     }
 }

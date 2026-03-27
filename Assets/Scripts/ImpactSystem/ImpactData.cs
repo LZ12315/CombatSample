@@ -1,18 +1,26 @@
 using UnityEngine;
 
 /// <summary>
-/// 打击数据包
-/// 包含一次打击的所有相关信息
+/// 打击表现层上下文。由 <see cref="AttackHitData"/> 派生并补充 VFX 等字段。
 /// </summary>
 public class ImpactData
 {
+    /// <summary>本次命中的战斗层来源；由 <see cref="FromAttackHit"/> 写入。</summary>
+    public AttackHitData SourceHit;
+
     public ActorCombater Attacker;
     public GameObject TargetObject;
     public Vector3 HitPoint;
     public float Damage;
 
+    /// <summary>真实命中点（战斗语义）。默认使用 <see cref="HitPoint"/>。</summary>
+    public Vector3 ContactPointWorld;
+
+    /// <summary>屏幕语义点（表现语义）。默认使用 <see cref="HitPoint"/>。</summary>
+    public Vector3 ScreenPointWorld;
+
     /// <summary>
-    /// VFX 专用生成点（攻击者→目标 Collider 中心射线与目标表面的交点等），由命中流程写入。
+    /// 兼容字段：旧逻辑使用的 VFX 生成点。当前会同步到 <see cref="ScreenPointWorld"/>。
     /// </summary>
     public Vector3 VfxSpawnPoint;
 
@@ -20,6 +28,21 @@ public class ImpactData
     /// FaceAttacker 时「看向」的世界坐标（默认攻击者 CC 中心），命中时由 ActionHitBoxBehavior 写入。
     /// </summary>
     public Vector3 FacingReferenceWorldPosition;
+
+    /// <summary>攻击者参考点（与射线起点一致），用于世界空间方向与火花轴向。</summary>
+    public Vector3 AttackerWorldPosition;
+
+    /// <summary>目标参考点（Collider 包围盒中心等），用于世界空间方向。</summary>
+    public Vector3 TargetWorldPosition;
+
+    /// <summary>攻击者→目标 的单位方向；由参考点推导，供火花等使用。</summary>
+    public Vector3 ImpactDirectionWorld;
+
+    /// <summary>缓存的目标受击组件，避免重复 GetComponent。</summary>
+    public HitFeedbackReceiver TargetReceiver;
+
+    /// <summary>缓存的受击 Profile（可与 Receiver 上引用一致）。</summary>
+    public HitFeedbackProfile TargetProfile;
 
     public ImpactData(
         ActorCombater attacker,
@@ -31,6 +54,31 @@ public class ImpactData
         TargetObject = targetObject;
         HitPoint = hitPoint;
         Damage = damage;
+        ContactPointWorld = hitPoint;
+        ScreenPointWorld = hitPoint;
         VfxSpawnPoint = hitPoint;
+    }
+
+    public static ImpactData FromAttackHit(in AttackHitData hit)
+    {
+        var d = new ImpactData(hit.Attacker, hit.Target, hit.HitPoint, hit.Damage);
+        d.SourceHit = hit;
+
+        if (hit.Target != null)
+        {
+            d.TargetReceiver = hit.Target.GetComponentInParent<HitFeedbackReceiver>();
+            d.TargetProfile = d.TargetReceiver != null ? d.TargetReceiver.Profile : null;
+        }
+
+        return d;
+    }
+
+    /// <summary>写入攻击者/目标参考点与 <see cref="ImpactDirectionWorld"/>。</summary>
+    public void PopulateDirectionalReferences(Vector3 attackerWorldPosition)
+    {
+        AttackerWorldPosition = attackerWorldPosition;
+        TargetWorldPosition = HitVfxAnchorUtility.GetTargetReferenceWorldPosition(TargetObject);
+        Vector3 d = TargetWorldPosition - AttackerWorldPosition;
+        ImpactDirectionWorld = d.sqrMagnitude > 1e-8f ? d.normalized : Vector3.forward;
     }
 }

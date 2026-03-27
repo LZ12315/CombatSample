@@ -1,8 +1,8 @@
 using UnityEngine;
 
 /// <summary>
-/// 受击反馈执行器 — 挂在可被攻击的目标上。
-/// 由 ImpactSystem 在命中时调用，根据 HitFeedbackProfile 播放音效和生成粒子。
+/// 受击反馈挂点 — 挂在可被攻击的目标上，引用 <see cref="HitFeedbackProfile"/>。
+/// 具体播放由 <see cref="ImpactSystem"/> 根据 Profile 的 effects 执行。
 /// </summary>
 public class HitFeedbackReceiver : MonoBehaviour
 {
@@ -14,10 +14,26 @@ public class HitFeedbackReceiver : MonoBehaviour
     public HitFeedbackProfile Profile => profile;
     public Transform HitFacingTargetOverride => hitFacingTargetOverride;
 
+    /// <summary>受击音效用 AudioSource（由 ImpactSystem 使用）。</summary>
+    public AudioSource FeedbackAudioSource
+    {
+        get
+        {
+            EnsureAudioSource();
+            return _audioSource;
+        }
+    }
+
     private AudioSource _audioSource;
 
     private void Awake()
     {
+        EnsureAudioSource();
+    }
+
+    void EnsureAudioSource()
+    {
+        if (_audioSource != null) return;
         _audioSource = GetComponent<AudioSource>();
         if (_audioSource == null)
         {
@@ -25,34 +41,5 @@ public class HitFeedbackReceiver : MonoBehaviour
             _audioSource.spatialBlend = 1f;
             _audioSource.playOnAwake = false;
         }
-    }
-
-    /// <summary>
-    /// 播放一次受击反馈（音效 + VFX）。旋转由 ImpactSystem 根据 Profile 预先解析。
-    /// </summary>
-    public void PlayFeedback(Vector3 worldPosition, Quaternion vfxRotation)
-    {
-        if (profile == null) return;
-
-        PlayHitSound();
-        SpawnHitVFX(worldPosition, vfxRotation);
-    }
-
-    private void PlayHitSound()
-    {
-        var clip = profile.GetRandomHitSound();
-        if (clip == null) return;
-
-        _audioSource.pitch = 1f + Random.Range(-profile.pitchVariation, profile.pitchVariation);
-        _audioSource.PlayOneShot(clip, profile.volume);
-    }
-
-    private void SpawnHitVFX(Vector3 worldPosition, Quaternion vfxRotation)
-    {
-        if (profile.hitVFXPrefab == null) return;
-
-        var vfx = Instantiate(profile.hitVFXPrefab, worldPosition, vfxRotation);
-        vfx.transform.localScale = Vector3.one * profile.vfxScale;
-        Destroy(vfx, profile.vfxLifetime);
     }
 }
