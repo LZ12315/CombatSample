@@ -182,7 +182,7 @@ public class ImpactSystem : MonoBehaviour
     {
         if (config == null || config.prefab == null) return;
 
-        Vector3 spawnPos = impactData.ScreenPointWorld;
+        Vector3 spawnPos = impactData.VfxSpawnPoint;
         var rotation = ScreenOrientedImpactRotationResolver.Resolve(
             config.angleMode,
             config.anglePresetDegrees,
@@ -195,7 +195,7 @@ public class ImpactSystem : MonoBehaviour
     {
         if (config == null || config.prefab == null) return;
 
-        Vector3 spawnPos = impactData.ContactPointWorld;
+        Vector3 spawnPos = impactData.VfxSpawnPoint;
         var rotation = WorldDirectionalImpactRotationResolver.Resolve(
             config.directionMode,
             config.rollMode,
@@ -257,7 +257,7 @@ public class ImpactSystem : MonoBehaviour
         if (force <= 0f) return;
 
         Vector3 velocity = Random.onUnitSphere * force;
-        _impulseSource.GenerateImpulseAtPositionWithVelocity(impactData.ContactPointWorld, velocity);
+        _impulseSource.GenerateImpulseAtPositionWithVelocity(impactData.VfxSpawnPoint, velocity);
     }
 
     #endregion

@@ -587,7 +587,6 @@ MonoBehaviour:
   - rid: 4001
   - rid: 4002
   - rid: 4003
-  - rid: 4004
   references:
     version: 2
     RefIds:
@@ -606,28 +605,14 @@ MonoBehaviour:
       type: {class: ScreenOrientedImpactEffectConfig, ns: , asm: Assembly-CSharp}
       data:
         enabled: 1
-        prefab: {fileID: 5631647144167759754, guid: b8e16118d4ddc3b4b9613ed8d50af917,
+        prefab: {fileID: 1107029698261400, guid: a1076c3c7e8bc484faf518679bb3faa4,
           type: 3}
         occlusionMode: 1
-        angleMode: 0
-        anglePresetDegrees: -15
+        angleMode: 1
+        anglePresetDegrees: 0
         angleRandomRange: 360
-        scale: 0.6
-        lifetime: 0.75
-        simulationSpeed: 0.5
-    - rid: 4004
-      type: {class: WorldDirectionalImpactEffectConfig, ns: , asm: Assembly-CSharp}
-      data:
-        enabled: 1
-        prefab: {fileID: 401131942215140516, guid: 743b11653b3fcfa4799088353e5f2529,
-          type: 3}
-        occlusionMode: 0
-        directionMode: 0
-        rollMode: 0
-        rollPresetDegrees: 0
-        rollRandomRange: 360
         scale: 1
-        lifetime: 0.5
+        lifetime: 1
         simulationSpeed: 1
 --- !u!114 &7263589157808658523
 MonoBehaviour:

@@ -9,6 +9,9 @@ public static class HitVfxAnchorUtility
 {
     const float RayOriginPush = 0.08f;
     const float RayExtraLength = 0.75f;
+    const float CameraLateralBiasScale = 0.35f;
+    const float CameraLateralBiasMin = 0.05f;
+    const float CameraLateralBiasMax = 0.22f;
 
     /// <summary>
     /// 默认射线起点：CharacterController 或 CapsuleCollider 的 world bounds 竖直方向约 3/4 高处
@@ -96,48 +99,41 @@ public static class HitVfxAnchorUtility
     }
 
     /// <summary>
-    /// 屏幕语义点：从主摄像机朝目标参考点做射线，取目标表面命中点。
-    /// 失败时 fallback 到 hitPointFallback。
+    /// 在 attacker->target 的表面交点基础上，沿相机所在的左右侧方向做水平偏移。
+    /// 只修正横向读感，不引入相机俯仰导致的高度漂移。
     /// </summary>
-    public static Vector3 ComputeScreenPointFromCamera(GameObject targetObject, Vector3 hitPointFallback)
+    public static Vector3 ApplyCameraLateralBias(
+        Vector3 basePointWorld,
+        Vector3 attackerReferenceWorld,
+        GameObject targetObject)
     {
         if (targetObject == null)
-            return hitPointFallback;
+            return basePointWorld;
 
-        var col = targetObject.GetComponentInChildren<Collider>();
-        if (col == null)
-            return hitPointFallback;
+        if (!TryGetPrimaryCameraTransform(out Transform camTransform))
+            return basePointWorld;
 
-        if (!TryGetPrimaryCameraWorldPosition(out Vector3 camWorld))
-            return hitPointFallback;
+        Vector3 targetReferenceWorld = GetTargetReferenceWorldPosition(targetObject);
+        Vector3 attackDirHorizontal = Vector3.ProjectOnPlane(targetReferenceWorld - attackerReferenceWorld, Vector3.up);
+        if (attackDirHorizontal.sqrMagnitude < 1e-8f)
+            return basePointWorld;
+        attackDirHorizontal.Normalize();
 
-        Vector3 targetRef = GetTargetReferenceWorldPosition(targetObject);
-        Vector3 toTarget = targetRef - camWorld;
-        if (toTarget.sqrMagnitude < 1e-8f)
-            return FallbackClosestToWorldPosition(col, camWorld, hitPointFallback);
+        Vector3 toCameraHorizontal = Vector3.ProjectOnPlane(camTransform.position - basePointWorld, Vector3.up);
+        if (toCameraHorizontal.sqrMagnitude < 1e-8f)
+            return basePointWorld;
 
-        Vector3 dir = toTarget.normalized;
-        float maxDist = toTarget.magnitude + RayExtraLength;
-        Vector3 rayOrigin = camWorld + dir * RayOriginPush;
-
-        var hits = Physics.RaycastAll(
-            rayOrigin,
-            dir,
-            maxDist,
-            Physics.DefaultRaycastLayers,
-            QueryTriggerInteraction.Ignore);
-
-        if (hits != null && hits.Length > 0)
+        Vector3 lateralDirection = Vector3.ProjectOnPlane(toCameraHorizontal, attackDirHorizontal);
+        if (lateralDirection.sqrMagnitude < 1e-8f)
         {
-            Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
-            foreach (var h in hits)
-            {
-                if (IsUnderTarget(h.collider, targetObject))
-                    return h.point;
-            }
+            lateralDirection = Vector3.ProjectOnPlane(camTransform.right, Vector3.up);
+            if (lateralDirection.sqrMagnitude < 1e-8f)
+                return basePointWorld;
         }
 
-        return FallbackClosestToWorldPosition(col, camWorld, hitPointFallback);
+        lateralDirection.Normalize();
+        float offsetDistance = ComputeCameraLateralBiasDistance(targetObject);
+        return basePointWorld + lateralDirection * offsetDistance;
     }
 
     static Vector3 FallbackClosestToAttacker(Collider col, ActorCombater attacker, Vector3 hitPointFallback)
@@ -148,12 +144,14 @@ public static class HitVfxAnchorUtility
         return hitPointFallback;
     }
 
-    static Vector3 FallbackClosestToWorldPosition(Collider col, Vector3 worldPosition, Vector3 hitPointFallback)
+    static float ComputeCameraLateralBiasDistance(GameObject targetObject)
     {
-        Vector3 p = col.ClosestPoint(worldPosition);
-        if ((p - worldPosition).sqrMagnitude > 1e-10f)
-            return p;
-        return hitPointFallback;
+        var col = targetObject != null ? targetObject.GetComponentInChildren<Collider>() : null;
+        if (col == null)
+            return CameraLateralBiasMin;
+
+        float targetRadius = Mathf.Max(col.bounds.extents.x, col.bounds.extents.z);
+        return Mathf.Clamp(targetRadius * CameraLateralBiasScale, CameraLateralBiasMin, CameraLateralBiasMax);
     }
 
     static bool IsUnderTarget(Collider c, GameObject targetRoot)
@@ -169,12 +167,12 @@ public static class HitVfxAnchorUtility
         return t == root || t.IsChildOf(root);
     }
 
-    static bool TryGetPrimaryCameraWorldPosition(out Vector3 worldPosition)
+    static bool TryGetPrimaryCameraTransform(out Transform cameraTransform)
     {
-        worldPosition = default;
+        cameraTransform = null;
         if (Camera.main != null && Camera.main.enabled)
         {
-            worldPosition = Camera.main.transform.position;
+            cameraTransform = Camera.main.transform;
             return true;
         }
 
@@ -184,7 +182,7 @@ public static class HitVfxAnchorUtility
             var cam = tagged.GetComponent<Camera>();
             if (cam != null && cam.enabled)
             {
-                worldPosition = cam.transform.position;
+                cameraTransform = cam.transform;
                 return true;
             }
         }
@@ -192,7 +190,7 @@ public static class HitVfxAnchorUtility
         var any = UnityEngine.Object.FindObjectOfType<Camera>();
         if (any != null && any.enabled)
         {
-            worldPosition = any.transform.position;
+            cameraTransform = any.transform;
             return true;
         }
 

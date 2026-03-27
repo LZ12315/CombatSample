@@ -13,14 +13,8 @@ public class ImpactData
     public Vector3 HitPoint;
     public float Damage;
 
-    /// <summary>真实命中点（战斗语义）。默认使用 <see cref="HitPoint"/>。</summary>
-    public Vector3 ContactPointWorld;
-
-    /// <summary>屏幕语义点（表现语义）。默认使用 <see cref="HitPoint"/>。</summary>
-    public Vector3 ScreenPointWorld;
-
     /// <summary>
-    /// 兼容字段：旧逻辑使用的 VFX 生成点。当前会同步到 <see cref="ScreenPointWorld"/>。
+    /// VFX 专用生成点（攻击者→目标 Collider 中心射线与目标表面的交点等），由命中流程写入。
     /// </summary>
     public Vector3 VfxSpawnPoint;
 
@@ -54,8 +48,6 @@ public class ImpactData
         TargetObject = targetObject;
         HitPoint = hitPoint;
         Damage = damage;
-        ContactPointWorld = hitPoint;
-        ScreenPointWorld = hitPoint;
         VfxSpawnPoint = hitPoint;
     }
 

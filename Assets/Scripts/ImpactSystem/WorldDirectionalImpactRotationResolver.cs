@@ -66,9 +66,9 @@ public static class WorldDirectionalImpactRotationResolver
         if (fromRefs.sqrMagnitude > 1e-8f)
             return fromRefs.normalized;
 
-        Vector3 fromContact = impact.ContactPointWorld - impact.AttackerWorldPosition;
-        if (fromContact.sqrMagnitude > 1e-8f)
-            return fromContact.normalized;
+        Vector3 fromHit = impact.VfxSpawnPoint - impact.HitPoint;
+        if (fromHit.sqrMagnitude > 1e-8f)
+            return fromHit.normalized;
 
         return Vector3.forward;
     }

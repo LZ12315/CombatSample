@@ -108,9 +108,15 @@ public class ActionHitBoxBehavior : ActionBehaviourBase
 
         Vector3 rayOrigin = HitVfxAnchorUtility.GetDefaultAttackerRayOrigin(hitData.Attacker);
 
-        impactData.ContactPointWorld = hitData.HitPoint;
-        impactData.ScreenPointWorld = HitVfxAnchorUtility.ComputeScreenPointFromCamera(hitData.Target, hitData.HitPoint);
-        impactData.VfxSpawnPoint = impactData.ScreenPointWorld;
+        Vector3 baseSpawnPoint = HitVfxAnchorUtility.ComputeVfxSpawnPoint(
+            rayOrigin,
+            hitData.Attacker,
+            hitData.Target,
+            hitData.HitPoint);
+        impactData.VfxSpawnPoint = HitVfxAnchorUtility.ApplyCameraLateralBias(
+            baseSpawnPoint,
+            rayOrigin,
+            hitData.Target);
 
         impactData.FacingReferenceWorldPosition = HitVfxFacingUtility.ResolveFacingWorldPosition(
             impactData.TargetReceiver != null ? impactData.TargetReceiver.HitFacingTargetOverride : null,
