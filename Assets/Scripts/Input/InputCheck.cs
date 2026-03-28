@@ -13,10 +13,10 @@ public abstract class InputCheckBase
 [Serializable]
 public class ButtonInputCheck : InputCheckBase
 {
-    [Tooltip("需要匹配的按钮")]
+    [Tooltip("Button to match")]
     public Enums.InputButton requiredButtons;
 
-    [Tooltip("需要匹配的按钮状态")]
+    [Tooltip("Button state to match")]
     public Enums.ButtonState requiredState;
 
     public override bool CheckInput(InputData input)
@@ -38,10 +38,10 @@ public class ButtonInputCheck : InputCheckBase
 [Serializable]
 public class JoystickInputCheck : InputCheckBase
 {
-    [Tooltip("需要匹配的摇杆方向")]
+    [Tooltip("Stick direction to match")]
     public Enums.InputJoystick requiredDirections;
 
-    [Tooltip("需要匹配的摇杆力度")]
+    [Tooltip("Stick strength to match")]
     public Enums.JoystickVigor requiredVigors;
 
     public override bool CheckInput(InputData input)
@@ -71,21 +71,21 @@ public class JoystickInputCheck : InputCheckBase
 [Serializable]
 public abstract class InputStateCheckBase
 {
-    [Tooltip("需要匹配的输入状态")]
+    [Tooltip("Input state to match")]
     public bool requiredState = false;
 }
 
 [Serializable]
 public class ButtonStateCheck : InputStateCheckBase
 {
-    [Tooltip("需要匹配的按钮组合")]
+    [Tooltip("Button flags to match")]
     public Enums.InputButton check;
 }
 
 [Serializable]
 public class JoystickStateCheck : InputStateCheckBase
 {
-    [Tooltip("需要匹配的摇杆方向")]
+    [Tooltip("Stick direction to match")]
     public Enums.InputJoystick check;
 }
 

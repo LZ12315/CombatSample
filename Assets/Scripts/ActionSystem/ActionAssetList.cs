@@ -4,10 +4,10 @@ using UnityEngine;
 [CreateAssetMenu(menuName = "ActionSystem/ActionList")]
 public class ActionAssetList : ScriptableObject
 {
-    [Header("基础配置")]
+    [Header("Base")]
 
-    [Header("全局动作 (最高优先级)")]
-    [SerializeField, Tooltip("存放受击、闪避、死亡等随时可能抢占的动作")]
+    [Header("Global Actions")]
+    [SerializeField, Tooltip("Hit, dodge, death, etc. These can cut in anytime.")]
     private List<ActionAsset> _globalActions = new List<ActionAsset>();
 
     // 运行时缓存，避免每次 Update 组装列表产生 GC (内存垃圾)

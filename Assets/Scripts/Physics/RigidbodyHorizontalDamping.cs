@@ -9,10 +9,10 @@ namespace CombatSample.PhysicsInteraction
 [RequireComponent(typeof(Rigidbody))]
 public class RigidbodyHorizontalDamping : MonoBehaviour
 {
-    [SerializeField, Tooltip("越大停得越快，约 3～10；可与 Rigidbody.Drag 二选一或小幅叠加")]
+    [SerializeField, Tooltip("Higher = stop faster. Try 3–10. Can mix a little with Rigidbody drag.")]
     private float _horizontalDamping = 6f;
 
-    [SerializeField, Tooltip("水平速度低于此 (m/s) 时直接归零，避免无限微滑")]
+    [SerializeField, Tooltip("If flat speed is below this (m/s), snap to 0. Stops tiny drift.")]
     private float _stopSpeedThreshold = 0.05f;
 
     private Rigidbody _rb;

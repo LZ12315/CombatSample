@@ -13,7 +13,7 @@ namespace NodeCanvas.Tasks.Conditions {
     [Description("Transfer to next [Action] when ActionData meets the needs")]
     public class ActionDataCheckTask : ConditionTask {
 
-        [Header("??")]
+        [Header("Settings")]
         public BBParameter<ActionAsset> currentAction;
         public Enums.ActionDataType dataChecks;
 
@@ -22,7 +22,7 @@ namespace NodeCanvas.Tasks.Conditions {
 
         protected override bool OnCheck() {
             bool isCorrect = false;
-            // TODO: ?? ActionData ????
+            // TODO: 按 ActionData 类型与进度校验是否满足切状态条件。
 
             return isCorrect;
         }

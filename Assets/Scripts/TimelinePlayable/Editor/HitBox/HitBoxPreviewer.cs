@@ -56,7 +56,7 @@ namespace HitBoxEditorNamespace
 
         private static void OnEditorUpdate()
         {
-            // Ç¿ÖÆSceneÊÓÍ¼Ë¢ĞÂ
+            // å¼ºåˆ¶Sceneè§†å›¾åˆ·æ–°
             if (_debugMode || _showHandles)
             {
                 SceneView.RepaintAll();
@@ -74,14 +74,14 @@ namespace HitBoxEditorNamespace
 
         private static void DrawTimelineHitBoxes()
         {
-            // È·±£Timelineµ¼ÑİÓĞĞ§
+            // ç¡®ä¿Timelineå¯¼æ¼”æœ‰æ•ˆ
             if (TimelineEditor.inspectedDirector == null)
             {
                 DebugLog("No Timeline Director selected");
                 return;
             }
 
-            // »ñÈ¡µ±Ç°Timeline×ÊÔ´
+            // è·å–å½“å‰Timelineèµ„æº
             var timeline = TimelineEditor.inspectedDirector.playableAsset as TimelineAsset;
             if (timeline == null)
             {
@@ -89,17 +89,17 @@ namespace HitBoxEditorNamespace
                 return;
             }
 
-            // »ñÈ¡µ±Ç°PlayableDirector
+            // è·å–å½“å‰PlayableDirector
             var director = TimelineEditor.inspectedDirector;
             DebugLog($"Processing timeline: {timeline.name}, current time: {director.time:F3}");
 
-            // ´¦ÀíËùÓĞHitBox¹ìµÀ
+            // å¤„ç†æ‰€æœ‰HitBoxè½¨é“
             ProcessHitBoxTracks(timeline, director);
         }
 
         private static void ProcessHitBoxTracks(TimelineAsset timeline, PlayableDirector director)
         {
-            // »ñÈ¡µ±Ç°Ñ¡ÖĞµÄËùÓĞClip
+            // è·å–å½“å‰é€‰ä¸­çš„æ‰€æœ‰Clip
             var selectedClips = new HashSet<TimelineClip>(TimelineEditor.selectedClips);
 
             foreach (var track in timeline.GetOutputTracks())
@@ -123,10 +123,10 @@ namespace HitBoxEditorNamespace
 
                 if (isClipActive && hitboxAsset.behavior.collider != null)
                 {
-                    // ×ÜÊÇ»æÖÆ½ºÄÒÌåÏß¿ò
+                    // æ€»æ˜¯ç»˜åˆ¶èƒ¶å›Šä½“çº¿æ¡†
                     DrawCapsuleWireframeForClip(hitboxAsset.behavior, clip);
 
-                    // Ö»»æÖÆÑ¡ÖĞClipµÄHandle
+                    // åªç»˜åˆ¶é€‰ä¸­Clipçš„Handle
                     if (_showHandles && selectedClips.Contains(clip))
                     {
                         DrawHitBoxHandles(hitboxAsset.behavior.collider, hitboxAsset.behavior, clip);
@@ -145,11 +145,11 @@ namespace HitBoxEditorNamespace
             Quaternion rotation = transform.rotation * clip.hitboxConfig.rotation;
             rotation = NormalizeQuaternion(rotation);
 
-            // »æÖÆ½ºÄÒÌåÏß¿ò
+            // ç»˜åˆ¶èƒ¶å›Šä½“çº¿æ¡†
             DrawCapsuleWireframe(center, rotation, clip.hitboxConfig.radius, clip.hitboxConfig.height, clip.collider.direction);
         }
 
-        #region Handle»æÖÆ
+        #region Handleç»˜åˆ¶
         private static void DrawHitBoxHandles(CapsuleCollider collider, ActionHitBoxBehavior clip, TimelineClip timelineClip)
         {
             if (collider == null || clip == null || clip.hitboxConfig == null || timelineClip == null) return;
@@ -159,14 +159,14 @@ namespace HitBoxEditorNamespace
             Quaternion rotation = transform.rotation * clip.hitboxConfig.rotation;
             rotation = NormalizeQuaternion(rotation);
 
-            // »ñÈ¡¹ØÁªµÄActionHitBoxAsset
+            // è·å–å…³è”çš„ActionHitBoxAsset
             var hitboxAsset = timelineClip.asset as ActionHitBoxClip;
             if (hitboxAsset == null) return;
 
-            // »ñÈ¡µ±Ç°Ñ¡ÖĞµÄ¹¤¾ß
+            // è·å–å½“å‰é€‰ä¸­çš„å·¥å…·
             Tool currentTool = Tools.current;
 
-            // 1. Position handle (½öÔÚÒÆ¶¯¹¤¾ßÑ¡ÖĞÊ±ÏÔÊ¾)
+            // 1. Position handle (ä»…åœ¨ç§»åŠ¨å·¥å…·é€‰ä¸­æ—¶æ˜¾ç¤º)
             if (currentTool == Tool.Move)
             {
                 EditorGUI.BeginChangeCheck();
@@ -175,24 +175,24 @@ namespace HitBoxEditorNamespace
 
                 if (EditorGUI.EndChangeCheck())
                 {
-                    // ¼ÇÂ¼ActionHitBoxAsset¶ø²»ÊÇclip
+                    // è®°å½•ActionHitBoxAssetè€Œä¸æ˜¯clip
                     Undo.RecordObject(hitboxAsset, "Move HitBox");
 
-                    // ¼ÆËãĞÂµÄÖĞĞÄµãÎ»ÖÃ£¨¾Ö²¿¿Õ¼ä£©
+                    // è®¡ç®—æ–°çš„ä¸­å¿ƒç‚¹ä½ç½®ï¼ˆå±€éƒ¨ç©ºé—´ï¼‰
                     Vector3 newLocalCenter = transform.InverseTransformPoint(newPosition);
 
-                    // Ìí¼ÓÈ¡Õû¹¦ÄÜ - ½â¾ö¸¡µã¾«¶ÈÎÊÌâ
+                    // æ·»åŠ å–æ•´åŠŸèƒ½ - è§£å†³æµ®ç‚¹ç²¾åº¦é—®é¢˜
                     newLocalCenter = RoundVector3(newLocalCenter, 5);
 
                     clip.hitboxConfig.center = newLocalCenter;
 
-                    // ±ê¼ÇÎªÔà
+                    // æ ‡è®°ä¸ºè„
                     EditorUtility.SetDirty(hitboxAsset);
                     DebugLog($"HitBox position updated: {newLocalCenter}");
                 }
             }
 
-            // 2. Rotation handle (½öÔÚĞı×ª¹¤¾ßÑ¡ÖĞÊ±ÏÔÊ¾)
+            // 2. Rotation handle (ä»…åœ¨æ—‹è½¬å·¥å…·é€‰ä¸­æ—¶æ˜¾ç¤º)
             if (currentTool == Tool.Rotate)
             {
                 EditorGUI.BeginChangeCheck();
@@ -203,13 +203,13 @@ namespace HitBoxEditorNamespace
                 {
                     Undo.RecordObject(hitboxAsset, "Rotate HitBox");
 
-                    // ¼ÆËãÏà¶ÔÓÚ¹Ç÷ÀµÄĞı×ª
+                    // è®¡ç®—ç›¸å¯¹äºéª¨éª¼çš„æ—‹è½¬
                     Quaternion relativeRotation = Quaternion.Inverse(transform.rotation) * newRotation;
 
-                    // ±ê×¼»¯ËÄÔªÊı
+                    // æ ‡å‡†åŒ–å››å…ƒæ•°
                     relativeRotation = NormalizeQuaternion(relativeRotation);
 
-                    // Ìí¼ÓÈ¡Õû¹¦ÄÜ - ½â¾ö¸¡µã¾«¶ÈÎÊÌâ
+                    // æ·»åŠ å–æ•´åŠŸèƒ½ - è§£å†³æµ®ç‚¹ç²¾åº¦é—®é¢˜
                     relativeRotation = RoundQuaternion(relativeRotation, 5);
 
                     clip.hitboxConfig.rotation = relativeRotation;
@@ -219,13 +219,13 @@ namespace HitBoxEditorNamespace
                 }
             }
 
-            // 3. Radius handle (Ê¼ÖÕÏÔÊ¾)
+            // 3. Radius handle (å§‹ç»ˆæ˜¾ç¤º)
             EditorGUI.BeginChangeCheck();
             Handles.color = new Color(1, 0.2f, 0.2f, 1f);
             float handleSize = HandleUtility.GetHandleSize(center) * 0.5f;
             Handles.zTest = UnityEngine.Rendering.CompareFunction.Always;
 
-            // Ê¹ÓÃconfig.radiusÖµ
+            // ä½¿ç”¨config.radiuså€¼
             float newRadius = Handles.ScaleValueHandle(
                 clip.hitboxConfig.radius,
                 center + rotation * Vector3.right * clip.hitboxConfig.radius,
@@ -233,7 +233,7 @@ namespace HitBoxEditorNamespace
                 handleSize,
                 (controlID, position, rot, size, eventType) =>
                 {
-                    // È·±£Ê¹ÓÃµÄËÄÔªÊıÊÇ±ê×¼»¯µÄ
+                    // ç¡®ä¿ä½¿ç”¨çš„å››å…ƒæ•°æ˜¯æ ‡å‡†åŒ–çš„
                     rot = NormalizeQuaternion(rot);
 
                     Handles.color = new Color(1, 0.2f, 0.2f, 0.8f);
@@ -244,7 +244,7 @@ namespace HitBoxEditorNamespace
                 0.1f
             );
 
-            // ±êÇ©
+            // æ ‡ç­¾
             GUIStyle labelStyle = new GUIStyle(EditorStyles.boldLabel);
             labelStyle.normal.textColor = new Color(1, 0.3f, 0.3f);
             Handles.Label(center + rotation * Vector3.right * (clip.hitboxConfig.radius + handleSize * 0.5f),
@@ -254,7 +254,7 @@ namespace HitBoxEditorNamespace
             {
                 Undo.RecordObject(hitboxAsset, "Resize HitBox Radius");
 
-                // Ìí¼ÓÈ¡Õû¹¦ÄÜ - ½â¾ö¸¡µã¾«¶ÈÎÊÌâ
+                // æ·»åŠ å–æ•´åŠŸèƒ½ - è§£å†³æµ®ç‚¹ç²¾åº¦é—®é¢˜
                 newRadius = RoundFloat(newRadius, 5);
 
                 clip.hitboxConfig.radius = Mathf.Max(0.01f, newRadius);
@@ -262,14 +262,14 @@ namespace HitBoxEditorNamespace
                 DebugLog($"HitBox radius updated: {newRadius:F3}");
             }
 
-            // 4. Height handle (Ê¼ÖÕÏÔÊ¾)
+            // 4. Height handle (å§‹ç»ˆæ˜¾ç¤º)
             EditorGUI.BeginChangeCheck();
             Handles.color = new Color(0.2f, 1, 0.2f, 1f);
 
             Vector3 direction = GetCapsuleDirectionVector(collider.direction);
             Vector3 heightHandlePos = center + rotation * direction * (clip.hitboxConfig.height / 2);
 
-            // Ê¹ÓÃconfig.heightÖµ
+            // ä½¿ç”¨config.heightå€¼
             float newHeight = Handles.ScaleValueHandle(
                 clip.hitboxConfig.height,
                 heightHandlePos,
@@ -285,7 +285,7 @@ namespace HitBoxEditorNamespace
                 0.1f
             );
 
-            // ±êÇ©
+            // æ ‡ç­¾
             labelStyle.normal.textColor = new Color(0.3f, 1, 0.3f);
             Handles.Label(heightHandlePos + rotation * direction * (handleSize * 0.7f),
                          "Height", labelStyle);
@@ -294,7 +294,7 @@ namespace HitBoxEditorNamespace
             {
                 Undo.RecordObject(hitboxAsset, "Resize HitBox Height");
 
-                // Ìí¼ÓÈ¡Õû¹¦ÄÜ - ½â¾ö¸¡µã¾«¶ÈÎÊÌâ
+                // æ·»åŠ å–æ•´åŠŸèƒ½ - è§£å†³æµ®ç‚¹ç²¾åº¦é—®é¢˜
                 newHeight = RoundFloat(newHeight, 5);
 
                 clip.hitboxConfig.height = Mathf.Max(0.01f, newHeight);
@@ -303,7 +303,7 @@ namespace HitBoxEditorNamespace
             }
         }
 
-        // ËÄÔªÊı±ê×¼»¯·½·¨
+        // å››å…ƒæ•°æ ‡å‡†åŒ–æ–¹æ³•
         private static Quaternion NormalizeQuaternion(Quaternion q)
         {
             float length = Mathf.Sqrt(q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w);
@@ -321,7 +321,7 @@ namespace HitBoxEditorNamespace
             return Quaternion.identity;
         }
 
-        // È¡Õû¹¤¾ßº¯Êı
+        // å–æ•´å·¥å…·å‡½æ•°
         private static Vector3 RoundVector3(Vector3 vector, int decimals)
         {
             return new Vector3(
@@ -343,13 +343,13 @@ namespace HitBoxEditorNamespace
 
         private static float RoundFloat(float value, int decimals)
         {
-            // Èç¹ûÖµ·Ç³£½Ó½ü0£¬ÔòÖ±½Ó·µ»Ø0
+            // å¦‚æœå€¼éå¸¸æ¥è¿‘0ï¼Œåˆ™ç›´æ¥è¿”å›0
             if (Mathf.Abs(value) < Mathf.Pow(10, -decimals))
             {
                 return 0f;
             }
 
-            // Ê¹ÓÃMathf.Round½øĞĞËÄÉáÎåÈë
+            // ä½¿ç”¨Mathf.Roundè¿›è¡Œå››èˆäº”å…¥
             float multiplier = Mathf.Pow(10, decimals);
             return Mathf.Round(value * multiplier) / multiplier;
         }
@@ -357,14 +357,14 @@ namespace HitBoxEditorNamespace
 
         #endregion
 
-        #region ColliderÂÖÀª»æÖÆ
+        #region Colliderè½®å»“ç»˜åˆ¶
 
         private static void DrawCapsuleWireframe(Vector3 center, Quaternion rotation, float radius, float height, int direction)
         {
             Handles.zTest = UnityEngine.Rendering.CompareFunction.Always;
 
-            // Ïß¿òÑÕÉ«
-            Color wireColor = new Color(0.2f, 0.8f, 1f, 0.95f); // ÁÁÀ¶É«
+            // çº¿æ¡†é¢œè‰²
+            Color wireColor = new Color(0.2f, 0.8f, 1f, 0.95f); // äº®è“è‰²
 
             float lineWidth = 2.0f;
 
@@ -373,25 +373,25 @@ namespace HitBoxEditorNamespace
             Vector3 topCenter = center + rotation * upVector * (cylinderHeight / 2);
             Vector3 bottomCenter = center - rotation * upVector * (cylinderHeight / 2);
 
-            // 1. »æÖÆÔ²Öù²¿·Ö
+            // 1. ç»˜åˆ¶åœ†æŸ±éƒ¨åˆ†
             DrawCylinderOutline(topCenter, bottomCenter, rotation, radius, wireColor, lineWidth);
 
-            // 2. »æÖÆ¶¥²¿°ëÇò£¨ÍêÕû°ëÇò£©
+            // 2. ç»˜åˆ¶é¡¶éƒ¨åŠçƒï¼ˆå®Œæ•´åŠçƒï¼‰
             DrawFullHemisphere(topCenter, rotation * upVector, radius, wireColor, lineWidth);
 
-            // 3. »æÖÆµ×²¿°ëÇò£¨ÍêÕû°ëÇò£©
+            // 3. ç»˜åˆ¶åº•éƒ¨åŠçƒï¼ˆå®Œæ•´åŠçƒï¼‰
             DrawFullHemisphere(bottomCenter, rotation * -upVector, radius, wireColor, lineWidth);
         }
 
-        // »æÖÆÔ²ÖùÌåÂÖÀª
+        // ç»˜åˆ¶åœ†æŸ±ä½“è½®å»“
         private static void DrawCylinderOutline(Vector3 topCenter, Vector3 bottomCenter, Quaternion rotation, float radius, Color color, float lineWidth)
         {
-            // »æÖÆ¶¥²¿ºÍµ×²¿Ô²»·
+            // ç»˜åˆ¶é¡¶éƒ¨å’Œåº•éƒ¨åœ†ç¯
             Handles.color = color;
             Handles.DrawWireDisc(topCenter, rotation * Vector3.up, radius, lineWidth);
             Handles.DrawWireDisc(bottomCenter, rotation * Vector3.up, radius, lineWidth);
 
-            // »æÖÆËÄÌõÁ¬½ÓÏß
+            // ç»˜åˆ¶å››æ¡è¿æ¥çº¿
             Vector3[] directions = {
                 rotation * Vector3.right,
                 rotation * Vector3.forward,
@@ -407,17 +407,17 @@ namespace HitBoxEditorNamespace
             }
         }
 
-        // »æÖÆ°ëÇò
+        // ç»˜åˆ¶åŠçƒ
         private static void DrawFullHemisphere(Vector3 center, Vector3 direction, float radius, Color color, float lineWidth)
         {
             Handles.color = color;
             Quaternion rot = Quaternion.LookRotation(direction);
 
-            // »æÖÆÁ½¸öÍêÕû·½ÏòµÄ360¶ÈÔ²»¡
-            // 1. ×óÓÒ·½ÏòµÄÔ²
+            // ç»˜åˆ¶ä¸¤ä¸ªå®Œæ•´æ–¹å‘çš„360åº¦åœ†å¼§
+            // 1. å·¦å³æ–¹å‘çš„åœ†
             Handles.DrawWireArc(center, rot * Vector3.left, rot * Vector3.down, 180, radius, lineWidth);
 
-            // 2. Ç°ºó·½ÏòµÄÔ²
+            // 2. å‰åæ–¹å‘çš„åœ†
             Handles.DrawWireArc(center, rot * Vector3.down, rot * Vector3.right, 180, radius, lineWidth);
         }
 

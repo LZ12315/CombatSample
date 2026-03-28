@@ -1,87 +1,91 @@
 using System.Collections.Generic;
 using UnityEngine;
-using Animancer; 
+using Animancer;
 
+/// <summary>
+/// 在 locomotion 激活时执行移动与移动动画；意图由 <see cref="SetIntent"/> 提供（玩家经 <see cref="ActorLogicInput"/>，敌人可由 AI 填写）。
+/// </summary>
+[DefaultExecutionOrder(200)]
 public class ActorLocomotion : MonoBehaviour
 {
-    [Header("组件引用")]
+    [Header("References")]
     [SerializeField] private Actor _actor;
 
-    [Header("配置")]
-    [SerializeField, Tooltip("基础移动速度")] 
+    [Header("Settings")]
+    [SerializeField, Tooltip("Base move speed")]
     private float _baseMoveSpeed = 5f;
-    
-    [SerializeReference, SubclassSelector, Tooltip("Locomotion自身的准入条件组")] 
+
+    [SerializeReference, SubclassSelector, Tooltip("Checks before this locomotion can run.")]
     private List<ActionCondition> _entryConditions = new List<ActionCondition>();
 
-    [SerializeField, Tooltip("默认的移动模式 (如: 普通自由移动)")]
+    [SerializeField, Tooltip("Default move mode (e.g. free walk)")]
     private LocomotionModeAsset _defaultMode;
 
-    [SerializeField, Tooltip("特殊的移动模式列表 (按Priority仲裁)")]
+    [SerializeField, Tooltip("Extra move modes. Higher priority wins.")]
     private List<LocomotionModeAsset> _specialModes = new List<LocomotionModeAsset>();
 
-    // 是否被激活（StartLocomotion）
-    private bool _isActive = false;
-    // 缓存当前正在执行的模式
+    private bool _isActive;
     private LocomotionModeAsset _currentMode;
+    private LocomotionIntent _intent = LocomotionIntent.Idle;
 
-    // ==========================================
-    // 供外部调用的显式接口
-    // ==========================================
+    public bool IsActive => _isActive;
 
-    public bool CheckConditions() 
+    public bool CheckConditions()
     {
         if (_entryConditions == null || _entryConditions.Count == 0) return true;
-        foreach (var condition in _entryConditions) 
+        foreach (var condition in _entryConditions)
         {
             if (!condition.Check(_actor)) return false;
         }
         return true;
     }
 
+    /// <summary>每帧由 <see cref="ActorLogicInput"/> 或 AI 写入；未激活时仍会更新缓存。</summary>
+    public void SetIntent(in LocomotionIntent intent)
+    {
+        _intent = intent;
+    }
+
+    public void ClearIntent()
+    {
+        _intent = LocomotionIntent.Idle;
+    }
+
     public void StartLocomotion()
     {
-        _isActive = true; // 记下自己被唤醒了
-        
+        _isActive = true;
+
         _actor.movement.SetMovementMode(ActorMovement.MovementMode.CodeDriven);
-        
-        // 唤醒瞬间立刻评估并播放动画，保证0帧延迟的无缝衔接
-        EvaluateAndPlayMode(); 
+
+        EvaluateAndPlayMode();
     }
 
     public void StopLocomotion()
     {
-        _isActive = false; // 记下自己被关停了
-        
-        // 彻底刹车
+        _isActive = false;
+
         _actor.movement.SetCodeVelocity(Vector3.zero);
         _actor.movement.SetMovementMode(ActorMovement.MovementMode.RootMotion);
-        
-        // 清理缓存，保证下次重新启动时正常触发动画 Play
-        _currentMode = null; 
-    }
 
-    // ==========================================
-    // 业务逻辑 (小脑本职工作)
-    // ==========================================
+        _currentMode = null;
+        ClearIntent();
+    }
 
     private void Update()
     {
-        // 极其纯粹：只要我没被激活，我就休息。
         if (!_isActive)
         {
             return;
         }
         EvaluateAndPlayMode();
-        ProcessLocomotion();
+        ApplyIntent();
     }
 
     private void EvaluateAndPlayMode()
     {
         LocomotionModeAsset targetMode = _defaultMode;
-        int highestPriority = -1; 
+        int highestPriority = -1;
 
-        // 寻找优先级最高的特殊模式（比如冲刺、瘸腿走）
         foreach (var mode in _specialModes)
         {
             if (mode != null && mode.CheckConditions(_actor))
@@ -95,7 +99,6 @@ public class ActorLocomotion : MonoBehaviour
             }
         }
 
-        // 如果模式改变（或者刚被 StartLocomotion 唤醒），命令 Animancer 切换动画
         if (targetMode != _currentMode)
         {
             _currentMode = targetMode;
@@ -107,68 +110,47 @@ public class ActorLocomotion : MonoBehaviour
         }
     }
 
-    private void ProcessLocomotion()
+    private void ApplyIntent()
     {
-        // 限制输入向量的模长最大为1，解决斜向加速问题
-        Vector2 rawInput = _actor.logicInput.MoveInput;
-        Vector2 moveInput = Vector2.ClampMagnitude(rawInput, 1f);
-        float currentSpeed = _baseMoveSpeed * (_currentMode != null ? _currentMode.SpeedMultiplier : 1f);
+        float speedMul = _currentMode != null ? _currentMode.SpeedMultiplier : 1f;
+        float speed = _baseMoveSpeed * speedMul;
 
-        if (moveInput.sqrMagnitude > 0.01f)
+        bool hasMove = _intent.MoveStrength > 0.01f && _intent.WorldMoveDirection.sqrMagnitude > 0.0001f;
+
+        if (hasMove)
         {
-            // 1. 计算世界空间下的移动方向，并设置物理速度 (这部分不变，摇杆推哪往哪走)
-            Vector3 targetVelocityDir = _actor.cameraControl.CalculateWorldDirection(moveInput);
-            _actor.movement.SetCodeVelocity(targetVelocityDir * (moveInput.magnitude * currentSpeed));
-
-            // 🌟 核心修正：判断当前是否是锁定模式
-            bool isLockOn = _actor.cameraControl.CinemachineState != Enums.PlayerCameraState.Free;
-
-            if (isLockOn)
+            Vector3 dir = _intent.WorldMoveDirection;
+            dir.y = 0f;
+            if (dir.sqrMagnitude < 0.0001f)
             {
-                // ==========================================
-                // 锁定模式 (Lock)：八向移动跑法
-                // ==========================================
-                // 1. 旋转：强制面朝敌人 (或者面朝相机前方)
-                Transform enemy = _actor.combater.CombatTarget?.transform;
-                if (enemy != null)
-                {
-                    Vector3 dirToEnemy = enemy.position - _actor.transform.position;
-                    dirToEnemy.y = 0;
-                    if (dirToEnemy.sqrMagnitude > 0.001f)
-                    {
-                        _actor.movement.UpdateRotation(dirToEnemy.normalized);
-                    }
-                }
-                else 
-                {
-                    // 如果没有敌人但处于某种锁定态，面朝相机正前方
-                    Vector3 camForward = Camera.main.transform.forward;
-                    camForward.y = 0;
-                    _actor.movement.UpdateRotation(camForward.normalized);
-                }
-
-                // 2. 动画：原汁原味注入摇杆 (X左右，Y前后)，触发侧滑和后退动画
-                InjectAnimancerParameter(moveInput);
+                _actor.movement.SetCodeVelocity(Vector3.zero);
+                InjectAnimancerParameter(Vector2.zero);
+                return;
             }
-            else
-            {
-                // ==========================================
-                // 自由模式 (Free)：传统跟随摇杆跑法
-                // ==========================================
-                // 1. 旋转：转向摇杆推的方向
-                _actor.movement.UpdateRotation(targetVelocityDir);
+            dir.Normalize();
 
-                // 2. 动画：因为角色已经转过去面朝目标了，所以对他来说永远是在"往前走"
-                // 强行把 X 轴设为 0，Y 轴设为摇杆推力，只触发 Run Forward 动画！
-                InjectAnimancerParameter(new Vector2(0f, moveInput.magnitude));
-            }
+            _actor.movement.SetCodeVelocity(dir * (_intent.MoveStrength * speed));
         }
         else
         {
-            // 没推摇杆时刹车，并让混合树回到 Idle
             _actor.movement.SetCodeVelocity(Vector3.zero);
-            InjectAnimancerParameter(Vector2.zero);
         }
+
+        Vector3 face = _intent.FacingDirection;
+        face.y = 0f;
+        if (face.sqrMagnitude > 0.0001f)
+        {
+            _actor.movement.UpdateRotation(face.normalized);
+        }
+        else if (hasMove)
+        {
+            Vector3 d = _intent.WorldMoveDirection;
+            d.y = 0f;
+            if (d.sqrMagnitude > 0.0001f)
+                _actor.movement.UpdateRotation(d.normalized);
+        }
+
+        InjectAnimancerParameter(hasMove ? _intent.Mixer2D : Vector2.zero);
     }
 
     private void InjectAnimancerParameter(Vector2 input)
@@ -178,11 +160,11 @@ public class ActorLocomotion : MonoBehaviour
 
         if (state is MixerState<Vector2> mixer2D)
         {
-            mixer2D.Parameter = input; 
+            mixer2D.Parameter = input;
         }
         else if (state is MixerState<float> mixer1D)
         {
-            mixer1D.Parameter = input.magnitude; 
+            mixer1D.Parameter = input.magnitude;
         }
     }
 }

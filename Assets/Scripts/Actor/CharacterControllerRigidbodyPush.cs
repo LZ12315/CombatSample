@@ -10,19 +10,19 @@ namespace CombatSample.PhysicsInteraction
 [RequireComponent(typeof(CharacterController))]
 public class CharacterControllerRigidbodyPush : MonoBehaviour
 {
-    [SerializeField, Tooltip("仅推动这些 Layer 上的刚体（例如只勾 Enemy）；不勾则推不到")]
+    [SerializeField, Tooltip("Only push rigidbodies on these layers. Example: Enemy only.")]
     private LayerMask _pushableLayers = ~0;
 
-    [SerializeField, Tooltip("冲量 = (moveLength/dt) × 该系数。走路轻碰应远小于跑步猛撞")]
+    [SerializeField, Tooltip("Push = (moveLength/dt) × this. Walk bump should be much smaller than sprint hit.")]
     private float _pushGain = 0.35f;
 
-    [SerializeField, Tooltip("单次回调最大速度增量 (m/s)，防止数值叠爆")]
+    [SerializeField, Tooltip("Max speed add per callback (m/s). Stops runaway values.")]
     private float _maxImpulsePerHit = 0.85f;
 
-    [SerializeField, Tooltip("低于此「试图靠近速度」视为毛刷，不推（减少刚碰到就滑飞）")]
+    [SerializeField, Tooltip("If approach speed is below this, skip push (less bump slide).")]
     private float _minTrySpeedToPush = 0.25f;
 
-    [SerializeField, Tooltip("仅在 trySpeed 超过最小阈值后，可选再加一小点底力（一般保持很小）")]
+    [SerializeField, Tooltip("Optional tiny extra push after speed is over the min. Keep small.")]
     private float _blockedNudge = 0.08f;
 
     private void OnControllerColliderHit(ControllerColliderHit hit)

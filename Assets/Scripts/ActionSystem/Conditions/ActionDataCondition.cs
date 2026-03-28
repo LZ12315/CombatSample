@@ -4,10 +4,10 @@ using System;
 [Serializable]
 public class ActionDataCondition : ActionCondition
 {
-    // ¼ì²éÀàĞÍ
+    // æ£€æŸ¥ç±»å‹
     public Enums.ActionDataType checkType = Enums.ActionDataType.None;
 
-    // Progress ¼ì²é²ÎÊı
+    // Progress æ£€æŸ¥å‚æ•°
     [Range(0f, 1f)] public float minProgress = 0f;
     [Range(0f, 1f)] public float maxProgress = 1f;
 
@@ -20,7 +20,7 @@ public class ActionDataCondition : ActionCondition
 
         ActionData actionData = currentAction.RuntimeData;
 
-        // ¼ì²é Progress£¨Ê±¼ä½ø¶È£©
+        // æ£€æŸ¥ Progressï¼ˆæ—¶é—´è¿›åº¦ï¼‰
         if ((checkType & Enums.ActionDataType.Progress) != 0)
         {
             float time = (float)actionData.normalizedTime;

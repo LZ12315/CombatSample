@@ -1,5 +1,6 @@
 using UnityEngine;
 
+[DefaultExecutionOrder(300)]
 public class ActorMovement : MonoBehaviour
 {
     public Actor actor;

@@ -14,7 +14,7 @@ namespace NodeCanvas.Tasks.Actions {
 	[Description("Play a ActionTimeline when performed")]
 	public class ActionAssetTask : ActionTask {
 
-		[Header("≈‰÷√")]
+		[Header("Settings")]
 		public BBParameter<Actor> actor;
         public BBParameter<ActionAsset> actionToPlay;
 

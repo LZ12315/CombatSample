@@ -6,7 +6,7 @@ using UnityEngine.Timeline;
 [System.Serializable]
 public class ActionTagBehaviour : ActionBehaviourBase
 {
-    [Tooltip("在时间轴该片段期间要发放的标签")]
+    [Tooltip("Tags to add while this plays")]
     public TagReference tag;
 
     // 当 Clip 真正开始播放时候

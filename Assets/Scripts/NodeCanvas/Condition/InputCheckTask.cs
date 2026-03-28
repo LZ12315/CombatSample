@@ -17,10 +17,10 @@ namespace NodeCanvas.Tasks.Conditions {
 	[Description("Transfer to next [Action] when all the inputChecks has been met")]
 	public class InputCheckTask : ConditionTask{
 
-        [Header("≈‰÷√")]
+        [Header("Settings")]
         public BBParameter<Actor> actor;
 
-        [Header(" Ù–‘")]
+        [Header("Properties")]
         public float waitTime = 0.2f;
         public Enums.ActionPriority priority;
         //public List<InputCheckBase> inputChecks;

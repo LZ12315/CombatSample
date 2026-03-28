@@ -21,13 +21,13 @@ public enum MagnetismRotationAxis
 public class MagnetismConfig
 {
     [Header("Gate")]
-    [Tooltip("玩家根与敌人 Transform 的水平距离超过此值则本 Clip 不生效（不旋转，0=无限制）")]
+    [Tooltip("If player–enemy flat distance is over this, clip does nothing. 0 = no limit.")]
     public float maxDistance = 0f;
 
     [Header("Rotation")]
     public bool rotateToTarget = true;
     public MagnetismRotationMode rotationMode = MagnetismRotationMode.AngularSpeed;
-    [Tooltip("rotationMode=AngularSpeed 时有效；0=不做旋转覆盖")]
+    [Tooltip("Used when rotation mode is AngularSpeed. 0 = no rotate override")]
     public float rotationAngularSpeed = 360f;
     public MagnetismRotationAxis rotationAxis = MagnetismRotationAxis.YawOnly;
 

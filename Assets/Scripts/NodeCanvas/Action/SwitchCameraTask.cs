@@ -8,10 +8,10 @@ namespace NodeCanvas.Tasks.Actions {
 	[Description("Switch Camera")]
 	public class SwitchCameraTask : ActionTask {
 
-		[Header("≈‰÷√")]
+		[Header("Settings")]
 		public BBParameter<ActorCameraControl> cameraControl;
 
-		[Header(" Ù–‘")]
+		[Header("Properties")]
         public Enums.PlayerCameraState cameraState;
 
         protected override void OnExecute() {

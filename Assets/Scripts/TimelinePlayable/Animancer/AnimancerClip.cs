@@ -23,7 +23,7 @@ public class AnimancerClip : PlayableAsset, ITimelineClipAsset
             }
             else if (transitionAsset.Transition is DirectionalClipTransition directionalTransition)
             {
-                // ¡¾ĞŞÕı¡¿Ê¹ÓÃ AnimationSet ÊôĞÔ
+                // ã€ä¿®æ­£ã€‘ä½¿ç”¨ AnimationSet å±æ€§
                 if (directionalTransition.AnimationSet != null &&
                     directionalTransition.AnimationSet.GetClip(0) != null)
                 {

@@ -5,7 +5,7 @@ using DeiveEx.TagTree; // 引入标签插件命名空间
 [Serializable]
 public class TagCondition : ActionCondition
 {
-    [Tooltip("需要在黑板上检测的标签")]
+    [Tooltip("Tag to read from the board")]
     public TagReference requiredTag; // 在 Inspector 面板上供策划下拉选择
 
     // 注意：这里重写的是你在基类里定义好的无状态 OnCheck(Actor actor)

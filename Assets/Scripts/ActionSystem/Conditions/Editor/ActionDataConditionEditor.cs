@@ -15,7 +15,7 @@ public class ActionDataConditionDrawer : PropertyDrawer
         {
             int currentMask = checkTypeProp.intValue;
 
-            // Progress ÐÐ
+            // Progress è¡Œ
             if ((currentMask & (int)Enums.ActionDataType.Progress) != 0)
                 totalHeight += EditorGUIUtility.singleLineHeight + EditorGUIUtility.standardVerticalSpacing;
         }
@@ -40,12 +40,12 @@ public class ActionDataConditionDrawer : PropertyDrawer
 
         Rect curRect = new Rect(position.x, position.y, position.width, EditorGUIUtility.singleLineHeight);
 
-        // »æÖÆ CheckType
+        // ç»˜åˆ¶ CheckType
         EditorGUI.PropertyField(curRect, checkTypeProp, new GUIContent("Check Type"));
 
         int currentMask = checkTypeProp.intValue;
 
-        // »æÖÆ Progress
+        // ç»˜åˆ¶ Progress
         if ((currentMask & (int)Enums.ActionDataType.Progress) != 0 && minProgressProp != null && maxProgressProp != null)
         {
             curRect.y += EditorGUIUtility.singleLineHeight + EditorGUIUtility.standardVerticalSpacing;

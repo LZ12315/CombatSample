@@ -1,29 +1,26 @@
-using Cinemachine;
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using CombatSample.Consts;
 using System;
-using DG.Tweening.Core.Easing;
 
 public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerActions
 {
     PlayerInputControl actions;
     public Actor controlledActor;
 
-    [Header("????")]
+    [Header("Debug")]
     public bool debug = false;
     public float timeScale = 0.1f;
 
-    [Header("????????")]
+    [Header("Press Times")]
     [SerializeField] int ShortPress_Frame = 40;
     [SerializeField] int LongPress_Frame = 120;
 
     [SerializeField] float joystickHard_Distance = 0.6f;
     [SerializeField] float joystick_DeadZone = 0.1f;
 
-    [Header("??????")]
+    [Header("Raw Axes")]
     private Vector2 rawMove = Vector2.zero;
     private Vector2 rawLook = Vector2.zero;
     Dictionary<Enums.InputButton, InputPressState> buttonStates = new ();
@@ -59,9 +56,9 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
     {
         SetControlledActor(FindFirstObjectByType<Actor>());
 
-        // ????????????????????
+        // 锁定鼠标用于视角；第一人称常用。
         Cursor.lockState = CursorLockMode.Locked;
-        // ??Locked????????????????????????????
+        // Locked 下隐藏指针，减少 UI/SkinnedMesh 一类问题。
         Cursor.visible = false;
 
         if (debug)
@@ -89,14 +86,14 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
     {
         if (controlledActor == null) return;
 
-        // ??ESC????????????????????????
+        // ESC：解锁鼠标，方便调试或切出。
         if (Input.GetKeyDown(KeyCode.Escape))
         {
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
         }
 
-        // ????Input
+        // 每帧更新长按帧计数并派发 Short/Long 事件。
         UpdateInputState();
     }
 
@@ -120,7 +117,7 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
             Debug.Log(joystickInput.inputJoystick + "   " + joystickInput.joystickVigor);
     }
 
-    #region ???Input
+    #region 输入状态查询
 
     public bool GetInputState(Enums.InputButton button)
     {
@@ -146,7 +143,7 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
 
     #endregion
 
-    #region InputSystem???
+    #region Input System 回调
 
     public void OnMove(InputAction.CallbackContext context)
     {
@@ -155,8 +152,8 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
 
         switch (context.phase)
         {
-            //????????Performed??????Started
-            //?????????????????
+            // 摇杆用 Performed 持续上报；不用 Started（避免只响一次）。
+            // 推力达硬阈值发 Hard，否则 Light。
             case InputActionPhase.Performed:
                 if (distance >= joystickHard_Distance)
                     SendJoystickInputData(CastVectorToDirection(rawMove), Enums.JoystickVigor.Hard);
@@ -203,7 +200,7 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
     {
         if (controlledActor == null) return;
 
-        // ???????????????????????????
+        // 若指针已解锁（例如点过 UI），点攻击时重新锁定并隐藏。
         if (Cursor.lockState == CursorLockMode.None)
         {
             Cursor.lockState = CursorLockMode.Locked;
@@ -240,10 +237,10 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
 
     #endregion
 
-    #region ????????
+    #region 按压计时与八向
 
-    // ??????????????????????????????? ????????
-    // ????????????????????????? ?????????????
+    // isActive：当前是否按住；elapsedFrame：已持续帧数。
+    // 松手时根据帧数发 ShortPress 或 LongPress_Stop。
     public class InputPressState
     {
         public bool isActive;
@@ -331,32 +328,24 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
         }
     }
 
-    // ?????????????????
+    // 摇杆向量 → 八向枚举（含 Idle）。
     Enums.InputJoystick CastVectorToDirection(Vector2 input)
     {
         if (input.sqrMagnitude < joystick_DeadZone)
             return Enums.InputJoystick.Idle;
 
-        // ????????????????????????
         Vector2 normalized = input.normalized;
 
-        // ?????????????????0-360???
+        // Atan2 得带符号角，换算到 0–360。
         float angle = Mathf.Atan2(normalized.y, normalized.x) * Mathf.Rad2Deg;
-        if (angle < 0) angle += 360; // ????0-360????
+        if (angle < 0) angle += 360;
 
-        // ???????????????
         return AngleToDirection(angle);
     }
 
-    // ????????????????
+    // 东：315°–45°（跨过 0°）；北：45°–135°；西：135°–225°；南：225°–315°。
     Enums.InputJoystick AngleToDirection(float angle)
     {
-        // ?????????
-        // ??: 315??-45?? (????? -45??45??)
-        // ??: 45??-135??
-        // ??: 135??-225??
-        // ??: 225??-315??
-
         if (angle <= 45f || angle >= 315f)
             return Enums.InputJoystick.East;
 

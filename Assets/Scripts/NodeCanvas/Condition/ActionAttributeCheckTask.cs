@@ -8,7 +8,7 @@ namespace NodeCanvas.Tasks.Conditions {
 	[Category("Custom")]
 	[Description("Transfer to next [Action] when ActionAttribute meets the needs")]
 	public class ActionAttributeCheckTask : ConditionTask {
-        [Header("≈‰÷√")]
+        [Header("Settings")]
         public BBParameter<ActionAsset> currentAction;
         public Enums.ActionAttributeCheckType attributeChecks;
 

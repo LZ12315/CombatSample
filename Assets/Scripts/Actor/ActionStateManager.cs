@@ -11,14 +11,14 @@ public enum ControlState
 [RequireComponent(typeof(Actor))]
 public class ActionStateManager : MonoBehaviour
 {
-    [Header("组件引用")]
+    [Header("References")]
     [SerializeField] private ActionPlayer _actionPlayer;
     [SerializeField] private Actor _actor;
 
-    [Header("配置")]
+    [Header("Settings")]
     [SerializeField] private ActionAssetList _actionList;
 
-    [Header("状态")]
+    [Header("Runtime")]
     [SerializeField] private ControlState _currentControl = ControlState.None;
     public ControlState CurrentControl => _currentControl;
 

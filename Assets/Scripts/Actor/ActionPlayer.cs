@@ -11,15 +11,16 @@ public class ActionPlayer : MonoBehaviour
 
     public ActionInstance CurrentAction { get; private set; }
 
-    // ??????????????????????????
+    /// <summary>动作正常结束（时间走到末尾附近）时触发。</summary>
     public event Action<ActionInstance> OnActionFinished;
+    /// <summary>动作被中断或切走时触发。</summary>
     public event Action<ActionInstance> OnActionInterrupted;
 
     private void Awake()
     {
         _director = GetComponent<PlayableDirector>();
         _director.extrapolationMode = DirectorWrapMode.None;
-        _director.playableAsset = null; // ???????????????? Timeline
+        _director.playableAsset = null; // 避免编辑器等场景下残留旧 Timeline
     }
 
     private void OnEnable()
@@ -33,32 +34,29 @@ public class ActionPlayer : MonoBehaviour
     }
 
     /// <summary>
-    /// ??????????????
+    /// 播放指定动作：绑定 Timeline、归零时间并 Evaluate 一帧，保证首帧 Track/Tag 生效。
     /// </summary>
-    /// <param name="actionAsset">????????????</param>
+    /// <param name="actionAsset">动作资产（需已配置 Timeline）。</param>
     public void Play(ActionAsset actionAsset)
     {
         if (actionAsset == null || actionAsset.TimelineAsset == null)
         {
-            Debug.LogWarning("?????????????ActionAsset?????Timeline??ActionAsset??", this);
+            Debug.LogWarning("Play 失败：ActionAsset 或 Timeline 为空。请在 ActionAsset 上指定 Timeline。", this);
             return;
         }
 
-        // ???????????????
         CurrentAction = actionAsset.CreateActionInstance();
         _director.playableAsset = CurrentAction.Config.TimelineAsset;
         _director.time = 0;
         _playbackSpeed = 1.0;
         _director.Play();
-        // ? ???????????????????
-        // ??? Timeline ???????????????????? 0 ?????
-        // ???????? Tag ???????? Block.Move ???????????????????????
+        // 首帧 Evaluate：避免第一帧仍为「空图」导致 Tag/Block 未就绪。
+        // 部分情况下 Director 首帧 time=0 时尚未建好图，显式 Evaluate 可同步状态。
+        // 与 Timeline 上 Tag、Block.Move 等轨道的首帧采样一致。
         _director.Evaluate();
     }
 
-    /// <summary>
-    /// ?????????
-    /// </summary>
+    /// <summary>停止播放并清空当前动作引用。</summary>
     public void Stop()
     {
         if (_director.state == PlayState.Playing)
@@ -97,7 +95,7 @@ public class ActionPlayer : MonoBehaviour
 
     private void Update()
     {
-        // ???????????????????????
+        // 播放中把 Director 归一化时间同步到 ActionInstance（供条件等读取）。
         if (CurrentAction != null && _director.state == PlayState.Playing)
         {
             double normalizedTime = _director.duration > 0 ? _director.time / _director.duration : 0;
@@ -106,17 +104,16 @@ public class ActionPlayer : MonoBehaviour
     }
 
     /// <summary>
-    /// ??Director???????????????
+    /// Director 停止时区分「自然播完」与「被中断」，再派发事件。
     /// </summary>
     private void HandleDirectorStopped(PlayableDirector director)
     {
         if (CurrentAction != null)
         {
-            // ????????????????????????????? CurrentAction ??????
             ActionInstance actionToNotify = CurrentAction;
 
-            // ? ????????????????????? NormalizedTime (?? 0.05 ????????????)
-            // ??????? ActionInstance ??????????????? NormalizedTime
+            // 归一化时间接近 1 视为自然结束；阈值略小于 1，避免浮点与最后一帧差异。
+            // 与 ActionInstance 内缓存的 NormalizedTime 一致。
             if (actionToNotify.RuntimeData.normalizedTime >= 0.95f)
             {
                 // Natural finish: subscriber StopCurrentAction runs OnExit (SelfTag, etc.).

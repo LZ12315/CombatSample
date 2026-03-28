@@ -5,21 +5,21 @@ using Animancer; // 引入 Animancer
 [CreateAssetMenu(fileName = "NewLocomotionMode", menuName = "ActionSystem/LocomotionModeAsset")]
 public class LocomotionModeAsset : ScriptableObject
 {
-    [Header("配置")]
-    [Tooltip("该移动模式对应的 2D 混合树或动画过渡")]
+    [Header("Settings")]
+    [Tooltip("2D blend tree or transition for this mode")]
     public TransitionAsset Mixer;
 
-    [SerializeReference, SubclassSelector, Tooltip("必须满足列表里【所有】条件，模式才会被系统选中")]
+    [SerializeReference, SubclassSelector, Tooltip("All conditions in this list must pass. Then this mode can run.")]
     private List<ActionCondition> Conditions = new List<ActionCondition>();
         
-    [Header("属性")]
-    [SerializeField, Tooltip("动作优先级")]
+    [Header("Properties")]
+    [SerializeField, Tooltip("Action priority")]
     public Enums.ActionPriority Priority = Enums.ActionPriority.Normal;
 
-    [Tooltip("切入该动画的平滑融合时间")]
+    [Tooltip("Blend time into this motion")]
     public float FadeTime = 0.2f;
 
-    [Tooltip("该姿态下的速度倍率")]
+    [Tooltip("Speed scale in this pose")]
     public float SpeedMultiplier = 1.0f;
 
     // 检查条件是否全部满足

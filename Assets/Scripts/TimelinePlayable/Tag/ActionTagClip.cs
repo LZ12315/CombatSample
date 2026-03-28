@@ -6,7 +6,7 @@ using UnityEngine.Timeline;
 [System.Serializable]
 public class ActionTagClip : PlayableAsset
 {
-    [Tooltip("想要在这个时间段内激活的标签")]
+    [Tooltip("Tags to add during this clip")]
     public TagReference tag;
 
     public override Playable CreatePlayable(PlayableGraph graph, GameObject owner)

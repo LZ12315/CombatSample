@@ -70,14 +70,14 @@ public class EventCenter
             {
                 EventInfo eventInfo = eventDic[eventName] as EventInfo;
 
-                // ¼ì²é eventInfo ÊÇ·ñÎª null
+                // æ£€æŸ¥ eventInfo æ˜¯å¦ä¸º null
                 if (eventInfo != null)
                     return eventInfo;
                 else
-                    Debug.LogError("eventDic ÖĞ " + eventName + " ¶ÔÓ¦µÄÖµ²»ÊÇ EventInfo ÀàĞÍ£¡");
+                    Debug.LogError("eventDic ä¸­ " + eventName + " å¯¹åº”çš„å€¼ä¸æ˜¯ EventInfo ç±»å‹ï¼");
             }
             else
-                Debug.LogError("eventDic ÖĞ " + eventName + " ¶ÔÓ¦µÄÖµÎª null£¡");
+                Debug.LogError("eventDic ä¸­ " + eventName + " å¯¹åº”çš„å€¼ä¸º nullï¼");
         }
         return null;
     }
@@ -90,14 +90,14 @@ public class EventCenter
             {
                 EventInfo<T> eventInfo = eventDic[eventName] as EventInfo<T>;
 
-                // ¼ì²é eventInfo ÊÇ·ñÎª null
+                // æ£€æŸ¥ eventInfo æ˜¯å¦ä¸º null
                 if (eventInfo != null)
                     return eventInfo;
                 else
-                    Debug.LogError("eventDic ÖĞ " + eventName + " ¶ÔÓ¦µÄÖµ²»ÊÇ EventInfo<T> ÀàĞÍ£¡");
+                    Debug.LogError("eventDic ä¸­ " + eventName + " å¯¹åº”çš„å€¼ä¸æ˜¯ EventInfo<T> ç±»å‹ï¼");
             }
             else
-                Debug.LogError("eventDic ÖĞ " + eventName + " ¶ÔÓ¦µÄÖµÎª null£¡");
+                Debug.LogError("eventDic ä¸­ " + eventName + " å¯¹åº”çš„å€¼ä¸º nullï¼");
         }
         return null;
     }
@@ -145,7 +145,7 @@ public class EventCenter
         }
         else
         {
-            Debug.LogWarning("eventDic ÖĞ " + eventName + " ¶ÔÓ¦µÄÖµÎª null£¡");
+            Debug.LogWarning("eventDic ä¸­ " + eventName + " å¯¹åº”çš„å€¼ä¸º nullï¼");
         }
     }
 
@@ -159,7 +159,7 @@ public class EventCenter
         }
         else
         {
-            Debug.LogWarning("eventDic ÖĞ " + eventName + " ¶ÔÓ¦µÄÖµÎª null£¡");
+            Debug.LogWarning("eventDic ä¸­ " + eventName + " å¯¹åº”çš„å€¼ä¸º nullï¼");
         }
     }
 
@@ -172,7 +172,7 @@ public class EventCenter
         }
         else
         {
-            Debug.LogWarning("eventDic ÖĞ " + eventName + " ¶ÔÓ¦µÄÖµÎª null£¡");
+            Debug.LogWarning("eventDic ä¸­ " + eventName + " å¯¹åº”çš„å€¼ä¸º nullï¼");
         }
     }
 
@@ -185,7 +185,7 @@ public class EventCenter
         }
         else
         {
-            Debug.LogWarning("eventDic ÖĞ " + eventName + " ¶ÔÓ¦µÄÖµÎª null£¡");
+            Debug.LogWarning("eventDic ä¸­ " + eventName + " å¯¹åº”çš„å€¼ä¸º nullï¼");
         }
     }
 

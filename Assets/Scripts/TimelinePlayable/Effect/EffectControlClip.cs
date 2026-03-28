@@ -6,28 +6,28 @@ using UnityEngine.Timeline;
 [Serializable]
 public class EffectControlClip : PlayableAsset, ITimelineClipAsset
 {
-    [Header("粒子设置")]
-    [Tooltip("要控制的粒子系统预制体")]
+    [Header("Particles")]
+    [Tooltip("Particle system prefab to drive")]
     public GameObject particlePrefab;
 
-    [Header("变换设置")]
-    [Tooltip("父级变换引用（使用ExposedReference以便在Timeline中绑定）")]
+    [Header("Transform")]
+    [Tooltip("Parent transform. ExposedReference so you can bind it on the Timeline.")]
     public ExposedReference<Transform> parentTransform;
-    [Tooltip("在特效创建后是否持续更新其Transform")]
+    [Tooltip("Keep updating this transform after spawn.")]
     public bool updateTransform = true;
-    [Tooltip("相对于父级的本地位置")]
+    [Tooltip("Local position under parent")]
     public Vector3 localPosition = Vector3.zero;
-    [Tooltip("相对于父级的本地旋转（欧拉角）")]
+    [Tooltip("Local rotation (Euler) under parent")]
     public Vector3 localRotation = Vector3.zero;
-    [Tooltip("相对于父级的本地缩放")]
+    [Tooltip("Local scale under parent")]
     public Vector3 localScale = Vector3.one;
 
-    [Header("播放控制")]
-    [Tooltip("激活时自动播放")]
+    [Header("Playback")]
+    [Tooltip("Play on activate")]
     public bool playOnActive = true;
-    [Tooltip("播放完成后销毁实例")]
+    [Tooltip("Destroy instance when done")]
     public bool destroyOnFinish = true;
-    [Tooltip("随机种子，确保播放一致性")]
+    [Tooltip("Random seed for stable playback")]
     public uint randomSeed = 1;
 
     public ClipCaps clipCaps => ClipCaps.Blending;
@@ -37,7 +37,7 @@ public class EffectControlClip : PlayableAsset, ITimelineClipAsset
         var playable = ScriptPlayable<EffectControlBehaviour>.Create(graph);
         var behaviour = playable.GetBehaviour();
 
-        // 设置配置参数
+        // 璁剧疆閰嶇疆鍙傛暟
         behaviour.particlePrefab = particlePrefab;
         behaviour.parentTransform = parentTransform.Resolve(graph.GetResolver());
         behaviour.updateTransform = updateTransform;

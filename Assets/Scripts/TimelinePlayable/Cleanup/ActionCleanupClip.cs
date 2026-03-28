@@ -5,25 +5,25 @@ using UnityEngine.Timeline;
 [System.Serializable]
 public class ActionCleanupClip : PlayableAsset
 {
-    [Header("开始时清理")]
-    [Tooltip("Clip 开始时清理输入缓冲")]
+    [Header("On Start")]
+    [Tooltip("Clear input buffer when clip starts")]
     public bool clearInputOnStart = false;
 
-    [Tooltip("Clip 开始时清理标签")]
+    [Tooltip("Clear tags when clip starts")]
     public bool clearTagsOnStart = false;
 
-    [Header("结束时清理 - 正常播完")]
-    [Tooltip("Clip 正常播完时清理输入缓冲")]
+    [Header("On End (Finished)")]
+    [Tooltip("Clear input buffer when clip ends normally")]
     public bool clearInputOnEndNormal = false;
 
-    [Tooltip("Clip 正常播完时清理标签")]
+    [Tooltip("Clear tags when clip ends normally")]
     public bool clearTagsOnEndNormal = false;
 
-    [Header("结束时清理 - 被中断")]
-    [Tooltip("Clip 被强制中断时清理输入缓冲")]
+    [Header("On End (Cut)")]
+    [Tooltip("Clear input buffer when clip is cut")]
     public bool clearInputOnEndInterrupt = false;
 
-    [Tooltip("Clip 被强制中断时清理标签")]
+    [Tooltip("Clear tags when clip is cut")]
     public bool clearTagsOnEndInterrupt = false;
 
     public override Playable CreatePlayable(PlayableGraph graph, GameObject owner)

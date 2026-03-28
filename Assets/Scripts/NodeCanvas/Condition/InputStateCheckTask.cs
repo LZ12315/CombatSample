@@ -13,10 +13,10 @@ namespace NodeCanvas.Tasks.Conditions {
 	[Description("Transfer to next [Action] Once one of the stateChecks has been met")]
 	public class InputStateCheckTask : ConditionTask {
 
-		[Header("≈‰÷√")]
+		[Header("Settings")]
 		public BBParameter<PlayerInputController> inputController;
 
-        [Header(" Ù–‘")]
+        [Header("Properties")]
 		public bool requiredPressState;
         public Enums.InputCheckType inputCheckType;
 		public Enums.InputButton button;

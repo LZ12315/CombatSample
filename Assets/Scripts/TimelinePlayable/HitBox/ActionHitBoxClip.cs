@@ -17,13 +17,13 @@ public class ActionHitBoxConfig
 
 public class ActionHitBoxClip : PlayableAsset, ITimelineClipAsset
 {
-    [Tooltip("命中盒挂载到的骨骼/节点。")]
+    [Tooltip("Bone or node for this hit box")]
     public ExposedReference<Transform> boneTransform;
 
     public ActionHitBoxConfig hitboxConfig = new ActionHitBoxConfig();
     public AttackDataConfig dataConfig = new AttackDataConfig();
 
-    [Tooltip("本次命中要触发的打击效果列表。只添加这招真正需要的效果。")]
+    [Tooltip("Impact effects for this hit. Only add what this move really needs.")]
     [SerializeReference, SubclassSelector]
     public List<ImpactEffectConfig> effects = new List<ImpactEffectConfig>();
 

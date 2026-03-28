@@ -8,7 +8,7 @@ public class HitFeedbackReceiver : MonoBehaviour
 {
     [SerializeField] private HitFeedbackProfile profile;
 
-    [Tooltip("可选：受击 VFX 朝向参考点；不填则用本次攻击者的 CharacterController 中心")]
+    [Tooltip("Optional: aim hit VFX at this. Empty = use attacker CharacterController center.")]
     [SerializeField] private Transform hitFacingTargetOverride;
 
     public HitFeedbackProfile Profile => profile;

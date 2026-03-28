@@ -8,7 +8,7 @@ using UnityEngine;
 [CreateAssetMenu(fileName = "NewHitFeedbackProfile", menuName = "Combat/Hit Feedback Profile")]
 public class HitFeedbackProfile : ScriptableObject
 {
-    [Tooltip("每次命中且本 Profile 挂在目标的 Receiver 上时，在 Clip 的 effects 之后按顺序执行其中启用的项。不想播受击反馈则不要给 Receiver 指定 Profile。")]
+    [Tooltip("On each hit, runs enabled items in order after clip effects. Leave Receiver empty to skip hit feedback.")]
     [SerializeReference, SubclassSelector]
     public List<ImpactEffectConfig> effects = new List<ImpactEffectConfig>();
 

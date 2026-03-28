@@ -5,8 +5,8 @@ using UnityEngine;
 [Serializable]
 public class InputSequenceCondition : ActionCondition
 {
-    [Header("配置")]
-    [Tooltip("每个输入之间的最大间隔")]
+    [Header("Settings")]
+    [Tooltip("Max time gap between inputs")]
     [SerializeField]
     private float maxInputInterval = 0.25f;
     

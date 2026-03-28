@@ -15,7 +15,7 @@ public class ImpactSystem : MonoBehaviour
     private bool _hasWarnedMissingImpulseSource;
     private bool _hasWarnedMissingHitVfxLayer;
 
-    [Tooltip("命中震屏：向 Cinemachine 广播 Impulse。留空则在本物体上自动添加")]
+    [Tooltip("Camera shake: send Impulse to Cinemachine. Empty = add on this object.")]
     [SerializeField] private CinemachineImpulseSource _impulseSource;
 
     void Awake()

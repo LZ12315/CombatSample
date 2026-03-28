@@ -33,7 +33,7 @@ class AnimancerClipEditor : ActionClipEditorBase
 
     protected override void OnClipChange(TimelineClip clip)
     {
-        //¸üĞÂClipÃû³ÆÎª¶¯»­Ãû³Æ
+        //æ›´æ–°Clipåç§°ä¸ºåŠ¨ç”»åç§°
         var asset = clip.asset as AnimancerClip;
         if (asset == null || asset.transitionAsset == null) return;
 
@@ -44,7 +44,7 @@ class AnimancerClipEditor : ActionClipEditorBase
 
     protected override void SetClipDurationOnStart(TimelineClip clip, TrackAsset track, TimelineClip clonedFrom)
     {
-        // ²»½øĞĞÉèÖÃ Animancer»á×Ô¶¯Æ¥Åä¶¯»­Ê±³¤
+        // ä¸è¿›è¡Œè®¾ç½® Animancerä¼šè‡ªåŠ¨åŒ¹é…åŠ¨ç”»æ—¶é•¿
     }
 
 }
