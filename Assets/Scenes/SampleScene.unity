@@ -113925,7 +113925,8 @@ PrefabInstance:
       propertyPath: _impulseSource
       value: 
       objectReference: {fileID: 1039410006}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 2945076268409791243, guid: cc829668b44acca4c88f2594b8f169b5, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents:

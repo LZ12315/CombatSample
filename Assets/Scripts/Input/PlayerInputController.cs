@@ -9,22 +9,21 @@ using DG.Tweening.Core.Easing;
 
 public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerActions
 {
-    PlayerInput playerInput;
     PlayerInputControl actions;
     public Actor controlledActor;
 
-    [Header("调试")]
+    [Header("????")]
     public bool debug = false;
     public float timeScale = 0.1f;
 
-    [Header("输入设置")]
+    [Header("????????")]
     [SerializeField] int ShortPress_Frame = 40;
     [SerializeField] int LongPress_Frame = 120;
 
     [SerializeField] float joystickHard_Distance = 0.6f;
     [SerializeField] float joystick_DeadZone = 0.1f;
 
-    [Header("输入状态")]
+    [Header("??????")]
     private Vector2 rawMove = Vector2.zero;
     private Vector2 rawLook = Vector2.zero;
     Dictionary<Enums.InputButton, InputPressState> buttonStates = new ();
@@ -39,20 +38,30 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
         else
             Instance = this;
 
-        playerInput = GetComponent<PlayerInput>();
         actions = new PlayerInputControl();
-        playerInput.actions = actions.asset;
-        playerInput.notificationBehavior = PlayerNotifications.InvokeCSharpEvents;
+        if (actions.asset == null)
+        {
+            Debug.LogError($"{nameof(PlayerInputControl)} failed to build InputActionAsset.", this);
+            enabled = false;
+            return;
+        }
+
         actions.Player.SetCallbacks(this);
+    }
+
+    void OnDestroy()
+    {
+        actions?.Dispose();
+        actions = null;
     }
 
     private void Start()
     {
         SetControlledActor(FindFirstObjectByType<Actor>());
 
-        // 游戏开始时锁定并隐藏鼠标
+        // ????????????????????
         Cursor.lockState = CursorLockMode.Locked;
-        // 在Locked模式下此行可省略，但明确设置是好习惯
+        // ??Locked????????????????????????????
         Cursor.visible = false;
 
         if (debug)
@@ -61,12 +70,12 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
 
     private void OnEnable()
     {
-        actions.Enable();
+        actions?.Enable();
     }
 
     private void OnDisable()
     {
-        actions.Disable();
+        actions?.Disable();
     }
 
     public void SetControlledActor(Actor controlledActor)
@@ -80,14 +89,14 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
     {
         if (controlledActor == null) return;
 
-        // 按ESC键解锁并显示鼠标，方便玩家操作
+        // ??ESC????????????????????????
         if (Input.GetKeyDown(KeyCode.Escape))
         {
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
         }
 
-        // 更新Input
+        // ????Input
         UpdateInputState();
     }
 
@@ -111,7 +120,7 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
             Debug.Log(joystickInput.inputJoystick + "   " + joystickInput.joystickVigor);
     }
 
-    #region 获取Input
+    #region ???Input
 
     public bool GetInputState(Enums.InputButton button)
     {
@@ -137,7 +146,7 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
 
     #endregion
 
-    #region InputSystem实现
+    #region InputSystem???
 
     public void OnMove(InputAction.CallbackContext context)
     {
@@ -146,8 +155,8 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
 
         switch (context.phase)
         {
-            //这里应使用Performed而不是Started
-            //从而持续获取新的输入
+            //????????Performed??????Started
+            //?????????????????
             case InputActionPhase.Performed:
                 if (distance >= joystickHard_Distance)
                     SendJoystickInputData(CastVectorToDirection(rawMove), Enums.JoystickVigor.Hard);
@@ -194,7 +203,7 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
     {
         if (controlledActor == null) return;
 
-        // 点击鼠标左键时重新锁定并隐藏鼠标
+        // ???????????????????????????
         if (Cursor.lockState == CursorLockMode.None)
         {
             Cursor.lockState = CursorLockMode.Locked;
@@ -231,10 +240,10 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
 
     #endregion
 
-    #region 辅助工具
+    #region ????????
 
-    // 数据需要频繁被引用修改且数据量不大 用类很合适
-    // 并且修改字典里的类可以直接引用 相比起结构体更方便
+    // ??????????????????????????????? ????????
+    // ????????????????????????? ?????????????
     public class InputPressState
     {
         public bool isActive;
@@ -322,31 +331,31 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
         }
     }
 
-    // 将输入向量转换为角度
+    // ?????????????????
     Enums.InputJoystick CastVectorToDirection(Vector2 input)
     {
         if (input.sqrMagnitude < joystick_DeadZone)
             return Enums.InputJoystick.Idle;
 
-        // 归一化输入向量以确保方向准确
+        // ????????????????????????
         Vector2 normalized = input.normalized;
 
-        // 计算输入向量的角度（0-360度）
+        // ?????????????????0-360???
         float angle = Mathf.Atan2(normalized.y, normalized.x) * Mathf.Rad2Deg;
-        if (angle < 0) angle += 360; // 转换为0-360范围
+        if (angle < 0) angle += 360; // ????0-360????
 
-        // 将角度映射到方向枚举
+        // ???????????????
         return AngleToDirection(angle);
     }
 
-    // 将角度转换为方向枚举
+    // ????????????????
     Enums.InputJoystick AngleToDirection(float angle)
     {
-        // 方向分区：
-        // 东: 315°-45° (实际是 -45°到45°)
-        // 北: 45°-135°
-        // 西: 135°-225°
-        // 南: 225°-315°
+        // ?????????
+        // ??: 315??-45?? (????? -45??45??)
+        // ??: 45??-135??
+        // ??: 135??-225??
+        // ??: 225??-315??
 
         if (angle <= 45f || angle >= 315f)
             return Enums.InputJoystick.East;
