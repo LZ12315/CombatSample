@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [RequireComponent(typeof(Actor))]
-[DefaultExecutionOrder(100)]
 public class ActorLogicInput : MonoBehaviour
 {
     [Header("References")]

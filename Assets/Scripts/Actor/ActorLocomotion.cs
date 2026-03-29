@@ -5,7 +5,6 @@ using Animancer;
 /// <summary>
 /// 在 locomotion 激活时执行移动与移动动画；意图由 <see cref="SetIntent"/> 提供（玩家经 <see cref="ActorLogicInput"/>，敌人可由 AI 填写）。
 /// </summary>
-[DefaultExecutionOrder(200)]
 public class ActorLocomotion : MonoBehaviour
 {
     [Header("References")]
