@@ -13,9 +13,10 @@ MonoBehaviour:
   m_Name: Sword_HeavyAttack_3
   m_EditorClassIdentifier: 
   _timelineAsset: {fileID: 11400000, guid: 307bdd39a92887c9e88ef6176af8e4c4, type: 2}
-  _priority: 0
-  _selfTag:
-    TagId: 0
+  _priorityLayer: 0
+  _priorityValue: 0
+  _branches: []
+  _selfTags: []
   isLoop: 0
   nextAction: {fileID: 0}
   _entryConditions: []

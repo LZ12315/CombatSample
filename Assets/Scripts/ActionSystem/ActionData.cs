@@ -27,13 +27,4 @@ public static partial class Enums
         Special,
         Override
     }
-
-    [Flags]
-    public enum CleanupTarget
-    {
-        None = 0,
-        Input = 1 << 0,
-        Tags = 1 << 1,
-        All = Input | Tags
-    }
 }

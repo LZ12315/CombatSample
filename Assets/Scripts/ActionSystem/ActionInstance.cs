@@ -20,47 +20,36 @@ public class ActionInstance
     {
         _actor = actor;
 
-        // ���� SelfTag
-        if (_actor != null && _actor.tagContainer != null && Config.SelfTag != null)
+        var selfTags = Config.SelfTags;
+        if (_actor != null && selfTags != null)
         {
-            Tag selfTagObj = Config.SelfTag.GetTag();
-            if (selfTagObj != null)
+            for (int i = 0; i < selfTags.Count; i++)
             {
-                _actor.tagContainer.AddTag(selfTagObj);
+                var binding = selfTags[i];
+                if (binding?.tag == null) continue;
+                Tag tagObj = binding.tag.GetTag();
+                if (tagObj != null)
+                    _actor.AddTag(tagObj, binding.targetContainer);
             }
         }
-        
-        // Enter ����
-        ExecuteCleanup(Config.cleanupOnEnter);
     }
 
     public void OnExit()
     {
-        // �Ƴ� SelfTag
-        if (_actor != null && _actor.tagContainer != null && Config.SelfTag != null)
+        var selfTags = Config.SelfTags;
+        if (_actor != null && selfTags != null)
         {
-            Tag selfTagObj = Config.SelfTag.GetTag();
-            if (selfTagObj != null)
+            for (int i = 0; i < selfTags.Count; i++)
             {
-                _actor.tagContainer.RemoveTag(selfTagObj);
+                var binding = selfTags[i];
+                if (binding?.tag == null) continue;
+                Tag tagObj = binding.tag.GetTag();
+                if (tagObj != null)
+                    _actor.RemoveTag(tagObj, binding.targetContainer);
             }
         }
-        
-        // Exit ����
-        ExecuteCleanup(Config.cleanupOnExit);
 
         _actor = null;
-    }
-    
-    private void ExecuteCleanup(Enums.CleanupTarget target)
-    {
-        if (target == Enums.CleanupTarget.None || _actor == null) return;
-        
-        if ((target & Enums.CleanupTarget.Input) != 0)
-            _actor.logicInput?.ClearBuffer();
-        
-        if ((target & Enums.CleanupTarget.Tags) != 0)
-            _actor.tagContainer?.ClearTags();
     }
 
     public void UpdateNormalizedTime(double normalizedTime)

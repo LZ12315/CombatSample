@@ -13,15 +13,17 @@ MonoBehaviour:
   m_Name: Sword_LightAttack_4
   m_EditorClassIdentifier: 
   _timelineAsset: {fileID: 11400000, guid: 6f73eeb8ee4aa4c87957dc62ebbd9ed7, type: 2}
-  _priority: 1
-  _selfTag:
-    TagId: -1028083763
+  _priorityLayer: 0
+  _priorityValue: 1
+  _branches: []
+  _selfTags: []
+  _legacySelfTag:
+    TagId: 0
   isLoop: 0
   nextAction: {fileID: 0}
   _entryConditions:
   - rid: 834184411378876428
   - rid: 834184411378876431
-  - rid: 834184411378876430
   references:
     version: 2
     RefIds:
@@ -38,13 +40,6 @@ MonoBehaviour:
       data:
         requiredButtons: 8
         requiredState: 2
-    - rid: 834184411378876430
-      type: {class: TagCondition, ns: , asm: Assembly-CSharp}
-      data:
-        invertResult: 0
-        overrideAll: 0
-        requiredTag:
-          TagId: -1028083770
     - rid: 834184411378876431
       type: {class: TagCondition, ns: , asm: Assembly-CSharp}
       data:
@@ -52,3 +47,5 @@ MonoBehaviour:
         overrideAll: 0
         requiredTag:
           TagId: 305494886
+        targetContainer: 0
+        matchMode: 0

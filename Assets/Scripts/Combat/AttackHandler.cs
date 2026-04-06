@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using DeiveEx.TagTree;
 using UnityEditor;
 using UnityEngine;
 
@@ -26,30 +27,23 @@ public class AttackHandler : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        // Check layer
-        Debug.Log("Hit: " + other.name + " Layer:" + other.gameObject.layer);
         if (((1 << other.gameObject.layer) & config.targetLayers) != 0)
         {
-            // Layer OK
-            Debug.Log("Hit OK: " + other.name);
             if(attackedObjects.Contains(other)) return;
 
             if (other.TryGetComponent<IDamageable>(out var damageable))
             {
-                // Create hit data - FIXED: added target parameter
                 AttackHitData hitData = new AttackHitData(
                     damage: config._baseDamage,
                     attacker: combating,
                     target: other.gameObject,
-                    hitPoint: other.ClosestPoint(gameObject.transform.position)
+                    hitPoint: other.ClosestPoint(gameObject.transform.position),
+                    hitEventTag: ResolveHitEventTag()
                 );
 
-                // Take damage
                 if(damageable != null)
                     damageable.TakeDamage(hitData);
 
-                // Fire event
-                Debug.Log("Event fire");
                 InvokeHitStartEvent(hitData);
 
                 attackedObjects.Add(other);
@@ -59,28 +53,20 @@ public class AttackHandler : MonoBehaviour
 
     private void OnTriggerExit(Collider other)
     {
-        // Check layer
         if (((1 << other.gameObject.layer) & config.targetLayers) != 0)
         {
-            // Has IDamageable
             if (!attackedObjects.Contains(other)) return;
 
             if (other.TryGetComponent<IDamageable>(out var damageable))
             {
-                // Has IDamageable
-                Debug.Log("Has IDamageable: " + other.name);
                 AttackHitData hitData = new AttackHitData(
                     damage: config._baseDamage,
                     attacker: combating,
                     target: other.gameObject,
-                    hitPoint: other.ClosestPoint(gameObject.transform.position)
+                    hitPoint: other.ClosestPoint(gameObject.transform.position),
+                    hitEventTag: ResolveHitEventTag()
                 );
 
-                // Take damage
-                if (damageable != null)
-                    damageable.TakeDamage(hitData);
-
-                // Fire over event
                 InvokeHitOverEvent(hitData);
 
                 attackedObjects.Remove(other);
@@ -140,4 +126,8 @@ public class AttackHandler : MonoBehaviour
 
     #endregion
 
+    private Tag ResolveHitEventTag()
+    {
+        return config != null && config.hitEventTag != null ? config.hitEventTag.GetTag() : null;
+    }
 }

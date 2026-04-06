@@ -13,15 +13,18 @@ MonoBehaviour:
   m_Name: Sword_LightAttack_3
   m_EditorClassIdentifier: 
   _timelineAsset: {fileID: 11400000, guid: d96e9db3d046667e69732f8382d8b659, type: 2}
-  _priority: 1
-  _selfTag:
-    TagId: -1028083770
+  _priorityLayer: 0
+  _priorityValue: 1
+  _branches:
+  - {fileID: 11400000, guid: 2f115311e2ad389a09abe99d8434f181, type: 2}
+  _selfTags: []
+  _legacySelfTag:
+    TagId: 0
   isLoop: 0
   nextAction: {fileID: 0}
   _entryConditions:
   - rid: 834184411378876424
   - rid: 834184411378876426
-  - rid: 834184411378876427
   references:
     version: 2
     RefIds:
@@ -45,10 +48,5 @@ MonoBehaviour:
         overrideAll: 0
         requiredTag:
           TagId: 305494886
-    - rid: 834184411378876427
-      type: {class: TagCondition, ns: , asm: Assembly-CSharp}
-      data:
-        invertResult: 0
-        overrideAll: 0
-        requiredTag:
-          TagId: -1028083769
+        targetContainer: 0
+        matchMode: 0

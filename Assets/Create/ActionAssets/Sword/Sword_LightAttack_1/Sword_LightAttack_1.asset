@@ -13,9 +13,13 @@ MonoBehaviour:
   m_Name: Sword_LightAttack_1
   m_EditorClassIdentifier: 
   _timelineAsset: {fileID: 11400000, guid: c27c31b9fa44882c898bdbbad2486afc, type: 2}
-  _priority: 0
-  _selfTag:
-    TagId: -1028083768
+  _priorityLayer: 0
+  _priorityValue: 0
+  _branches:
+  - {fileID: 11400000, guid: 123bc3a257330f394816060fa25a9a5a, type: 2}
+  _selfTags: []
+  _legacySelfTag:
+    TagId: 0
   isLoop: 0
   nextAction: {fileID: 0}
   _entryConditions:
@@ -44,3 +48,5 @@ MonoBehaviour:
         overrideAll: 0
         requiredTag:
           TagId: 305494886
+        targetContainer: 0
+        matchMode: 0

@@ -9,6 +9,7 @@ public class ActorCombater : MonoBehaviour, IDamageable
 {
     [SerializeField] private float _maxHealth = 100f;
     [SerializeField] private bool _debugLog = true;
+    [SerializeField] private Actor _actor;
 
     [SerializeField] private GameObject combatTarget;
     public GameObject CombatTarget => combatTarget;
@@ -16,6 +17,8 @@ public class ActorCombater : MonoBehaviour, IDamageable
 
     private void Awake()
     {
+        if (_actor == null)
+            _actor = GetComponent<Actor>();
         _currentHealth = _maxHealth;
     }
 
@@ -23,6 +26,8 @@ public class ActorCombater : MonoBehaviour, IDamageable
     {
         // 基础伤害应用
         _currentHealth -= attackData.Damage;
+
+        ApplyHitEventTag(attackData);
 
         if (_debugLog)
         {
@@ -43,5 +48,13 @@ public class ActorCombater : MonoBehaviour, IDamageable
         if (_debugLog) Debug.Log($"[死亡] {name} 被 {attackData.Attacker.name} 击败");
         // 死亡处理（动画、特效、掉落等）
         gameObject.SetActive(false);
+    }
+
+    private void ApplyHitEventTag(AttackHitData attackData)
+    {
+        if (_actor == null || attackData.HitEventTag == null)
+            return;
+
+        _actor.AddTag(attackData.HitEventTag, ActorTagContainerType.Transient);
     }
 }

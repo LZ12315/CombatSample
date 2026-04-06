@@ -1,9 +1,10 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.Timeline;
 using System;
 using System.Collections.Generic;
 using CombatSample.Consts;
-using DeiveEx.TagTree; // 引入标签树插件命名空间
+using DeiveEx.TagTree;
 
 public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
 {
@@ -11,31 +12,31 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
     [SerializeField, Tooltip("Main Timeline asset")]
     private TimelineAsset _timelineAsset;
 
-    [Header("Properties")]
-    [SerializeField, Tooltip("Action priority")]
-    private Enums.ActionPriority _priority = Enums.ActionPriority.Normal;
-    
+    [Header("Priority")]
+    [FormerlySerializedAs("_priority")]
+    [SerializeField, Tooltip("Coarse tier: pick the highest layer first.")]
+    private Enums.ActionPriority _priorityLayer = Enums.ActionPriority.Normal;
+
+    [SerializeField, Tooltip("Within the same layer, higher wins.")]
+    private int _priorityValue;
+
+    [Header("Branches")]
+    [SerializeField, Tooltip("Derived actions polled only while this action is playing. Not global entrypoints.")]
+    private List<ActionAsset> _branches = new List<ActionAsset>();
+
     [Header("Tags")]
-    [SerializeField, Tooltip("Tag on you while this action plays. Example: State.Action.Attack")]
-    private TagReference _selfTag;
+    [SerializeField, Tooltip("Tags applied while this action plays (per container).")]
+    private List<ActionRuntimeTagBinding> _selfTags = new List<ActionRuntimeTagBinding>();
+
+    [SerializeField, HideInInspector, FormerlySerializedAs("_selfTag")]
+    private TagReference _legacySelfTag;
 
     [Header("Settings")]
-
     [SerializeField, Tooltip("Loop this action")]
     private bool isLoop = false;
 
-    [SerializeField, Tooltip("Next action after this one ends")]
-    private ActionAsset nextAction;
-
     [SerializeReference, SubclassSelector, Tooltip("All conditions in this list must pass. Then this action can run.")]
     private List<ActionCondition> _entryConditions = new List<ActionCondition>();
-
-    [Header("Cleanup")]
-    [Tooltip("Clear targets when action starts")]
-    public Enums.CleanupTarget cleanupOnEnter = Enums.CleanupTarget.None;
-
-    [Tooltip("Clear targets when action ends")]
-    public Enums.CleanupTarget cleanupOnExit = Enums.CleanupTarget.None;
 
     #region 属性封装
     public TimelineAsset TimelineAsset
@@ -44,12 +45,12 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
         set { if (_timelineAsset != value) _timelineAsset = value; }
     }
 
-    public Enums.ActionPriority Priority { get => _priority; } 
+    public Enums.ActionPriority PriorityLayer => _priorityLayer;
+    public int PriorityValue => _priorityValue;
+    public IReadOnlyList<ActionAsset> Branches => _branches;
+    public IReadOnlyList<ActionRuntimeTagBinding> SelfTags => _selfTags;
+
     public bool IsLoop { get => isLoop; }
-    public ActionAsset NextAction { get => nextAction; }
-    
-    // 标签数据
-    public TagReference SelfTag => _selfTag;
 
     public IReadOnlyList<ActionCondition> EntryConditions => _entryConditions.AsReadOnly();
 
@@ -73,7 +74,7 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
     /// </summary>
     public bool CheckEntry(Actor actor)
     {
-        if (_entryConditions == null || _entryConditions.Count == 0) 
+        if (_entryConditions == null || _entryConditions.Count == 0)
             return false;
 
         bool hasNormalConditions = false;
@@ -82,19 +83,19 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
         for (int i = 0; i < _entryConditions.Count; i++)
         {
             var cond = _entryConditions[i];
-            
-            bool isMet = cond.Check(actor); 
+
+            bool isMet = cond.Check(actor);
 
             if (cond.overrideAll)
             {
-                if (isMet) 
+                if (isMet)
                     return true;
             }
             else
             {
                 hasNormalConditions = true;
                 if (!isMet)
-                    allNormalPassed = false; 
+                    allNormalPassed = false;
             }
         }
 
@@ -103,7 +104,7 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
             return allNormalPassed;
         }
 
-        return false; 
+        return false;
     }
     #endregion
 
@@ -111,22 +112,55 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
 
     private void OnEnable()
     {
-        if (_entryConditions == null)
-            _entryConditions = new List<ActionCondition>(); // 反序列化后保证非 null
+        EnsureLists();
     }
 
     public void OnBeforeSerialize() { }
 
     public void OnAfterDeserialize()
     {
+        EnsureLists();
+        MigrateLegacySelfTag();
+    }
+
+    private void EnsureLists()
+    {
         if (_entryConditions == null)
-            _entryConditions = new List<ActionCondition>(); // 反序列化后保证非 null
+            _entryConditions = new List<ActionCondition>();
+        if (_branches == null)
+            _branches = new List<ActionAsset>();
+        if (_selfTags == null)
+            _selfTags = new List<ActionRuntimeTagBinding>();
+    }
+
+    private void MigrateLegacySelfTag()
+    {
+        if (_legacySelfTag == null)
+            return;
+
+        Tag legacy = _legacySelfTag.GetTag();
+        if (legacy == null)
+            return;
+
+        foreach (var b in _selfTags)
+        {
+            if (b?.tag == null) continue;
+            Tag t = b.tag.GetTag();
+            if (t != null && t.Id == legacy.Id)
+                return;
+        }
+
+        _selfTags.Add(new ActionRuntimeTagBinding
+        {
+            tag = _legacySelfTag,
+            targetContainer = ActorTagContainerType.Transient
+        });
     }
 
     private void MarkDirty()
     {
 #if UNITY_EDITOR
-        UnityEditor.EditorUtility.SetDirty(this); 
+        UnityEditor.EditorUtility.SetDirty(this);
 #endif
     }
     #endregion

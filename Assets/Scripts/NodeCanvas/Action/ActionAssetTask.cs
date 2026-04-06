@@ -27,7 +27,7 @@ namespace NodeCanvas.Tasks.Actions {
 
         void PlayAction()
 		{
-			actor.value.actionPlayer.Play(actionToPlay.value);
+			actor.value.actionPlayer.BeginAction(actionToPlay.value);
         }
 
 		void OnActionStopped(ActionInstance action)

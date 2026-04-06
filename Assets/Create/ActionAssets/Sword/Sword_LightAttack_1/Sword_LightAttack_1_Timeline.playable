@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   tag:
     TagId: -928178065
+  targetContainer: 0
 --- !u!114 &-7826191901783359782
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -188,6 +189,8 @@ MonoBehaviour:
       serializedVersion: 2
       m_Bits: 64
     _baseDamage: 10
+    hitEventTag:
+      TagId: 0
   effects:
   - rid: 1001
   - rid: 1002
@@ -419,7 +422,7 @@ MonoBehaviour:
     m_PreExtrapolationMode: 0
     m_PostExtrapolationTime: 0
     m_PreExtrapolationTime: 0
-    m_DisplayName: State.Block.Attack
+    m_DisplayName: None
   m_Markers:
     m_Objects: []
 --- !u!114 &5315839517025902601
@@ -436,6 +439,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   tag:
     TagId: 305494886
+  targetContainer: 0
 --- !u!114 &5605502878688172774
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -617,6 +621,6 @@ MonoBehaviour:
     m_PreExtrapolationMode: 0
     m_PostExtrapolationTime: 0
     m_PreExtrapolationTime: 0
-    m_DisplayName: State.Block.Move
+    m_DisplayName: None
   m_Markers:
     m_Objects: []

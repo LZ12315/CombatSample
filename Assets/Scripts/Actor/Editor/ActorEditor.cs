@@ -25,14 +25,28 @@ public class ActorEditor : Editor
             return;
         }
 
-        if (actor.tagContainer == null)
+        if (actor.persistentTags == null && actor.transientTags == null)
         {
             EditorGUILayout.HelpBox("TagContainer 尚未初始化。", MessageType.Warning);
             return;
         }
 
-        var tags = actor.tagContainer.Tags;
-        
+        DrawContainer("Persistent Tags", actor.persistentTags);
+        EditorGUILayout.Space(6);
+        DrawContainer("Transient Tags", actor.transientTags);
+    }
+
+    private static void DrawContainer(string title, TagContainer container)
+    {
+        EditorGUILayout.LabelField(title, EditorStyles.boldLabel);
+
+        if (container == null)
+        {
+            EditorGUILayout.HelpBox("容器未初始化。", MessageType.None);
+            return;
+        }
+
+        var tags = container.Tags;
         if (tags.Count == 0)
         {
             EditorGUILayout.HelpBox("当前没有任何 Tag。", MessageType.None);
@@ -52,13 +66,13 @@ public class ActorEditor : Editor
         foreach (var tag in tags)
         {
             // 🌟 核心过滤：如果这个 Tag 不是叶子节点（说明它只是被顺带激活的父节点），直接跳过不显示！
-            if (!actor.tagContainer.IsLeafTagInContainer(tag))
+            if (!container.IsLeafTagInContainer(tag))
             {
                 continue;
             }
 
             displayCount++;
-            int count = actor.tagContainer.GetTagCount(tag);
+            int count = container.GetTagCount(tag);
             
             // 🌟 核心排版：开启水平布局
             EditorGUILayout.BeginHorizontal();
