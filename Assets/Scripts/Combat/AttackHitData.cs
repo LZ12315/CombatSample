@@ -28,7 +28,7 @@ public class AttackDataConfig
 {
     public LayerMask targetLayers = 1 << 8;
     public float _baseDamage = 10f;
-    [Tooltip("Optional Event.Hit.* tag to route the defender into a hit action. Always written to TransientTags by the defender.")]
+    [Tooltip("Optional Event.Hit.* tag to route the defender into a hit action via SendEvent.")]
     public TagReference hitEventTag;
 }
 

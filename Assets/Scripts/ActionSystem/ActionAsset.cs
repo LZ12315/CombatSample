@@ -6,6 +6,12 @@ using System.Collections.Generic;
 using CombatSample.Consts;
 using DeiveEx.TagTree;
 
+public enum ActionTriggerMode
+{
+    Poll  = 0,  // 轮询触发（攻击、翻滚、跳跃...）
+    Event = 1,  // 事件触发（受击、击飞、弹反...）
+}
+
 public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
 {
     [Header("Core")]
@@ -31,6 +37,13 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
     [SerializeField, HideInInspector, FormerlySerializedAs("_selfTag")]
     private TagReference _legacySelfTag;
 
+    [Header("Trigger")]
+    [SerializeField, Tooltip("Poll = 每帧轮询条件；Event = 仅由 SendEvent 触发")]
+    private ActionTriggerMode _triggerMode = ActionTriggerMode.Poll;
+
+    [SerializeField, Tooltip("仅 Event 模式生效，匹配 SendEvent 传入的 Tag")]
+    private TagReference _eventTriggerTag;
+
     [Header("Settings")]
     [SerializeField, Tooltip("Loop this action")]
     private bool isLoop = false;
@@ -51,6 +64,9 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
     public IReadOnlyList<ActionRuntimeTagBinding> SelfTags => _selfTags;
 
     public bool IsLoop { get => isLoop; }
+
+    public ActionTriggerMode TriggerMode => _triggerMode;
+    public TagReference EventTriggerTag => _eventTriggerTag;
 
     public IReadOnlyList<ActionCondition> EntryConditions => _entryConditions.AsReadOnly();
 
@@ -105,6 +121,48 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// 事件路径专用的条件检查：跳过输入相关条件（InputStateCondition / InputSequenceCondition），
+    /// 其余条件正常检查。用于 SendEvent 触发时的候选筛选。
+    /// </summary>
+    public bool CheckEntryForEvent(Actor actor)
+    {
+        if (_entryConditions == null || _entryConditions.Count == 0)
+            return true; // 事件 Action 无条件时默认通过（与 Poll 不同）
+
+        bool hasNormalConditions = false;
+        bool allNormalPassed = true;
+
+        for (int i = 0; i < _entryConditions.Count; i++)
+        {
+            var cond = _entryConditions[i];
+
+            // 跳过输入相关条件
+            if (cond is InputStateCondition || cond is InputSequenceCondition)
+                continue;
+
+            bool isMet = cond.Check(actor);
+
+            if (cond.overrideAll)
+            {
+                if (isMet)
+                    return true;
+            }
+            else
+            {
+                hasNormalConditions = true;
+                if (!isMet)
+                    allNormalPassed = false;
+            }
+        }
+
+        if (hasNormalConditions)
+            return allNormalPassed;
+
+        // 所有条件都被跳过了（全是输入条件），视为通过
+        return true;
     }
     #endregion
 

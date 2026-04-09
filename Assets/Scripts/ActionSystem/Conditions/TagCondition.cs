@@ -12,7 +12,7 @@ public class TagCondition : ActionCondition
     public ActorTagContainerType targetContainer = ActorTagContainerType.Transient;
 
     [Tooltip("Exact only matches the leaf tag itself. Fuzzy allows parent tags to match children.")]
-    public ActorTagMatchMode matchMode = ActorTagMatchMode.Fuzzy;
+    public ActorTagMatchMode matchMode = ActorTagMatchMode.Exact;
 
     // 注意：这里重写的是你在基类里定义好的无状态 OnCheck(Actor actor)
     protected override bool OnCheck(Actor actor)

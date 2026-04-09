@@ -8,6 +8,9 @@ public class ActionInstance
 
     public ActionData RuntimeData { get; private set; }
 
+    /// <summary>事件触发时携带的上下文参数，轮询触发时为 default。</summary>
+    public ActionEventContext EventContext { get; private set; }
+
     private Actor _actor;
 
     public ActionInstance(ActionAsset config)
@@ -16,9 +19,10 @@ public class ActionInstance
         ResetRuntimeData();
     }
 
-    public void OnEnter(Actor actor)
+    public void OnEnter(Actor actor, ActionEventContext context = default)
     {
         _actor = actor;
+        EventContext = context;
 
         var selfTags = Config.SelfTags;
         if (_actor != null && selfTags != null)
@@ -50,6 +54,7 @@ public class ActionInstance
         }
 
         _actor = null;
+        EventContext = default;
     }
 
     public void UpdateNormalizedTime(double normalizedTime)

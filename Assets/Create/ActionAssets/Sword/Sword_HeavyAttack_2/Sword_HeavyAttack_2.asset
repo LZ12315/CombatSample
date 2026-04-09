@@ -17,8 +17,12 @@ MonoBehaviour:
   _priorityValue: 0
   _branches: []
   _selfTags: []
+  _legacySelfTag:
+    TagId: 0
+  _triggerMode: 0
+  _eventTriggerTag:
+    TagId: 0
   isLoop: 0
-  nextAction: {fileID: 0}
   _entryConditions: []
   references:
     version: 2

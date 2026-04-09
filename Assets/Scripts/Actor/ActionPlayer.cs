@@ -13,6 +13,9 @@ public class ActionPlayer : MonoBehaviour
 
     public ActionInstance CurrentAction { get; private set; }
 
+    /// <summary>当前播放 Action 的事件上下文，供 Loop 重播时保留。</summary>
+    private ActionEventContext _currentContext;
+
     /// <summary>动作正常结束（时间走到末尾附近）且已完成 OnExit / 清 transient / 卸 Timeline 后触发。Loop 重播不会触发。</summary>
     public event Action<ActionInstance> OnActionFinished;
     /// <summary>动作被中断或切走时触发（非本组件 StopAction 先清空引用的情况）。</summary>
@@ -53,15 +56,17 @@ public class ActionPlayer : MonoBehaviour
 
         _director.playableAsset = null;
         _playbackSpeed = 1.0;
+        _currentContext = default;
     }
 
     /// <summary>播放指定动作：先 StopAction，再绑定 Timeline、OnEnter。</summary>
-    public void BeginAction(ActionAsset actionAsset)
+    public void BeginAction(ActionAsset actionAsset, ActionEventContext context = default)
     {
         StopAction();
+        _currentContext = context;
         if (!TryBindAndPlayTimeline(actionAsset))
             return;
-        CurrentAction?.OnEnter(_actor);
+        CurrentAction?.OnEnter(_actor, _currentContext);
     }
 
     private bool TryBindAndPlayTimeline(ActionAsset actionAsset)
@@ -128,7 +133,7 @@ public class ActionPlayer : MonoBehaviour
                 _playbackSpeed = 1.0;
 
                 if (TryBindAndPlayTimeline(cfg))
-                    CurrentAction?.OnEnter(_actor);
+                    CurrentAction?.OnEnter(_actor, _currentContext);
                 return;
             }
 

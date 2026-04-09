@@ -4,13 +4,13 @@ using UnityEngine.Timeline;
 
 public class ActionInputBufferCleanupClip : PlayableAsset
 {
-    [Header("Clip 开始时")]
+[Header("On Clip Start")]
     public bool clearOnClipStart;
 
-    [Header("Clip 正常结束")]
+[Header("On Clip End (Finished)")]
     public bool clearOnEndFinished;
 
-    [Header("Clip 被中断 / 切走")]
+[Header("On Clip End (Interrupted)")]
     public bool clearOnEndCut;
 
     public override Playable CreatePlayable(PlayableGraph graph, GameObject owner)

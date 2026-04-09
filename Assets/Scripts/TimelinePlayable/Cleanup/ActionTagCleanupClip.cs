@@ -8,28 +8,28 @@ using UnityEngine.Timeline;
 [Serializable]
 public class ActionTagCleanupPhaseConfig
 {
-    [Tooltip("在该时机执行标签清理")]
+[Tooltip("Enable tag cleanup at this phase")]
     public bool enabled;
 
-    [Tooltip("要清理的 Tag 容器")]
+[Tooltip("Which tag container to clean")]
     public ActorTagContainerType targetContainer = ActorTagContainerType.Transient;
 
-    [Tooltip("All：清空该容器。SpecifiedExact：逐项 RemoveTag。SpecifiedFuzzy：逐项 RemoveTagCompletely（子树）。")]
+[Tooltip("All: clear entire container. SpecifiedExact: remove each tag. SpecifiedFuzzy: remove each tag and its subtree.")]
     public ActionTagCleanupMode mode = ActionTagCleanupMode.All;
 
-    [Tooltip("非 All 时：要处理的 Tag 列表")]
+[Tooltip("Tags to process (ignored when mode is All)")]
     public List<TagReference> specifiedTags = new List<TagReference>();
 }
 
 public class ActionTagCleanupClip : PlayableAsset
 {
-    [Header("Clip 开始时")]
+[Header("On Clip Start")]
     public ActionTagCleanupPhaseConfig onClipStart = new ActionTagCleanupPhaseConfig();
 
-    [Header("Clip 正常结束")]
+[Header("On Clip End (Finished)")]
     public ActionTagCleanupPhaseConfig onEndFinished = new ActionTagCleanupPhaseConfig();
 
-    [Header("Clip 被中断 / 切走")]
+[Header("On Clip End (Interrupted)")]
     public ActionTagCleanupPhaseConfig onEndCut = new ActionTagCleanupPhaseConfig();
 
     public override Playable CreatePlayable(PlayableGraph graph, GameObject owner)
