@@ -54,7 +54,7 @@ public class ActorLocomotion : MonoBehaviour
     {
         _isActive = true;
 
-        _actor.movement.SetMovementMode(ActorMovement.MovementMode.CodeDriven);
+        _actor.movement.SetRootMotionApplyMode(ActorMovement.RootMotionApplyMode.External);
 
         EvaluateAndPlayMode();
     }
@@ -63,8 +63,7 @@ public class ActorLocomotion : MonoBehaviour
     {
         _isActive = false;
 
-        _actor.movement.SetCodeVelocity(Vector3.zero);
-        _actor.movement.SetMovementMode(ActorMovement.MovementMode.RootMotion);
+        _actor.movement.SetRootMotionApplyMode(ActorMovement.RootMotionApplyMode.Managed);
 
         _currentMode = null;
         ClearIntent();
@@ -122,31 +121,31 @@ public class ActorLocomotion : MonoBehaviour
             dir.y = 0f;
             if (dir.sqrMagnitude < 0.0001f)
             {
-                _actor.movement.SetCodeVelocity(Vector3.zero);
+                _actor.movement.SetLocomotionVelocity(Vector3.zero);
                 InjectAnimancerParameter(Vector2.zero);
                 return;
             }
             dir.Normalize();
 
-            _actor.movement.SetCodeVelocity(dir * (_intent.MoveStrength * speed));
+            _actor.movement.SetLocomotionVelocity(dir * (_intent.MoveStrength * speed));
         }
         else
         {
-            _actor.movement.SetCodeVelocity(Vector3.zero);
+            _actor.movement.SetLocomotionVelocity(Vector3.zero);
         }
 
         Vector3 face = _intent.FacingDirection;
         face.y = 0f;
         if (face.sqrMagnitude > 0.0001f)
         {
-            _actor.movement.UpdateRotation(face.normalized);
+            _actor.movement.SetFacing(face.normalized);
         }
         else if (hasMove)
         {
             Vector3 d = _intent.WorldMoveDirection;
             d.y = 0f;
             if (d.sqrMagnitude > 0.0001f)
-                _actor.movement.UpdateRotation(d.normalized);
+                _actor.movement.SetFacing(d.normalized);
         }
 
         InjectAnimancerParameter(hasMove ? _intent.Mixer2D : Vector2.zero);

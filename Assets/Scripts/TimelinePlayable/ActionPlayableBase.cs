@@ -10,7 +10,12 @@ public abstract class ActionTrackBase : TrackAsset{ }
 
 public abstract class ActionBehaviourBase : PlayableBehaviour
 {
-    protected Actor actor = null;
+    /// <summary>当前正在执行的 ActionInstance，OnGraphStart 时从 ActionPlayer 获取。</summary>
+    protected ActionInstance actionInstance = null;
+
+    /// <summary>便捷属性：等价于 actionInstance?.Actor，子类无需改动即可继续使用。</summary>
+    protected Actor actor => actionInstance?.Actor;
+
     protected Enums.ActionClipState state = Enums.ActionClipState.Idle;
 
     protected virtual void OnClipInit(Playable playable) { }
@@ -36,15 +41,16 @@ public abstract class ActionBehaviourBase : PlayableBehaviour
         var director = playable.GetGraph().GetResolver() as PlayableDirector;
         if (director == null) return;
 
-        actor = director.GetComponent<Actor>();
-        if (actor == null)
+        // 优先从 ActionPlayer 获取当前 ActionInstance
+        var actionPlayer = director.GetComponent<ActionPlayer>();
+        if (actionPlayer == null)
+            actionPlayer = director.GetComponentInParent<ActionPlayer>();
+
+        actionInstance = actionPlayer?.CurrentAction;
+
+        if (actionInstance?.Actor == null)
         {
-            actor = director.GetComponentInParent<Actor>();
-            if (actor == null)
-            {
-                Debug.LogWarning("ActionPlayableBase: No Actor found on PlayableDirector or its parents.");
-                return;
-            }
+            Debug.LogWarning("ActionPlayableBase: No ActionInstance or Actor found. Timeline Clip may not work correctly.");
         }
 
         OnClipInit(playable);

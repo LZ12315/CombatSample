@@ -11,7 +11,8 @@ public class ActionInstance
     /// <summary>事件触发时携带的上下文参数，轮询触发时为 default。</summary>
     public ActionEventContext EventContext { get; private set; }
 
-    private Actor _actor;
+    /// <summary>当前持有此 ActionInstance 的 Actor，OnEnter 时赋值，OnExit 时清空。</summary>
+    public Actor Actor { get; private set; }
 
     public ActionInstance(ActionAsset config)
     {
@@ -21,11 +22,11 @@ public class ActionInstance
 
     public void OnEnter(Actor actor, ActionEventContext context = default)
     {
-        _actor = actor;
+        Actor = actor;
         EventContext = context;
 
         var selfTags = Config.SelfTags;
-        if (_actor != null && selfTags != null)
+        if (Actor != null && selfTags != null)
         {
             for (int i = 0; i < selfTags.Count; i++)
             {
@@ -33,7 +34,7 @@ public class ActionInstance
                 if (binding?.tag == null) continue;
                 Tag tagObj = binding.tag.GetTag();
                 if (tagObj != null)
-                    _actor.AddTag(tagObj, binding.targetContainer);
+                    Actor.AddTag(tagObj, binding.targetContainer);
             }
         }
     }
@@ -41,7 +42,7 @@ public class ActionInstance
     public void OnExit()
     {
         var selfTags = Config.SelfTags;
-        if (_actor != null && selfTags != null)
+        if (Actor != null && selfTags != null)
         {
             for (int i = 0; i < selfTags.Count; i++)
             {
@@ -49,11 +50,11 @@ public class ActionInstance
                 if (binding?.tag == null) continue;
                 Tag tagObj = binding.tag.GetTag();
                 if (tagObj != null)
-                    _actor.RemoveTag(tagObj, binding.targetContainer);
+                    Actor.RemoveTag(tagObj, binding.targetContainer);
             }
         }
 
-        _actor = null;
+        Actor = null;
         EventContext = default;
     }
 

@@ -23,7 +23,6 @@ public sealed class ActionMagnetismSession
     public void Begin()
     {
         _hasCachedHorizontalDir = false;
-        _actor?.movement?.SetRotationSpeedOverride(-1f);
     }
 
     public void Tick()
@@ -64,17 +63,16 @@ public sealed class ActionMagnetismSession
             faceDir.y = 0f;
 
         if (_config.rotationMode == MagnetismRotationMode.InstantSnap || _config.rotationAngularSpeed <= 0f)
-            _actor.movement.SetRotationInstant(faceDir);
+            _actor.movement.SnapFacing(faceDir);
         else
         {
-            _actor.movement.SetRotationSpeedOverride(_config.rotationAngularSpeed);
-            _actor.movement.UpdateRotation(faceDir);
+            _actor.movement.SetFacingOverride(faceDir, _config.rotationAngularSpeed);
         }
     }
 
     public void End()
     {
         _hasCachedHorizontalDir = false;
-        _actor?.movement?.SetRotationSpeedOverride(-1f);
+        _actor?.movement?.ClearFacingOverride();
     }
 }
