@@ -34,7 +34,8 @@ public class ActorCombater : MonoBehaviour, IDamageable
 
         if (_debugLog)
         {
-            Debug.Log($"[受到伤害] 来源: {attackData.Attacker.name}, " +
+            string attackerName = attackData.Attacker != null ? attackData.Attacker.name : "Unknown";
+            Debug.Log($"[受到伤害] 来源: {attackerName}, " +
                      $"伤害: {attackData.Damage}, " +
                      $"剩余生命: {_currentHealth}/{_maxHealth}");
         }
@@ -48,7 +49,8 @@ public class ActorCombater : MonoBehaviour, IDamageable
 
     private void Die(AttackHitData attackData)
     {
-        if (_debugLog) Debug.Log($"[死亡] {name} 被 {attackData.Attacker.name} 击败");
+        string attackerName = attackData.Attacker != null ? attackData.Attacker.name : "Unknown";
+        if (_debugLog) Debug.Log($"[死亡] {name} 被 {attackerName} 击败");
         // 死亡处理（动画、特效、掉落等）
         gameObject.SetActive(false);
     }

@@ -36,13 +36,16 @@ public class ActionHitBoxBehavior : ActionBehaviourBase
         collider = hitboxObject.AddComponent<CapsuleCollider>();
         collider.isTrigger = true;
 
-        // Add AttackHandler
-        var hitbox = collider.gameObject.AddComponent<AttackHandler>();
-        hitbox.Init(actor.combater, dataConfig);
+        // 运行时才挂载 AttackHandler（编辑器预览时只做碰撞体可视化）
+        if (!IsEditorPreview && actor != null && actor.combater != null)
+        {
+            var hitbox = collider.gameObject.AddComponent<AttackHandler>();
+            hitbox.Init(actor.combater, dataConfig);
 
-        // Register event
-        hitbox.RegisterHitStartEvent(this, OnHitStart);
-        hitbox.RegisterHitOverEvent(this, OnHitOver);
+            // Register event
+            hitbox.RegisterHitStartEvent(this, OnHitStart);
+            hitbox.RegisterHitOverEvent(this, OnHitOver);
+        }
 
         // Add Updater
         var updater = hitboxObject.AddComponent<HitBoxUpdater>();
@@ -68,9 +71,13 @@ public class ActionHitBoxBehavior : ActionBehaviourBase
     {
         if (hitboxObject == null) return;
 
-        var hitbox = collider.gameObject.GetComponent<AttackHandler>();
-        hitbox.UnregisterHitStartEvent(this);
-        hitbox.UnregisterHitOverEvent(this);
+        // 只有运行时才有 AttackHandler
+        var hitbox = hitboxObject.GetComponent<AttackHandler>();
+        if (hitbox != null)
+        {
+            hitbox.UnregisterHitStartEvent(this);
+            hitbox.UnregisterHitOverEvent(this);
+        }
 
         var updater = hitboxObject.GetComponent<HitBoxUpdater>();
         if (updater != null)

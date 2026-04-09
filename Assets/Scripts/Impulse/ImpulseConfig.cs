@@ -2,31 +2,50 @@ using System;
 using UnityEngine;
 
 /// <summary>
-/// 冲量配置数据 — 定义一段 ImpulseClip 的水平/垂直力度、衰减曲线、重力缩放等参数。
-/// 放在 Timeline 的 ActionImpulseClip 上，由 ActionImpulseBehavior 在运行时读取。
+/// Direction source mode for impulse.
+/// </summary>
+public enum ImpulseDirectionMode
+{
+    /// <summary>Use EventContext.Direction (attacker→victim snapshot at hit moment). Most common knockback mode.</summary>
+    FromContext,
+    /// <summary>Recalculate Instigator→Self direction every frame. For tracking a moving attacker.</summary>
+    FromInstigator,
+    /// <summary>Use self transform.forward. For dash / active-skill forward movement.</summary>
+    ActorForward,
+    /// <summary>Use self -transform.forward. For backward dodge.</summary>
+    ActorBackward,
+    /// <summary>Use a fixed local direction configured on the clip. For cinematic / fixed-angle launch.</summary>
+    Fixed,
+}
+
+/// <summary>
+/// Impulse configuration — defines horizontal/vertical force, decay curve, gravity scale, etc.
+/// Attached to ActionImpulseClip on a Timeline, read by ActionImpulseBehavior at runtime.
 /// </summary>
 [Serializable]
 public class ImpulseConfig
 {
-    [Header("水平冲量")]
-    [Tooltip("水平初速度（米/秒），沿 EventContext.Direction 的水平投影方向")]
+    [Tooltip("Direction source mode for this impulse")]
+    public ImpulseDirectionMode directionMode = ImpulseDirectionMode.FromContext;
+
+    [Tooltip("Local direction in Fixed mode (relative to actor facing, e.g. (0,0,1)=forward, (0,0,-1)=backward)")]
+    public Vector3 fixedLocalDirection = Vector3.forward;
+
+    [Tooltip("Horizontal initial speed (m/s) along the resolved direction")]
     public float horizontalForce = 5f;
 
-    [Tooltip("水平力度随 Clip 时间的衰减曲线（X: 0~1 归一化时间，Y: 力度百分比）")]
+    [Tooltip("Horizontal force decay over clip time (X: 0~1 normalized time, Y: force multiplier)")]
     public AnimationCurve horizontalDecay = AnimationCurve.Linear(0f, 1f, 1f, 0f);
 
-    [Header("垂直冲量")]
-    [Tooltip("垂直初速度（米/秒），正值=向上。仅在 Clip 开始时注入一次，之后由重力自然衰减")]
+    [Tooltip("Vertical initial speed (m/s), positive = up. Injected once at clip start, then decays by gravity")]
     public float verticalForce = 0f;
 
-    [Header("重力")]
-    [Tooltip("此 Clip 期间的重力缩放（0=浮空, 1=正常, 2=加速下落）")]
+    [Tooltip("Gravity scale during this clip (0 = float, 1 = normal, 2 = fast fall)")]
     public float gravityScale = 1f;
 
-    [Header("朝向")]
-    [Tooltip("冲量期间是否锁定朝向")]
+    [Tooltip("Lock actor facing during impulse")]
     public bool lockFacing = true;
 
-    [Header("调试")]
+    [Tooltip("Print debug info to console")]
     public bool debugLog = false;
 }

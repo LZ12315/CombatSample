@@ -13,8 +13,16 @@ public abstract class ActionBehaviourBase : PlayableBehaviour
     /// <summary>当前正在执行的 ActionInstance，OnGraphStart 时从 ActionPlayer 获取。</summary>
     protected ActionInstance actionInstance = null;
 
-    /// <summary>便捷属性：等价于 actionInstance?.Actor，子类无需改动即可继续使用。</summary>
-    protected Actor actor => actionInstance?.Actor;
+    /// <summary>编辑器预览时的 fallback Actor（无 ActionInstance 时从 GameObject 直接获取）。</summary>
+    private Actor _fallbackActor = null;
+
+    /// <summary>
+    /// 便捷属性：运行时从 ActionInstance 获取 Actor；编辑器预览时 fallback 到 Director 所在 GameObject 上的 Actor。
+    /// </summary>
+    protected Actor actor => actionInstance?.Actor ?? _fallbackActor;
+
+    /// <summary>是否处于编辑器预览模式（非运行时）。子类可用此属性区分运行时与编辑器预览，做不同处理。</summary>
+    protected bool IsEditorPreview => !Application.isPlaying;
 
     protected Enums.ActionClipState state = Enums.ActionClipState.Idle;
 
@@ -48,9 +56,22 @@ public abstract class ActionBehaviourBase : PlayableBehaviour
 
         actionInstance = actionPlayer?.CurrentAction;
 
-        if (actionInstance?.Actor == null)
+        if (actionInstance == null)
         {
-            Debug.LogWarning("ActionPlayableBase: No ActionInstance or Actor found. Timeline Clip may not work correctly.");
+            if (Application.isPlaying)
+            {
+                // 运行时没有 ActionInstance 是异常情况，打 Warning 帮助排查
+                Debug.LogWarning($"[ActionPlayableBase] Runtime but no ActionInstance found on {director.name}. Clip may not work correctly.");
+            }
+
+            // 编辑器预览 fallback：直接从 Director 所在 GameObject 获取 Actor
+            _fallbackActor = director.GetComponent<Actor>();
+            if (_fallbackActor == null)
+                _fallbackActor = director.GetComponentInParent<Actor>();
+        }
+        else
+        {
+            _fallbackActor = null;
         }
 
         OnClipInit(playable);

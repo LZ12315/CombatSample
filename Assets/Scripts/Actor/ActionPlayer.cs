@@ -64,9 +64,7 @@ public class ActionPlayer : MonoBehaviour
     {
         StopAction();
         _currentContext = context;
-        if (!TryBindAndPlayTimeline(actionAsset))
-            return;
-        CurrentAction?.OnEnter(_actor, _currentContext);
+        TryBindAndPlayTimeline(actionAsset);
     }
 
     private bool TryBindAndPlayTimeline(ActionAsset actionAsset)
@@ -78,6 +76,9 @@ public class ActionPlayer : MonoBehaviour
         }
 
         CurrentAction = actionAsset.CreateActionInstance();
+        // 必须在 Play/Evaluate 之前调用 OnEnter，
+        // 因为 Evaluate 会立即触发 OnClipStart，此时 Timeline Clip 需要访问 Actor。
+        CurrentAction.OnEnter(_actor, _currentContext);
         _director.playableAsset = CurrentAction.Config.TimelineAsset;
         _director.time = 0;
         _playbackSpeed = 1.0;
@@ -132,8 +133,7 @@ public class ActionPlayer : MonoBehaviour
                 _director.playableAsset = null;
                 _playbackSpeed = 1.0;
 
-                if (TryBindAndPlayTimeline(cfg))
-                    CurrentAction?.OnEnter(_actor, _currentContext);
+                TryBindAndPlayTimeline(cfg);
                 return;
             }
 

@@ -27,6 +27,7 @@ public class AttackHandler : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
+        if (combating == null || config == null) return;
         if (((1 << other.gameObject.layer) & config.targetLayers) != 0)
         {
             if(attackedObjects.Contains(other)) return;

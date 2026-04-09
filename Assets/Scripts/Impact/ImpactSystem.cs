@@ -228,8 +228,8 @@ public class ImpactSystem : MonoBehaviour
         {
             // Prefabs often use Scaling Mode = Local, which ignores parent scale.
             // Clip "scale" is applied on the root; switch to Hierarchy so it takes effect.
-            ps.scalingMode = ParticleSystemScalingMode.Hierarchy;
             var main = ps.main;
+            main.scalingMode = ParticleSystemScalingMode.Hierarchy;
             main.simulationSpeed = speed;
         }
 
