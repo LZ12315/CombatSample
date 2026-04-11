@@ -12,6 +12,12 @@ public enum ActionTriggerMode
     Event = 1,  // 事件触发（受击、击飞、弹反...）
 }
 
+public enum ActionStartContextMode
+{
+    None = 0,
+    LocomotionIntent = 1,
+}
+
 public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
 {
     [Header("Core")]
@@ -44,6 +50,9 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
     [SerializeField, Tooltip("仅 Event 模式生效，匹配 SendEvent 传入的 Tag")]
     private TagReference _eventTriggerTag;
 
+    [SerializeField, Tooltip("Action 开始时如何采样上下文快照。Event 模式通常直接使用 SendEvent 传入的数据。")]
+    private ActionStartContextMode _startContextMode = ActionStartContextMode.None;
+
     [Header("Settings")]
     [SerializeField, Tooltip("Loop this action")]
     private bool isLoop = false;
@@ -67,6 +76,7 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
 
     public ActionTriggerMode TriggerMode => _triggerMode;
     public TagReference EventTriggerTag => _eventTriggerTag;
+    public ActionStartContextMode StartContextMode => _startContextMode;
 
     public IReadOnlyList<ActionCondition> EntryConditions => _entryConditions.AsReadOnly();
 

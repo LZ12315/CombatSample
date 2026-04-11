@@ -33,13 +33,12 @@ class AnimancerClipEditor : ActionClipEditorBase
 
     protected override void OnClipChange(TimelineClip clip)
     {
-        //更新Clip名称为动画名称
+        if (clip == null) return;
+
         var asset = clip.asset as AnimancerClip;
         if (asset == null || asset.transitionAsset == null) return;
 
-        ClipTransition clipTransition = asset.transitionAsset.Transition as ClipTransition;
-        if (clipTransition.Clip != null)
-            clip.displayName = clipTransition.Clip.name;
+        clip.displayName = AnimancerTransitionUtility.GetDisplayName(asset.transitionAsset);
     }
 
     protected override void SetClipDurationOnStart(TimelineClip clip, TrackAsset track, TimelineClip clonedFrom)

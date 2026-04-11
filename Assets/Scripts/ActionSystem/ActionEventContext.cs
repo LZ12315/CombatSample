@@ -1,9 +1,9 @@
 using UnityEngine;
 
 /// <summary>
-/// 事件触发 Action 时携带的上下文数据。
-/// 类似 UE 的 FGameplayEventData —— 通用信封，Action 自己决定取什么。
-/// 轮询触发的 Action 不需要此结构，直接从 Actor 身上读取信息即可。
+/// Action 开始时携带的上下文快照。
+/// 事件触发与“启动即锁定”的轮询动作都可以复用这份数据；
+/// Action / Timeline 自己决定读取哪些字段。
 /// </summary>
 public struct ActionEventContext
 {
@@ -22,6 +22,10 @@ public struct ActionEventContext
     /// <summary>通用数值（如力度、伤害等，Action 自己解读）</summary>
     public float Magnitude;
 
-    /// <summary>当 Instigator 不为 null 或 Direction 有有效值时返回 true</summary>
-    public bool IsValid => Instigator != null || Direction.sqrMagnitude > 0.001f;
+    /// <summary>当包含有效引用、方向或数值时返回 true。</summary>
+    public bool IsValid =>
+        Instigator != null ||
+        Target != null ||
+        Direction.sqrMagnitude > 0.001f ||
+        Mathf.Abs(Magnitude) > 0.001f;
 }

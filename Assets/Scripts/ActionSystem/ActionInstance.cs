@@ -8,7 +8,7 @@ public class ActionInstance
 
     public ActionData RuntimeData { get; private set; }
 
-    /// <summary>事件触发时携带的上下文参数，轮询触发时为 default。</summary>
+    /// <summary>本次 Action 开始时的上下文快照；无快照需求时为 default。</summary>
     public ActionEventContext EventContext { get; private set; }
 
     /// <summary>当前持有此 ActionInstance 的 Actor，OnEnter 时赋值，OnExit 时清空。</summary>

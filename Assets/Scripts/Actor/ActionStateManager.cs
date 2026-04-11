@@ -52,11 +52,13 @@ public class ActionStateManager : MonoBehaviour
 
         if (chosen != null)
         {
+            ActionEventContext startContext = ResolveStartContext(chosen);
+
             if (_currentControl == ControlState.Locomotion)
                 _actor.locomotion.StopLocomotion();
 
             _currentControl = ControlState.Action;
-            PlayNewAction(chosen);
+            PlayNewAction(chosen, startContext);
         }
         else if (_actor.locomotion.CheckConditions())
         {
@@ -80,9 +82,44 @@ public class ActionStateManager : MonoBehaviour
         _externalCandidatesThisFrame.Add(action);
     }
 
-    private void PlayNewAction(ActionAsset actionToPlay)
+    private void PlayNewAction(ActionAsset actionToPlay, ActionEventContext startContext)
     {
-        _actionPlayer.BeginAction(actionToPlay, _pendingEventContext);
+        _actionPlayer.BeginAction(actionToPlay, startContext);
+    }
+
+    private ActionEventContext ResolveStartContext(ActionAsset actionToPlay)
+    {
+        if (actionToPlay == null)
+            return default;
+
+        if (actionToPlay.TriggerMode == ActionTriggerMode.Event)
+            return _pendingEventContext;
+
+        return actionToPlay.StartContextMode switch
+        {
+            ActionStartContextMode.LocomotionIntent => BuildContextFromLocomotionIntent(),
+            _ => default
+        };
+    }
+
+    private ActionEventContext BuildContextFromLocomotionIntent()
+    {
+        if (_actor == null || _actor.locomotion == null)
+            return default;
+
+        var intent = _actor.locomotion.CurrentIntent;
+        var direction = intent.WorldMoveDirection;
+        direction.y = 0f;
+        if (direction.sqrMagnitude > 0.0001f)
+            direction.Normalize();
+        else
+            direction = Vector3.zero;
+
+        return new ActionEventContext
+        {
+            Direction = direction,
+            Magnitude = Mathf.Clamp01(intent.MoveStrength),
+        };
     }
 
     private void StopCurrentAction()

@@ -12,6 +12,9 @@ public class AnimancerBehaviour : ActionBehaviourBase
     // --- 配置数据 ---
     [Tooltip("Drag a ClipTransition (attacks) or MixerTransition2D (8-way dodge).")]
     public TransitionAsset transitionAsset;
+    public AnimancerParameterMode parameterMode;
+    public Vector2 fallbackVector2;
+    public float fallbackFloat;
 
     // --- 运行时状态 ---
     private AnimancerState _currentState;
@@ -30,27 +33,7 @@ public class AnimancerBehaviour : ActionBehaviourBase
 
         // 1. 无论什么类型，先播放！这会返回真正运行时的 AnimancerState
         _currentState = actor.animancer.Play(transition);
-
-        // ==========================================
-        // ? 亮点：如果运行时状态是一个 2D 混合树 (如八向闪避)
-        // ==========================================
-        if (_currentState is MixerState<Vector2> mixerState)
-        {
-            // 仅仅在动作开始的第一帧，获取一次玩家的摇杆输入
-            Vector2 dodgeInput = actor.logicInput != null ? actor.logicInput.MoveInput : Vector2.zero;
-            
-            // 动作承诺：哪怕玩家摇杆没推到底，也按极限方向翻滚
-            if (dodgeInput.sqrMagnitude > 0.01f)
-            {
-                mixerState.Parameter = dodgeInput.normalized; 
-            }
-            else
-            {
-                // 默认向后闪避 (0, -1)
-                mixerState.Parameter = new Vector2(0, -1f); 
-            }
-        }
-        // ==========================================
+        InitializeMixerParameter();
 
         // 同步时间 (防止跳帧)
         if (_currentState != null)
@@ -124,6 +107,64 @@ public class AnimancerBehaviour : ActionBehaviourBase
     protected override void CleanUp()
     {
         _currentState = null;
+    }
+
+    private void InitializeMixerParameter()
+    {
+        if (_currentState is MixerState<Vector2> mixer2D)
+        {
+            switch (parameterMode)
+            {
+                case AnimancerParameterMode.ContextDirection2D:
+                    mixer2D.Parameter = TryGetContextDirection2D(out var dir2D) ? dir2D : fallbackVector2;
+                    break;
+                case AnimancerParameterMode.SerializedFallback:
+                    mixer2D.Parameter = fallbackVector2;
+                    break;
+            }
+        }
+        else if (_currentState is MixerState<float> mixer1D)
+        {
+            switch (parameterMode)
+            {
+                case AnimancerParameterMode.ContextMagnitude:
+                    mixer1D.Parameter = TryGetContextMagnitude(out var magnitude) ? magnitude : fallbackFloat;
+                    break;
+                case AnimancerParameterMode.SerializedFallback:
+                    mixer1D.Parameter = fallbackFloat;
+                    break;
+            }
+        }
+    }
+
+    private bool TryGetContextDirection2D(out Vector2 parameter)
+    {
+        parameter = fallbackVector2;
+        if (actionInstance == null || actor == null)
+            return false;
+
+        Vector3 direction = actionInstance.EventContext.Direction;
+        direction.y = 0f;
+        if (direction.sqrMagnitude <= 0.0001f)
+            return false;
+
+        Vector3 localDirection = actor.transform.InverseTransformDirection(direction.normalized);
+        parameter = new Vector2(localDirection.x, localDirection.z);
+        if (parameter.sqrMagnitude <= 0.0001f)
+            return false;
+
+        parameter.Normalize();
+        return true;
+    }
+
+    private bool TryGetContextMagnitude(out float magnitude)
+    {
+        magnitude = fallbackFloat;
+        if (actionInstance == null)
+            return false;
+
+        magnitude = actionInstance.EventContext.Magnitude;
+        return Mathf.Abs(magnitude) > 0.001f;
     }
 
     #endregion

@@ -69,7 +69,6 @@ public class ActionAssetHelper
                 if (directorInPrefab != null) return directorInPrefab;
             }
         }
-
         // 优先级3: 全局查找任意一个
         return Object.FindObjectOfType<PlayableDirector>();
     }
