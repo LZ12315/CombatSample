@@ -321,7 +321,7 @@ MonoBehaviour:
   m_Name: ActionImpulseClip
   m_EditorClassIdentifier: 
   config:
-    directionMode: 2
+    directionMode: 0
     fixedLocalDirection: {x: 0, y: 0, z: 1}
     horizontalForce: 20
     horizontalDecay:
