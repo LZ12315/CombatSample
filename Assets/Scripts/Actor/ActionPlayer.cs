@@ -13,7 +13,7 @@ public class ActionPlayer : MonoBehaviour
 
     public ActionInstance CurrentAction { get; private set; }
 
-    /// <summary>当前播放 Action 的事件上下文，供 Loop 重播时保留。</summary>
+    /// <summary>当前播放 Action 的启动上下文快照，供 Loop 重播时保留。</summary>
     private ActionEventContext _currentContext;
 
     /// <summary>动作正常结束（时间走到末尾附近）且已完成 OnExit / 清 transient / 卸 Timeline 后触发。Loop 重播不会触发。</summary>

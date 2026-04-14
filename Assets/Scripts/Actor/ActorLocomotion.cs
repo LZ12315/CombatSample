@@ -28,6 +28,7 @@ public class ActorLocomotion : MonoBehaviour
     private LocomotionIntent _intent = LocomotionIntent.Idle;
 
     public bool IsActive => _isActive;
+    public LocomotionIntent CurrentIntent => _intent;
 
     public bool CheckConditions()
     {
