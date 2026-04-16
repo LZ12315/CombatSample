@@ -65,10 +65,6 @@ public class AnimancerBehaviour : ActionBehaviourBase
 
         // 同步 Timeline 速度给 Animancer
         _currentState.Speed = info.effectiveSpeed;
-
-        // CharacterVelocity 模式：每帧从实际速度推算 Mixer 参数
-        if (parameterMode == AnimancerParameterMode.CharacterVelocity)
-            UpdateMixerFromVelocity();
     }
 
     /// <summary>
@@ -114,10 +110,6 @@ public class AnimancerBehaviour : ActionBehaviourBase
 
     private void InitializeMixerParameter()
     {
-        // CharacterVelocity 模式不需要初始化，由 OnClipUpdate 每帧驱动
-        if (parameterMode == AnimancerParameterMode.CharacterVelocity)
-            return;
-
         if (_currentState is MixerState<Vector2> mixer2D)
         {
             switch (parameterMode)
@@ -172,42 +164,6 @@ public class AnimancerBehaviour : ActionBehaviourBase
 
         magnitude = actionInstance.EventContext.Magnitude;
         return Mathf.Abs(magnitude) > 0.001f;
-    }
-
-    /// <summary>
-    /// CharacterVelocity 模式：从角色实际移动速度推算 Mixer 参数。
-    /// 将世界速度转到角色本地空间，归一化后写入 Mixer。
-    /// </summary>
-    private void UpdateMixerFromVelocity()
-    {
-        if (actor?.movement == null) return;
-
-        Vector3 velocity = actor.movement.CurrentVelocity;
-        velocity.y = 0f; // 只看水平速度
-
-        if (_currentState is MixerState<Vector2> mixer2D)
-        {
-            // 将世界速度转到角色本地空间
-            Vector3 localVel = actor.transform.InverseTransformDirection(velocity);
-            float maxSpeed = actor.movement.LocomotionBaseSpeed;
-            if (maxSpeed > 0.001f)
-            {
-                Vector2 param = new Vector2(localVel.x / maxSpeed, localVel.z / maxSpeed);
-                // Clamp 防止超出 Mixer 范围
-                if (param.sqrMagnitude > 1f) param.Normalize();
-                mixer2D.Parameter = param;
-            }
-            else
-            {
-                mixer2D.Parameter = Vector2.zero;
-            }
-        }
-        else if (_currentState is MixerState<float> mixer1D)
-        {
-            float speed = velocity.magnitude;
-            float maxSpeed = actor.movement.LocomotionBaseSpeed;
-            mixer1D.Parameter = maxSpeed > 0.001f ? speed / maxSpeed : 0f;
-        }
     }
 
     #endregion

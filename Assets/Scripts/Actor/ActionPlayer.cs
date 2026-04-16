@@ -126,14 +126,11 @@ public class ActionPlayer : MonoBehaviour
         {
             if (finished.Config.IsLoop)
             {
-                var cfg = finished.Config;
-                finished.OnExit();
-                _actor?.ClearTransientTags();
-                CurrentAction = null;
-                _director.playableAsset = null;
-                _playbackSpeed = 1.0;
-
-                TryBindAndPlayTimeline(cfg);
+                // Loop 重播：直接让 Director 从头播放，不打断 ActionInstance 和动画状态。
+                // 不执行 OnExit/OnEnter，避免 Movement 状态闪烁和动画重启。
+                finished.ResetRuntimeData();
+                _director.time = 0;
+                _director.Play();
                 return;
             }
 

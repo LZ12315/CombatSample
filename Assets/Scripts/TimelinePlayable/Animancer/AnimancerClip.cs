@@ -9,8 +9,6 @@ public enum AnimancerParameterMode
     ContextDirection2D = 1,
     ContextMagnitude = 2,
     SerializedFallback = 3,
-    /// <summary>从角色实际移动速度推算 Mixer 参数（每帧更新）。用于 Locomotion 动作。</summary>
-    CharacterVelocity = 4,
 }
 
 [System.Serializable]

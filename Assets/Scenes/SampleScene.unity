@@ -102632,6 +102632,11 @@ PrefabInstance:
       propertyPath: m_LocalRotation.z
       value: 0.0000026971093
       objectReference: {fileID: 0}
+    - target: {fileID: 5640355854909903216, guid: 4aefcec7dfa653045b3e829d88e318cf,
+        type: 3}
+      propertyPath: _actor
+      value: 
+      objectReference: {fileID: 1994376892}
     - target: {fileID: 5640914396180100562, guid: 4aefcec7dfa653045b3e829d88e318cf,
         type: 3}
       propertyPath: m_Layer
@@ -103408,7 +103413,7 @@ PrefabInstance:
         type: 3}
       propertyPath: m_PlayableAsset
       value: 
-      objectReference: {fileID: 11400000, guid: a414f4d7063c4a04097121e96fe7f47b,
+      objectReference: {fileID: 11400000, guid: 8f54cf586e66c7247aa4e7818515f14c,
         type: 2}
     - target: {fileID: 8825520963601313315, guid: 4aefcec7dfa653045b3e829d88e318cf,
         type: 3}

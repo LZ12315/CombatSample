@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _timelineAsset: {fileID: 11400000, guid: a414f4d7063c4a04097121e96fe7f47b, type: 2}
   _priorityLayer: 0
-  _priorityValue: 0
+  _priorityValue: 1
   _branches: []
   _selfTags: []
   _legacySelfTag:
