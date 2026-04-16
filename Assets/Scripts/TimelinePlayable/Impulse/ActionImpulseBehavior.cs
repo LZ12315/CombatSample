@@ -3,9 +3,9 @@ using UnityEngine.Playables;
 
 /// <summary>
 /// ImpulseClip 运行时逻辑：
-/// - OnClipStart：读取 EventContext 方向，注入垂直初速度，设置重力缩放，锁定朝向
+/// - OnClipStart：读取 EventContext 方向，注入垂直初速度，设置重力缩放
 /// - OnClipUpdate：每帧写入水平冲量（曲线衰减）
-/// - OnClipStop：恢复重力缩放，解锁朝向
+/// - OnClipStop：恢复重力缩放
 /// </summary>
 public class ActionImpulseBehavior : ActionBehaviourBase
 {
@@ -31,19 +31,13 @@ public class ActionImpulseBehavior : ActionBehaviourBase
         // 2. 缓存 Clip 时长
         _clipDuration = playable.GetDuration();
 
-        // 3. 锁定朝向
-        if (config.lockFacing)
-        {
-            actor.movement.LockFacing();
-        }
-
-        // 4. 注入垂直初速度到重力通道（一次性，之后由重力自然衰减）
+        // 3. 注入垂直初速度到重力通道（一次性，之后由重力自然衰减）
         if (Mathf.Abs(config.verticalForce) > 0.001f)
         {
             actor.movement.SetVerticalVelocity(config.verticalForce);
         }
 
-        // 5. 设置重力缩放
+        // 4. 设置重力缩放
         actor.movement.SetGravityScale(config.gravityScale);
 
         if (config.debugLog)
@@ -88,12 +82,6 @@ public class ActionImpulseBehavior : ActionBehaviourBase
 
         // 恢复重力缩放
         actor.movement.SetGravityScale(1f);
-
-        // 解锁朝向
-        if (config != null && config.lockFacing)
-        {
-            actor.movement.UnlockFacing();
-        }
 
         if (config != null && config.debugLog)
         {

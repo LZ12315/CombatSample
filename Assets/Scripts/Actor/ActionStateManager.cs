@@ -2,13 +2,6 @@ using System.Collections.Generic;
 using UnityEngine;
 using DeiveEx.TagTree;
 
-public enum ControlState
-{
-    None,
-    Action,
-    Locomotion
-}
-
 [RequireComponent(typeof(Actor))]
 public class ActionStateManager : MonoBehaviour
 {
@@ -18,10 +11,6 @@ public class ActionStateManager : MonoBehaviour
 
     [Header("Settings")]
     [SerializeField] private ActionAssetList _actionList;
-
-    [Header("Runtime")]
-    [SerializeField] private ControlState _currentControl = ControlState.None;
-    public ControlState CurrentControl => _currentControl;
 
     private List<ActionAsset> _validCandidatesCache = new List<ActionAsset>(10);
     private readonly List<ActionAsset> _externalCandidatesThisFrame = new List<ActionAsset>(4);
@@ -52,22 +41,15 @@ public class ActionStateManager : MonoBehaviour
 
         if (chosen != null)
         {
-            ActionEventContext startContext = ResolveStartContext(chosen);
-
-            if (_currentControl == ControlState.Locomotion)
-                _actor.locomotion.StopLocomotion();
-
-            _currentControl = ControlState.Action;
-            PlayNewAction(chosen, startContext);
-        }
-        else if (_actor.locomotion.CheckConditions())
-        {
-            if (_currentControl != ControlState.Locomotion)
+            // 如果选中的 Action 与当前正在播放的是同一个（Loop 场景），跳过重复播放
+            if (_actionPlayer.CurrentAction != null && _actionPlayer.CurrentAction.Config == chosen)
             {
-                StopCurrentAction();
-
-                _currentControl = ControlState.Locomotion;
-                _actor.locomotion.StartLocomotion();
+                // 同一个 Action 正在播放，不重复启动
+            }
+            else
+            {
+                ActionEventContext startContext = ResolveStartContext(chosen);
+                PlayNewAction(chosen, startContext);
             }
         }
 
@@ -104,10 +86,10 @@ public class ActionStateManager : MonoBehaviour
 
     private ActionEventContext BuildContextFromLocomotionIntent()
     {
-        if (_actor == null || _actor.locomotion == null)
+        if (_actor == null || _actor.movement == null)
             return default;
 
-        var intent = _actor.locomotion.CurrentIntent;
+        var intent = _actor.movement.LocomotionIntent;
         var direction = intent.WorldMoveDirection;
         direction.y = 0f;
         if (direction.sqrMagnitude > 0.0001f)
@@ -129,8 +111,8 @@ public class ActionStateManager : MonoBehaviour
 
     private void HandleActionFinished(ActionInstance _)
     {
-        _currentControl = ControlState.Locomotion;
-        _actor.locomotion.StartLocomotion();
+        // Action 正常结束，ActionInstance.OnExit 已恢复 Movement 状态。
+        // Locomotion ActionAsset 的条件会在下一帧通过 → ASM 选中它 → 播放。
     }
 
     #region 事件触发

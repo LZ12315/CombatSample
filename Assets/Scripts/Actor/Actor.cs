@@ -9,7 +9,6 @@ public class Actor : MonoBehaviour
     public CharacterController characterController;
     public ActorLogicInput logicInput;
     public ActionStateManager actionManager;
-    public ActorLocomotion locomotion;
     public ActorMovement movement;
     public ActionPlayer actionPlayer;
     public AnimancerComponent animancer;

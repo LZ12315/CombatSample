@@ -23,6 +23,7 @@ public static partial class Enums
 {
     public enum ActionPriority
     {
+        Lowest,
         Normal,
         Special,
         Override

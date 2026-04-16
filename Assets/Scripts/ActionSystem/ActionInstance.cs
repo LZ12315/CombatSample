@@ -25,6 +25,9 @@ public class ActionInstance
         Actor = actor;
         EventContext = context;
 
+        // 应用运动策略（必须在 Tag 之前，因为压制需要立即生效）
+        ApplyMotionConfig(context);
+
         var selfTags = Config.SelfTags;
         if (Actor != null && selfTags != null)
         {
@@ -54,6 +57,9 @@ public class ActionInstance
             }
         }
 
+        // 恢复运动策略（必须在 Tag 之后，因为恢复后 Locomotion 才能重新生效）
+        RestoreMotionConfig();
+
         Actor = null;
         EventContext = default;
     }
@@ -72,4 +78,63 @@ public class ActionInstance
             normalizedTime = 0
         };
     }
+
+    #region === 运动策略 ===
+
+    private void ApplyMotionConfig(ActionEventContext context)
+    {
+        if (Actor?.movement == null) return;
+        var motion = Config.MotionConfig;
+        var mv = Actor.movement;
+
+        mv.SetRootMotionApplyMode(motion.rootMotionMode);
+        mv.SetLocomotionSuppressed(motion.suppressLocomotion);
+        if (motion.gravityScale >= 0f)
+            mv.SetGravityScale(motion.gravityScale);
+        ApplyFacingOnStart(motion.facingOnStart, context);
+    }
+
+    private void RestoreMotionConfig()
+    {
+        if (Actor?.movement == null) return;
+        var mv = Actor.movement;
+        mv.SetRootMotionApplyMode(ActorMovement.RootMotionApplyMode.External);
+        mv.SetLocomotionSuppressed(false);
+        mv.SetGravityScale(1f);
+    }
+
+    private void ApplyFacingOnStart(ActionFacingOnStart mode, ActionEventContext context)
+    {
+        if (mode == ActionFacingOnStart.None) return;
+        Vector3 dir = Vector3.zero;
+
+        if (mode == ActionFacingOnStart.SnapToInputOrTarget)
+        {
+            // 优先朝目标
+            var target = Actor.combater?.CombatTarget?.transform;
+            if (target != null)
+            {
+                dir = target.position - Actor.transform.position;
+                dir.y = 0f;
+            }
+            // 没有目标 → 用 context 方向
+            if (dir.sqrMagnitude < 0.001f)
+                dir = context.Direction;
+            // context 也没有 → 用当前移动意图
+            if (dir.sqrMagnitude < 0.001f)
+                dir = Actor.movement.LocomotionIntent.WorldMoveDirection;
+        }
+        else if (mode == ActionFacingOnStart.SnapToInput)
+        {
+            dir = context.Direction;
+            if (dir.sqrMagnitude < 0.001f)
+                dir = Actor.movement.LocomotionIntent.WorldMoveDirection;
+        }
+
+        dir.y = 0f;
+        if (dir.sqrMagnitude > 0.001f)
+            Actor.movement.SnapFacing(dir.normalized);
+    }
+
+    #endregion
 }

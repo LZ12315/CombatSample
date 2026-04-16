@@ -53,6 +53,10 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
     [SerializeField, Tooltip("Action 开始时如何采样上下文快照。Event 模式通常直接使用 SendEvent 传入的数据。")]
     private ActionStartContextMode _startContextMode = ActionStartContextMode.None;
 
+    [Header("Motion")]
+    [SerializeField, Tooltip("整招级运动策略：RootMotion 模式、压制 Locomotion、起手朝向、重力倍率")]
+    private ActionMotionConfig _motionConfig = ActionMotionConfig.Default;
+
     [Header("Settings")]
     [SerializeField, Tooltip("Loop this action")]
     private bool isLoop = false;
@@ -77,6 +81,7 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
     public ActionTriggerMode TriggerMode => _triggerMode;
     public TagReference EventTriggerTag => _eventTriggerTag;
     public ActionStartContextMode StartContextMode => _startContextMode;
+    public ActionMotionConfig MotionConfig => _motionConfig;
 
     public IReadOnlyList<ActionCondition> EntryConditions => _entryConditions.AsReadOnly();
 

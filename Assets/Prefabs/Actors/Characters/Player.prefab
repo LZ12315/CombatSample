@@ -41,11 +41,6 @@ PrefabInstance:
       objectReference: {fileID: 6843028217763198781}
     - target: {fileID: 3617314882186939484, guid: a299ab9894312a643ac83699cf7e0da3,
         type: 3}
-      propertyPath: locomotion
-      value: 
-      objectReference: {fileID: 7379594749661651528}
-    - target: {fileID: 3617314882186939484, guid: a299ab9894312a643ac83699cf7e0da3,
-        type: 3}
       propertyPath: actionPlayer
       value: 
       objectReference: {fileID: 5640355854909903216}
@@ -165,10 +160,6 @@ PrefabInstance:
         type: 3}
       insertIndex: -1
       addedObject: {fileID: 6843028217763198781}
-    - targetCorrespondingSourceObject: {fileID: 5276626400589506912, guid: a299ab9894312a643ac83699cf7e0da3,
-        type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 7379594749661651528}
   m_SourcePrefab: {fileID: 100100000, guid: a299ab9894312a643ac83699cf7e0da3, type: 3}
 --- !u!95 &427221822623560722 stripped
 Animator:
@@ -215,7 +206,6 @@ MonoBehaviour:
   _actionPlayer: {fileID: 5640355854909903216}
   _actor: {fileID: 1104595804043283503}
   _actionList: {fileID: 11400000, guid: 6dcba2998f1952b4493fe30b7ba11fc4, type: 2}
-  _currentControl: 0
 --- !u!114 &3227611223364516578
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -230,6 +220,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _maxHealth: 100
   _debugLog: 1
+  _actor: {fileID: 0}
+  _asm: {fileID: 0}
   combatTarget: {fileID: 0}
 --- !u!1 &8384945429905303827 stripped
 GameObject:
@@ -249,6 +241,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5a5a06ca151dd0d449a97301a369bd51, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  _actor: {fileID: 0}
 --- !u!114 &6843028217763198781
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -264,27 +257,7 @@ MonoBehaviour:
   actor: {fileID: 1104595804043283503}
   animator: {fileID: 427221822623560722}
   rotateSpeed: 500
---- !u!114 &7379594749661651528
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8384945429905303827}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e525c2e16cf465de08f702196bbf54d1, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  _actor: {fileID: 1104595804043283503}
-  _baseMoveSpeed: 5
-  _entryConditions: []
-  _defaultMode: {fileID: 0}
-  _specialModes:
-  - {fileID: 11400000, guid: 10064ec217727e7e78a6d6636523f698, type: 2}
-  references:
-    version: 2
-    RefIds: []
+  _locomotionBaseSpeed: 5
 --- !u!1001 &4794614036970768515
 PrefabInstance:
   m_ObjectHideFlags: 0

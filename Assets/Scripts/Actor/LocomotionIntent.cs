@@ -2,7 +2,7 @@ using UnityEngine;
 
 /// <summary>
 /// 一帧的移动/动画/朝向意图。由 <see cref="ActorLogicInput"/>（玩家）或 AI/行为树（敌人）填写；
-/// <see cref="ActorLocomotion"/> 只消费，不读相机与摇杆。
+/// <see cref="ActorMovement"/> 只消费，不读相机与摇杆。
 /// </summary>
 public struct LocomotionIntent
 {
@@ -11,9 +11,6 @@ public struct LocomotionIntent
 
     /// <summary>0..1，对应摇杆模长等；填写方应 Clamp 到合理范围。</summary>
     public float MoveStrength;
-
-    /// <summary>2D 混合树参数（锁定八向用真实 XY；自由跑可用 (0, magnitude)）。</summary>
-    public Vector2 Mixer2D;
 
     /// <summary>
     /// 世界空间水平身体朝向。零向量表示：有移动时朝 <see cref="WorldMoveDirection"/>，无移动时不更新朝向。
@@ -25,7 +22,6 @@ public struct LocomotionIntent
     {
         WorldMoveDirection = Vector3.zero,
         MoveStrength = 0f,
-        Mixer2D = Vector2.zero,
         FacingDirection = Vector3.zero
     };
 }

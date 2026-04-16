@@ -3,8 +3,10 @@ using UnityEngine;
 /// <summary>
 /// 角色移动执行层 — 唯一调用 CC.Move 的地方。
 /// 
-/// 位移管线：多源叠加模型（locomotion / impulse 等各自写入独立通道，求和执行）。
-/// 朝向管线：优先级覆盖模型（Default + Override 两层 + Lock/Snap 机制）。
+/// 意图层：接收 LocomotionIntent（由 ActorLogicInput / AI 每帧写入），内部换算速度和朝向。
+/// 位移管线：多源叠加模型（locomotion 内部换算 / impulse / rootMotion / 重力，求和执行）。
+/// 朝向管线：优先级覆盖模型（Override 层 > Intent 默认层 + Snap 机制）。
+/// 压制机制：ActionInstance 可压制 Locomotion 通道（移动 + 朝向），Impulse/重力不受影响。
 /// RootMotion：始终缓存并公开（位移+旋转），Managed 时自动应用，External 时仅供读取。
 /// </summary>
 public class ActorMovement : MonoBehaviour
@@ -16,6 +18,12 @@ public class ActorMovement : MonoBehaviour
 
     [SerializeField, Tooltip("默认旋转速度（度/秒）")]
     private float rotateSpeed = 600f;
+
+    [SerializeField, Tooltip("Locomotion 基础移动速度（米/秒）")]
+    private float _locomotionBaseSpeed = 5f;
+
+    /// <summary>Locomotion 基础移动速度，供 AnimancerBehaviour 读取以归一化 Mixer 参数。</summary>
+    public float LocomotionBaseSpeed => _locomotionBaseSpeed;
 
     #endregion
 
@@ -48,16 +56,43 @@ public class ActorMovement : MonoBehaviour
 
     #endregion
 
+    #region === 意图层 ===
+
+    private LocomotionIntent _locomotionIntent = LocomotionIntent.Idle;
+    private bool _hasLocomotionIntent;
+    private bool _locomotionSuppressed;
+
+    /// <summary>当前帧的 Locomotion 意图（只读）。供条件系统和 ASM 读取。</summary>
+    public LocomotionIntent LocomotionIntent => _locomotionIntent;
+
+    /// <summary>
+    /// 每帧由 ActorLogicInput / AI 写入移动意图。
+    /// Movement 内部根据意图换算 Locomotion 速度和朝向。
+    /// </summary>
+    public void SetLocomotionIntent(in LocomotionIntent intent)
+    {
+        _locomotionIntent = intent;
+        _hasLocomotionIntent = true;
+    }
+
+    /// <summary>
+    /// 压制 Locomotion 通道（移动 + 朝向）。
+    /// 由 ActionInstance.OnEnter 设置 true，OnExit 设置 false。
+    /// </summary>
+    public void SetLocomotionSuppressed(bool suppressed)
+    {
+        _locomotionSuppressed = suppressed;
+    }
+
+    #endregion
+
     #region === 位移速度通道 ===
 
-    private Vector3 _locomotionVelocity = Vector3.zero;
     private Vector3 _impulseVelocity = Vector3.zero;
+    private Vector3 _currentVelocity = Vector3.zero;
 
-    /// <summary>Locomotion 每帧写入的移动速度（世界空间，单位：米/秒）。帧末自动清零。</summary>
-    public void SetLocomotionVelocity(Vector3 velocity)
-    {
-        _locomotionVelocity = velocity;
-    }
+    /// <summary>当前帧的实际移动速度（米/秒）。供 AnimancerBehaviour 读取以驱动 Mixed2D 参数。</summary>
+    public Vector3 CurrentVelocity => _currentVelocity;
 
     /// <summary>ImpulseClip 每帧写入的冲量速度（世界空间，单位：米/秒）。帧末自动清零。</summary>
     public void SetImpulseVelocity(Vector3 velocity)
@@ -92,28 +127,13 @@ public class ActorMovement : MonoBehaviour
 
     #region === 朝向管线 ===
 
-    // 默认层（Locomotion 每帧写入，帧末清零）
-    private Vector3 _defaultFacingDirection;
-    private bool _hasDefaultFacing;
-
     // 覆盖层（Clip 显式设置/清除，不自动清零）
     private Vector3 _overrideFacingDirection;
     private bool _hasFacingOverride;
     private float _overrideAngularSpeed = -1f; // -1 表示使用默认 rotateSpeed
 
-    // 锁定（受击等场景，显式 Lock/Unlock）
-    private bool _facingLocked;
-
     // 当前帧的目标旋转
     private Quaternion _targetRotation = Quaternion.identity;
-
-    /// <summary>Locomotion 每帧写入默认朝向（低优先级）。帧末自动清零。</summary>
-    public void SetFacing(Vector3 worldDirection)
-    {
-        if (worldDirection.sqrMagnitude < 0.001f) return;
-        _defaultFacingDirection = worldDirection;
-        _hasDefaultFacing = true;
-    }
 
     /// <summary>Clip 写入覆盖朝向（高优先级）。不会自动清零，需调用 ClearFacingOverride。</summary>
     /// <param name="angularSpeed">自定义旋转速度（度/秒），-1 表示使用默认 rotateSpeed。</param>
@@ -138,18 +158,6 @@ public class ActorMovement : MonoBehaviour
         if (worldDirection.sqrMagnitude < 0.001f) return;
         _targetRotation = Quaternion.LookRotation(worldDirection, Vector3.up);
         transform.rotation = _targetRotation;
-    }
-
-    /// <summary>锁定当前朝向不变。适用于击退/击飞期间。</summary>
-    public void LockFacing()
-    {
-        _facingLocked = true;
-    }
-
-    /// <summary>解除朝向锁定。</summary>
-    public void UnlockFacing()
-    {
-        _facingLocked = false;
     }
 
     #endregion
@@ -184,7 +192,20 @@ public class ActorMovement : MonoBehaviour
         // ── 1. 朝向执行 ──
         PerformRotation();
 
-        // ── 2. 位移合成 ──
+        // ── 2. 从 Intent 换算 Locomotion 速度（内部计算，不再由外部写入）──
+        Vector3 locomotionVelocity = Vector3.zero;
+        if (!_locomotionSuppressed && _hasLocomotionIntent)
+        {
+            Vector3 dir = _locomotionIntent.WorldMoveDirection;
+            dir.y = 0f;
+            if (dir.sqrMagnitude > 0.0001f)
+            {
+                dir.Normalize();
+                locomotionVelocity = dir * (_locomotionIntent.MoveStrength * _locomotionBaseSpeed);
+            }
+        }
+
+        // ── 3. 位移合成 ──
         Vector3 finalMovement = Vector3.zero;
 
         // RootMotion 托管层
@@ -193,49 +214,57 @@ public class ActorMovement : MonoBehaviour
             finalMovement += _cachedRootMotionDelta;
         }
 
-        // 外部速度通道（叠加）
-        finalMovement += _locomotionVelocity * Time.deltaTime;
-        finalMovement += _impulseVelocity * Time.deltaTime;
+        // 速度通道（叠加）
+        finalMovement += locomotionVelocity * Time.deltaTime;   // 受压制控制
+        finalMovement += _impulseVelocity * Time.deltaTime;     // 不受压制
 
         // 重力
         PerformGravity();
         finalMovement += _gravityVelocity * Time.deltaTime;
 
-        // ── 3. 执行移动 ──
+        // ── 4. 执行移动 ──
         if (actor.characterController != null)
         {
             actor.characterController.Move(finalMovement);
         }
 
-        // ── 4. 帧末清零 ──
+        // ── 5. 记录实际速度（供动画系统读取）──
+        _currentVelocity = Time.deltaTime > 0f ? finalMovement / Time.deltaTime : Vector3.zero;
+
+        // ── 6. 帧末清零 ──
         _cachedRootMotionDelta = Vector3.zero;
         _cachedRootMotionRotationDelta = Quaternion.identity;
-        _locomotionVelocity = Vector3.zero;
         _impulseVelocity = Vector3.zero;
-        _hasDefaultFacing = false; // 默认层每帧重置，要求 Locomotion 每帧写入
-        // 注意：_hasFacingOverride 和 _facingLocked 不清零，由 Clip 显式 Clear/Unlock
+        _hasLocomotionIntent = false; // 意图层每帧重置，要求外部每帧写入
+        // 注意：_hasFacingOverride 和 _locomotionSuppressed 不清零，由外部显式控制
     }
 
     #endregion
 
     #region === 内部计算 ===
 
-    /// <summary>朝向管线：根据优先级确定目标旋转并平滑执行。</summary>
+    /// <summary>朝向管线：覆盖层 > Intent 默认层。被压制时不从 Intent 更新朝向。</summary>
     private void PerformRotation()
     {
-        // 锁定时不更新目标旋转
-        if (!_facingLocked)
+        if (_hasFacingOverride)
         {
-            if (_hasFacingOverride)
-            {
-                _targetRotation = Quaternion.LookRotation(_overrideFacingDirection, Vector3.up);
-            }
-            else if (_hasDefaultFacing)
-            {
-                _targetRotation = Quaternion.LookRotation(_defaultFacingDirection, Vector3.up);
-            }
-            // 都没有时保持上一帧的 _targetRotation 不变
+            _targetRotation = Quaternion.LookRotation(_overrideFacingDirection, Vector3.up);
         }
+        else if (!_locomotionSuppressed && _hasLocomotionIntent)
+        {
+            // 从 Intent 计算朝向
+            Vector3 face = _locomotionIntent.FacingDirection;
+            face.y = 0f;
+            if (face.sqrMagnitude < 0.0001f)
+            {
+                // 没有显式朝向 → 朝移动方向
+                face = _locomotionIntent.WorldMoveDirection;
+                face.y = 0f;
+            }
+            if (face.sqrMagnitude > 0.0001f)
+                _targetRotation = Quaternion.LookRotation(face.normalized, Vector3.up);
+        }
+        // 都没有 → 保持上一帧
 
         // 确定旋转速度：覆盖层有自定义速度用覆盖的，否则用默认
         float angularSpeed = (_hasFacingOverride && _overrideAngularSpeed >= 0f)

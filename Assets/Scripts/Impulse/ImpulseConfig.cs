@@ -43,9 +43,14 @@ public class ImpulseConfig
     [Tooltip("Gravity scale during this clip (0 = float, 1 = normal, 2 = fast fall)")]
     public float gravityScale = 1f;
 
-    [Tooltip("Lock actor facing during impulse")]
+    [Tooltip("Lock actor facing during impulse (deprecated, use ActionMotionConfig instead)")]
+    [System.Obsolete("Use ActionMotionConfig.suppressLocomotion instead")]
     public bool lockFacing = true;
 
     [Tooltip("Print debug info to console")]
     public bool debugLog = false;
+
+    /// <summary>运行时是否应用朝向锁定（已废弃，始终返回 false）。</summary>
+    [System.Obsolete]
+    public bool ShouldLockFacing => false;
 }

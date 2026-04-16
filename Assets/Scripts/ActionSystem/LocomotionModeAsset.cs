@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using Animancer; // 引入 Animancer
 
+[System.Obsolete("LocomotionModeAsset 已被 ActionAsset 条件系统取代。")]
 [CreateAssetMenu(fileName = "NewLocomotionMode", menuName = "ActionSystem/LocomotionModeAsset")]
 public class LocomotionModeAsset : ScriptableObject
 {
