@@ -40,7 +40,8 @@ public static partial class Enums
         Dodge = 2,
         Defence = 4,
         LightAttack = 8,
-        HeavyAttack = 16
+        HeavyAttack = 16,
+        Jump = 32,
     }
 
     [System.Flags]

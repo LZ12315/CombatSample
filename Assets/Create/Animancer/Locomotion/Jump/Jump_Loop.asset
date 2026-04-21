@@ -1,0 +1,44 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c5a8877f26e7a6a43aaf06fade1a064a, type: 3}
+  m_Name: Jump_Loop
+  m_EditorClassIdentifier: 
+  _Transition:
+    rid: 5174319773871505424
+  references:
+    version: 2
+    RefIds:
+    - rid: 5174319773871505424
+      type: {class: LinearMixerTransition, ns: Animancer, asm: Kybernetik.Animancer}
+      data:
+        _FadeDuration: 0.25
+        _Speed: 1
+        _Events:
+          _NormalizedTimes: []
+          _Callbacks: []
+          _Names: []
+        _Animations:
+        - {fileID: 2971803845777607359, guid: 87637fbcbc83e3740952f36d261361e9, type: 3}
+        - {fileID: -7395443891025880771, guid: 43c1967c3f933d14ba5646c6b634ae96, type: 3}
+        - {fileID: -7395443891025880771, guid: ebe2eedd28995e34eabb1b1064b5aca3, type: 3}
+        _Speeds:
+        - 1
+        - 0.8
+        - 1
+        _SynchronizeChildren: 
+        _Thresholds:
+        - -7
+        - 0
+        - 7
+        _DefaultParameter: 0
+        _ExtrapolateSpeed: 0
+        _ParameterName: {fileID: 0}

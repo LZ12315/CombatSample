@@ -179,6 +179,23 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
         // 所有条件都被跳过了（全是输入条件），视为通过
         return true;
     }
+
+    /// <summary>
+    /// 胜选回调：当 ActionStateManager 选中此 Action 并决定真正进入时调用。
+    /// 遍历所有 EntryCondition 触发 OnClaim，让带有"消费型"语义的条件（例如 InputSequenceCondition）
+    /// 把本次命中的输入从 buffer 中标记为已消费，避免同一组输入驱动下一个 Action（如一段跳→二段跳）。
+    /// </summary>
+    public void ClaimEntry(Actor actor)
+    {
+        if (actor == null || _entryConditions == null) return;
+
+        for (int i = 0; i < _entryConditions.Count; i++)
+        {
+            var cond = _entryConditions[i];
+            if (cond == null) continue;
+            cond.OnClaim(actor);
+        }
+    }
     #endregion
 
     #region 生命周期和序列化

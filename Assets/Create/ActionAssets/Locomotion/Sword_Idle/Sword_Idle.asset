@@ -24,22 +24,26 @@ MonoBehaviour:
     TagId: 0
   _startContextMode: 0
   _motionConfig:
-    rootMotionMode: 0
+    rootMotionMode: 1
     suppressLocomotion: 1
     facingOnStart: 0
     gravityScale: -1
   isLoop: 0
   _entryConditions:
-  - rid: 5174319682080735239
+  - rid: 5174319728963354634
+  - rid: 5174319773871505417
   references:
     version: 2
     RefIds:
-    - rid: 5174319682080735239
-      type: {class: TagCondition, ns: , asm: Assembly-CSharp}
+    - rid: 5174319728963354634
+      type: {class: ActionAssetCondition, ns: , asm: Assembly-CSharp}
       data:
-        invertResult: 1
+        invertResult: 0
         overrideAll: 0
-        requiredTag:
-          TagId: -928178065
-        targetContainer: 0
-        matchMode: 1
+        requiredAction: {fileID: 0}
+    - rid: 5174319773871505417
+      type: {class: GroundStateCondition, ns: , asm: Assembly-CSharp}
+      data:
+        invertResult: 0
+        overrideAll: 0
+        acceptedStates: 1

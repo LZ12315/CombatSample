@@ -30,17 +30,11 @@ MonoBehaviour:
     gravityScale: -1
   isLoop: 1
   _entryConditions:
-  - rid: 5174319682080735232
   - rid: 5174319682080735234
+  - rid: 5174319728963354635
   references:
     version: 2
     RefIds:
-    - rid: 5174319682080735232
-      type: {class: LocomotionIntentCondition, ns: , asm: Assembly-CSharp}
-      data:
-        invertResult: 0
-        overrideAll: 0
-        threshold: 0.01
     - rid: 5174319682080735234
       type: {class: TagCondition, ns: , asm: Assembly-CSharp}
       data:
@@ -50,3 +44,15 @@ MonoBehaviour:
           TagId: -928178065
         targetContainer: 0
         matchMode: 1
+    - rid: 5174319728963354635
+      type: {class: InputStateCondition, ns: , asm: Assembly-CSharp}
+      data:
+        invertResult: 0
+        overrideAll: 0
+        stateCheck:
+          rid: 5174319728963354636
+    - rid: 5174319728963354636
+      type: {class: JoystickStateCheck, ns: , asm: Assembly-CSharp}
+      data:
+        requiredState: 1
+        check: -1

@@ -14,8 +14,15 @@ public class InputSequenceCondition : ActionCondition
     [SerializeReference, SubclassSelector]
     private List<InputCheckBase> inputSequence = new List<InputCheckBase>();
 
+    // 本次 OnCheck 匹配命中时，记录整段序列对应的 buffer 索引。
+    // OnClaim 时按这些索引把对应项标记为 IsConsumed，避免下一次/别的 Action 重复吃到同一条输入。
+    // 约定：不命中则清空；命中则存 inputSequence.Count 个索引（序列从前到后）。
+    [NonSerialized] private readonly List<int> _matchedBufferIndices = new List<int>(8);
+
     protected override bool OnCheck(Actor actor)
     {
+        _matchedBufferIndices.Clear();
+
         // 防呆检查
         if (actor == null || inputSequence == null || inputSequence.Count == 0) 
             return false;
@@ -35,6 +42,10 @@ public class InputSequenceCondition : ActionCondition
         {
             var bufferItem = buffer[i];
 
+            // 跳过已被消费的输入（被其他胜选 Action 吃过了，不能再用来触发后续 Action）
+            if (bufferItem.IsConsumed)
+                continue;
+
             // 【核心规则】：检查输入间隔
             // 如果我们已经找到了后面的按键（lastMatchedTime >= 0），
             // 就需要确保当前遍历的这个历史按键，离它不能太远！
@@ -42,6 +53,7 @@ public class InputSequenceCondition : ActionCondition
             if (lastMatchedTime >= 0f && (lastMatchedTime - bufferItem.Timestamp > maxInputInterval))
             {
                 // 间隔太大了！因为录像带是按时间排序的，再往前找只会间隔更大，直接判定搓招失败。
+                _matchedBufferIndices.Clear();
                 return false; 
             }
 
@@ -50,6 +62,9 @@ public class InputSequenceCondition : ActionCondition
             {
                 // 匹配成功！更新时间锚点，用来约束下一个要找的按键
                 lastMatchedTime = bufferItem.Timestamp;
+
+                // 记录这条 buffer 项的索引，供 OnClaim 消费
+                _matchedBufferIndices.Add(i);
                 
                 // 指针前移，去寻找序列中的上一个指令
                 seqIndex--;
@@ -58,6 +73,7 @@ public class InputSequenceCondition : ActionCondition
                 if (seqIndex < 0) 
                 {
                     // 🌟 纯粹的只读判定，绝不在这里吃指令！返回 true 进入候选名单！
+                    // 命中的 buffer 索引已记录在 _matchedBufferIndices，等 OnClaim 再消费。
                     return true;
                 }
             }
@@ -65,6 +81,31 @@ public class InputSequenceCondition : ActionCondition
         }
 
         // 录像带翻完了，但需要的指令序列没找齐
+        _matchedBufferIndices.Clear();
         return false;
+    }
+
+    /// <summary>
+    /// 本条件所在 ActionAsset 被 ActionStateManager 选中并进入时回调：
+    /// 把上次 OnCheck 命中的整段 buffer 序列标记为已消费，避免同一组输入驱动第二个 Action。
+    /// </summary>
+    public override void OnClaim(Actor actor)
+    {
+        if (_matchedBufferIndices.Count == 0) return;
+        if (actor == null || actor.logicInput == null)
+        {
+            _matchedBufferIndices.Clear();
+            return;
+        }
+
+        // InputBuffer 对外是 IReadOnlyList，但元素是引用类型，可以直接改字段。
+        var buffer = actor.logicInput.InputBuffer;
+        for (int k = 0; k < _matchedBufferIndices.Count; k++)
+        {
+            int idx = _matchedBufferIndices[k];
+            if (idx < 0 || idx >= buffer.Count) continue;
+            buffer[idx].IsConsumed = true;
+        }
+        _matchedBufferIndices.Clear();
     }
 }

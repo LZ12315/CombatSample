@@ -61,6 +61,11 @@ public class ActorLogicInput : MonoBehaviour
     {
         public InputData Data;
         public float Timestamp;
+
+        // 是否已被某个 Condition 命中并消费（例如 InputSequenceCondition 命中胜选后标记）。
+        // 扫描方应跳过 IsConsumed == true 的条目，避免同一条输入被后续 Action 重复吃掉
+        // （典型场景：一段跳命中后，二段跳不应再吃同一条 Jump ShortPress）。
+        public bool IsConsumed;
     }
 
     private List<BufferedInput> _inputBuffer = new List<BufferedInput>();

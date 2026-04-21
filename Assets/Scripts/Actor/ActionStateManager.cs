@@ -44,10 +44,14 @@ public class ActionStateManager : MonoBehaviour
             // 如果选中的 Action 与当前正在播放的是同一个（Loop 场景），跳过重复播放
             if (_actionPlayer.CurrentAction != null && _actionPlayer.CurrentAction.Config == chosen)
             {
-                // 同一个 Action 正在播放，不重复启动
+                // 同一个 Action 正在播放，不重复启动；也不消费输入（本次判定视为沿用而非新进入）
             }
             else
             {
+                // 胜选：先让条件消费本次命中的输入（例如 InputSequenceCondition 标记 buffer 为 IsConsumed），
+                // 避免同一条输入驱动下一帧/下一个 Action 再次触发（典型：一段跳→二段跳自动连触）。
+                chosen.ClaimEntry(_actor);
+
                 ActionEventContext startContext = ResolveStartContext(chosen);
                 PlayNewAction(chosen, startContext);
             }

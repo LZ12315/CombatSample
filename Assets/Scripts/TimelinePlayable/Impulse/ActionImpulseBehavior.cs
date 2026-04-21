@@ -3,85 +3,84 @@ using UnityEngine.Playables;
 
 /// <summary>
 /// ImpulseClip 运行时逻辑：
-/// - OnClipStart：读取 EventContext 方向，注入垂直初速度，设置重力缩放
-/// - OnClipUpdate：每帧写入水平冲量（曲线衰减）
-/// - OnClipStop：恢复重力缩放
+/// - OnClipStart：按方向模式解析世界方向，一次性注入水平 + 垂直冲量；仅当 config.gravityScale >= 0 时才临时覆盖重力
+/// - OnClipUpdate：无逻辑（水平由 Movement 的 drag 自然衰减，垂直由重力自然衰减）
+/// - OnClipStop：仅当 Start 时真正覆盖过重力，才恢复为 1
+///
+/// 重力策略：
+///   ImpulseClip 通常只持续 1~数帧，不再承担"整招重力"职责（那是 ActionMotionConfig 的事）。
+///   只有在 config.gravityScale >= 0 时，才认为策划明确要求 Clip 级短暂覆盖重力，才生效。
+///   -1（默认）= 不覆盖，保留 Action 层设置的重力不受干扰。
+///
+/// 方向解析已抽到 MotionDirectionResolver 公共工具，与 VelocityClip 共用同一套逻辑。
 /// </summary>
 public class ActionImpulseBehavior : ActionBehaviourBase
 {
     public ImpulseConfig config;
 
-    /// <summary>缓存的水平冲量方向（世界空间，已归一化）。FromInstigator 模式下每帧更新。</summary>
-    private Vector3 _horizontalDirection;
-
-    /// <summary>缓存的 Clip 总时长</summary>
-    private double _clipDuration;
-
-    /// <summary>缓存的 Instigator Transform（FromInstigator 模式下每帧追踪）</summary>
+    /// <summary>缓存的 Instigator Transform（FromInstigator 模式下解析方向时使用）</summary>
     private Transform _instigatorTransform;
+
+    /// <summary>OnClipStart 是否真正覆盖过 gravityScale。只有覆盖过才需要在 Stop 时恢复，避免把 ActionMotionConfig 设置的整招重力抹掉。</summary>
+    private bool _didOverrideGravity;
 
     protected override void OnClipStart(Playable playable)
     {
         if (actor == null || actor.movement == null || config == null) return;
 
-        // 1. 根据方向模式计算冲量方向
+        // 1. 根据方向模式计算冲量方向（世界空间，已水平化 + 归一化）
         _instigatorTransform = null;
-        _horizontalDirection = ResolveDirection();
+        Vector3 horizontalDirection = MotionDirectionResolver.Resolve(
+            config.directionMode,
+            actor,
+            actionInstance,
+            config.fixedLocalDirection,
+            ref _instigatorTransform);
 
-        // 2. 缓存 Clip 时长
-        _clipDuration = playable.GetDuration();
-
-        // 3. 注入垂直初速度到重力通道（一次性，之后由重力自然衰减）
-        if (Mathf.Abs(config.verticalForce) > 0.001f)
+        // 2. 一次性注入水平冲量（由 Movement 的 drag 自然衰减）
+        if (Mathf.Abs(config.horizontalForce) > 0.001f)
         {
-            actor.movement.SetVerticalVelocity(config.verticalForce);
+            actor.movement.AddHorizontalImpulse(horizontalDirection * config.horizontalForce);
         }
 
-        // 4. 设置重力缩放
-        actor.movement.SetGravityScale(config.gravityScale);
+        // 3. 一次性注入垂直冲量（AddVerticalImpulse 内部会先截 0 再累加，保证二段跳手感）
+        if (Mathf.Abs(config.verticalForce) > 0.001f)
+        {
+            actor.movement.AddVerticalImpulse(config.verticalForce);
+        }
+
+        // 4. 设置重力缩放（仅在 config.gravityScale >= 0 时才覆盖；负值语义 = 不覆盖，交给 ActionMotionConfig）
+        _didOverrideGravity = false;
+        if (config.gravityScale >= 0f)
+        {
+            actor.movement.SetGravityScale(config.gravityScale);
+            _didOverrideGravity = true;
+        }
 
         if (config.debugLog)
         {
-            Debug.Log($"[Impulse] Start — dir={_horizontalDirection}, hForce={config.horizontalForce}, " +
-                      $"vForce={config.verticalForce}, gravity={config.gravityScale}, duration={_clipDuration:F3}");
+            string gravityDesc = _didOverrideGravity ? config.gravityScale.ToString() : "(not overridden)";
+            Debug.Log($"[Impulse] Start — dir={horizontalDirection}, hForce={config.horizontalForce}, " +
+                      $"vForce={config.verticalForce}, gravity={gravityDesc}");
         }
     }
 
     protected override void OnClipUpdate(Playable playable, FrameData info)
     {
-        if (actor == null || actor.movement == null || config == null) return;
-        if (_clipDuration <= 0) return;
-
-        // FromInstigator 模式：每帧重新计算方向（追踪攻击者实时位置）
-        if (config.directionMode == ImpulseDirectionMode.FromInstigator)
-        {
-            _horizontalDirection = ResolveDirection();
-        }
-
-        // 计算归一化时间
-        float t = Mathf.Clamp01((float)(playable.GetTime() / _clipDuration));
-
-        // 从衰减曲线读取系数
-        float decay = config.horizontalDecay.Evaluate(t);
-
-        // 计算水平冲量速度
-        Vector3 horizontalVel = _horizontalDirection * (config.horizontalForce * decay);
-
-        // 写入冲量通道（帧末自动清零）
-        actor.movement.SetImpulseVelocity(horizontalVel);
-
-        if (config.debugLog)
-        {
-            Debug.Log($"[Impulse] Update — t={t:F3}, decay={decay:F3}, vel={horizontalVel}");
-        }
+        // 新架构下 ImpulseClip 的能量在 OnClipStart 一次性注入完成，
+        // 水平由 Movement._horizontalDrag 衰减，垂直由重力衰减，Update 不再需要逐帧写入。
     }
 
     protected override void OnClipStop(bool isFinish)
     {
         if (actor == null || actor.movement == null) return;
 
-        // 恢复重力缩放
-        actor.movement.SetGravityScale(1f);
+        // 恢复重力缩放（仅当 Start 时真正覆盖过才恢复；否则不要碰，避免抹掉 ActionMotionConfig 设置的整招重力）
+        if (_didOverrideGravity)
+        {
+            actor.movement.SetGravityScale(1f);
+            _didOverrideGravity = false;
+        }
 
         if (config != null && config.debugLog)
         {
@@ -89,57 +88,5 @@ public class ActionImpulseBehavior : ActionBehaviourBase
         }
 
         _instigatorTransform = null;
-    }
-
-    /// <summary>
-    /// 根据 config.directionMode 计算水平冲量方向（世界空间，已归一化）。
-    /// 方向无效时 fallback 到角色反方向（被打向后退）。
-    /// </summary>
-    private Vector3 ResolveDirection()
-    {
-        Vector3 dir = Vector3.zero;
-
-        switch (config.directionMode)
-        {
-            case ImpulseDirectionMode.FromContext:
-                // 使用命中瞬间快照的方向
-                if (actionInstance != null)
-                    dir = actionInstance.EventContext.Direction;
-                break;
-
-            case ImpulseDirectionMode.FromInstigator:
-                // 运行时计算 Instigator → Self 方向
-                if (_instigatorTransform == null && actionInstance != null)
-                    _instigatorTransform = actionInstance.EventContext.Instigator?.transform;
-
-                if (_instigatorTransform != null)
-                    dir = actor.transform.position - _instigatorTransform.position;
-                break;
-
-            case ImpulseDirectionMode.ActorForward:
-                dir = actor.transform.forward;
-                break;
-
-            case ImpulseDirectionMode.ActorBackward:
-                dir = -actor.transform.forward;
-                break;
-
-            case ImpulseDirectionMode.Fixed:
-                // 将本地方向转换为世界空间
-                dir = actor.transform.TransformDirection(config.fixedLocalDirection);
-                break;
-        }
-
-        // 水平化
-        dir.y = 0f;
-
-        // 方向无效时 fallback
-        if (dir.sqrMagnitude < 0.001f)
-        {
-            dir = -actor.transform.forward;
-            dir.y = 0f;
-        }
-
-        return dir.normalized;
     }
 }

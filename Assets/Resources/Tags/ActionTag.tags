@@ -5,3 +5,8 @@ Attck.Combo.LightAttack.4
 State.Block.Move
 State.Block.Attack
 State.Block.Dodge
+Block.Jump
+Block.Move
+Block.Attack
+Block.Dodge
+State.Airbone

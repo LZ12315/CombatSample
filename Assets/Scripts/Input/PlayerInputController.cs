@@ -235,6 +235,22 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
         }
     }
 
+    public void OnJump(InputAction.CallbackContext context)
+    {
+        if (controlledActor == null) return;
+
+        switch (context.phase)
+        {
+            case InputActionPhase.Started:
+                SetInputState(Enums.InputButton.Jump, true);
+                break;
+
+            case InputActionPhase.Canceled:
+                SetInputState(Enums.InputButton.Jump, false);
+                break;
+        }
+    }
+
     #endregion
 
     #region 按压计时与八向

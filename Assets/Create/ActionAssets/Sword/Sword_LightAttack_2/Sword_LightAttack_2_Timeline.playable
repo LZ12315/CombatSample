@@ -25,6 +25,8 @@ MonoBehaviour:
       serializedVersion: 2
       m_Bits: 64
     _baseDamage: 10
+    hitEventTag:
+      TagId: 0
   effects:
   - rid: 834184705774190593
   - rid: 834184697206276096
@@ -163,7 +165,7 @@ MonoBehaviour:
     m_PreExtrapolationMode: 0
     m_PostExtrapolationTime: 0
     m_PreExtrapolationTime: 0
-    m_DisplayName: State.Block.Move
+    m_DisplayName: None
   m_Markers:
     m_Objects: []
 --- !u!114 &-3964239805021840438
@@ -318,6 +320,9 @@ MonoBehaviour:
   m_Name: AnimancerClip
   m_EditorClassIdentifier: 
   transitionAsset: {fileID: 11400000, guid: 0492421107bc69c7587daacb86b42d29, type: 2}
+  parameterMode: 0
+  fallbackVector2: {x: 0, y: 0}
+  fallbackFloat: 0
 --- !u!114 &987705937003922747
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -516,6 +521,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   tag:
     TagId: -928178065
+  targetContainer: 0
 --- !u!114 &3274130383161407598
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -530,6 +536,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   tag:
     TagId: 305494886
+  targetContainer: 0
 --- !u!114 &3490691373565755905
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -619,7 +626,7 @@ MonoBehaviour:
     m_PreExtrapolationMode: 0
     m_PostExtrapolationTime: 0
     m_PreExtrapolationTime: 0
-    m_DisplayName: State.Block.Attack
+    m_DisplayName: None
   m_Markers:
     m_Objects: []
 --- !u!114 &4297347647739744562

@@ -12,9 +12,17 @@ public class ContinuousAnimancerBehaviour : ActionBehaviourBase
     // --- 配置数据 ---
     public TransitionAsset transitionAsset;
     public ContinuousParameterSource parameterSource;
+    /// <summary>
+    /// VerticalVelocity 模式下的参数平滑时间（秒）。0 或负值表示不平滑。
+    /// 典型值 0.08~0.12，用于消除顶点附近的姿态抖动、拉长 Apex 视觉停留时长。
+    /// </summary>
+    public float verticalVelocitySmoothTime;
 
     // --- 运行时状态 ---
     private AnimancerState _currentState;
+    // VerticalVelocity 平滑用的 SmoothDamp 速度缓存
+    private float _smoothedVertVel;
+    private float _smoothedVertVelVelocity;
 
     #region 基类方法实现
 
@@ -36,6 +44,13 @@ public class ContinuousAnimancerBehaviour : ActionBehaviourBase
             mixer2D.Parameter = Vector2.zero;
         else if (_currentState is MixerState<float> mixer1D)
             mixer1D.Parameter = 0f;
+
+        // 初始化 VerticalVelocity 平滑状态：用当前实际竖直速度打底，避免进入瞬间从 0 蹦到真实值
+        if (actor?.movement != null)
+            _smoothedVertVel = actor.movement.CurrentVelocity.y;
+        else
+            _smoothedVertVel = 0f;
+        _smoothedVertVelVelocity = 0f;
 
         // 同步时间
         if (_currentState != null)
@@ -76,6 +91,9 @@ public class ContinuousAnimancerBehaviour : ActionBehaviourBase
                 break;
             case ContinuousParameterSource.CharacterVelocity:
                 UpdateMixerFromVelocity();
+                break;
+            case ContinuousParameterSource.VerticalVelocity:
+                UpdateMixerFromVerticalVelocity();
                 break;
         }
     }
@@ -188,6 +206,40 @@ public class ContinuousAnimancerBehaviour : ActionBehaviourBase
             float maxSpeed = actor.movement.LocomotionBaseSpeed;
             mixer1D.Parameter = maxSpeed > 0.001f ? speed / maxSpeed : 0f;
         }
+    }
+
+    /// <summary>
+    /// VerticalVelocity 模式：直接注入角色竖直速度（y 轴，原始 m/s 值）。
+    /// 仅对 1D LinearMixer 有意义；其他类型 Mixer 保持不写入，避免语义错乱。
+    /// 典型场景：跳跃/下落按 y 速度分段混合（Threshold 直接配实际 m/s）。
+    /// 当 <see cref="verticalVelocitySmoothTime"/> &gt; 0 时，使用 SmoothDamp 平滑
+    /// 消除顶点附近的姿态抖动、并拉长 Apex 视觉停留时长。
+    /// </summary>
+    private void UpdateMixerFromVerticalVelocity()
+    {
+        if (actor?.movement == null) return;
+
+        if (_currentState is MixerState<float> mixer1D)
+        {
+            float rawVertVel = actor.movement.CurrentVelocity.y;
+
+            if (verticalVelocitySmoothTime > 0f)
+            {
+                _smoothedVertVel = Mathf.SmoothDamp(
+                    _smoothedVertVel,
+                    rawVertVel,
+                    ref _smoothedVertVelVelocity,
+                    verticalVelocitySmoothTime);
+                mixer1D.Parameter = _smoothedVertVel;
+            }
+            else
+            {
+                _smoothedVertVel = rawVertVel;
+                _smoothedVertVelVelocity = 0f;
+                mixer1D.Parameter = rawVertVel;
+            }
+        }
+        // 2D Mixer 等其他类型：此模式无对应语义，跳过。
     }
 
     #endregion

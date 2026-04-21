@@ -13,10 +13,8 @@ public class ActionImpulseClipInspector : Editor
     private SerializedProperty _directionMode;
     private SerializedProperty _fixedLocalDirection;
     private SerializedProperty _horizontalForce;
-    private SerializedProperty _horizontalDecay;
     private SerializedProperty _verticalForce;
     private SerializedProperty _gravityScale;
-    private SerializedProperty _lockFacing;
     private SerializedProperty _debugLog;
 
     private void OnEnable()
@@ -27,10 +25,8 @@ public class ActionImpulseClipInspector : Editor
         _directionMode = _config.FindPropertyRelative("directionMode");
         _fixedLocalDirection = _config.FindPropertyRelative("fixedLocalDirection");
         _horizontalForce = _config.FindPropertyRelative("horizontalForce");
-        _horizontalDecay = _config.FindPropertyRelative("horizontalDecay");
         _verticalForce = _config.FindPropertyRelative("verticalForce");
         _gravityScale = _config.FindPropertyRelative("gravityScale");
-        _lockFacing = _config.FindPropertyRelative("lockFacing");
         _debugLog = _config.FindPropertyRelative("debugLog");
     }
 
@@ -49,7 +45,7 @@ public class ActionImpulseClipInspector : Editor
         EditorGUILayout.PropertyField(_directionMode,
             new GUIContent("Mode", "Direction source mode for this impulse"));
 
-        if ((ImpulseDirectionMode)_directionMode.enumValueIndex == ImpulseDirectionMode.Fixed)
+        if ((MotionDirectionMode)_directionMode.enumValueIndex == MotionDirectionMode.Fixed)
         {
             EditorGUI.indentLevel++;
             EditorGUILayout.PropertyField(_fixedLocalDirection,
@@ -59,28 +55,24 @@ public class ActionImpulseClipInspector : Editor
 
         EditorGUILayout.Space(4);
 
-        // ── Force ──
-        EditorGUILayout.LabelField("Force", EditorStyles.boldLabel);
+        // ── Initial Speed ──
+        EditorGUILayout.LabelField("Initial Speed", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(_horizontalForce,
-            new GUIContent("Horizontal Speed", "Horizontal initial speed (m/s)"));
+            new GUIContent("Horizontal Speed", "Horizontal initial speed (m/s) along resolved direction. 由 Movement 的 drag 自然衰减"));
         EditorGUILayout.PropertyField(_verticalForce,
-            new GUIContent("Vertical Speed", "Vertical initial speed (m/s), positive = up"));
+            new GUIContent("Vertical Speed", "Vertical initial speed (m/s), positive = up. 由重力自然衰减"));
 
         EditorGUILayout.Space(4);
 
-        // ── Decay & Gravity ──
-        EditorGUILayout.LabelField("Decay & Gravity", EditorStyles.boldLabel);
-        EditorGUILayout.PropertyField(_horizontalDecay,
-            new GUIContent("Horizontal Decay", "Force decay curve (X: 0~1 time, Y: multiplier)"));
+        // ── Gravity ──
+        EditorGUILayout.LabelField("Gravity", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(_gravityScale,
-            new GUIContent("Gravity Scale", "0 = float, 1 = normal, 2 = fast fall"));
+            new GUIContent("Gravity Scale", "-1 = 不覆盖（推荐，整招重力由 ActionMotionConfig 负责）；>=0 时在 Clip 期间强制覆盖（0=浮空，1=正常，2=快速下坠）"));
 
         EditorGUILayout.Space(4);
 
         // ── Options ──
         EditorGUILayout.LabelField("Options", EditorStyles.boldLabel);
-        EditorGUILayout.PropertyField(_lockFacing,
-            new GUIContent("Lock Facing", "Lock actor facing during impulse"));
         EditorGUILayout.PropertyField(_debugLog,
             new GUIContent("Debug Log", "Print debug info to console"));
 
