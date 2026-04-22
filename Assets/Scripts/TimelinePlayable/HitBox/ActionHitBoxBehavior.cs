@@ -120,10 +120,12 @@ public class ActionHitBoxBehavior : ActionBehaviourBase
             hitData.Attacker,
             hitData.Target,
             hitData.HitPoint);
-        impactData.VfxSpawnPoint = HitVfxAnchorUtility.ApplyCameraLateralBias(
+        var afterBias = HitVfxAnchorUtility.ApplyCameraLateralBias(
             baseSpawnPoint,
             rayOrigin,
             hitData.Target);
+        impactData.VfxSpawnPoint = afterBias;
+        HitVfxAnchorDiagnostics.LogFromHitBox(hitData, baseSpawnPoint, afterBias, rayOrigin);
 
         impactData.FacingReferenceWorldPosition = HitVfxFacingUtility.ResolveFacingWorldPosition(
             impactData.TargetReceiver != null ? impactData.TargetReceiver.HitFacingTargetOverride : null,

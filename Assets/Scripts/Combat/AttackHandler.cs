@@ -34,6 +34,8 @@ public class AttackHandler : MonoBehaviour
 
             if (other.TryGetComponent<IDamageable>(out var damageable))
             {
+                HitVfxAnchorDiagnostics.LogFromAttackHandler(other);
+
                 AttackHitData hitData = new AttackHitData(
                     damage: config._baseDamage,
                     attacker: combating,
