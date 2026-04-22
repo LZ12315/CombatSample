@@ -1,14 +1,11 @@
-using System;
 using UnityEngine;
 
 /// <summary>
-/// VFX 生成点：从 rayOrigin 指向目标 Collider 包围盒中心做射线，取与目标 Collider 的第一个有效交点。
-/// 失败时依次 fallback：目标 Collider 上 ClosestPoint(攻击者根位置)、物理 HitPoint。
+/// VFX 锚点工具：提供攻击者参考点、相机偏移等辅助方法。
+/// 注意：旧版 "ComputeVfxSpawnPoint" 射线法已移除，现推荐直接用命中接触点或碰撞体中心。
 /// </summary>
 public static class HitVfxAnchorUtility
 {
-    const float RayOriginPush = 0.08f;
-    const float RayExtraLength = 0.75f;
     const float CameraLateralBiasScale = 0.35f;
     const float CameraLateralBiasMin = 0.05f;
     const float CameraLateralBiasMax = 0.22f;
@@ -54,50 +51,6 @@ public static class HitVfxAnchorUtility
         return targetObject.transform.position;
     }
 
-    public static Vector3 ComputeVfxSpawnPoint(
-        Vector3 rayOriginWorld,
-        ActorCombater attacker,
-        GameObject targetObject,
-        Vector3 hitPointFallback)
-    {
-        if (attacker == null || targetObject == null)
-            return hitPointFallback;
-
-        var col = targetObject.GetComponentInChildren<Collider>();
-        if (col == null)
-            return hitPointFallback;
-
-        Vector3 targetCenter = col.bounds.center;
-        Vector3 toCenter = targetCenter - rayOriginWorld;
-        if (toCenter.sqrMagnitude < 1e-8f)
-            return FallbackClosestToAttacker(col, attacker, hitPointFallback);
-
-        Vector3 dir = toCenter.normalized;
-        float maxDist = toCenter.magnitude + RayExtraLength;
-        Vector3 rayOrigin = rayOriginWorld + dir * RayOriginPush;
-
-        var hits = Physics.RaycastAll(
-            rayOrigin,
-            dir,
-            maxDist,
-            Physics.DefaultRaycastLayers,
-            QueryTriggerInteraction.Ignore);
-
-        if (hits != null && hits.Length > 0)
-        {
-            Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
-            foreach (var h in hits)
-            {
-                if (IsUnderAttacker(h.collider, attacker))
-                    continue;
-                if (IsUnderTarget(h.collider, targetObject))
-                    return h.point;
-            }
-        }
-
-        return FallbackClosestToAttacker(col, attacker, hitPointFallback);
-    }
-
     /// <summary>
     /// 在 attacker->target 的表面交点基础上，沿相机所在的左右侧方向做水平偏移。
     /// 只修正横向读感，不引入相机俯仰导致的高度漂移。
@@ -136,14 +89,6 @@ public static class HitVfxAnchorUtility
         return basePointWorld + lateralDirection * offsetDistance;
     }
 
-    static Vector3 FallbackClosestToAttacker(Collider col, ActorCombater attacker, Vector3 hitPointFallback)
-    {
-        Vector3 p = col.ClosestPoint(attacker.transform.position);
-        if ((p - attacker.transform.position).sqrMagnitude > 1e-10f)
-            return p;
-        return hitPointFallback;
-    }
-
     static float ComputeCameraLateralBiasDistance(GameObject targetObject)
     {
         var col = targetObject != null ? targetObject.GetComponentInChildren<Collider>() : null;
@@ -152,19 +97,6 @@ public static class HitVfxAnchorUtility
 
         float targetRadius = Mathf.Max(col.bounds.extents.x, col.bounds.extents.z);
         return Mathf.Clamp(targetRadius * CameraLateralBiasScale, CameraLateralBiasMin, CameraLateralBiasMax);
-    }
-
-    static bool IsUnderTarget(Collider c, GameObject targetRoot)
-    {
-        Transform t = c.transform;
-        return t == targetRoot.transform || t.IsChildOf(targetRoot.transform);
-    }
-
-    static bool IsUnderAttacker(Collider c, ActorCombater attacker)
-    {
-        Transform t = c.transform;
-        Transform root = attacker.transform;
-        return t == root || t.IsChildOf(root);
     }
 
     static bool TryGetPrimaryCameraTransform(out Transform cameraTransform)

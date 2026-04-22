@@ -236,30 +236,37 @@ MonoBehaviour:
     hitEventTag:
       TagId: 1889277012
   effects:
-  - rid: 5174319792825040908
-  - rid: 5174319792825040911
+  - rid: 2842927466738876417
+  - rid: 2842927466738876418
   references:
     version: 2
     RefIds:
-    - rid: 5174319792825040908
-      type: {class: HitStopEffectConfig, ns: , asm: Assembly-CSharp}
-      data:
-        enabled: 1
-        duration: 0.15
-        timeScale: 0.05
-    - rid: 5174319792825040911
-      type: {class: ScreenOrientedImpactEffectConfig, ns: , asm: Assembly-CSharp}
+    - rid: 2842927466738876417
+      type: {class: HitVfxConfig, ns: , asm: Assembly-CSharp}
       data:
         enabled: 1
         prefab: {fileID: 1107029698261400, guid: 6e09e616ba00652ce88f8183147587ed,
           type: 3}
         occlusionMode: 1
-        angleMode: 1
-        anglePresetDegrees: 0
-        angleRandomRange: 360
         scale: 1
         lifetime: 1
         simulationSpeed: 1
+        anchorMode: 0
+        orientationMode: 0
+        screenAngleMode: 0
+        anglePresetDegrees: 0
+        angleRandomRange: 360
+        worldDirectionMode: 0
+        rollMode: 0
+        rollPresetDegrees: 0
+        rollRandomRange: 360
+    - rid: 2842927466738876418
+      type: {class: SpeedEffectConfig, ns: , asm: Assembly-CSharp}
+      data:
+        enabled: 1
+        duration: 0.5
+        speedScale: 0
+        affectBothParties: 1
 --- !u!114 &2906656656877704270
 MonoBehaviour:
   m_ObjectHideFlags: 1

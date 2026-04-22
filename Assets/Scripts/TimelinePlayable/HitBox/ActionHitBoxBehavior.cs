@@ -113,25 +113,18 @@ public class ActionHitBoxBehavior : ActionBehaviourBase
 
         var impactData = ImpactData.FromAttackHit(hitData);
 
-        Vector3 rayOrigin = HitVfxAnchorUtility.GetDefaultAttackerRayOrigin(hitData.Attacker);
-
-        Vector3 baseSpawnPoint = HitVfxAnchorUtility.ComputeVfxSpawnPoint(
-            rayOrigin,
-            hitData.Attacker,
-            hitData.Target,
-            hitData.HitPoint);
-        var afterBias = HitVfxAnchorUtility.ApplyCameraLateralBias(
-            baseSpawnPoint,
-            rayOrigin,
-            hitData.Target);
-        impactData.VfxSpawnPoint = afterBias;
-        HitVfxAnchorDiagnostics.LogFromHitBox(hitData, baseSpawnPoint, afterBias, rayOrigin);
+        // VfxSpawnPoint 仅作为兼容性字段保留。
+        // 新的 HitVfxConfig 使用自己的锚点逻辑（从 SourceHit 解算），不依赖此字段。
+        // 旧配置（已废弃）如仍在使用，也会受益于这个直接设置。
+        impactData.VfxSpawnPoint = hitData.HitPoint;
 
         impactData.FacingReferenceWorldPosition = HitVfxFacingUtility.ResolveFacingWorldPosition(
             impactData.TargetReceiver != null ? impactData.TargetReceiver.HitFacingTargetOverride : null,
             hitData.Attacker);
 
-        impactData.PopulateDirectionalReferences(rayOrigin);
+        // PopulateDirectionalReferences 仍需要 attacker 参考点，用简单方法获取
+        Vector3 attackerRef = HitVfxAnchorUtility.GetDefaultAttackerRayOrigin(hitData.Attacker);
+        impactData.PopulateDirectionalReferences(attackerRef);
 
         ImpactSystem.Instance.ApplyImpact(impactData, effects);
     }

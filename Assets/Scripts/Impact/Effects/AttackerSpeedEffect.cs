@@ -5,6 +5,7 @@ using UnityEngine;
 /// 合并 HitStop + HitStick：只改攻击者 ActionPlayer 的 Timeline 播放速度，不改 Time.timeScale。
 /// 同时开启时，在各自持续时间内取 min(停顿速度, 黏滞速度)；总时长为两者持续时间的较大值。
 /// </summary>
+[Obsolete("请使用 ActionSpeedEffect 配合 SpeedEffectConfig，支持双方冻结")]
 public class AttackerSpeedEffect : ImpactEffect
 {
     private ActionPlayer _actionPlayer;

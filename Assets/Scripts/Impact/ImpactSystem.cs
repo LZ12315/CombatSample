@@ -62,6 +62,7 @@ public class ImpactSystem : MonoBehaviour
     {
         public HitStopEffectConfig HitStop;
         public HitStickEffectConfig HitStick;
+        public SpeedEffectConfig SpeedEffect;
         public ScreenShakeEffectConfig ScreenShake;
     }
 
@@ -91,10 +92,38 @@ public class ImpactSystem : MonoBehaviour
                 HandleEffect(impactData, effect, ImpactEffectSource.TargetProfile, ref gathered);
         }
 
-        if (gathered.HitStop != null || gathered.HitStick != null)
+        // 处理新的 SpeedEffectConfig（推荐）
+        if (gathered.SpeedEffect != null)
         {
-            var speedEffect = new AttackerSpeedEffect();
-            speedEffect.Execute(impactData.Attacker, gathered.HitStop, gathered.HitStick);
+            var speedEffect = new ActionSpeedEffect();
+            speedEffect.Execute(impactData, gathered.SpeedEffect);
+            if (speedEffect.IsActive)
+                activeEffects.Add(speedEffect);
+        }
+        // 兼容旧配置：如果配置了旧版 HitStop/HitStick 但没有 SpeedEffect
+        else if (gathered.HitStop != null || gathered.HitStick != null)
+        {
+            var speedEffect = new ActionSpeedEffect();
+            // 合并旧配置：取最慢速度，最长时长，仅攻击者（旧行为）
+            float duration = Mathf.Max(
+                gathered.HitStop?.duration ?? 0f,
+                gathered.HitStick?.duration ?? 0f);
+            float speed = 1f;
+            if (gathered.HitStop != null && gathered.HitStick != null)
+                speed = Mathf.Min(gathered.HitStop.timeScale, gathered.HitStick.speedScale);
+            else if (gathered.HitStop != null)
+                speed = gathered.HitStop.timeScale;
+            else if (gathered.HitStick != null)
+                speed = gathered.HitStick.speedScale;
+
+            var legacyConfig = new SpeedEffectConfig
+            {
+                enabled = true,
+                duration = duration,
+                speedScale = speed,
+                affectBothParties = false // 旧配置默认仅攻击者
+            };
+            speedEffect.Execute(impactData, legacyConfig);
             if (speedEffect.IsActive)
                 activeEffects.Add(speedEffect);
         }
@@ -125,11 +154,20 @@ public class ImpactSystem : MonoBehaviour
                 else
                     Debug.LogWarning("Duplicate HitStickEffectConfig found. Only the first one will be used.", this);
                 break;
+            case SpeedEffectConfig speed:
+                if (gathered.SpeedEffect == null)
+                    gathered.SpeedEffect = speed;
+                else
+                    Debug.LogWarning("Duplicate SpeedEffectConfig found. Only the first one will be used.", this);
+                break;
             case ScreenOrientedImpactEffectConfig screenOriented:
                 SpawnScreenOrientedImpactVfx(impactData, screenOriented);
                 break;
             case WorldDirectionalImpactEffectConfig worldDirectional:
                 SpawnWorldDirectionalImpactVfx(impactData, worldDirectional);
+                break;
+            case HitVfxConfig hitVfx:
+                SpawnHitVfx(impactData, hitVfx);
                 break;
             case ScreenShakeEffectConfig shake:
                 if (gathered.ScreenShake == null)
@@ -203,6 +241,54 @@ public class ImpactSystem : MonoBehaviour
             config.rollRandomRange,
             impactData);
         SpawnHitVfxInstance(config.prefab, spawnPos, rotation, config.occlusionMode, config.scale, config.lifetime, config.simulationSpeed);
+    }
+
+    /// <summary>
+    /// 统一的 HitVfxConfig 生成入口。先解算锚点位置，再按朝向模式解算旋转。
+    /// </summary>
+    void SpawnHitVfx(ImpactData impactData, HitVfxConfig config)
+    {
+        if (config == null || config.prefab == null) return;
+
+        // 1. 解算锚点位置
+        Vector3 spawnPos = ResolveAnchorPosition(impactData, config.anchorMode);
+
+        // 2. 解算朝向
+        Quaternion rotation = config.orientationMode switch
+        {
+            VfxOrientationMode.ScreenOriented => ScreenOrientedImpactRotationResolver.Resolve(
+                config.screenAngleMode,
+                config.anglePresetDegrees,
+                config.angleRandomRange,
+                spawnPos),
+            VfxOrientationMode.WorldDirectional => WorldDirectionalImpactRotationResolver.Resolve(
+                config.worldDirectionMode,
+                config.rollMode,
+                config.rollPresetDegrees,
+                config.rollRandomRange,
+                impactData),
+            _ => Quaternion.identity
+        };
+
+        // 3. 生成
+        SpawnHitVfxInstance(config.prefab, spawnPos, rotation, config.occlusionMode, config.scale, config.lifetime, config.simulationSpeed);
+    }
+
+    /// <summary>
+    /// 根据锚点模式解算 VFX 生成位置。
+    /// </summary>
+    Vector3 ResolveAnchorPosition(ImpactData impactData, VfxAnchorMode anchorMode)
+    {
+        var sourceHit = impactData.SourceHit;
+
+        return anchorMode switch
+        {
+            VfxAnchorMode.ContactHitPoint => sourceHit.HitPoint,
+            VfxAnchorMode.HitColliderCenter => sourceHit.TargetCollider != null
+                ? sourceHit.TargetCollider.bounds.center
+                : sourceHit.HitPoint, // fallback
+            _ => sourceHit.HitPoint
+        };
     }
 
     void SpawnHitVfxInstance(

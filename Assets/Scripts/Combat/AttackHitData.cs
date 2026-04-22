@@ -10,14 +10,16 @@ public struct AttackHitData
     public float Damage { get; }
     public ActorCombater Attacker { get; }
     public GameObject Target { get; }  // Fixed: target object that was hit
+    public Collider TargetCollider { get; } // 本帧命中的具体碰撞体（用于VFX锚点）
     public Vector3 HitPoint { get; }
     public Tag HitEventTag { get; }
 
-    public AttackHitData(float damage, ActorCombater attacker, GameObject target, Vector3 hitPoint, Tag hitEventTag = null)
+    public AttackHitData(float damage, ActorCombater attacker, GameObject target, Collider targetCollider, Vector3 hitPoint, Tag hitEventTag = null)
     {
         Damage = damage;
         Attacker = attacker;
         Target = target;
+        TargetCollider = targetCollider;
         HitPoint = hitPoint;
         HitEventTag = hitEventTag;
     }

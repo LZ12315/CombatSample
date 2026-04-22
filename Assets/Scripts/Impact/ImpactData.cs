@@ -14,7 +14,7 @@ public class ImpactData
     public float Damage;
 
     /// <summary>
-    /// VFX 专用生成点（攻击者→目标 Collider 中心射线与目标表面的交点等），由命中流程写入。
+    /// 兼容性字段，现等同于 HitPoint。保留供旧代码引用，新配置应直接从 SourceHit 解算位置。
     /// </summary>
     public Vector3 VfxSpawnPoint;
 
