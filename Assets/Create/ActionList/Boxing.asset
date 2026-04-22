@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e484c16208db8333b7c6578a14e5a8e, type: 3}
+  m_Name: Boxing
+  m_EditorClassIdentifier: 
+  _globalActions:
+  - {fileID: 11400000, guid: ceeecd4181b40c34a9fb1bcce23c92d9, type: 2}
+  - {fileID: 11400000, guid: 0aac4b4a61dfc384482532c85b46f8e0, type: 2}
+  - {fileID: 11400000, guid: 161afe2170765814b8c612cc5f3cb412, type: 2}
+  - {fileID: 11400000, guid: 521efc826aa605646a75f9570ebdc2f0, type: 2}
+  - {fileID: 11400000, guid: 7c5ca198895cfad4491af35083d23dbf, type: 2}

@@ -54,8 +54,6 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
 
     private void Start()
     {
-        SetControlledActor(FindFirstObjectByType<Actor>());
-
         // 锁定鼠标用于视角；第一人称常用。
         Cursor.lockState = CursorLockMode.Locked;
         // Locked 下隐藏指针，减少 UI/SkinnedMesh 一类问题。
@@ -73,13 +71,6 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
     private void OnDisable()
     {
         actions?.Disable();
-    }
-
-    public void SetControlledActor(Actor controlledActor)
-    {
-        if(controlledActor == null) return;
-
-        this.controlledActor = controlledActor;
     }
 
     void Update()

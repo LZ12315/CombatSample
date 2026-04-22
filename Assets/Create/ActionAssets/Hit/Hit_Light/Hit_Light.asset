@@ -13,15 +13,21 @@ MonoBehaviour:
   m_Name: Hit_Light
   m_EditorClassIdentifier: 
   _timelineAsset: {fileID: 11400000, guid: 980f0911822f620aca827eed8664c90a, type: 2}
-  _priorityLayer: 0
+  _priorityLayer: 3
   _priorityValue: 0
   _branches: []
   _selfTags: []
   _legacySelfTag:
     TagId: 0
-  _triggerMode: 0
+  _triggerMode: 1
   _eventTriggerTag:
-    TagId: 0
+    TagId: 645108757
+  _startContextMode: 0
+  _motionConfig:
+    rootMotionMode: 0
+    suppressLocomotion: 1
+    facingOnStart: 2
+    gravityScale: -1
   isLoop: 0
   _entryConditions: []
   references:
