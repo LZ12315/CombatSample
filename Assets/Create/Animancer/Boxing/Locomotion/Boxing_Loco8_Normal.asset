@@ -29,8 +29,8 @@ MonoBehaviour:
         _Animations:
         - {fileID: -6940667639068230761, guid: 624de805652622e44958d3b8d48a248f, type: 3}
         - {fileID: -7866933010761420140, guid: a24848caf12cd9e43b366d60d534de54, type: 3}
-        - {fileID: -6121428689682348317, guid: 2fa000bcea573064e8e0fce3ac74eff5, type: 3}
-        - {fileID: 3997679066852668322, guid: 47b88958eda88f3449fb0b448b767d66, type: 3}
+        - {fileID: -4700957839817469234, guid: 74dd0e90d0d2b554aa20239b2203ab16, type: 3}
+        - {fileID: -7200537774342851717, guid: ee950d554a19d7f4682d21fb32471c7b, type: 3}
         - {fileID: 716587664562325143, guid: d8031e812171f7b4d9772894358a5b17, type: 3}
         - {fileID: -5030109804797831096, guid: ceeab71b581c16b4381fce38940ce7af, type: 3}
         - {fileID: 452853901864306164, guid: e9b240f6d862e9e4e9f68f2a9021ab2a, type: 3}

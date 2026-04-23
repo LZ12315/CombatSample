@@ -32,13 +32,13 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
     [SerializeField, Tooltip("Within the same layer, higher wins.")]
     private int _priorityValue;
 
-    [Header("Branches")]
-    [SerializeField, Tooltip("Derived actions polled only while this action is playing. Not global entrypoints.")]
-    private List<ActionAsset> _branches = new List<ActionAsset>();
+    [Header("Cancel")]
+    [SerializeField, Tooltip("当此 Action 正在播放时，允许在帧窗口内取消到的目标。替代旧的 Branches 列表。")]
+    private List<CancelRule> _cancelRules = new List<CancelRule>();
 
     [Header("Tags")]
-    [SerializeField, Tooltip("Tags applied while this action plays (per container).")]
-    private List<ActionRuntimeTagBinding> _selfTags = new List<ActionRuntimeTagBinding>();
+    [SerializeField, Tooltip("此 Action 播放期间写入 Actor Transient TagContainer 的 Tag。同时作为 CancelRule.AnyWithTag 反向索引的匹配来源。")]
+    private List<TagReference> _selfTags = new List<TagReference>();
 
     [SerializeField, HideInInspector, FormerlySerializedAs("_selfTag")]
     private TagReference _legacySelfTag;
@@ -64,6 +64,9 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
     [SerializeReference, SubclassSelector, Tooltip("All conditions in this list must pass. Then this action can run.")]
     private List<ActionCondition> _entryConditions = new List<ActionCondition>();
 
+    [SerializeReference, SubclassSelector, Tooltip("自愿退出条件。空列表 = 永不自愿退出（需被其他 Action 抢占或自然播完）。与 EntryConditions 对称但空列表语义相反。")]
+    private List<ActionCondition> _exitConditions = new List<ActionCondition>();
+
     #region 属性封装
     public TimelineAsset TimelineAsset
     {
@@ -73,8 +76,8 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
 
     public Enums.ActionPriority PriorityLayer => _priorityLayer;
     public int PriorityValue => _priorityValue;
-    public IReadOnlyList<ActionAsset> Branches => _branches;
-    public IReadOnlyList<ActionRuntimeTagBinding> SelfTags => _selfTags;
+    public IReadOnlyList<CancelRule> CancelRules => _cancelRules;
+    public IReadOnlyList<TagReference> SelfTags => _selfTags;
 
     public bool IsLoop { get => isLoop; }
 
@@ -84,6 +87,7 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
     public ActionMotionConfig MotionConfig => _motionConfig;
 
     public IReadOnlyList<ActionCondition> EntryConditions => _entryConditions.AsReadOnly();
+    public IReadOnlyList<ActionCondition> ExitConditions => _exitConditions.AsReadOnly();
 
     #endregion
 
@@ -181,6 +185,50 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
     }
 
     /// <summary>
+    /// 检查当前 Action 是否满足自愿退出条件（与 <see cref="CheckEntry"/> 对称语义，但空列表返回值相反）。
+    /// <para>规则：</para>
+    /// <list type="number">
+    ///   <item><b>空列表 → 返回 false</b>：永不自愿退出，只能被其他 Action 抢占或自然播完（与 CheckEntry 空列表返回 false 在形式上相同，但语义含义不同——那边是"拒绝进入"，这边是"拒绝离开"）。</item>
+    ///   <item>任一 <c>overrideAll = true</c> 的条件满足 → 立即返回 true（强制退出）。</item>
+    ///   <item>否则所有 normal 条件全部通过 → 返回 true（正常退出）。</item>
+    ///   <item>只有 overrideAll 条件但都未命中 → 返回 false。</item>
+    /// </list>
+    /// </summary>
+    public bool CheckExit(Actor actor)
+    {
+        if (_exitConditions == null || _exitConditions.Count == 0)
+            return false;
+
+        bool hasNormalConditions = false;
+        bool allNormalPassed = true;
+
+        for (int i = 0; i < _exitConditions.Count; i++)
+        {
+            var cond = _exitConditions[i];
+            if (cond == null) continue;
+
+            bool isMet = cond.Check(actor);
+
+            if (cond.overrideAll)
+            {
+                if (isMet)
+                    return true;
+            }
+            else
+            {
+                hasNormalConditions = true;
+                if (!isMet)
+                    allNormalPassed = false;
+            }
+        }
+
+        if (hasNormalConditions)
+            return allNormalPassed;
+
+        return false;
+    }
+
+    /// <summary>
     /// 胜选回调：当 ActionStateManager 选中此 Action 并决定真正进入时调用。
     /// 遍历所有 EntryCondition 触发 OnClaim，让带有"消费型"语义的条件（例如 InputSequenceCondition）
     /// 把本次命中的输入从 buffer 中标记为已消费，避免同一组输入驱动下一个 Action（如一段跳→二段跳）。
@@ -217,10 +265,12 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
     {
         if (_entryConditions == null)
             _entryConditions = new List<ActionCondition>();
-        if (_branches == null)
-            _branches = new List<ActionAsset>();
+        if (_exitConditions == null)
+            _exitConditions = new List<ActionCondition>();
+        if (_cancelRules == null)
+            _cancelRules = new List<CancelRule>();
         if (_selfTags == null)
-            _selfTags = new List<ActionRuntimeTagBinding>();
+            _selfTags = new List<TagReference>();
     }
 
     private void MigrateLegacySelfTag()
@@ -232,19 +282,15 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
         if (legacy == null)
             return;
 
-        foreach (var b in _selfTags)
+        foreach (var tagRef in _selfTags)
         {
-            if (b?.tag == null) continue;
-            Tag t = b.tag.GetTag();
+            if (tagRef == null) continue;
+            Tag t = tagRef.GetTag();
             if (t != null && t.Id == legacy.Id)
                 return;
         }
 
-        _selfTags.Add(new ActionRuntimeTagBinding
-        {
-            tag = _legacySelfTag,
-            targetContainer = ActorTagContainerType.Transient
-        });
+        _selfTags.Add(_legacySelfTag);
     }
 
     private void MarkDirty()

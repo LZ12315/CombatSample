@@ -15,11 +15,18 @@ MonoBehaviour:
   _timelineAsset: {fileID: 11400000, guid: 9795dd9927de2a440855a028dd7d8c6a, type: 2}
   _priorityLayer: 1
   _priorityValue: 0
-  _branches: []
+  _cancelRules:
+  - targetKind: 2
+    specificTarget: {fileID: 0}
+    targetTag:
+      TagId: 0
+    window:
+      startAnchor: 0
+      startFrame: 20
+      endAnchor: 2
+      endFrame: 36
   _selfTags:
-  - tag:
-      TagId: 1279786718
-    targetContainer: 0
+  - TagId: 0
   _legacySelfTag:
     TagId: 0
   _triggerMode: 0
@@ -34,6 +41,7 @@ MonoBehaviour:
   isLoop: 0
   _entryConditions:
   - rid: 5174319773871505410
+  _exitConditions: []
   references:
     version: 2
     RefIds:

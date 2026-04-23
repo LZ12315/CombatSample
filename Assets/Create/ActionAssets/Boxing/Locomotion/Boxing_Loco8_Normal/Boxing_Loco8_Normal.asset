@@ -15,8 +15,16 @@ MonoBehaviour:
   _timelineAsset: {fileID: 11400000, guid: 3dfe751ead1ae24479b96fc6e92ce8e7, type: 2}
   _priorityLayer: 1
   _priorityValue: 0
-  _branches: []
-  _selfTags: []
+  _cancelRules:
+  - targetKind: 2
+    specificTarget: {fileID: 0}
+    targetTag:
+      TagId: 0
+    window:
+      startFrame: 0
+      endFrame: 48
+  _selfTags:
+  - TagId: -229303555
   _legacySelfTag:
     TagId: 0
   _triggerMode: 0
@@ -30,23 +38,28 @@ MonoBehaviour:
     gravityScale: -1
   isLoop: 1
   _entryConditions:
-  - rid: 5174319792825040906
-  - rid: 5174319792825040915
+  - rid: 5174319843170058246
+  - rid: 5174319843170058247
+  _exitConditions:
+  - rid: 5174319843170058244
   references:
     version: 2
     RefIds:
-    - rid: 5174319792825040906
+    - rid: 5174319843170058244
+      type: {class: LocomotionIntentCondition, ns: , asm: Assembly-CSharp}
+      data:
+        invertResult: 1
+        overrideAll: 0
+        threshold: 0.01
+    - rid: 5174319843170058246
       type: {class: LocomotionIntentCondition, ns: , asm: Assembly-CSharp}
       data:
         invertResult: 0
         overrideAll: 0
         threshold: 0.01
-    - rid: 5174319792825040915
-      type: {class: TagCondition, ns: , asm: Assembly-CSharp}
+    - rid: 5174319843170058247
+      type: {class: GroundStateCondition, ns: , asm: Assembly-CSharp}
       data:
-        invertResult: 1
+        invertResult: 0
         overrideAll: 0
-        requiredTag:
-          TagId: 1279786718
-        targetContainer: 0
-        matchMode: 1
+        acceptedStates: 1

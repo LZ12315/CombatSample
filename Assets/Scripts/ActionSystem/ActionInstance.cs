@@ -33,11 +33,11 @@ public class ActionInstance
         {
             for (int i = 0; i < selfTags.Count; i++)
             {
-                var binding = selfTags[i];
-                if (binding?.tag == null) continue;
-                Tag tagObj = binding.tag.GetTag();
+                var tagRef = selfTags[i];
+                if (tagRef == null) continue;
+                Tag tagObj = tagRef.GetTag();
                 if (tagObj != null)
-                    Actor.AddTag(tagObj, binding.targetContainer);
+                    Actor.AddTag(tagObj, ActorTagContainerType.Transient);
             }
         }
     }
@@ -49,11 +49,11 @@ public class ActionInstance
         {
             for (int i = 0; i < selfTags.Count; i++)
             {
-                var binding = selfTags[i];
-                if (binding?.tag == null) continue;
-                Tag tagObj = binding.tag.GetTag();
+                var tagRef = selfTags[i];
+                if (tagRef == null) continue;
+                Tag tagObj = tagRef.GetTag();
                 if (tagObj != null)
-                    Actor.RemoveTag(tagObj, binding.targetContainer);
+                    Actor.RemoveTag(tagObj, ActorTagContainerType.Transient);
             }
         }
 

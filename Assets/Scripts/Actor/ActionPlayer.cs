@@ -37,6 +37,31 @@ public class ActionPlayer : MonoBehaviour
 
     public ActionInstance CurrentAction { get; private set; }
 
+
+
+
+
+    /// <summary>
+    /// 当前动作已播放到第几帧（从 0 开始），每帧 Update 中由 <c>Floor(_director.time * CurrentFrameRate)</c> 计算。
+    /// <para>HitStop 冻结 <c>_director.time</c> 时本值自然停滞，语义天然正确。</para>
+    /// <para>无当前动作或已 Stop 时归零。</para>
+    /// <para>供 <see cref="ActionStateManager"/> 判定 <see cref="CancelWindow"/> 是否命中使用。</para>
+    /// </summary>
+    public int CurrentFrame { get; private set; }
+
+    /// <summary>
+    /// 当前动作的帧率（由其 TimelineAsset.editorSettings.frameRate 在 Bind 时一次性读入并缓存）。
+    /// 使用 <c>Mathf.Max(1, Round(frameRate))</c> 兜底防除零。无当前动作时为 0。
+    /// </summary>
+    public int CurrentFrameRate { get; private set; }
+
+    /// <summary>
+    /// 当前动作的总帧数（= Floor(duration * frameRate)）。
+    /// 供 <see cref="CancelWindow"/> 解析 <see cref="FrameAnchor.End"/> 锚点使用。
+    /// 无当前动作时为 0。
+    /// </summary>
+    public int TotalFrames { get; private set; }
+
     /// <summary>当前播放 Action 的启动上下文快照，供 Loop 重播时保留。</summary>
     private ActionEventContext _currentContext;
 
@@ -83,6 +108,9 @@ public class ActionPlayer : MonoBehaviour
         // 速度控制现在由外部 Effect（如 ActionSpeedEffect）全权管理。
         // StopAction 只是停止当前动作，不应干预速度状态。
         _currentContext = default;
+        CurrentFrame = 0;
+        CurrentFrameRate = 0;
+        TotalFrames = 0;
     }
 
     /// <summary>播放指定动作：先 StopAction，再绑定 Timeline、OnEnter。</summary>
@@ -107,6 +135,11 @@ public class ActionPlayer : MonoBehaviour
         CurrentAction.OnEnter(_actor, _currentContext);
         _director.playableAsset = CurrentAction.Config.TimelineAsset;
         _director.time = 0;
+        // 缓存帧率（兜底 1 防除零），并把当前帧号归零。供 ASM 判定 CancelWindow 使用。
+        var ts = CurrentAction.Config.TimelineAsset;
+        CurrentFrameRate = Mathf.Max(1, Mathf.RoundToInt((float)ts.editorSettings.frameRate));
+        TotalFrames = Mathf.FloorToInt((float)(ts.duration * CurrentFrameRate));
+        CurrentFrame = 0;
         // 注意：不在这里重置 _expectedSpeed。
         // 新 Director 启动后默认速度为 1.0，但会在 Update 中被立即同步为 _expectedSpeed。
         // 这确保 HitStop 期间切换动作能无缝继承当前速度。
@@ -175,7 +208,12 @@ public class ActionPlayer : MonoBehaviour
         {
             double normalizedTime = _director.duration > 0 ? _director.time / _director.duration : 0;
             CurrentAction.UpdateNormalizedTime(normalizedTime);
+
+            // 计算当前帧号（HitStop 时 _director.time 冻结 → 帧号自动冻结，符合预期）
+            CurrentFrame = Mathf.FloorToInt((float)(_director.time * CurrentFrameRate));
         }
+
+
     }
 
     private void HandleDirectorStopped(PlayableDirector director)
@@ -193,6 +231,7 @@ public class ActionPlayer : MonoBehaviour
                 // 不执行 OnExit/OnEnter，避免 Movement 状态闪烁和动画重启。
                 finished.ResetRuntimeData();
                 _director.time = 0;
+                CurrentFrame = 0;
                 _director.Play();
                 return;
             }
@@ -201,6 +240,9 @@ public class ActionPlayer : MonoBehaviour
             _actor?.ClearTransientTags();
             CurrentAction = null;
             _director.playableAsset = null;
+            CurrentFrame = 0;
+            CurrentFrameRate = 0;
+            TotalFrames = 0;
             // 注意：不在这里重置 _expectedSpeed。
             // 速度控制现在由外部 Effect（如 ActionSpeedEffect）全权管理。
             // 动作结束时不自动恢复速度，确保 HitStop 等效果能持续到 Effect 主动恢复。
@@ -209,6 +251,9 @@ public class ActionPlayer : MonoBehaviour
         }
 
         CurrentAction = null;
+        CurrentFrame = 0;
+        CurrentFrameRate = 0;
+        TotalFrames = 0;
         OnActionInterrupted?.Invoke(finished);
     }
 }

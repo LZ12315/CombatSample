@@ -12,3 +12,8 @@ Hit.Air
 Hit.Down
 Window.Attack
 Window.Normal
+Action.Skill
+Action.Move
+Action.Dodge
+Action.Jump
+Action.Idle

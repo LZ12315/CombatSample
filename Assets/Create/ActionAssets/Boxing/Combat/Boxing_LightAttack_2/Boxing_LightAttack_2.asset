@@ -15,7 +15,16 @@ MonoBehaviour:
   _timelineAsset: {fileID: 11400000, guid: b1d671e5eedb82547b2051bcd25fc74b, type: 2}
   _priorityLayer: 1
   _priorityValue: 1
-  _branches: []
+  _cancelRules:
+  - targetKind: 1
+    specificTarget: {fileID: 0}
+    targetTag:
+      TagId: -229303555
+    window:
+      startAnchor: 0
+      startFrame: 0
+      endAnchor: 2
+      endFrame: 90
   _selfTags: []
   _legacySelfTag:
     TagId: 0
@@ -31,7 +40,7 @@ MonoBehaviour:
   isLoop: 0
   _entryConditions:
   - rid: 5174319792825040898
-  - rid: 5174319792825040900
+  _exitConditions: []
   references:
     version: 2
     RefIds:
@@ -48,12 +57,3 @@ MonoBehaviour:
       data:
         requiredButtons: 8
         requiredState: 2
-    - rid: 5174319792825040900
-      type: {class: TagCondition, ns: , asm: Assembly-CSharp}
-      data:
-        invertResult: 1
-        overrideAll: 0
-        requiredTag:
-          TagId: -913587049
-        targetContainer: 0
-        matchMode: 1

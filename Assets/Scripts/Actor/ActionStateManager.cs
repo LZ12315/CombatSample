@@ -20,9 +20,21 @@ public class ActionStateManager : MonoBehaviour
     private readonly List<ActionAsset> _eventCandidatesThisFrame = new List<ActionAsset>(4);
     private ActionEventContext _pendingEventContext;
 
+    // ── CancelRule.AnyWithTag 反向索引 ──
+    /// <summary>
+    /// SelfTag 反向索引：Tag.Id → 所有 SelfTags 中包含该 Tag 的 ActionAsset 列表。
+    /// <para>用途：<see cref="CancelRule"/> 的 <c>AnyWithTag</c> 取消规则在运行时通过该索引 O(1) 查表，
+    /// 避免每次取消都扫全表（<c>_actionList</c> 可能有几十个 Action）。</para>
+    /// <para>来源：扫描 <c>_actionList</c> 的所有 Action，把它们的 <c>SelfTags</c>
+    /// 按 Tag.Id 建反向映射。</para>
+    /// <para>构建时机：<see cref="Awake"/> 一次性构建，之后不再变更（_actionList 是编辑期配置）。</para>
+    /// </summary>
+    private Dictionary<int, List<ActionAsset>> _selfTagIndex;
+
     private void Awake()
     {
         BuildEventMap();
+        BuildSelfTagIndex();
     }
 
     private void OnEnable()
@@ -37,6 +49,14 @@ public class ActionStateManager : MonoBehaviour
 
     private void Update()
     {
+        // 每帧开头先做自愿退出检查：若当前动作的 ExitConditions 判定为 true，则立即 StopAction。
+        // 停掉之后，本帧仍可继续 CheckForTransition 选出新 Action（例如 Locomotion 接管），无需等下一帧。
+        var currentInst = _actionPlayer.CurrentAction;
+        if (currentInst != null && currentInst.Config.CheckExit(_actor))
+        {
+            _actionPlayer.StopAction();
+        }
+
         ActionAsset chosen = CheckForTransition();
 
         if (chosen != null)
@@ -174,38 +194,134 @@ public class ActionStateManager : MonoBehaviour
     private ActionAsset CheckForTransition()
     {
         _validCandidatesCache.Clear();
-        if (_actionList != null)
-        {
-            var allActions = _actionList.GetAllAvailableActions();
 
-            for (int i = 0; i < allActions.Count; i++)
+        // 按「有无当前动作」分叉收集基础候选：
+        //   - 无当前动作：扫全表（Locomotion/Idle/起手类等需要从 Neutral 态进入的都在这里被选中）
+        //   - 有当前动作：只从当前动作的 CancelRules 派生（按帧窗口 + 目标/Tag 过滤）
+        var currentInstance = _actionPlayer.CurrentAction;
+        if (currentInstance == null)
+        {
+            if (_actionList != null)
             {
-                // 跳过事件模式的 Action，它们只通过 SendEvent 进入候选
-                if (allActions[i] != null && allActions[i].TriggerMode == ActionTriggerMode.Event)
-                    continue;
-                TryAddCandidate(allActions[i]);
+                var allActions = _actionList.GetAllAvailableActions();
+                for (int i = 0; i < allActions.Count; i++)
+                {
+                    // 跳过事件模式的 Action，它们只通过 SendEvent 进入候选
+                    if (allActions[i] != null && allActions[i].TriggerMode == ActionTriggerMode.Event)
+                        continue;
+                    TryAddCandidate(allActions[i]);
+                }
             }
         }
-
-        var currentInstance = _actionPlayer.CurrentAction;
-        if (currentInstance != null)
+        else
         {
-            var branches = currentInstance.Config.Branches;
-            for (int i = 0; i < branches.Count; i++)
-                TryAddCandidate(branches[i]);
+            CollectCancelCandidates(currentInstance);
         }
 
-        // 事件候选
+        // 事件候选：两种分叉下都参与（它们是独立的插入通道，不受 CancelRules 约束）
         for (int i = 0; i < _eventCandidatesThisFrame.Count; i++)
             TryAddCandidate(_eventCandidatesThisFrame[i]);
 
-        // 外部候选
+        // 外部候选：同上
         for (int i = 0; i < _externalCandidatesThisFrame.Count; i++)
             TryAddCandidate(_externalCandidatesThisFrame[i]);
 
         if (_validCandidatesCache.Count > 0)
             return SelectHighestPriorityAction(_validCandidatesCache);
         return null;
+    }
+
+    /// <summary>
+    /// 从当前正在播放的动作的 <c>CancelRules</c> 中派生本帧候选。
+    /// <para>流程：遍历规则 → 检查 <c>window.ContainsFrame(CurrentFrame, TotalFrames)</c> → 按 targetKind 分发：</para>
+    /// <list type="bullet">
+    ///   <item><b>SpecificAction</b>：直接把 <c>specificTarget</c> 送入 <see cref="TryAddCandidate"/>。</item>
+    ///   <item><b>AnyWithTag</b>：用 <c>_selfTagIndex</c> 查表得到所有 SelfTags 含此 Tag 的 Action，逐一送入候选。</item>
+    ///   <item><b>Any</b>：把全表（跳过 Event 模式）送入候选。</item>
+    /// </list>
+    /// <para>注意：是否最终进入仍由目标 Action 的 <c>CheckEntry</c>（EntryConditions）决定，CancelRule 仅负责"递交候选"。</para>
+    /// </summary>
+    private void CollectCancelCandidates(ActionInstance currentInstance)
+    {
+        var rules = currentInstance.Config.CancelRules;
+        if (rules == null || rules.Count == 0) return;
+
+        int currentFrame = _actionPlayer.CurrentFrame;
+        int totalFrames = _actionPlayer.TotalFrames;
+
+        for (int i = 0; i < rules.Count; i++)
+        {
+            var rule = rules[i];
+            if (rule == null) continue;
+            if (!rule.window.ContainsFrame(currentFrame, totalFrames)) continue;
+
+            switch (rule.targetKind)
+            {
+                case CancelTargetKind.SpecificAction:
+                    TryAddCandidate(rule.specificTarget);
+                    break;
+
+                case CancelTargetKind.AnyWithTag:
+                    if (rule.targetTag == null) break;
+                    var tag = rule.targetTag.GetTag();
+                    if (tag == null) break;
+                    if (_selfTagIndex != null && _selfTagIndex.TryGetValue(tag.Id, out var actions))
+                    {
+                        for (int j = 0; j < actions.Count; j++)
+                            TryAddCandidate(actions[j]);
+                    }
+                    break;
+
+                case CancelTargetKind.Any:
+                    if (_actionList != null)
+                    {
+                        var allActions = _actionList.GetAllAvailableActions();
+                        for (int j = 0; j < allActions.Count; j++)
+                        {
+                            if (allActions[j] != null && allActions[j].TriggerMode == ActionTriggerMode.Event)
+                                continue;
+                            TryAddCandidate(allActions[j]);
+                        }
+                    }
+                    break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// 构建 <see cref="_selfTagIndex"/>：Tag.Id → SelfTags 中包含该 Tag 的 ActionAsset 列表。
+    /// 在 <see cref="Awake"/> 一次性调用。
+    /// </summary>
+    private void BuildSelfTagIndex()
+    {
+        _selfTagIndex = new Dictionary<int, List<ActionAsset>>();
+        if (_actionList == null) return;
+
+        var allActions = _actionList.GetAllAvailableActions();
+        for (int i = 0; i < allActions.Count; i++)
+        {
+            var action = allActions[i];
+            if (action == null) continue;
+
+            var selfTags = action.SelfTags;
+            if (selfTags == null || selfTags.Count == 0) continue;
+
+            for (int k = 0; k < selfTags.Count; k++)
+            {
+                var tagRef = selfTags[k];
+                if (tagRef == null) continue;
+                var tag = tagRef.GetTag();
+                if (tag == null) continue;
+
+                if (!_selfTagIndex.TryGetValue(tag.Id, out var list))
+                {
+                    list = new List<ActionAsset>(4);
+                    _selfTagIndex[tag.Id] = list;
+                }
+                if (!list.Contains(action))
+                    list.Add(action);
+            }
+        }
     }
 
     private void TryAddCandidate(ActionAsset action)

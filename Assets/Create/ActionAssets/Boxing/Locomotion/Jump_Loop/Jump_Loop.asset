@@ -14,13 +14,24 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _timelineAsset: {fileID: 11400000, guid: b9d17f64f04346846a03b8f83596fef3, type: 2}
   _priorityLayer: 0
-  _priorityValue: 5
-  _branches:
-  - {fileID: 11400000, guid: 70a5400ba18fcb84389ea5999e1d4430, type: 2}
+  _priorityValue: 1
+  _cancelRules:
+  - targetKind: 0
+    specificTarget: {fileID: 11400000, guid: 70a5400ba18fcb84389ea5999e1d4430, type: 2}
+    targetTag:
+      TagId: 0
+    window:
+      startFrame: 0
+      endFrame: 48
+  - targetKind: 2
+    specificTarget: {fileID: 0}
+    targetTag:
+      TagId: 0
+    window:
+      startFrame: 0
+      endFrame: 48
   _selfTags:
-  - tag:
-      TagId: 1279786718
-    targetContainer: 0
+  - TagId: 1081306340
   _legacySelfTag:
     TagId: 0
   _triggerMode: 0
@@ -36,6 +47,7 @@ MonoBehaviour:
   _entryConditions:
   - rid: 5174319773871505408
   - rid: 5174319773871505409
+  _exitConditions: []
   references:
     version: 2
     RefIds:
