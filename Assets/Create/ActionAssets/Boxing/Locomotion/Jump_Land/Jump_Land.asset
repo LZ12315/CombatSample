@@ -16,7 +16,10 @@ MonoBehaviour:
   _priorityLayer: 1
   _priorityValue: 0
   _branches: []
-  _selfTags: []
+  _selfTags:
+  - tag:
+      TagId: 1279786718
+    targetContainer: 0
   _legacySelfTag:
     TagId: 0
   _triggerMode: 0

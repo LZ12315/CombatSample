@@ -28,7 +28,7 @@ MonoBehaviour:
     suppressLocomotion: 0
     facingOnStart: 0
     gravityScale: -1
-  isLoop: 0
+  isLoop: 1
   _entryConditions:
   - rid: 5174319792825040906
   - rid: 5174319792825040915

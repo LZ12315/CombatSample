@@ -308,6 +308,32 @@ public class ActorMovement : MonoBehaviour
 
     #endregion
 
+    #region === 运动能力状态 ===
+    // 与角色运动能力相关的运行时计数/标记。
+    // 原则：数据跟随信息专家（Movement 拥有 GroundState / 落地事件等完整运动上下文），
+    //       行为在同一类内闭环（落地重置 jumpCount 无需跨组件事件订阅）。
+    // 条件系统通过 actor.movement.CanJump() 访问，与 actor.movement.groundState 路径一致。
+
+    [Header("Jump Ability")]
+    [SerializeField, Tooltip("最大跳跃次数。2 = 支持二段跳。")]
+    private int _maxJumpCount = 2;
+
+    /// <summary>已消耗的跳跃次数。落地时自动重置为 0。</summary>
+    public int jumpCount { get; private set; }
+
+    /// <summary>最大跳跃次数（面板配置）。</summary>
+    public int maxJumpCount => _maxJumpCount;
+
+    /// <summary>是否还能跳（供条件系统查询）。</summary>
+    public bool CanJump() => jumpCount < _maxJumpCount;
+
+    /// <summary>消耗一次跳跃（由跳跃 Action 的 Claim 或 Timeline Clip 触发）。</summary>
+    public void ConsumeJump() => jumpCount++;
+
+    // 未来加 dash / airCombo 等同类运动能力状态时，也放在这个 region。
+
+    #endregion
+
     #region === 朝向管线 ===
 
     // 覆盖层（Clip 显式设置/清除，不自动清零）
@@ -467,6 +493,7 @@ public class ActorMovement : MonoBehaviour
             if (_groundState == GroundState.Airborne)
             {
                 _groundState = GroundState.JustLanded;
+                jumpCount = 0; // 落地重置跳跃计数（内部闭环，无需跨组件事件）
                 OnLanded?.Invoke();
             }
         }
