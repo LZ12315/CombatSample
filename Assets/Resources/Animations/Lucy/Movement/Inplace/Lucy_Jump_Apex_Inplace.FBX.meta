@@ -53,8 +53,8 @@ ModelImporter:
       name: Lucy_Jump_Apex_Inplace
       takeName: Lucy_Jump_Start_Inplace
       internalID: 0
-      firstFrame: 14
-      lastFrame: 15
+      firstFrame: 10
+      lastFrame: 28
       wrapMode: 0
       orientationOffsetY: 0
       level: 0
