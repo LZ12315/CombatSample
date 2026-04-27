@@ -145,12 +145,13 @@ public abstract class ActionBehaviourBase : PlayableBehaviour
         if (director == null)
             return false;
 
-        // 方法3：检查Director是否还在播放状态（暂停也算存在）
-        // 关键：暂停状态下Graph.IsPlaying()为false，但Graph仍然有效
-        bool isGraphValid = playable.GetGraph().IsValid();
-        bool hasValidDirector = director != null;
+        // 运行时：Director.Stop() 会使 graph.IsPlaying() 变 false。
+        // 此时 Clip 应走 OnClipStop 做清理，而非 Pause（否则 Clamp / gravity 等会泄漏）。
+        // 编辑器预览不依赖此分支（预览暂停时 IsPlaying 也为 false，保持旧行为）。
+        if (Application.isPlaying && !playable.GetGraph().IsPlaying())
+            return false;
 
-        return isGraphValid && hasValidDirector;
+        return true;
     }
 
     #endregion

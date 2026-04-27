@@ -1,0 +1,77 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d4a14c808be2c4f4a8f1b6d45ebd172f, type: 3}
+  m_Name: Boxing_AirAttack_2
+  m_EditorClassIdentifier: 
+  _timelineAsset: {fileID: 11400000, guid: e14dd4b03d3fc1749a19a5faf6e56ed0, type: 2}
+  _priorityLayer: 1
+  _priorityValue: 0
+  _cancelRules:
+  - targetKind: 0
+    specificTarget: {fileID: 11400000, guid: 0ae549bc546c62145a65c4dd3a304450, type: 2}
+    targetTag:
+      TagId: 0
+    window:
+      startAnchor: 0
+      startFrame: 45
+      endAnchor: 0
+      endFrame: 65
+  - targetKind: 0
+    specificTarget: {fileID: 11400000, guid: b8d969219ada6fc4bb8155ed1cc6ac55, type: 2}
+    targetTag:
+      TagId: 0
+    window:
+      startAnchor: 0
+      startFrame: 66
+      endAnchor: 2
+      endFrame: 0
+  _selfTags:
+  - TagId: -2107794142
+  _legacySelfTag:
+    TagId: 0
+  _triggerMode: 0
+  _eventTriggerTag:
+    TagId: 0
+  _startContextMode: 0
+  _motionConfig:
+    rootMotionMode: 1
+    suppressLocomotion: 1
+    facingOnStart: 2
+    gravityScale: -1
+  isLoop: 0
+  _allowReenterWhilePlaying: 0
+  _entryConditions:
+  - rid: 4877214280882585611
+  - rid: 4877214280882585613
+  _exitConditions: []
+  references:
+    version: 2
+    RefIds:
+    - rid: 4877214280882585611
+      type: {class: InputSequenceCondition, ns: , asm: Assembly-CSharp}
+      data:
+        invertResult: 0
+        overrideAll: 0
+        maxInputInterval: 0.25
+        inputSequence:
+        - rid: 4877214280882585612
+    - rid: 4877214280882585612
+      type: {class: ButtonInputCheck, ns: , asm: Assembly-CSharp}
+      data:
+        requiredButtons: 8
+        requiredState: 2
+    - rid: 4877214280882585613
+      type: {class: GroundStateCondition, ns: , asm: Assembly-CSharp}
+      data:
+        invertResult: 0
+        overrideAll: 0
+        acceptedStates: 4

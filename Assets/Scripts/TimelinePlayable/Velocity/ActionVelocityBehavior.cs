@@ -36,7 +36,7 @@ public class ActionVelocityBehavior : ActionBehaviourBase
 
     protected override void OnClipStart(Playable playable)
     {
-        if (actor == null || actor.movement == null || config == null) return;
+        if (actor?.movement == null || config == null) return;
 
         _instigatorTransform = null;
 
@@ -47,11 +47,12 @@ public class ActionVelocityBehavior : ActionBehaviourBase
         // 覆盖重力缩放（默认 0 = 完全浮空，由 Clip 接管垂直）
         actor.movement.SetGravityScale(config.gravityScale);
 
+        if (config.releaseMode == VerticalReleaseMode.ResetVertical)
+            actor.movement.ResetVerticalState();
+
         if (config.debugLog)
         {
-            Debug.Log($"[Velocity] Start — dirMode={config.directionMode}, " +
-                      $"hSpeed={config.horizontalSpeed}, vSpeed={config.verticalSpeed}, " +
-                      $"gravity={config.gravityScale}");
+            Debug.Log($"[Velocity] Start — gravityScale={config.gravityScale}, vMode={config.verticalMode}");
         }
     }
 
@@ -84,15 +85,24 @@ public class ActionVelocityBehavior : ActionBehaviourBase
             actor.movement.SetExternalHorizontalVelocity(Vector3.zero);
         }
 
-        // 3. 垂直通道：独立控制（不受方向模式影响，方向模式只解析水平）
-        if (Mathf.Abs(config.verticalSpeed) > 0.001f)
+        // 3. 垂直通道：按模式写入（方向模式只解析水平）
+        float vCurve = config.verticalCurve?.Evaluate(t) ?? 1f;
+        float vertical = config.verticalSpeed * vCurve;
+        switch (config.verticalMode)
         {
-            float vCurve = config.verticalCurve?.Evaluate(t) ?? 1f;
-            actor.movement.SetExternalVerticalVelocity(config.verticalSpeed * vCurve);
-        }
-        else
-        {
-            actor.movement.SetExternalVerticalVelocity(0f);
+            case VerticalVelocityMode.AdditiveExternal:
+                actor.movement.SetExternalVerticalVelocity(Mathf.Abs(vertical) > 0.001f ? vertical : 0f);
+                break;
+
+            case VerticalVelocityMode.ClampRange:
+                actor.movement.SetExternalVerticalVelocity(Mathf.Max(0f, vertical));
+                actor.movement.SetVerticalClamp(config.clampMin, config.clampMax);
+                break;
+
+            case VerticalVelocityMode.OverrideVertical:
+                actor.movement.SetExternalVerticalVelocity(0f);
+                actor.movement.SetVerticalVelocityOverride(vertical);
+                break;
         }
     }
 
@@ -100,15 +110,21 @@ public class ActionVelocityBehavior : ActionBehaviourBase
     {
         if (actor == null || actor.movement == null) return;
 
+        // 权威移交：需要时重置垂直通道到干净状态（冲量+重力归零）
+        if (config != null && config.releaseMode == VerticalReleaseMode.ResetVertical)
+            actor.movement.ResetVerticalState();
+
         // 清空外部速度通道（水平 + 垂直）
         actor.movement.ClearExternalVelocity();
+        actor.movement.ClearVerticalVelocityOverride();
+        actor.movement.ClearVerticalClamp();
 
         // 恢复重力缩放
         actor.movement.SetGravityScale(_savedGravityScale);
 
         if (config != null && config.debugLog)
         {
-            Debug.Log($"[Velocity] Stop — isFinish={isFinish}");
+            Debug.Log($"[Velocity] Stop — isFinish={isFinish}, release={config.releaseMode}");
         }
 
         _instigatorTransform = null;

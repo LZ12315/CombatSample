@@ -1,6 +1,21 @@
 using System;
 using UnityEngine;
 
+[Serializable]
+public enum VerticalVelocityMode
+{
+    AdditiveExternal = 0, // 默认：写入外部垂直速度，与重力/冲量叠加
+    ClampRange = 1,       // 钳制最终垂直速度范围（常用于空中攻击短暂停滞）
+    OverrideVertical = 2, // 直接覆盖最终垂直速度（强演出/定身）
+}
+
+[Serializable]
+public enum VerticalReleaseMode
+{
+    Transparent = 0,  // Clip 结束后通道状态原样暴露（默认）
+    ResetVertical = 1, // Clip 结束时重置垂直通道（冲量+重力归零）
+}
+
 /// <summary>
 /// VelocityConfig —— ActionVelocityClip 的配置数据。
 /// 
@@ -39,6 +54,15 @@ public class VelocityConfig
     [Tooltip("垂直速度（m/s，正值向上）。写入外部垂直通道。0 表示不启用垂直持续速度。")]
     public float verticalSpeed = 0f;
 
+    [Tooltip("垂直速度写入模式：AdditiveExternal=叠加；ClampRange=钳制最终垂直范围；OverrideVertical=直接覆盖最终垂直速度。")]
+    public VerticalVelocityMode verticalMode = VerticalVelocityMode.AdditiveExternal;
+
+    [Tooltip("ClampRange 模式下允许的最低垂直速度（m/s）。负值=缓降。")]
+    public float clampMin = -0.5f;
+
+    [Tooltip("ClampRange 模式下允许的最高垂直速度（m/s）。0=禁止上升。")]
+    public float clampMax = 0f;
+
     // ── 曲线缩放（可选，恒定 1 时等价于不启用） ──
 
     [Tooltip("水平速度随 Clip 进度的缩放（X: 0~1 归一化时间，Y: 速度乘子）。默认恒定 1。用于击飞减速、冲刺加速等手感塑形。")]
@@ -51,6 +75,9 @@ public class VelocityConfig
 
     [Tooltip("Clip 期间使用的重力缩放。默认 0 = 完全浮空（由 Clip 接管垂直）。设为 1 则保留正常重力叠加在 verticalSpeed 之上。")]
     public float gravityScale = 0f;
+
+    [Tooltip("Clip 结束时的垂直通道处理。Transparent=原样暴露；ResetVertical=归零后由重力接管。")]
+    public VerticalReleaseMode releaseMode = VerticalReleaseMode.Transparent;
 
     // ── 调试 ──
 

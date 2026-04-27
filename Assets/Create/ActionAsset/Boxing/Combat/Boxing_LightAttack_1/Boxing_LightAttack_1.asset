@@ -22,16 +22,16 @@ MonoBehaviour:
       TagId: 0
     window:
       startAnchor: 0
-      startFrame: 40
+      startFrame: 30
       endAnchor: 2
-      endFrame: 120
+      endFrame: 0
   - targetKind: 1
     specificTarget: {fileID: 0}
     targetTag:
       TagId: -229303555
     window:
       startAnchor: 0
-      startFrame: 90
+      startFrame: 80
       endAnchor: 2
       endFrame: 120
   _selfTags:
@@ -48,12 +48,20 @@ MonoBehaviour:
     facingOnStart: 2
     gravityScale: -1
   isLoop: 0
+  _allowReenterWhilePlaying: 0
   _entryConditions:
   - rid: 5174319792825040896
+  - rid: 4877214280882585603
   _exitConditions: []
   references:
     version: 2
     RefIds:
+    - rid: 4877214280882585603
+      type: {class: GroundStateCondition, ns: , asm: Assembly-CSharp}
+      data:
+        invertResult: 0
+        overrideAll: 0
+        acceptedStates: 1
     - rid: 5174319792825040896
       type: {class: InputSequenceCondition, ns: , asm: Assembly-CSharp}
       data:

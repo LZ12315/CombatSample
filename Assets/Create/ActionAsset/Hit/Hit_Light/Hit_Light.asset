@@ -15,7 +15,7 @@ MonoBehaviour:
   _timelineAsset: {fileID: 11400000, guid: 980f0911822f620aca827eed8664c90a, type: 2}
   _priorityLayer: 3
   _priorityValue: 0
-  _branches: []
+  _cancelRules: []
   _selfTags: []
   _legacySelfTag:
     TagId: 0
@@ -29,7 +29,16 @@ MonoBehaviour:
     facingOnStart: 2
     gravityScale: -1
   isLoop: 0
-  _entryConditions: []
+  _allowReenterWhilePlaying: 1
+  _entryConditions:
+  - rid: 4877214280882585610
+  _exitConditions: []
   references:
     version: 2
-    RefIds: []
+    RefIds:
+    - rid: 4877214280882585610
+      type: {class: GroundStateCondition, ns: , asm: Assembly-CSharp}
+      data:
+        invertResult: 0
+        overrideAll: 0
+        acceptedStates: 3

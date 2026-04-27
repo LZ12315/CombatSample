@@ -6,7 +6,6 @@ Block.Move
 Block.Attack
 Block.Dodge
 Hit.Hard
-Hit.Air
 Hit.Down
 Action.Skill
 Action.Move
@@ -16,3 +15,6 @@ Action.Idle
 State.Physics.Grounded
 State.Combat.Stun
 State.Physics.Airbone
+Hit.Air.Light
+Hit.Air.Medium
+Hit.Air.Hard

@@ -61,10 +61,12 @@ public class ActionStateManager : MonoBehaviour
 
         if (chosen != null)
         {
-            // 如果选中的 Action 与当前正在播放的是同一个（Loop 场景），跳过重复播放
-            if (_actionPlayer.CurrentAction != null && _actionPlayer.CurrentAction.Config == chosen)
+            // 若选中与当前相同的 Action：默认跳过重复播放（避免 Loop 轮询每帧重启）；
+            // 受击等需在连打中反复打断自身的，在 ActionAsset 上开启 AllowReenterWhilePlaying。
+            bool sameAsCurrent = _actionPlayer.CurrentAction != null && _actionPlayer.CurrentAction.Config == chosen;
+            if (sameAsCurrent && !chosen.AllowReenterWhilePlaying)
             {
-                // 同一个 Action 正在播放，不重复启动；也不消费输入（本次判定视为沿用而非新进入）
+                // 同一个 Action 正在播放且未允许重入：不重复启动；也不消费输入（本次判定视为沿用而非新进入）
             }
             else
             {

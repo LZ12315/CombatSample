@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Hit_Air_Launch
   m_EditorClassIdentifier: 
   _timelineAsset: {fileID: 11400000, guid: e25437a535c4863388de99a7ff3945bf, type: 2}
-  _priorityLayer: 1
+  _priorityLayer: 3
   _priorityValue: 0
   _cancelRules: []
   _selfTags: []
@@ -21,7 +21,7 @@ MonoBehaviour:
     TagId: 0
   _triggerMode: 1
   _eventTriggerTag:
-    TagId: -728969663
+    TagId: 1905593194
   _startContextMode: 0
   _motionConfig:
     rootMotionMode: 1
@@ -29,6 +29,7 @@ MonoBehaviour:
     facingOnStart: 2
     gravityScale: 2.2
   isLoop: 0
+  _allowReenterWhilePlaying: 0
   _entryConditions: []
   _exitConditions: []
   references:

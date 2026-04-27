@@ -13,24 +13,32 @@ MonoBehaviour:
   m_Name: Hit_Air_Hit
   m_EditorClassIdentifier: 
   _timelineAsset: {fileID: 11400000, guid: cef5f99d48793072aad4364fa2c453c1, type: 2}
-  _priorityLayer: 1
-  _priorityValue: 0
+  _priorityLayer: 3
+  _priorityValue: 5
   _cancelRules: []
   _selfTags: []
   _legacySelfTag:
     TagId: 0
-  _triggerMode: 0
+  _triggerMode: 1
   _eventTriggerTag:
     TagId: 645108757
   _startContextMode: 0
   _motionConfig:
-    rootMotionMode: 0
+    rootMotionMode: 1
     suppressLocomotion: 1
     facingOnStart: 2
     gravityScale: -1
   isLoop: 0
-  _entryConditions: []
+  _allowReenterWhilePlaying: 1
+  _entryConditions:
+  - rid: 4877214280882585606
   _exitConditions: []
   references:
     version: 2
-    RefIds: []
+    RefIds:
+    - rid: 4877214280882585606
+      type: {class: GroundStateCondition, ns: , asm: Assembly-CSharp}
+      data:
+        invertResult: 0
+        overrideAll: 0
+        acceptedStates: 4

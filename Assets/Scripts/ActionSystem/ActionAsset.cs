@@ -61,6 +61,9 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
     [SerializeField, Tooltip("Loop this action")]
     private bool isLoop = false;
 
+    [SerializeField, Tooltip("若开启：本 Action 已在播放时仍允许被再次选中并从头重播（ClaimEntry + BeginAction）。用于受击等需连续打断自身的 Event 动作；关闭时与 ASM 默认行为一致（同 Action 不重播）。")]
+    private bool _allowReenterWhilePlaying = false;
+
     [SerializeReference, SubclassSelector, Tooltip("All conditions in this list must pass. Then this action can run.")]
     private List<ActionCondition> _entryConditions = new List<ActionCondition>();
 
@@ -80,6 +83,9 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
     public IReadOnlyList<TagReference> SelfTags => _selfTags;
 
     public bool IsLoop { get => isLoop; }
+
+    /// <summary>为 true 时 <see cref="ActionStateManager"/> 可在同一条 Action 仍播放时再次进入（重播 Timeline）。</summary>
+    public bool AllowReenterWhilePlaying => _allowReenterWhilePlaying;
 
     public ActionTriggerMode TriggerMode => _triggerMode;
     public TagReference EventTriggerTag => _eventTriggerTag;

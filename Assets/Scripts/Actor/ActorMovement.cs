@@ -8,6 +8,7 @@ using UnityEngine;
 /// 位移管线（水平/垂直对称的"环境力 + 冲量 + 外部持续速度"三层结构）：
 ///   水平 = Locomotion（空中 × airControlFactor）+ HorizontalImpulse（drag 衰减）+ ExternalHorizontal（VelocityClip 每帧写入）
 ///   垂直 = GravityAccumulator（重力累积，≤0）+ VerticalImpulse（AddVerticalImpulse 注入）+ ExternalVertical（VelocityClip 每帧写入）
+///       -> PostProcess（Override / Clamp）得到最终垂直速度
 /// 朝向管线：优先级覆盖模型（Override 层 > Intent 默认层 + Snap 机制）。
 /// 压制机制：ActionInstance 可压制 Locomotion 通道（移动 + 朝向），Impulse/重力不受影响。
 /// RootMotion：始终缓存并公开（位移+旋转），Managed 时自动应用，External 时仅供读取。
@@ -64,6 +65,9 @@ public class ActorMovement : MonoBehaviour
 
     [SerializeField, Tooltip("水平冲量阻力系数（1/秒）。值越大衰减越快，5 ≈ 0.2 秒衰减到 37%。")]
     private float _horizontalDrag = 5f;
+
+    [SerializeField, Tooltip("垂直冲量在空中的衰减系数（1/秒）。0=不衰减，2≈0.35 秒半衰期，5≈0.14 秒半衰期。")]
+    private float _verticalImpulseAirDrag = 0f;
 
     [SerializeField, Tooltip("离地帧数阈值，用于滤除斜坡/台阶抖动。超过此值才认为真正离地。")]
     private int _airborneFrameThreshold = 2;
@@ -221,11 +225,66 @@ public class ActorMovement : MonoBehaviour
     private float _externalVerticalVelocity = 0f;
 
     private float _gravityScale = 1f;
+    private bool _hasVerticalVelocityOverride;
+    private float _verticalVelocityOverride;
+    private bool _hasVerticalClamp;
+    private float _verticalClampMin;
+    private float _verticalClampMax;
 
     /// <summary>设置重力缩放。1.0=正常, 0=无重力(浮空), 2.0=加速下落。</summary>
     public void SetGravityScale(float scale)
     {
         _gravityScale = scale;
+    }
+
+    /// <summary>
+    /// 直接覆盖最终垂直速度（米/秒，正上负下）。
+    /// </summary>
+    public void SetVerticalVelocityOverride(float verticalSpeed)
+    {
+        _hasVerticalVelocityOverride = true;
+        _verticalVelocityOverride = verticalSpeed;
+    }
+
+    /// <summary>
+    /// 取消垂直速度覆盖，回到通道叠加（重力+冲量+外部速度）。
+    /// </summary>
+    public void ClearVerticalVelocityOverride()
+    {
+        _hasVerticalVelocityOverride = false;
+        _verticalVelocityOverride = 0f;
+    }
+
+    /// <summary>
+    /// 设置垂直速度钳制范围（作用于通道求和之后）。
+    /// 例：(-0.5f, 0f) = 最多缓降 0.5m/s，且不允许上升。
+    /// </summary>
+    public void SetVerticalClamp(float min, float max)
+    {
+        _hasVerticalClamp = true;
+        _verticalClampMin = min;
+        _verticalClampMax = max;
+    }
+
+    /// <summary>
+    /// 取消垂直速度钳制，回到通道叠加结果。
+    /// </summary>
+    public void ClearVerticalClamp()
+    {
+        _hasVerticalClamp = false;
+        _verticalClampMin = 0f;
+        _verticalClampMax = 0f;
+    }
+
+    /// <summary>
+    /// 重置垂直通道到干净状态：冲量归零、重力累积归零。
+    /// 语义：垂直方向的“权威期”结束，从零速开始由重力自然接管。
+    /// 由 VelocityClip（releaseMode = ResetVertical）在 OnClipStop 时调用。
+    /// </summary>
+    public void ResetVerticalState()
+    {
+        _gravityAccumulator = 0f;
+        _verticalImpulseVelocity = 0f;
     }
 
     /// <summary>
@@ -440,8 +499,17 @@ public class ActorMovement : MonoBehaviour
         Vector3 horizontal = locomotionVelocity + _horizontalImpulseVelocity + _externalHorizontalVelocity;
         horizontal.y = 0f;
 
-        // 垂直通道：GravityAccumulator（环境力）+ VerticalImpulseVelocity（冲量）+ ExternalVertical（VelocityClip 持续速度）
-        float vertical = _gravityAccumulator + _verticalImpulseVelocity + _externalVerticalVelocity;
+        // 垂直通道：
+        // - rawVertical = GravityAccumulator + VerticalImpulse + ExternalVertical
+        // - 后处理优先级：VerticalOverride > VerticalClamp > Raw
+        float rawVertical = _gravityAccumulator + _verticalImpulseVelocity + _externalVerticalVelocity;
+        float vertical;
+        if (_hasVerticalVelocityOverride)
+            vertical = _verticalVelocityOverride;
+        else if (_hasVerticalClamp)
+            vertical = Mathf.Clamp(rawVertical, _verticalClampMin, _verticalClampMax);
+        else
+            vertical = rawVertical;
 
         finalMovement += (horizontal + Vector3.up * vertical) * Time.deltaTime;
 
@@ -601,14 +669,19 @@ public class ActorMovement : MonoBehaviour
 
     /// <summary>
     /// 垂直冲量衰减/清理：
+    ///   - 空中：可选指数衰减（_verticalImpulseAirDrag > 0 时生效）
     ///   - 撞顶（CC.collisionFlags.Above）+ 向上冲量：立即截断，避免粘在天花板
     ///   - 着地 + 向下冲量：清零，让重力通道接管
     ///   - 低于阈值：归零，避免浮点垃圾
-    /// 当前不做时间衰减，保持冲量直到自然事件（着地/撞顶）清除。
-    /// TODO：未来做"跳跃顶点悬浮感"时可在此加指数衰减。
     /// </summary>
     private void PerformVerticalImpulseDecay()
     {
+        if (IsAirborne && _verticalImpulseAirDrag > 0f && Mathf.Abs(_verticalImpulseVelocity) > 0.01f)
+        {
+            float factor = Mathf.Exp(-_verticalImpulseAirDrag * Time.deltaTime);
+            _verticalImpulseVelocity *= factor;
+        }
+
         if (actor != null && actor.characterController != null)
         {
             bool hitCeiling = (actor.characterController.collisionFlags & CollisionFlags.Above) != 0;

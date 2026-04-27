@@ -16,9 +16,13 @@ public class ActionVelocityClipInspector : Editor
     private SerializedProperty _fixedLocalDirection;
     private SerializedProperty _horizontalSpeed;
     private SerializedProperty _verticalSpeed;
+    private SerializedProperty _verticalMode;
+    private SerializedProperty _clampMin;
+    private SerializedProperty _clampMax;
     private SerializedProperty _horizontalCurve;
     private SerializedProperty _verticalCurve;
     private SerializedProperty _gravityScale;
+    private SerializedProperty _releaseMode;
     private SerializedProperty _debugLog;
 
     private void OnEnable()
@@ -30,9 +34,13 @@ public class ActionVelocityClipInspector : Editor
         _fixedLocalDirection = _config.FindPropertyRelative("fixedLocalDirection");
         _horizontalSpeed     = _config.FindPropertyRelative("horizontalSpeed");
         _verticalSpeed       = _config.FindPropertyRelative("verticalSpeed");
+        _verticalMode        = _config.FindPropertyRelative("verticalMode");
+        _clampMin            = _config.FindPropertyRelative("clampMin");
+        _clampMax            = _config.FindPropertyRelative("clampMax");
         _horizontalCurve     = _config.FindPropertyRelative("horizontalCurve");
         _verticalCurve       = _config.FindPropertyRelative("verticalCurve");
         _gravityScale        = _config.FindPropertyRelative("gravityScale");
+        _releaseMode         = _config.FindPropertyRelative("releaseMode");
         _debugLog            = _config.FindPropertyRelative("debugLog");
     }
 
@@ -67,6 +75,18 @@ public class ActionVelocityClipInspector : Editor
             new GUIContent("Horizontal Speed", "水平速度 (m/s)，沿解析方向。0=不启用水平"));
         EditorGUILayout.PropertyField(_verticalSpeed,
             new GUIContent("Vertical Speed", "垂直速度 (m/s)，正值向上。0=不启用垂直"));
+        EditorGUILayout.PropertyField(_verticalMode,
+            new GUIContent("Vertical Mode", "垂直速度写入模式"));
+
+        if ((VerticalVelocityMode)_verticalMode.enumValueIndex == VerticalVelocityMode.ClampRange)
+        {
+            EditorGUI.indentLevel++;
+            EditorGUILayout.PropertyField(_clampMin,
+                new GUIContent("Clamp Min", "允许的最低垂直速度。负值=缓降"));
+            EditorGUILayout.PropertyField(_clampMax,
+                new GUIContent("Clamp Max", "允许的最高垂直速度。0=禁止上升"));
+            EditorGUI.indentLevel--;
+        }
 
         EditorGUILayout.Space(4);
 
@@ -84,6 +104,14 @@ public class ActionVelocityClipInspector : Editor
         EditorGUILayout.PropertyField(_gravityScale,
             new GUIContent("Gravity Scale",
                 "Clip 期间的重力缩放。0=浮空（由 Clip 接管垂直），1=保留重力叠加"));
+
+        EditorGUILayout.Space(4);
+
+        // ── Release ──
+        EditorGUILayout.LabelField("Release", EditorStyles.boldLabel);
+        EditorGUILayout.PropertyField(_releaseMode,
+            new GUIContent("Release Mode",
+                "Clip 结束时垂直通道处理。Transparent=原样暴露；ResetVertical=归零后由重力接管"));
 
         EditorGUILayout.Space(4);
 
