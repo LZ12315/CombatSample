@@ -1,7 +1,8 @@
 using UnityEngine;
 
 /// <summary>
-/// 控制攻击者（可选受击者）的 ActionPlayer Timeline 播放速度，实现 HitStop/HitStick 效果。
+/// 控制攻击者（可选受击者）的 ActionPlayer Timeline 播放速度，实现 HitStop/HitStick 效果；
+/// 并同步 <see cref="ActorMovement.SetMovementTimeScale"/>，使 CC/重力/冲量与动画同速冻结。
 /// 取代原有的 AttackerSpeedEffect，支持通过 affectBothParties 参数控制是否双方冻结。
 /// 攻击方在命中当帧立即降速；受击方见下方「受击方延迟缓速」不变量。
 /// </summary>
@@ -11,6 +12,8 @@ public class ActionSpeedEffect : ImpactEffect
     private ActionPlayer _targetPlayer;
     private double _attackerOriginalSpeed;
     private double _targetOriginalSpeed;
+    private float _attackerOriginalMovementTimeScale = 1f;
+    private float _targetOriginalMovementTimeScale = 1f;
 
     private float _duration;
     private float _speedScale;
@@ -58,6 +61,13 @@ public class ActionSpeedEffect : ImpactEffect
             return;
         }
 
+        _attackerOriginalMovementTimeScale = 1f;
+        _targetOriginalMovementTimeScale = 1f;
+        var attMv = MovementFrom(_attackerPlayer);
+        if (attMv != null) _attackerOriginalMovementTimeScale = attMv.MovementTimeScale;
+        var tgtMv = MovementFrom(_targetPlayer);
+        if (tgtMv != null) _targetOriginalMovementTimeScale = tgtMv.MovementTimeScale;
+
         // 总时长：仅当存在「需要前摇后再缓速的受击方」时，才把 TARGET_START_DELAY 计入（与配置 duration 的叠加语义一致）。仅攻击方时不再额外多等这段延迟。
         bool hasDelayedTarget = _affectTarget && _targetPlayer != null;
         _effectEndTime = _duration + (hasDelayedTarget ? TARGET_START_DELAY : 0f);
@@ -68,17 +78,28 @@ public class ActionSpeedEffect : ImpactEffect
         _elapsed = 0f;
         _targetSpeedApplied = false;
 
-        // 攻击者：当帧即降速（无 TARGET_START_DELAY）。
+        // 攻击者：当帧即降速（无 TARGET_START_DELAY）；Movement 与 Timeline 同步缩放 dt。
         if (_attackerPlayer != null)
+        {
             _attackerPlayer.SetSpeed(_speedScale);
+            attMv?.SetMovementTimeScale(_speedScale);
+        }
 
-        // 受击者：TARGET_START_DELAY 后再 SetSpeed（不变量，见上）。
+        // 受击者：TARGET_START_DELAY 后再 SetSpeed / MovementTimeScale（不变量，见上）。
+    }
+
+    static ActorMovement MovementFrom(ActionPlayer player)
+    {
+        if (player == null) return null;
+        var actor = player.GetComponentInParent<Actor>();
+        return actor != null ? actor.movement : null;
     }
 
     private void ApplyTargetSpeed()
     {
         if (!_affectTarget || _targetPlayer == null) return;
         _targetPlayer.SetSpeed(_speedScale);
+        MovementFrom(_targetPlayer)?.SetMovementTimeScale(_speedScale);
         _targetSpeedApplied = true;
     }
 
@@ -110,9 +131,15 @@ public class ActionSpeedEffect : ImpactEffect
     public override void Reset()
     {
         if (_attackerPlayer != null)
+        {
             _attackerPlayer.SetSpeed(_attackerOriginalSpeed);
+            MovementFrom(_attackerPlayer)?.SetMovementTimeScale(_attackerOriginalMovementTimeScale);
+        }
         if (_affectTarget && _targetPlayer != null)
+        {
             _targetPlayer.SetSpeed(_targetOriginalSpeed);
+            MovementFrom(_targetPlayer)?.SetMovementTimeScale(_targetOriginalMovementTimeScale);
+        }
 
         _attackerPlayer = null;
         _targetPlayer = null;

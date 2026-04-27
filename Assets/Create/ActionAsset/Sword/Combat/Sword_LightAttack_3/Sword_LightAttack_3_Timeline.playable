@@ -270,9 +270,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: deafa4dc3e752264c85e43433665191f, type: 3}
   m_Name: ActionHitBoxClip(Clone)(Clone)
   m_EditorClassIdentifier: 
-  boneTransform:
-    exposedName: 510b74166787e71829b1816cc7bd63f8
-    defaultValue: {fileID: 0}
+  boneReference:
+    mode: 0
+    humanBone: 0
+    bonePath: 
   hitboxConfig:
     center: {x: 0, y: 0.24, z: 0}
     rotation: {x: 0, y: 0, z: 0, w: 1}

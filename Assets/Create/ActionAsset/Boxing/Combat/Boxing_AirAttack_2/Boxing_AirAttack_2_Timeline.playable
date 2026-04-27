@@ -28,9 +28,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: deafa4dc3e752264c85e43433665191f, type: 3}
   m_Name: ActionHitBoxClip(Clone)(Clone)(Clone)
   m_EditorClassIdentifier: 
-  boneTransform:
-    exposedName: 1cfe0416358094f43a944c3a49fa0f92
-    defaultValue: {fileID: 0}
+  boneReference:
+    mode: 0
+    humanBone: 3
+    bonePath: 
   hitboxConfig:
     center: {x: 0, y: 0.2, z: 0}
     rotation: {x: 0, y: 0, z: 0, w: 1}
@@ -179,9 +180,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: deafa4dc3e752264c85e43433665191f, type: 3}
   m_Name: ActionHitBoxClip(Clone)(Clone)
   m_EditorClassIdentifier: 
-  boneTransform:
-    exposedName: ff2ec6a15e3fd0643a4fb6a6e29727c3
-    defaultValue: {fileID: 0}
+  boneReference:
+    mode: 0
+    humanBone: 4
+    bonePath: 
   hitboxConfig:
     center: {x: 0, y: 0.2, z: 0}
     rotation: {x: 0, y: 0, z: 0, w: 1}

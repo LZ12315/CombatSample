@@ -15,7 +15,8 @@ public class EffectControlBehaviour : ActionBehaviourBase
     public GameObject particlePrefab;
 
     [Header("Transform")]
-    public Transform parentTransform;
+    public BoneReference parentReference;
+    private Transform _resolvedParent;
     public bool updateTransform = true;
     public Vector3 localPosition = Vector3.zero;
     public Vector3 localRotation = Vector3.zero;
@@ -48,6 +49,10 @@ public class EffectControlBehaviour : ActionBehaviourBase
     /// </summary>
     protected override void OnClipStart(Playable playable)
     {
+        _resolvedParent = null;
+        if (actor != null && actor.animancer != null)
+            _resolvedParent = parentReference.Resolve(actor.animancer.Animator);
+
         if (particlePrefab == null) return;
 
         // 创建粒子实例并初始化位置
@@ -95,6 +100,7 @@ public class EffectControlBehaviour : ActionBehaviourBase
     protected override void OnClipStop(bool isNormal)
     {
         CleanupParticleInstance();
+        _resolvedParent = null;
     }
 
 
@@ -251,7 +257,7 @@ public class EffectControlBehaviour : ActionBehaviourBase
             return;
         }
 
-        if (parentTransform == null)
+        if (_resolvedParent == null)
         {
             // 如果没有父级，使用世界坐标
             particleInstance.transform.position = localPosition;
@@ -261,7 +267,7 @@ public class EffectControlBehaviour : ActionBehaviourBase
         }
 
         // 设置相对于父级的变换
-        particleInstance.transform.SetParent(parentTransform, false);
+        particleInstance.transform.SetParent(_resolvedParent, false);
         particleInstance.transform.localPosition = localPosition;
         particleInstance.transform.localEulerAngles = localRotation;
         particleInstance.transform.localScale = localScale;

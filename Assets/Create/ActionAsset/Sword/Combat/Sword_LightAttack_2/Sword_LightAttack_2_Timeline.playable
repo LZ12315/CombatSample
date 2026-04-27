@@ -12,9 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: deafa4dc3e752264c85e43433665191f, type: 3}
   m_Name: ActionHitBoxClip(Clone)(Clone)
   m_EditorClassIdentifier: 
-  boneTransform:
-    exposedName: f4bfed3db66faec3cb48204d26a97a28
-    defaultValue: {fileID: 0}
+  boneReference:
+    mode: 0
+    humanBone: 0
+    bonePath: 
   hitboxConfig:
     center: {x: 0, y: 0.24, z: 0}
     rotation: {x: 0, y: 0, z: 0, w: 1}
@@ -66,9 +67,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   particlePrefab: {fileID: 8615893209108999040, guid: 9bd1d006dcd61d1c0a669a6613d8b68d,
     type: 3}
-  parentTransform:
-    exposedName: 7e857eac3945f751fbd8964a9afbe032
-    defaultValue: {fileID: 0}
+  parentReference:
+    mode: 0
+    humanBone: 0
+    bonePath: 
   updateTransform: 1
   localPosition: {x: 0, y: 0, z: 0}
   localRotation: {x: 0, y: 0, z: 0}

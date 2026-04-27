@@ -5,7 +5,9 @@ using UnityEngine.Playables;
 
 public class ActionHitBoxBehavior : ActionBehaviourBase
 {
-    public Transform boneTransform;
+    public BoneReference boneReference;
+    private Transform _resolvedBone;
+
     public ActionHitBoxConfig hitboxConfig;
     public AttackDataConfig dataConfig;
     public List<ImpactEffectConfig> effects;
@@ -15,19 +17,23 @@ public class ActionHitBoxBehavior : ActionBehaviourBase
 
     protected override void OnClipStart(Playable playable)
     {
+        _resolvedBone = null;
+        if (actor != null && actor.animancer != null)
+            _resolvedBone = boneReference.Resolve(actor.animancer.Animator);
         CreateHitbox();
     }
 
     protected override void OnClipStop(bool isNormal)
     {
         DestroyHitbox();
+        _resolvedBone = null;
     }
 
     #region HitBox Create/Destroy
 
     private void CreateHitbox()
     {
-        if (hitboxObject != null || boneTransform == null) return;
+        if (hitboxObject != null || _resolvedBone == null) return;
 
         hitboxObject = new GameObject("HitBox");
         hitboxObject.hideFlags = HideFlags.HideInHierarchy;
@@ -54,10 +60,10 @@ public class ActionHitBoxBehavior : ActionBehaviourBase
 
     public void UpdateHitbox()
     {
-        if (hitboxObject == null || boneTransform == null) return;
+        if (hitboxObject == null || _resolvedBone == null) return;
 
-        hitboxObject.transform.position = boneTransform.TransformPoint(hitboxConfig.center);
-        hitboxObject.transform.rotation = boneTransform.rotation * hitboxConfig.rotation;
+        hitboxObject.transform.position = _resolvedBone.TransformPoint(hitboxConfig.center);
+        hitboxObject.transform.rotation = _resolvedBone.rotation * hitboxConfig.rotation;
 
         if (collider == null) return;
 

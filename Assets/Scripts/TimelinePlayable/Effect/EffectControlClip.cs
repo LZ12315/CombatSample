@@ -11,8 +11,8 @@ public class EffectControlClip : PlayableAsset, ITimelineClipAsset
     public GameObject particlePrefab;
 
     [Header("Transform")]
-    [Tooltip("Parent transform. ExposedReference so you can bind it on the Timeline.")]
-    public ExposedReference<Transform> parentTransform;
+    [Tooltip("父节点：HumanBone 或相对 Animator 的路径")]
+    public BoneReference parentReference;
     [Tooltip("Keep updating this transform after spawn.")]
     public bool updateTransform = true;
     [Tooltip("Local position under parent")]
@@ -39,7 +39,7 @@ public class EffectControlClip : PlayableAsset, ITimelineClipAsset
 
         // 设置配置参数
         behaviour.particlePrefab = particlePrefab;
-        behaviour.parentTransform = parentTransform.Resolve(graph.GetResolver());
+        behaviour.parentReference = parentReference;
         behaviour.updateTransform = updateTransform;
         behaviour.localPosition = localPosition;
         behaviour.localRotation = localRotation;

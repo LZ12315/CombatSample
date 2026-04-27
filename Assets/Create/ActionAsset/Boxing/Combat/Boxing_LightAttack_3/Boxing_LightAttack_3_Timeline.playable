@@ -12,9 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: deafa4dc3e752264c85e43433665191f, type: 3}
   m_Name: ActionHitBoxClip(Clone)(Clone)(Clone)(Clone)(Clone)(Clone)
   m_EditorClassIdentifier: 
-  boneTransform:
-    exposedName: 265a0947cb4c32e42b6e6f1e2596b22e
-    defaultValue: {fileID: 0}
+  boneReference:
+    mode: 0
+    humanBone: 4
+    bonePath: 
   hitboxConfig:
     center: {x: 0, y: 0.2, z: 0}
     rotation: {x: 0, y: 0, z: 0, w: 1}
@@ -56,8 +57,8 @@ MonoBehaviour:
       type: {class: SpeedEffectConfig, ns: , asm: Assembly-CSharp}
       data:
         enabled: 1
-        duration: 0.15
-        speedScale: 0.05
+        duration: 0.2
+        speedScale: 0
         affectBothParties: 1
 --- !u!114 &11400000
 MonoBehaviour:

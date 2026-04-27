@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Playables;
 using UnityEngine.Timeline;
-using UnityEditor;
-using JetBrains.Annotations;
 
 [Serializable]
 public class ActionHitBoxConfig
@@ -17,8 +15,8 @@ public class ActionHitBoxConfig
 
 public class ActionHitBoxClip : PlayableAsset, ITimelineClipAsset
 {
-    [Tooltip("Bone or node for this hit box")]
-    public ExposedReference<Transform> boneTransform;
+    [Tooltip("骨骼或挂点（HumanBone / 相对 Animator 的路径）")]
+    public BoneReference boneReference;
 
     public ActionHitBoxConfig hitboxConfig = new ActionHitBoxConfig();
     public AttackDataConfig dataConfig = new AttackDataConfig();
@@ -36,7 +34,7 @@ public class ActionHitBoxClip : PlayableAsset, ITimelineClipAsset
         var playable = ScriptPlayable<ActionHitBoxBehavior>.Create(graph);
         behavior = playable.GetBehaviour();
 
-        behavior.boneTransform = boneTransform.Resolve(graph.GetResolver());
+        behavior.boneReference = boneReference;
         behavior.hitboxConfig = hitboxConfig;
         behavior.dataConfig = dataConfig;
         behavior.effects = effects;

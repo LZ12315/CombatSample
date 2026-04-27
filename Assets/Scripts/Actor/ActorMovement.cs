@@ -45,6 +45,7 @@ using UnityEngine;
 ///   - RootMotion 的 Managed / External 模式
 ///   - AddHorizontalImpulse / AddVerticalImpulse + drag 衰减
 ///   - ActionMotionConfig 压制机制、gravityScale 覆盖
+///   - MovementTimeScale（HitStop 等与 Timeline 同步，演化用 scaled dt）
 /// ──────────────────────────────────────────────────────────────────────────
 /// </summary>
 public class ActorMovement : MonoBehaviour
@@ -225,6 +226,10 @@ public class ActorMovement : MonoBehaviour
     private float _externalVerticalVelocity = 0f;
 
     private float _gravityScale = 1f;
+
+    /// <summary>HitStop 等与 Timeline 同步：演化位移/重力/冲量衰减用 Time.deltaTime * 此值。默认 1。</summary>
+    private float _movementTimeScale = 1f;
+
     private bool _hasVerticalVelocityOverride;
     private float _verticalVelocityOverride;
     private bool _hasVerticalClamp;
@@ -239,6 +244,14 @@ public class ActorMovement : MonoBehaviour
 
     /// <summary>当前重力缩放（只读）。Timeline Clip 等如需嵌套保存/恢复可读取。</summary>
     public float GravityScale => _gravityScale;
+
+    /// <summary>与 <see cref="ActionPlayer"/> 的 HitStop 速度对齐；0=本帧不演化运动学。</summary>
+    public float MovementTimeScale => _movementTimeScale;
+
+    public void SetMovementTimeScale(float scale)
+    {
+        _movementTimeScale = Mathf.Max(0f, scale);
+    }
 
     /// <summary>
     /// 直接覆盖最终垂直速度（米/秒，正上负下）。
@@ -460,11 +473,13 @@ public class ActorMovement : MonoBehaviour
     /// <summary>统一计算与最终执行：地面状态 → 朝向 → 位移合成 → CC.Move → 帧末清零。</summary>
     private void Update()
     {
+        float dt = Time.deltaTime * _movementTimeScale;
+
         // ── 1. 更新地面状态（在位移之前，供 PerformGravity 和其它系统读取）──
-        UpdateGroundState();
+        UpdateGroundState(dt);
 
         // ── 2. 朝向执行 ──
-        PerformRotation();
+        PerformRotation(dt);
 
         // ── 3. 从 Intent 换算 Locomotion 速度（内部计算，不再由外部写入）──
         Vector3 locomotionVelocity = Vector3.zero;
@@ -483,11 +498,11 @@ public class ActorMovement : MonoBehaviour
         }
 
         // ── 4. 重力累积（纯粹：只演化 _gravityAccumulator，不碰冲量通道）──
-        PerformGravity();
+        PerformGravity(dt);
 
         // ── 5. 冲量演化：水平 drag 衰减，垂直撞顶/着地清零 ──
-        PerformHorizontalDrag();
-        PerformVerticalImpulseDecay();
+        PerformHorizontalDrag(dt);
+        PerformVerticalImpulseDecay(dt);
 
         // ── 6. 位移合成 ──
         Vector3 finalMovement = Vector3.zero;
@@ -514,7 +529,7 @@ public class ActorMovement : MonoBehaviour
         else
             vertical = rawVertical;
 
-        finalMovement += (horizontal + Vector3.up * vertical) * Time.deltaTime;
+        finalMovement += (horizontal + Vector3.up * vertical) * dt;
 
         // ── 7. 执行移动 ──
         if (actor.characterController != null)
@@ -523,7 +538,7 @@ public class ActorMovement : MonoBehaviour
         }
 
         // ── 8. 记录实际速度（供动画系统读取）──
-        _currentVelocity = Time.deltaTime > 0f ? finalMovement / Time.deltaTime : Vector3.zero;
+        _currentVelocity = dt > 0f ? finalMovement / dt : Vector3.zero;
         _currentHorizontalSpeed = new Vector2(_currentVelocity.x, _currentVelocity.z).magnitude;
         _currentVerticalSpeed = _currentVelocity.y;
 
@@ -548,7 +563,7 @@ public class ActorMovement : MonoBehaviour
     /// 滤波原因：CharacterController 在斜坡、台阶上会偶发性地 isGrounded=false 1-2 帧，
     ///           直接用会导致事件频繁误触发。
     /// </summary>
-    private void UpdateGroundState()
+    private void UpdateGroundState(float dt)
     {
         if (actor == null || actor.characterController == null) return;
 
@@ -570,8 +585,9 @@ public class ActorMovement : MonoBehaviour
         }
         else
         {
-            // 离地滤波：连续 N 帧离地才真正切换
-            _airborneFrameCounter++;
+            // 离地滤波：连续 N 帧离地才真正切换（HitStop 时 dt≈0 不推进计数，避免冻结期间误切状态）
+            if (dt > 1e-8f)
+                _airborneFrameCounter++;
             if (_groundState == GroundState.Grounded && _airborneFrameCounter > _airborneFrameThreshold)
             {
                 _groundState = GroundState.JustLeftGround;
@@ -581,7 +597,7 @@ public class ActorMovement : MonoBehaviour
     }
 
     /// <summary>朝向管线：覆盖层 > Intent 默认层。被压制时不从 Intent 更新朝向。</summary>
-    private void PerformRotation()
+    private void PerformRotation(float dt)
     {
         if (_hasFacingOverride)
         {
@@ -612,7 +628,7 @@ public class ActorMovement : MonoBehaviour
         transform.rotation = Quaternion.RotateTowards(
             transform.rotation,
             _targetRotation,
-            angularSpeed * Time.deltaTime
+            angularSpeed * dt
         );
     }
 
@@ -646,7 +662,7 @@ public class ActorMovement : MonoBehaviour
     ///       否则按重力累积（向下为负）。_gravityAccumulator 的值恒 ≤ 0。
     /// 不再碰 _verticalImpulseVelocity，冲量通道由 PerformVerticalImpulseDecay 独立管理。
     /// </summary>
-    private void PerformGravity()
+    private void PerformGravity(float dt)
     {
         if (IsGrounded && _verticalImpulseVelocity <= 0f)
         {
@@ -654,19 +670,19 @@ public class ActorMovement : MonoBehaviour
         }
         else
         {
-            _gravityAccumulator += Physics.gravity.y * _gravityScale * Time.deltaTime;
+            _gravityAccumulator += Physics.gravity.y * _gravityScale * dt;
         }
     }
 
     /// <summary>水平冲量指数衰减：v *= exp(-drag * dt)。低于阈值时归零，避免浮点垃圾。</summary>
-    private void PerformHorizontalDrag()
+    private void PerformHorizontalDrag(float dt)
     {
         if (_horizontalImpulseVelocity.sqrMagnitude <= 0.0001f)
         {
             _horizontalImpulseVelocity = Vector3.zero;
             return;
         }
-        float factor = Mathf.Exp(-_horizontalDrag * Time.deltaTime);
+        float factor = Mathf.Exp(-_horizontalDrag * dt);
         _horizontalImpulseVelocity *= factor;
     }
 
@@ -677,11 +693,11 @@ public class ActorMovement : MonoBehaviour
     ///   - 着地 + 向下冲量：清零，让重力通道接管
     ///   - 低于阈值：归零，避免浮点垃圾
     /// </summary>
-    private void PerformVerticalImpulseDecay()
+    private void PerformVerticalImpulseDecay(float dt)
     {
         if (IsAirborne && _verticalImpulseAirDrag > 0f && Mathf.Abs(_verticalImpulseVelocity) > 0.01f)
         {
-            float factor = Mathf.Exp(-_verticalImpulseAirDrag * Time.deltaTime);
+            float factor = Mathf.Exp(-_verticalImpulseAirDrag * dt);
             _verticalImpulseVelocity *= factor;
         }
 
