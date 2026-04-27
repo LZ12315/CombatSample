@@ -18,10 +18,8 @@ using UnityEngine.Playables;
 ///     与 Locomotion / Impulse / Gravity 通道独立叠加。
 /// 
 /// 重力处理：
-///   Clip 开始时覆盖 gravityScale，结束时恢复到 1.0（约定的默认值）。
-///   如果外部（如 ActionMotionConfig）也在同一 Action 期间设置了 gravityScale，会有冲突
-///   —— 当前约定是 Clip 级别的覆盖优先于 Action 级别。如果未来出现嵌套需求，
-///   需要引入"scale stack"机制。
+///   Clip 开始时覆盖 gravityScale，结束时恢复到 <see cref="ActionInstance.ResolveActionGravityScale"/>（整招设定；MotionConfig 为 -1 时等价 1）。
+///   若多个 Clip 同时改写重力且重叠，仍无栈式嵌套——需未来再引入 scale stack。
 /// </summary>
 public class ActionVelocityBehavior : ActionBehaviourBase
 {
@@ -40,9 +38,9 @@ public class ActionVelocityBehavior : ActionBehaviourBase
 
         _instigatorTransform = null;
 
-        // 记录原值（当前实现里 Movement 没有 GetGravityScale，用约定默认 1f；
-        // 后续如果 ActionMotionConfig 做了嵌套覆盖，再改为真正读取）
-        _savedGravityScale = 1f;
+        _savedGravityScale = actionInstance != null
+            ? actionInstance.ResolveActionGravityScale()
+            : 1f;
 
         // 覆盖重力缩放（默认 0 = 完全浮空，由 Clip 接管垂直）
         actor.movement.SetGravityScale(config.gravityScale);

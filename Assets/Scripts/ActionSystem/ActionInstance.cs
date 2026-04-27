@@ -81,6 +81,16 @@ public class ActionInstance
 
     #region === 运动策略 ===
 
+    /// <summary>
+    /// Action 层应持有的重力缩放：MotionConfig.gravityScale &gt;= 0 时用该值；-1（不覆盖）时视为系统默认 1。
+    /// 供 Velocity / Impulse Clip 在 OnClipStop 还原到整招设定，而非硬编码 1。
+    /// </summary>
+    public float ResolveActionGravityScale()
+    {
+        float g = Config.MotionConfig.gravityScale;
+        return g >= 0f ? g : 1f;
+    }
+
     private void ApplyMotionConfig(ActionEventContext context)
     {
         if (Actor?.movement == null) return;

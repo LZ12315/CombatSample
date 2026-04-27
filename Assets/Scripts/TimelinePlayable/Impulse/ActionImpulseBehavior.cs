@@ -5,7 +5,7 @@ using UnityEngine.Playables;
 /// ImpulseClip 运行时逻辑：
 /// - OnClipStart：按方向模式解析世界方向，一次性注入水平 + 垂直冲量；仅当 config.gravityScale >= 0 时才临时覆盖重力
 /// - OnClipUpdate：无逻辑（水平由 Movement 的 drag 自然衰减，垂直由重力自然衰减）
-/// - OnClipStop：仅当 Start 时真正覆盖过重力，才恢复为 1
+/// - OnClipStop：仅当 Start 时真正覆盖过重力，才恢复到 Action 层重力（见 ActionInstance.ResolveActionGravityScale）
 ///
 /// 重力策略：
 ///   ImpulseClip 通常只持续 1~数帧，不再承担"整招重力"职责（那是 ActionMotionConfig 的事）。
@@ -78,7 +78,10 @@ public class ActionImpulseBehavior : ActionBehaviourBase
         // 恢复重力缩放（仅当 Start 时真正覆盖过才恢复；否则不要碰，避免抹掉 ActionMotionConfig 设置的整招重力）
         if (_didOverrideGravity)
         {
-            actor.movement.SetGravityScale(1f);
+            float restoreTarget = actionInstance != null
+                ? actionInstance.ResolveActionGravityScale()
+                : 1f;
+            actor.movement.SetGravityScale(restoreTarget);
             _didOverrideGravity = false;
         }
 

@@ -237,6 +237,9 @@ public class ActorMovement : MonoBehaviour
         _gravityScale = scale;
     }
 
+    /// <summary>当前重力缩放（只读）。Timeline Clip 等如需嵌套保存/恢复可读取。</summary>
+    public float GravityScale => _gravityScale;
+
     /// <summary>
     /// 直接覆盖最终垂直速度（米/秒，正上负下）。
     /// </summary>

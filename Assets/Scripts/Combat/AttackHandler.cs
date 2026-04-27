@@ -71,8 +71,8 @@ public class AttackHandler : MonoBehaviour
                 );
 
                 InvokeHitOverEvent(hitData);
-
-                attackedObjects.Remove(other);
+                // 不从 attackedObjects 移除：骨骼回摆会导致 OnTriggerEnter 再次命中同一目标（双重判定）。
+                // 列表随 HitBox 销毁清空；多段攻击靠多个 Clip / 多个 AttackHandler 隔离。
             }
         }
     }
