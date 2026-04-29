@@ -97,10 +97,11 @@ public class ActionInstance
         var motion = Config.MotionConfig;
         var mv = Actor.movement;
 
+        mv.ApplyMotionHandoff(motion.horizontalMomentumInheritance, motion.verticalMomentumInheritance);
         mv.SetRootMotionApplyMode(motion.rootMotionMode);
         mv.SetLocomotionSuppressed(motion.suppressLocomotion);
         if (motion.gravityScale >= 0f)
-            mv.SetGravityScale(motion.gravityScale);
+            mv.SetActionGravityScale(motion.gravityScale);
         ApplyFacingOnStart(motion.facingOnStart, context);
     }
 
@@ -110,7 +111,7 @@ public class ActionInstance
         var mv = Actor.movement;
         mv.SetRootMotionApplyMode(ActorMovement.RootMotionApplyMode.External);
         mv.SetLocomotionSuppressed(false);
-        mv.SetGravityScale(1f);
+        mv.SetActionGravityScale(1f);
     }
 
     private void ApplyFacingOnStart(ActionFacingOnStart mode, ActionEventContext context)

@@ -15,6 +15,9 @@ MonoBehaviour:
   config:
     directionMode: 2
     fixedLocalDirection: {x: 0, y: 0, z: 1}
+    controlHorizontal: 0
+    controlVertical: 0
+    overrideGravity: 1
     horizontalSpeed: 0
     verticalSpeed: 0
     verticalMode: 1
@@ -71,6 +74,7 @@ MonoBehaviour:
     gravityScale: 0
     releaseMode: 1
     debugLog: 1
+    _velocityLegacyMigrationApplied: 1
 --- !u!114 &-8926618417444057310
 MonoBehaviour:
   m_ObjectHideFlags: 1

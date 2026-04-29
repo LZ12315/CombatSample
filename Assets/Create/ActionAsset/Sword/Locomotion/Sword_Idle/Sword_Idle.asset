@@ -37,6 +37,8 @@ MonoBehaviour:
     suppressLocomotion: 1
     facingOnStart: 0
     gravityScale: -1
+    horizontalMomentumInheritance: 1
+    verticalMomentumInheritance: 1
   isLoop: 1
   _entryConditions:
   - rid: 5174319773871505417

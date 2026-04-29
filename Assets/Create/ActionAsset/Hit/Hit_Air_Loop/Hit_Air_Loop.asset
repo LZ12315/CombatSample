@@ -37,7 +37,10 @@ MonoBehaviour:
     suppressLocomotion: 1
     facingOnStart: 0
     gravityScale: 1.75
+    horizontalMomentumInheritance: 1
+    verticalMomentumInheritance: 1
   isLoop: 1
+  _allowReenterWhilePlaying: 0
   _entryConditions:
   - rid: 2842927523881811971
   _exitConditions: []

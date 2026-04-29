@@ -56,6 +56,8 @@ MonoBehaviour:
     suppressLocomotion: 1
     facingOnStart: 2
     gravityScale: -1
+    horizontalMomentumInheritance: 0
+    verticalMomentumInheritance: 0
   isLoop: 0
   _allowReenterWhilePlaying: 0
   _entryConditions:

@@ -30,6 +30,7 @@ public class ImpulseConfig
     [Tooltip("Vertical initial speed (m/s), positive = up. 一次性注入，由重力衰减")]
     public float verticalForce = 0f;
 
+    [Obsolete("优先使用 ActionMotionConfig.gravityScale 或 VelocityClip 的 overrideGravity + gravityScale。")]
     [Tooltip("Gravity scale during this clip. -1 = 不覆盖（推荐，整招重力由 ActionMotionConfig 负责）；>=0 时在 Clip 期间强制覆盖（0=浮空，1=正常，2=快速下坠）")]
     public float gravityScale = -1f;
 
