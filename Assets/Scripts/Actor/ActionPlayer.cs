@@ -65,21 +65,16 @@ public class ActionPlayer : MonoBehaviour
     /// <summary>当前播放 Action 的启动上下文快照，供 Loop 重播时保留。</summary>
     private ActionEventContext _currentContext;
 
-    /// <summary>显式 Stop/切招：避免仅用 normalizedTime 把 Stop 误判为 Loop 自然循环末尾。</summary>
-    private bool _isStoppingCurrentAction;
-
-    private bool _isSwitchingAction;
-
-    /// <summary>切招：旧 Action 退出后再绑定的新动作（避免 Stop 回调与 Bind 交错）。</summary>
-    private ActionAsset _pendingActionAsset;
-
-    private ActionEventContext _pendingContext;
-    private bool _hasPendingAction;
-
     /// <summary>动作正常结束（时间走到末尾附近）且已完成 OnExit / 清 transient / 卸 Timeline 后触发。Loop 重播不会触发。</summary>
     public event Action<ActionInstance> OnActionFinished;
     /// <summary>动作被中断或切走时触发（非本组件 StopAction 先清空引用的情况）。</summary>
     public event Action<ActionInstance> OnActionInterrupted;
+
+    /// <summary>
+    /// StopAction 主动停止 Director 时，stopped 回调会同步/异步进入。
+    /// 该标记用于避免回调重复执行 Action 退出流程。
+    /// </summary>
+    private bool _isStoppingAction;
 
     private void Awake()
     {
@@ -100,160 +95,33 @@ public class ActionPlayer : MonoBehaviour
         _director.stopped -= HandleDirectorStopped;
     }
 
-<<<<<<< HEAD
-    /// <summary>
-    /// 停止当前动作：先 Stop Director，让 Timeline Clip 在 ActionInstance.Actor 仍有效时完成 OnClipStop；
-    /// 再由 HandleDirectorStopped / 同步路径执行 OnExit、清 transient、卸 Timeline。
-    /// </summary>
-=======
-    /// <summary>停止当前动作：OnExit、清空 transient、卸 Timeline。先于 Director.Stop 置空 CurrentAction，避免 stopped 回调重复处理。</summary>
->>>>>>> parent of 50a4ffc (基本完成第一步整理)
+    /// <summary>停止当前动作：先停 Timeline 触发 Clip 清理，再执行 Action 退出与状态恢复。</summary>
     public void StopAction()
     {
-        ClearPendingAction();
-
-        if (CurrentAction == null)
+        var inst = CurrentAction;
+        if (inst == null)
             return;
 
-<<<<<<< HEAD
-        // Graph 有效时优先 Stop，让 Timeline Clip 走 OnClipStop（Playing / Paused 均可）。
-        if (_director.playableGraph.IsValid())
+        _isStoppingAction = true;
+        try
         {
-            StopCurrentDirectorForExit(switching: false);
-            return;
+            if (_director.playableAsset != null)
+                _director.Stop();
+        }
+        finally
+        {
+            _isStoppingAction = false;
         }
 
-        // 未在播放（极少见）：stopped 不会触发，手动退出（与旧版 StopAction 一致：不触发 Finished/Interrupted 事件）。
-        ExitCurrentActionSynchronously();
-=======
-        CurrentAction = null;
-        inst.OnExit();
-        _actor?.ClearTransientTags();
-
-        if (_director.state == PlayState.Playing)
-            _director.Stop();
-
-        _director.playableAsset = null;
-        // 注意：不在这里重置 _expectedSpeed。
-        // 速度控制现在由外部 Effect（如 ActionSpeedEffect）全权管理。
-        // StopAction 只是停止当前动作，不应干预速度状态。
-        _currentContext = default;
-        CurrentFrame = 0;
-        CurrentFrameRate = 0;
-        TotalFrames = 0;
->>>>>>> parent of 50a4ffc (基本完成第一步整理)
+        FinalizeCurrentAction(inst, clearTimeline: true);
     }
 
-    /// <summary>播放指定动作：若有当前动作则排队 pending，先 Stop 旧 Director；stopped 回调完成 OnExit 后再绑定新 Timeline。</summary>
+    /// <summary>播放指定动作：先 StopAction，再绑定 Timeline、OnEnter。</summary>
     public void BeginAction(ActionAsset actionAsset, ActionEventContext context = default)
     {
-        if (actionAsset == null || actionAsset.TimelineAsset == null)
-        {
-            Debug.LogWarning("播放失败：ActionAsset 或 Timeline 为空。请在 ActionAsset 上指定 Timeline。", this);
-            return;
-        }
-
-        if (CurrentAction != null)
-        {
-            _pendingActionAsset = actionAsset;
-            _pendingContext = context;
-            _hasPendingAction = true;
-
-            if (!_isStoppingCurrentAction)
-                ExitCurrentActionForSwitch();
-            return;
-        }
-
+        StopAction();
         _currentContext = context;
         TryBindAndPlayTimeline(actionAsset);
-    }
-
-    private void ClearPendingAction()
-    {
-        _hasPendingAction = false;
-        _pendingActionAsset = null;
-        _pendingContext = default;
-    }
-
-    /// <summary>旧 Action OnExit 完成后启动排队中的新动作。</summary>
-    private void TryPlayPendingActionAfterExit()
-    {
-        if (!_hasPendingAction || _pendingActionAsset == null)
-        {
-            ClearPendingAction();
-            return;
-        }
-
-        var asset = _pendingActionAsset;
-        var ctx = _pendingContext;
-        ClearPendingAction();
-
-        _currentContext = ctx;
-        TryBindAndPlayTimeline(asset);
-    }
-
-    private void ExitCurrentActionForSwitch()
-    {
-        StopCurrentDirectorForExit(switching: true);
-    }
-
-    private void StopCurrentDirectorForExit(bool switching)
-    {
-        if (CurrentAction == null)
-            return;
-
-        _isStoppingCurrentAction = true;
-        _isSwitchingAction = switching;
-
-        if (_director.playableGraph.IsValid())
-        {
-            _director.Stop();
-            return;
-        }
-
-        // Graph 已无效：无法收到 stopped，直接同步完成退出。
-        bool treatAsInterrupted = ComputeExitShouldInterrupt(switching, CurrentAction);
-        ExitCurrentActionAfterClips(treatAsInterrupted);
-        _isStoppingCurrentAction = false;
-        _isSwitchingAction = false;
-        if (switching)
-            TryPlayPendingActionAfterExit();
-    }
-
-    private static bool ComputeExitShouldInterrupt(bool switching, ActionInstance finished)
-    {
-        if (switching)
-            return true;
-        if (finished == null)
-            return true;
-        return !(finished.RuntimeData.normalizedTime >= 0.95f && !finished.Config.IsLoop);
-    }
-
-    private void ExitCurrentActionAfterClips(bool treatAsInterrupted)
-    {
-        if (CurrentAction == null)
-            return;
-
-        var finished = CurrentAction;
-        CompleteActionExit(finished, treatAsInterrupted);
-    }
-
-    private void CompleteActionExit(ActionInstance finished, bool treatAsInterrupted)
-    {
-        finished.OnExit();
-        _actor?.ClearTransientTags();
-        CurrentAction = null;
-        if (_director.playableAsset != null)
-            _director.playableAsset = null;
-        CurrentFrame = 0;
-        CurrentFrameRate = 0;
-        TotalFrames = 0;
-        _currentContext = default;
-
-        if (treatAsInterrupted)
-            OnActionInterrupted?.Invoke(finished);
-        else
-            OnActionFinished?.Invoke(finished);
     }
 
     private bool TryBindAndPlayTimeline(ActionAsset actionAsset)
@@ -353,23 +221,13 @@ public class ActionPlayer : MonoBehaviour
 
     private void HandleDirectorStopped(PlayableDirector director)
     {
+        if (_isStoppingAction)
+            return;
+
         if (CurrentAction == null)
             return;
 
         ActionInstance finished = CurrentAction;
-
-        bool forceExit = _isStoppingCurrentAction;
-        bool switching = _isSwitchingAction;
-        _isStoppingCurrentAction = false;
-        _isSwitchingAction = false;
-
-        if (forceExit)
-        {
-            bool treatAsInterrupted = ComputeExitShouldInterrupt(switching, finished);
-            CompleteActionExit(finished, treatAsInterrupted);
-            TryPlayPendingActionAfterExit();
-            return;
-        }
 
         if (finished.RuntimeData.normalizedTime >= 0.95f)
         {
@@ -384,39 +242,7 @@ public class ActionPlayer : MonoBehaviour
                 return;
             }
 
-<<<<<<< HEAD
-            CompleteActionExit(finished, treatAsInterrupted: false);
-            return;
-        }
-
-        // 中断：必须 OnExit，否则 MotionConfig / Clip 状态会泄漏。
-        CompleteActionExit(finished, treatAsInterrupted: true);
-    }
-
-    /// <summary>同步退出（Director 未在播放时 StopAction 兜底）。不派发 Finished/Interrupted，与旧行为一致。</summary>
-    private void ExitCurrentActionSynchronously()
-    {
-        var inst = CurrentAction;
-        if (inst == null)
-            return;
-
-        inst.OnExit();
-        _actor?.ClearTransientTags();
-        CurrentAction = null;
-        if (_director.playableAsset != null)
-            _director.playableAsset = null;
-        CurrentFrame = 0;
-        CurrentFrameRate = 0;
-        TotalFrames = 0;
-        _currentContext = default;
-=======
-            finished.OnExit();
-            _actor?.ClearTransientTags();
-            CurrentAction = null;
-            _director.playableAsset = null;
-            CurrentFrame = 0;
-            CurrentFrameRate = 0;
-            TotalFrames = 0;
+            FinalizeCurrentAction(finished, clearTimeline: true);
             // 注意：不在这里重置 _expectedSpeed。
             // 速度控制现在由外部 Effect（如 ActionSpeedEffect）全权管理。
             // 动作结束时不自动恢复速度，确保 HitStop 等效果能持续到 Effect 主动恢复。
@@ -424,11 +250,27 @@ public class ActionPlayer : MonoBehaviour
             return;
         }
 
-        CurrentAction = null;
+        FinalizeCurrentAction(finished, clearTimeline: false);
+        OnActionInterrupted?.Invoke(finished);
+    }
+
+    private void FinalizeCurrentAction(ActionInstance action, bool clearTimeline)
+    {
+        if (action == null)
+            return;
+
+        if (CurrentAction == action)
+            CurrentAction = null;
+
+        action.OnExit();
+        _actor?.ClearTransientTags();
+
+        if (clearTimeline)
+            _director.playableAsset = null;
+
+        _currentContext = default;
         CurrentFrame = 0;
         CurrentFrameRate = 0;
         TotalFrames = 0;
-        OnActionInterrupted?.Invoke(finished);
->>>>>>> parent of 50a4ffc (基本完成第一步整理)
     }
 }

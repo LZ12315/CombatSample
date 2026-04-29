@@ -14,7 +14,6 @@ public class ActionImpulseClipInspector : Editor
     private SerializedProperty _fixedLocalDirection;
     private SerializedProperty _horizontalForce;
     private SerializedProperty _verticalForce;
-    private SerializedProperty _gravityScale;
     private SerializedProperty _debugLog;
 
     private void OnEnable()
@@ -26,7 +25,6 @@ public class ActionImpulseClipInspector : Editor
         _fixedLocalDirection = _config.FindPropertyRelative("fixedLocalDirection");
         _horizontalForce = _config.FindPropertyRelative("horizontalForce");
         _verticalForce = _config.FindPropertyRelative("verticalForce");
-        _gravityScale = _config.FindPropertyRelative("gravityScale");
         _debugLog = _config.FindPropertyRelative("debugLog");
     }
 
@@ -61,13 +59,6 @@ public class ActionImpulseClipInspector : Editor
             new GUIContent("Horizontal Speed", "Horizontal initial speed (m/s) along resolved direction. 由 Movement 的 drag 自然衰减"));
         EditorGUILayout.PropertyField(_verticalForce,
             new GUIContent("Vertical Speed", "Vertical initial speed (m/s), positive = up. 由重力自然衰减"));
-
-        EditorGUILayout.Space(4);
-
-        // ── Gravity ──
-        EditorGUILayout.LabelField("Gravity", EditorStyles.boldLabel);
-        EditorGUILayout.PropertyField(_gravityScale,
-            new GUIContent("Gravity Scale", "-1 = 不覆盖（推荐，整招重力由 ActionMotionConfig 负责）；>=0 时在 Clip 期间强制覆盖（0=浮空，1=正常，2=快速下坠）"));
 
         EditorGUILayout.Space(4);
 

@@ -3,9 +3,9 @@ using UnityEngine;
 
 /// <summary>
 /// 自定义 Inspector：把 VelocityConfig 的字段平铺绘制（不嵌套 foldout），
-/// 按语义分组（Direction / Speed / Curve / Gravity / Debug），并根据 directionMode
+/// 按语义分组（Direction / Speed / Curve / Debug），并根据 directionMode
 /// 条件显示 fixedLocalDirection（只在 Fixed 模式下显示）。
-///
+/// 
 /// 与 ActionImpulseClipInspector 保持风格一致，方便策划在两种 Clip 之间切换时有一致体验。
 /// </summary>
 [CustomEditor(typeof(ActionVelocityClip))]
@@ -14,21 +14,12 @@ public class ActionVelocityClipInspector : Editor
     private SerializedProperty _config;
     private SerializedProperty _directionMode;
     private SerializedProperty _fixedLocalDirection;
-<<<<<<< HEAD
-    private SerializedProperty _controlHorizontal;
-    private SerializedProperty _controlVertical;
-    private SerializedProperty _overrideGravity;
-=======
->>>>>>> parent of 50a4ffc (基本完成第一步整理)
+    private SerializedProperty _useHorizontalVelocity;
     private SerializedProperty _horizontalSpeed;
+    private SerializedProperty _useVerticalVelocity;
     private SerializedProperty _verticalSpeed;
-    private SerializedProperty _verticalMode;
-    private SerializedProperty _clampMin;
-    private SerializedProperty _clampMax;
     private SerializedProperty _horizontalCurve;
     private SerializedProperty _verticalCurve;
-    private SerializedProperty _gravityScale;
-    private SerializedProperty _releaseMode;
     private SerializedProperty _debugLog;
 
     private void OnEnable()
@@ -38,21 +29,12 @@ public class ActionVelocityClipInspector : Editor
 
         _directionMode       = _config.FindPropertyRelative("directionMode");
         _fixedLocalDirection = _config.FindPropertyRelative("fixedLocalDirection");
-<<<<<<< HEAD
-        _controlHorizontal   = _config.FindPropertyRelative("controlHorizontal");
-        _controlVertical     = _config.FindPropertyRelative("controlVertical");
-        _overrideGravity     = _config.FindPropertyRelative("overrideGravity");
-=======
->>>>>>> parent of 50a4ffc (基本完成第一步整理)
+        _useHorizontalVelocity = _config.FindPropertyRelative("useHorizontalVelocity");
         _horizontalSpeed     = _config.FindPropertyRelative("horizontalSpeed");
+        _useVerticalVelocity = _config.FindPropertyRelative("useVerticalVelocity");
         _verticalSpeed       = _config.FindPropertyRelative("verticalSpeed");
-        _verticalMode        = _config.FindPropertyRelative("verticalMode");
-        _clampMin            = _config.FindPropertyRelative("clampMin");
-        _clampMax            = _config.FindPropertyRelative("clampMax");
         _horizontalCurve     = _config.FindPropertyRelative("horizontalCurve");
         _verticalCurve       = _config.FindPropertyRelative("verticalCurve");
-        _gravityScale        = _config.FindPropertyRelative("gravityScale");
-        _releaseMode         = _config.FindPropertyRelative("releaseMode");
         _debugLog            = _config.FindPropertyRelative("debugLog");
     }
 
@@ -81,55 +63,16 @@ public class ActionVelocityClipInspector : Editor
 
         EditorGUILayout.Space(4);
 
-        EditorGUILayout.LabelField("Authoritative axes", EditorStyles.boldLabel);
-        EditorGUILayout.PropertyField(_controlHorizontal,
-            new GUIContent("Control Horizontal", "Clip 权威覆盖水平程序速度"));
-        EditorGUILayout.PropertyField(_controlVertical,
-            new GUIContent("Control Vertical", "Clip 权威覆盖垂直程序速度"));
-        EditorGUILayout.PropertyField(_overrideGravity,
-            new GUIContent("Override Gravity", "Clip 期间是否通过 ClipGravity 覆盖重力倍率"));
-
-        if (_overrideGravity != null && _overrideGravity.boolValue)
-        {
-            EditorGUI.indentLevel++;
-            EditorGUILayout.PropertyField(_gravityScale,
-                new GUIContent("Gravity Scale", "Clip 期间重力倍率"));
-            EditorGUI.indentLevel--;
-        }
-
-        EditorGUILayout.Space(4);
-
         // ── Speed ──
         EditorGUILayout.LabelField("Speed", EditorStyles.boldLabel);
+        EditorGUILayout.PropertyField(_useHorizontalVelocity,
+            new GUIContent("Use Horizontal", "开启后接管水平轴；即使速度为 0 也会覆盖水平程序速度"));
         EditorGUILayout.PropertyField(_horizontalSpeed,
-<<<<<<< HEAD
-            new GUIContent("Horizontal Speed", "水平速度 (m/s)，沿解析方向。配合 Control Horizontal"));
+            new GUIContent("Horizontal Speed", "水平速度 (m/s)，沿解析方向覆盖水平程序速度"));
+        EditorGUILayout.PropertyField(_useVerticalVelocity,
+            new GUIContent("Use Vertical", "开启后接管垂直轴；即使速度为 0 也会覆盖垂直程序速度"));
         EditorGUILayout.PropertyField(_verticalSpeed,
-            new GUIContent("Vertical Speed", "垂直速度 (m/s)，正值向上。配合 Control Vertical"));
-
-        EditorGUILayout.Space(4);
-
-        EditorGUILayout.LabelField("Legacy vertical mode", EditorStyles.boldLabel);
-        EditorGUILayout.HelpBox(
-            "Legacy 模式仅用于旧 Timeline。ClampRange 不支持多 Clip 重叠；新内容请优先用 Control Vertical。",
-            MessageType.None);
-=======
-            new GUIContent("Horizontal Speed", "水平速度 (m/s)，沿解析方向。0=不启用水平"));
-        EditorGUILayout.PropertyField(_verticalSpeed,
-            new GUIContent("Vertical Speed", "垂直速度 (m/s)，正值向上。0=不启用垂直"));
->>>>>>> parent of 50a4ffc (基本完成第一步整理)
-        EditorGUILayout.PropertyField(_verticalMode,
-            new GUIContent("Vertical Mode", "垂直速度写入模式"));
-
-        if ((VerticalVelocityMode)_verticalMode.enumValueIndex == VerticalVelocityMode.ClampRange)
-        {
-            EditorGUI.indentLevel++;
-            EditorGUILayout.PropertyField(_clampMin,
-                new GUIContent("Clamp Min", "允许的最低垂直速度。负值=缓降"));
-            EditorGUILayout.PropertyField(_clampMax,
-                new GUIContent("Clamp Max", "允许的最高垂直速度。0=禁止上升"));
-            EditorGUI.indentLevel--;
-        }
+            new GUIContent("Vertical Speed", "垂直速度 (m/s)，正值向上，覆盖垂直程序速度"));
 
         EditorGUILayout.Space(4);
 
@@ -139,27 +82,6 @@ public class ActionVelocityClipInspector : Editor
             new GUIContent("Horizontal Curve", "水平速度的 Clip 期间缩放曲线"));
         EditorGUILayout.PropertyField(_verticalCurve,
             new GUIContent("Vertical Curve", "垂直速度的 Clip 期间缩放曲线"));
-
-        EditorGUILayout.Space(4);
-
-<<<<<<< HEAD
-=======
-        // ── Gravity ──
-        EditorGUILayout.LabelField("Gravity", EditorStyles.boldLabel);
-        EditorGUILayout.PropertyField(_gravityScale,
-            new GUIContent("Gravity Scale",
-                "Clip 期间的重力缩放。0=浮空（由 Clip 接管垂直），1=保留重力叠加"));
-
-        EditorGUILayout.Space(4);
-
->>>>>>> parent of 50a4ffc (基本完成第一步整理)
-        // ── Release ──
-        EditorGUILayout.LabelField("Release", EditorStyles.boldLabel);
-        EditorGUILayout.PropertyField(_releaseMode,
-            new GUIContent("Release Mode",
-                "Clip 结束时垂直通道处理。Transparent=原样暴露；ResetVertical=归零后由重力接管"));
-
-        EditorGUILayout.Space(4);
 
         // ── Options ──
         EditorGUILayout.LabelField("Options", EditorStyles.boldLabel);

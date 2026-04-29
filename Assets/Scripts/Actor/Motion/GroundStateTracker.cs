@@ -1,38 +1,50 @@
 /// <summary>
-/// 地面状态机：依据 CharacterController.isGrounded 与离地帧滤波输出 <see cref="ActorMovement.GroundState"/>。
+/// Converts raw CharacterController grounding into stable ActorMovement ground states.
+/// Plain C# state so ActorMovement remains the only Unity component.
 /// </summary>
 public sealed class GroundStateTracker
 {
-    public ActorMovement.GroundState State { get; private set; } = ActorMovement.GroundState.Grounded;
-
+    private ActorMovement.GroundState _state = ActorMovement.GroundState.Grounded;
     private int _airborneFrameCounter;
+    private int _forceUngroundFrames;
 
-    public struct StepResult
+    public ActorMovement.GroundState State => _state;
+
+    public bool IsGrounded =>
+        _state == ActorMovement.GroundState.Grounded ||
+        _state == ActorMovement.GroundState.JustLanded;
+
+    public bool IsAirborne =>
+        _state == ActorMovement.GroundState.Airborne ||
+        _state == ActorMovement.GroundState.JustLeftGround;
+
+    public void Update(
+        bool rawGrounded,
+        float dt,
+        int airborneFrameThreshold,
+        out bool landed,
+        out bool leftGround)
     {
-        public ActorMovement.GroundState State;
-        public bool LandedThisFrame;
-        public bool LeftGroundThisFrame;
-    }
+        landed = false;
+        leftGround = false;
 
-    /// <param name="rawGrounded">CC.isGrounded</param>
-    /// <param name="dt">演化用 dt（HitStop 时可为 0）</param>
-    /// <param name="airborneFrameThreshold">连续离地帧数阈值</param>
-    public StepResult Step(bool rawGrounded, float dt, int airborneFrameThreshold)
-    {
-        bool landed = false;
-        bool left = false;
+        if (_forceUngroundFrames > 0)
+        {
+            rawGrounded = false;
+            _forceUngroundFrames--;
+        }
 
-        if (State == ActorMovement.GroundState.JustLanded)
-            State = ActorMovement.GroundState.Grounded;
-        else if (State == ActorMovement.GroundState.JustLeftGround)
-            State = ActorMovement.GroundState.Airborne;
+        if (_state == ActorMovement.GroundState.JustLanded)
+            _state = ActorMovement.GroundState.Grounded;
+        else if (_state == ActorMovement.GroundState.JustLeftGround)
+            _state = ActorMovement.GroundState.Airborne;
 
         if (rawGrounded)
         {
             _airborneFrameCounter = 0;
-            if (State == ActorMovement.GroundState.Airborne)
+            if (_state == ActorMovement.GroundState.Airborne)
             {
-                State = ActorMovement.GroundState.JustLanded;
+                _state = ActorMovement.GroundState.JustLanded;
                 landed = true;
             }
         }
@@ -40,18 +52,30 @@ public sealed class GroundStateTracker
         {
             if (dt > 1e-8f)
                 _airborneFrameCounter++;
-            if (State == ActorMovement.GroundState.Grounded && _airborneFrameCounter > airborneFrameThreshold)
+
+            if (_state == ActorMovement.GroundState.Grounded &&
+                _airborneFrameCounter > airborneFrameThreshold)
             {
-                State = ActorMovement.GroundState.JustLeftGround;
-                left = true;
+                _state = ActorMovement.GroundState.JustLeftGround;
+                leftGround = true;
             }
         }
+    }
 
-        return new StepResult
-        {
-            State = State,
-            LandedThisFrame = landed,
-            LeftGroundThisFrame = left
-        };
+    /// <summary>
+    /// Forces the actor into airborne state for a few frames after an explicit upward launch.
+    /// This mirrors KCC-style ForceUnground so grounded fallback actions cannot clear the launch impulse.
+    /// </summary>
+    public bool ForceUnground(int frames)
+    {
+        bool wasGrounded =
+            _state == ActorMovement.GroundState.Grounded ||
+            _state == ActorMovement.GroundState.JustLanded;
+
+        _forceUngroundFrames = frames > _forceUngroundFrames ? frames : _forceUngroundFrames;
+        _airborneFrameCounter = 0;
+        _state = ActorMovement.GroundState.Airborne;
+
+        return wasGrounded;
     }
 }

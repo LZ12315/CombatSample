@@ -200,12 +200,7 @@ MonoBehaviour:
     directionMode: 4
     fixedLocalDirection: {x: 0, y: 1, z: 0}
     horizontalForce: 0
-<<<<<<< HEAD
-    verticalForce: 15
-=======
     verticalForce: 13
->>>>>>> parent of 50a4ffc (基本完成第一步整理)
-    gravityScale: -1
     debugLog: 0
 --- !u!114 &11400000
 MonoBehaviour:

@@ -81,30 +81,21 @@ public class ActionInstance
 
     #region === 运动策略 ===
 
-    /// <summary>
-    /// Action 层应持有的重力缩放：MotionConfig.gravityScale &gt;= 0 时用该值；-1（不覆盖）时视为系统默认 1。
-    /// 供 Velocity / Impulse Clip 在 OnClipStop 还原到整招设定，而非硬编码 1。
-    /// </summary>
-    public float ResolveActionGravityScale()
-    {
-        float g = Config.MotionConfig.gravityScale;
-        return g >= 0f ? g : 1f;
-    }
-
     private void ApplyMotionConfig(ActionEventContext context)
     {
         if (Actor?.movement == null) return;
         var motion = Config.MotionConfig;
         var mv = Actor.movement;
 
-<<<<<<< HEAD
-        mv.ApplyMotionHandoff(motion.horizontalMomentumInheritance, motion.verticalMomentumInheritance);
-=======
->>>>>>> parent of 50a4ffc (基本完成第一步整理)
+        // Hard reset velocity ownership on Action entry, then apply momentum inheritance.
+        mv.ClearVelocityOwners();
+        mv.ApplyMotionHandoff(
+            motion.horizontalMomentumInheritance,
+            motion.verticalMomentumInheritance);
         mv.SetRootMotionApplyMode(motion.rootMotionMode);
         mv.SetLocomotionSuppressed(motion.suppressLocomotion);
         if (motion.gravityScale >= 0f)
-            mv.SetActionGravityScale(motion.gravityScale);
+            mv.SetGravityScale(motion.gravityScale);
         ApplyFacingOnStart(motion.facingOnStart, context);
     }
 
@@ -114,7 +105,7 @@ public class ActionInstance
         var mv = Actor.movement;
         mv.SetRootMotionApplyMode(ActorMovement.RootMotionApplyMode.External);
         mv.SetLocomotionSuppressed(false);
-        mv.SetActionGravityScale(1f);
+        mv.SetGravityScale(1f);
     }
 
     private void ApplyFacingOnStart(ActionFacingOnStart mode, ActionEventContext context)

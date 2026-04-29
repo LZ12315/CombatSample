@@ -1,104 +1,225 @@
 using UnityEngine;
 
 /// <summary>
-/// 运动通道运行时状态：冲量、重力累积、以及水平/垂直 Velocity 覆盖（owner 控制）。
+/// Lightweight identity for clip-level motion ownership.
+/// A clip can only release the state it acquired with the same owner.
+/// </summary>
+public readonly struct MotionOwner
+{
+    public readonly int Id;
+
+    public bool IsValid => Id != 0;
+
+    public MotionOwner(int id)
+    {
+        Id = id;
+    }
+}
+
+/// <summary>
+/// Runtime motion channels owned by ActorMovement.
+/// This is plain C# state, not a Unity component.
+/// Velocity owner is single-slot per axis (no stack and no fallback).
 /// </summary>
 public sealed class MotionChannels
 {
+    private const float GroundStickVelocity = -2f;
+    private const float VelocityEpsilon = 0.001f;
+
     private int _nextOwnerId = 1;
 
-    public Vector3 HorizontalImpulseVelocity;
-    public float VerticalImpulseVelocity;
-    public float GravityAccumulator;
+    private Vector3 _horizontalImpulseVelocity = Vector3.zero;
+    private float _gravityAccumulator;
+    private float _verticalImpulseVelocity;
 
-    private bool _hActive;
-    private int _hOwnerId;
-    private Vector3 _hValue;
-    private string _hDebugName;
+    private MotionOwner _horizontalVelocityOwner;
+    private Vector3 _horizontalVelocity = Vector3.zero;
 
-    private bool _vActive;
-    private int _vOwnerId;
-    private float _vValue;
-    private string _vDebugName;
+    private MotionOwner _verticalVelocityOwner;
+    private float _verticalVelocity;
 
-    public MotionControlOwner CreateOwner() => new MotionControlOwner(_nextOwnerId++);
+    public bool HasHorizontalVelocityOwner => _horizontalVelocityOwner.IsValid;
+    public bool HasVerticalVelocityOwner => _verticalVelocityOwner.IsValid;
 
-    public bool HasHorizontalVelocityControl => _hActive;
-    public Vector3 HorizontalProgramVelocity => _hValue;
-
-    public bool HasVerticalVelocityControl => _vActive;
-    public float VerticalProgramVelocity => _vValue;
-
-    public MotionControlOwner BeginHorizontalVelocityControl(string debugName)
+    /// <summary>
+    /// Clears velocity owners for both axes and their cached velocity values.
+    /// Use this as an Action-entry hard reset so owner control never leaks across Actions.
+    /// </summary>
+    public void ClearVelocityOwners()
     {
-        var owner = CreateOwner();
-        if (_hActive)
-            Debug.LogWarning($"[MotionChannels] Horizontal velocity takeover: {_hDebugName} -> {debugName}");
-        _hActive = true;
-        _hOwnerId = owner.Id;
-        _hValue = Vector3.zero;
-        _hDebugName = debugName;
-        return owner;
+        _horizontalVelocityOwner = default;
+        _horizontalVelocity = Vector3.zero;
+        _verticalVelocityOwner = default;
+        _verticalVelocity = 0f;
     }
 
-    public void SetHorizontalVelocity(MotionControlOwner owner, Vector3 velocity)
+    public void AddHorizontalImpulse(Vector3 velocity)
     {
-        if (!_hActive || owner.Id != _hOwnerId) return;
         velocity.y = 0f;
-        _hValue = velocity;
+        _horizontalImpulseVelocity += velocity;
     }
 
-    public void EndHorizontalVelocityControl(MotionControlOwner owner)
+    public void ClearHorizontalImpulse()
     {
-        if (!_hActive || owner.Id != _hOwnerId) return;
-        _hActive = false;
-        _hOwnerId = 0;
-        _hValue = Vector3.zero;
-        _hDebugName = null;
+        _horizontalImpulseVelocity = Vector3.zero;
     }
 
-    /// <summary>开始垂直 Velocity 覆盖；清零重力累积与垂直冲量，避免与隐藏重力积分打架。</summary>
-    public MotionControlOwner BeginVerticalVelocityControl(string debugName)
+    public void AddVerticalImpulse(float upwardSpeed)
     {
-        var owner = CreateOwner();
-        if (_vActive)
-            Debug.LogWarning($"[MotionChannels] Vertical velocity takeover: {_vDebugName} -> {debugName}");
-        _vActive = true;
-        _vOwnerId = owner.Id;
-        _vValue = 0f;
-        _vDebugName = debugName;
-        GravityAccumulator = 0f;
-        VerticalImpulseVelocity = 0f;
-        return owner;
+        if (upwardSpeed >= 0f)
+            _verticalImpulseVelocity = Mathf.Max(_verticalImpulseVelocity, upwardSpeed);
+        else
+            _verticalImpulseVelocity = upwardSpeed;
+
+        if (upwardSpeed > 0f)
+            _gravityAccumulator = 0f;
     }
 
-    public void SetVerticalVelocity(MotionControlOwner owner, float verticalSpeed)
+    public void ApplyHandoff(float horizontalInheritance, float verticalInheritance)
     {
-        if (!_vActive || owner.Id != _vOwnerId) return;
-        _vValue = verticalSpeed;
+        horizontalInheritance = Mathf.Clamp01(horizontalInheritance);
+        verticalInheritance = Mathf.Clamp01(verticalInheritance);
+
+        _horizontalImpulseVelocity *= horizontalInheritance;
+        _verticalImpulseVelocity *= verticalInheritance;
+        _gravityAccumulator *= verticalInheritance;
     }
 
-    public void EndVerticalVelocityControl(MotionControlOwner owner)
+    public MotionOwner BeginHorizontalVelocity()
     {
-        if (!_vActive || owner.Id != _vOwnerId) return;
-        _vActive = false;
-        _vOwnerId = 0;
-        _vValue = 0f;
-        _vDebugName = null;
-        GravityAccumulator = 0f;
-        VerticalImpulseVelocity = 0f;
+        if (_horizontalVelocityOwner.IsValid)
+        {
+            Debug.LogWarning($"[MotionChannels] Replacing active horizontal owner id={_horizontalVelocityOwner.Id}. " +
+                             "Velocity owner is single-slot; old owner will not regain control automatically.");
+        }
+
+        _horizontalVelocityOwner = NewOwner();
+        _horizontalVelocity = Vector3.zero;
+        return _horizontalVelocityOwner;
     }
 
-    public void ApplyHorizontalMomentumInheritance(float factor)
+    public void SetHorizontalVelocity(MotionOwner owner, Vector3 velocity)
     {
-        factor = Mathf.Clamp01(factor);
-        HorizontalImpulseVelocity *= factor;
+        if (!IsCurrent(owner, _horizontalVelocityOwner))
+            return;
+
+        velocity.y = 0f;
+        _horizontalVelocity = velocity;
     }
 
-    public void ApplyVerticalMomentumInheritance(float factor)
+    public void EndHorizontalVelocity(MotionOwner owner)
     {
-        factor = Mathf.Clamp01(factor);
-        GravityAccumulator *= factor;
-        VerticalImpulseVelocity *= factor;
+        if (!IsCurrent(owner, _horizontalVelocityOwner))
+            return;
+
+        _horizontalVelocityOwner = default;
+        _horizontalVelocity = Vector3.zero;
+    }
+
+    public MotionOwner BeginVerticalVelocity()
+    {
+        if (_verticalVelocityOwner.IsValid)
+        {
+            Debug.LogWarning($"[MotionChannels] Replacing active vertical owner id={_verticalVelocityOwner.Id}. " +
+                             "Velocity owner is single-slot; old owner will not regain control automatically.");
+        }
+
+        _verticalVelocityOwner = NewOwner();
+        _verticalVelocity = 0f;
+        return _verticalVelocityOwner;
+    }
+
+    public void SetVerticalVelocity(MotionOwner owner, float velocity)
+    {
+        if (!IsCurrent(owner, _verticalVelocityOwner))
+            return;
+
+        _verticalVelocity = velocity;
+    }
+
+    public void EndVerticalVelocity(MotionOwner owner)
+    {
+        if (!IsCurrent(owner, _verticalVelocityOwner))
+            return;
+
+        _verticalVelocityOwner = default;
+        _verticalVelocity = 0f;
+    }
+
+    public void StepGravity(float dt, bool isGrounded, float gravityScale)
+    {
+        if (_verticalVelocityOwner.IsValid)
+            return;
+
+        if (isGrounded && _verticalImpulseVelocity <= 0f)
+            _gravityAccumulator = GroundStickVelocity;
+        else
+            _gravityAccumulator += Physics.gravity.y * gravityScale * dt;
+    }
+
+    public void StepHorizontalDrag(float dt, float drag)
+    {
+        if (_horizontalImpulseVelocity.sqrMagnitude <= VelocityEpsilon * VelocityEpsilon)
+        {
+            _horizontalImpulseVelocity = Vector3.zero;
+            return;
+        }
+
+        float factor = Mathf.Exp(-drag * dt);
+        _horizontalImpulseVelocity *= factor;
+    }
+
+    public void StepVerticalImpulseDecay(
+        float dt,
+        bool isAirborne,
+        bool isGrounded,
+        bool hitCeiling,
+        float airDrag)
+    {
+        if (isAirborne && airDrag > 0f && Mathf.Abs(_verticalImpulseVelocity) > 0.01f)
+        {
+            float factor = Mathf.Exp(-airDrag * dt);
+            _verticalImpulseVelocity *= factor;
+        }
+
+        if (hitCeiling && _verticalImpulseVelocity > 0f)
+            _verticalImpulseVelocity = 0f;
+
+        if (isGrounded && _verticalImpulseVelocity < 0f)
+            _verticalImpulseVelocity = 0f;
+
+        if (Mathf.Abs(_verticalImpulseVelocity) < 0.01f)
+            _verticalImpulseVelocity = 0f;
+    }
+
+    public Vector3 ComposeHorizontal(Vector3 locomotionVelocity)
+    {
+        if (_horizontalVelocityOwner.IsValid)
+            return _horizontalVelocity;
+
+        Vector3 horizontal = locomotionVelocity + _horizontalImpulseVelocity;
+        horizontal.y = 0f;
+        return horizontal;
+    }
+
+    public float ComposeVertical()
+    {
+        if (_verticalVelocityOwner.IsValid)
+            return _verticalVelocity;
+
+        return _gravityAccumulator + _verticalImpulseVelocity;
+    }
+
+    private MotionOwner NewOwner()
+    {
+        if (_nextOwnerId == int.MaxValue)
+            _nextOwnerId = 1;
+
+        return new MotionOwner(_nextOwnerId++);
+    }
+
+    private static bool IsCurrent(MotionOwner owner, MotionOwner current)
+    {
+        return owner.IsValid && owner.Id == current.Id;
     }
 }

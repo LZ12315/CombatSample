@@ -3,7 +3,7 @@ using UnityEngine;
 
 /// <summary>
 /// 通用的速度阈值条件检查，用于 ActionAsset 的 EntryCondition。
-/// 数据源 = ActorMovement.CurrentVelocity（Locomotion + Impulse + External + 重力 的合成速度，
+/// 数据源 = ActorMovement.CurrentVelocity（Locomotion + Impulse + Velocity + 重力 的合成速度，
 /// 最贴近"此刻真实速度"）。
 ///
 /// 用法：选轴 → 选比较方式 → 填阈值。
