@@ -100,10 +100,14 @@ public class ActionPlayer : MonoBehaviour
         _director.stopped -= HandleDirectorStopped;
     }
 
+<<<<<<< HEAD
     /// <summary>
     /// 停止当前动作：先 Stop Director，让 Timeline Clip 在 ActionInstance.Actor 仍有效时完成 OnClipStop；
     /// 再由 HandleDirectorStopped / 同步路径执行 OnExit、清 transient、卸 Timeline。
     /// </summary>
+=======
+    /// <summary>停止当前动作：OnExit、清空 transient、卸 Timeline。先于 Director.Stop 置空 CurrentAction，避免 stopped 回调重复处理。</summary>
+>>>>>>> parent of 50a4ffc (基本完成第一步整理)
     public void StopAction()
     {
         ClearPendingAction();
@@ -111,6 +115,7 @@ public class ActionPlayer : MonoBehaviour
         if (CurrentAction == null)
             return;
 
+<<<<<<< HEAD
         // Graph 有效时优先 Stop，让 Timeline Clip 走 OnClipStop（Playing / Paused 均可）。
         if (_director.playableGraph.IsValid())
         {
@@ -120,6 +125,23 @@ public class ActionPlayer : MonoBehaviour
 
         // 未在播放（极少见）：stopped 不会触发，手动退出（与旧版 StopAction 一致：不触发 Finished/Interrupted 事件）。
         ExitCurrentActionSynchronously();
+=======
+        CurrentAction = null;
+        inst.OnExit();
+        _actor?.ClearTransientTags();
+
+        if (_director.state == PlayState.Playing)
+            _director.Stop();
+
+        _director.playableAsset = null;
+        // 注意：不在这里重置 _expectedSpeed。
+        // 速度控制现在由外部 Effect（如 ActionSpeedEffect）全权管理。
+        // StopAction 只是停止当前动作，不应干预速度状态。
+        _currentContext = default;
+        CurrentFrame = 0;
+        CurrentFrameRate = 0;
+        TotalFrames = 0;
+>>>>>>> parent of 50a4ffc (基本完成第一步整理)
     }
 
     /// <summary>播放指定动作：若有当前动作则排队 pending，先 Stop 旧 Director；stopped 回调完成 OnExit 后再绑定新 Timeline。</summary>
@@ -362,6 +384,7 @@ public class ActionPlayer : MonoBehaviour
                 return;
             }
 
+<<<<<<< HEAD
             CompleteActionExit(finished, treatAsInterrupted: false);
             return;
         }
@@ -386,5 +409,26 @@ public class ActionPlayer : MonoBehaviour
         CurrentFrameRate = 0;
         TotalFrames = 0;
         _currentContext = default;
+=======
+            finished.OnExit();
+            _actor?.ClearTransientTags();
+            CurrentAction = null;
+            _director.playableAsset = null;
+            CurrentFrame = 0;
+            CurrentFrameRate = 0;
+            TotalFrames = 0;
+            // 注意：不在这里重置 _expectedSpeed。
+            // 速度控制现在由外部 Effect（如 ActionSpeedEffect）全权管理。
+            // 动作结束时不自动恢复速度，确保 HitStop 等效果能持续到 Effect 主动恢复。
+            OnActionFinished?.Invoke(finished);
+            return;
+        }
+
+        CurrentAction = null;
+        CurrentFrame = 0;
+        CurrentFrameRate = 0;
+        TotalFrames = 0;
+        OnActionInterrupted?.Invoke(finished);
+>>>>>>> parent of 50a4ffc (基本完成第一步整理)
     }
 }

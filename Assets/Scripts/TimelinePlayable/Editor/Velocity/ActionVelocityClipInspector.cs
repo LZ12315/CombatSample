@@ -14,9 +14,12 @@ public class ActionVelocityClipInspector : Editor
     private SerializedProperty _config;
     private SerializedProperty _directionMode;
     private SerializedProperty _fixedLocalDirection;
+<<<<<<< HEAD
     private SerializedProperty _controlHorizontal;
     private SerializedProperty _controlVertical;
     private SerializedProperty _overrideGravity;
+=======
+>>>>>>> parent of 50a4ffc (基本完成第一步整理)
     private SerializedProperty _horizontalSpeed;
     private SerializedProperty _verticalSpeed;
     private SerializedProperty _verticalMode;
@@ -35,9 +38,12 @@ public class ActionVelocityClipInspector : Editor
 
         _directionMode       = _config.FindPropertyRelative("directionMode");
         _fixedLocalDirection = _config.FindPropertyRelative("fixedLocalDirection");
+<<<<<<< HEAD
         _controlHorizontal   = _config.FindPropertyRelative("controlHorizontal");
         _controlVertical     = _config.FindPropertyRelative("controlVertical");
         _overrideGravity     = _config.FindPropertyRelative("overrideGravity");
+=======
+>>>>>>> parent of 50a4ffc (基本完成第一步整理)
         _horizontalSpeed     = _config.FindPropertyRelative("horizontalSpeed");
         _verticalSpeed       = _config.FindPropertyRelative("verticalSpeed");
         _verticalMode        = _config.FindPropertyRelative("verticalMode");
@@ -96,6 +102,7 @@ public class ActionVelocityClipInspector : Editor
         // ── Speed ──
         EditorGUILayout.LabelField("Speed", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(_horizontalSpeed,
+<<<<<<< HEAD
             new GUIContent("Horizontal Speed", "水平速度 (m/s)，沿解析方向。配合 Control Horizontal"));
         EditorGUILayout.PropertyField(_verticalSpeed,
             new GUIContent("Vertical Speed", "垂直速度 (m/s)，正值向上。配合 Control Vertical"));
@@ -106,6 +113,11 @@ public class ActionVelocityClipInspector : Editor
         EditorGUILayout.HelpBox(
             "Legacy 模式仅用于旧 Timeline。ClampRange 不支持多 Clip 重叠；新内容请优先用 Control Vertical。",
             MessageType.None);
+=======
+            new GUIContent("Horizontal Speed", "水平速度 (m/s)，沿解析方向。0=不启用水平"));
+        EditorGUILayout.PropertyField(_verticalSpeed,
+            new GUIContent("Vertical Speed", "垂直速度 (m/s)，正值向上。0=不启用垂直"));
+>>>>>>> parent of 50a4ffc (基本完成第一步整理)
         EditorGUILayout.PropertyField(_verticalMode,
             new GUIContent("Vertical Mode", "垂直速度写入模式"));
 
@@ -130,6 +142,17 @@ public class ActionVelocityClipInspector : Editor
 
         EditorGUILayout.Space(4);
 
+<<<<<<< HEAD
+=======
+        // ── Gravity ──
+        EditorGUILayout.LabelField("Gravity", EditorStyles.boldLabel);
+        EditorGUILayout.PropertyField(_gravityScale,
+            new GUIContent("Gravity Scale",
+                "Clip 期间的重力缩放。0=浮空（由 Clip 接管垂直），1=保留重力叠加"));
+
+        EditorGUILayout.Space(4);
+
+>>>>>>> parent of 50a4ffc (基本完成第一步整理)
         // ── Release ──
         EditorGUILayout.LabelField("Release", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(_releaseMode,

@@ -97,7 +97,10 @@ public class ActionInstance
         var motion = Config.MotionConfig;
         var mv = Actor.movement;
 
+<<<<<<< HEAD
         mv.ApplyMotionHandoff(motion.horizontalMomentumInheritance, motion.verticalMomentumInheritance);
+=======
+>>>>>>> parent of 50a4ffc (基本完成第一步整理)
         mv.SetRootMotionApplyMode(motion.rootMotionMode);
         mv.SetLocomotionSuppressed(motion.suppressLocomotion);
         if (motion.gravityScale >= 0f)

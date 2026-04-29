@@ -543,9 +543,12 @@ MonoBehaviour:
   config:
     directionMode: 2
     fixedLocalDirection: {x: 0, y: 0, z: 1}
+<<<<<<< HEAD
     controlHorizontal: 0
     controlVertical: 0
     overrideGravity: 1
+=======
+>>>>>>> parent of 50a4ffc (基本完成第一步整理)
     horizontalSpeed: 0
     verticalSpeed: 0
     verticalMode: 1
@@ -602,4 +605,7 @@ MonoBehaviour:
     gravityScale: 0
     releaseMode: 1
     debugLog: 1
+<<<<<<< HEAD
     _velocityLegacyMigrationApplied: 1
+=======
+>>>>>>> parent of 50a4ffc (基本完成第一步整理)

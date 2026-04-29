@@ -51,6 +51,7 @@ using UnityEngine;
 /// </summary>
 public class ActorMovement : MonoBehaviour
 {
+<<<<<<< HEAD
     private readonly GroundStateTracker _groundStateTracker = new GroundStateTracker();
     private readonly MotionChannels _channels = new MotionChannels();
 
@@ -165,6 +166,8 @@ public class ActorMovement : MonoBehaviour
         _channels.ApplyVerticalMomentumInheritance(Mathf.Clamp01(verticalMomentumInheritance));
     }
 
+=======
+>>>>>>> parent of 50a4ffc (基本完成第一步整理)
     #region === 序列化字段 ===
 
     public Actor actor;
@@ -255,9 +258,25 @@ public class ActorMovement : MonoBehaviour
     #region === 水平位移通道 ===
 
     /// <summary>
+<<<<<<< HEAD
     /// 水平冲量存于 <see cref="MotionChannels.HorizontalImpulseVelocity"/>。
     /// VelocityClip 使用 owner API 覆盖水平程序速度，不再与 Locomotion/冲量相加。
     /// </summary>
+=======
+    /// 水平冲量速度（世界空间，米/秒）。
+    /// 由 ImpulseClip 通过 AddHorizontalImpulse 一次性注入，每帧按 _horizontalDrag 指数衰减，不会帧末清零。
+    /// TODO：未来手感调优时可考虑落地时临时提高衰减系数，让落地后的残余速度更快停下。
+    /// </summary>
+    private Vector3 _horizontalImpulseVelocity = Vector3.zero;
+
+    /// <summary>
+    /// 外部持续水平速度（世界空间，米/秒）。
+    /// 由 VelocityClip 在 OnClipUpdate 每帧通过 SetExternalHorizontalVelocity 写入，
+    /// OnClipStop 调用 ClearExternalVelocity 清零。与 Impulse 通道独立：Impulse 是一次性冲量+衰减，
+    /// External 是段性持续覆盖。未写入时保持 0，不做任何自然衰减。
+    /// </summary>
+    private Vector3 _externalHorizontalVelocity = Vector3.zero;
+>>>>>>> parent of 50a4ffc (基本完成第一步整理)
 
     [Header("Debug (ReadOnly)")]
     [SerializeField, Tooltip("当前帧实际移动速度（米/秒，世界空间）。运行时只读，仅调试观察用。")]
@@ -286,19 +305,39 @@ public class ActorMovement : MonoBehaviour
     public void AddHorizontalImpulse(Vector3 velocity)
     {
         velocity.y = 0f;
+<<<<<<< HEAD
         _channels.HorizontalImpulseVelocity += velocity;
+=======
+        _horizontalImpulseVelocity += velocity;
+>>>>>>> parent of 50a4ffc (基本完成第一步整理)
     }
 
     /// <summary>强制立即清零水平冲量（极少用，一般由 drag 自然衰减即可）。</summary>
     public void ClearHorizontalImpulse()
     {
+<<<<<<< HEAD
         _channels.HorizontalImpulseVelocity = Vector3.zero;
+=======
+        _horizontalImpulseVelocity = Vector3.zero;
+    }
+
+    /// <summary>
+    /// 写入外部持续水平速度（世界空间，米/秒）。Y 分量会被忽略。
+    /// 约定由 VelocityClip 每帧调用；Clip 结束时务必调用 ClearExternalVelocity 归零。
+    /// 与 Impulse 通道正交：Impulse 是带 drag 衰减的一次性冲量，External 是段性持续覆盖。
+    /// </summary>
+    public void SetExternalHorizontalVelocity(Vector3 velocity)
+    {
+        velocity.y = 0f;
+        _externalHorizontalVelocity = velocity;
+>>>>>>> parent of 50a4ffc (基本完成第一步整理)
     }
 
     #endregion
 
     #region === 垂直位移通道 ===
 
+<<<<<<< HEAD
     /// <summary>重力与垂直冲量存于 <see cref="MotionChannels"/>；VelocityClip 通过 owner 覆盖垂直程序速度。</summary>
 
     /// <summary>旧版 VelocityClip ClampRange：附加到重力+冲量之上的垂直分量（每帧由 Clip 写入）。</summary>
@@ -339,6 +378,27 @@ public class ActorMovement : MonoBehaviour
         _hasVerticalClamp = false;
         _velocityClipLegacyVerticalAddon = 0f;
     }
+=======
+    /// <summary>重力累积速度（只由 PerformGravity 演化，不承担冲量）。在地面=贴地力 -2，在空中从 0 按重力累积。值恒 ≤ 0。</summary>
+    private float _gravityAccumulator = 0f;
+
+    /// <summary>
+    /// 垂直冲量速度（由 AddVerticalImpulse 注入，正值向上，负值向下）。
+    /// 与 _gravityAccumulator 独立存在，合成时两者相加，形成抛物线。
+    /// 由 PerformVerticalImpulseDecay 在着地 / 撞顶时清零，平时保留。
+    /// </summary>
+    private float _verticalImpulseVelocity = 0f;
+
+    /// <summary>
+    /// 外部持续垂直速度（米/秒，正值向上）。
+    /// 由 VelocityClip 在 OnClipUpdate 每帧通过 SetExternalVerticalVelocity 写入，
+    /// OnClipStop 调用 ClearExternalVelocity 清零。与 _gravityAccumulator / _verticalImpulseVelocity 独立。
+    /// 
+    /// 重要：VelocityClip 期间按约定会把 gravityScale 设为 0（浮空），由 Clip 完全接管垂直；
+    ///       如果 Config 里把 gravityScale 设回 1，就是"持续速度叠加在重力之上"的语义。
+    /// </summary>
+    private float _externalVerticalVelocity = 0f;
+>>>>>>> parent of 50a4ffc (基本完成第一步整理)
 
     private float _gravityScale = 1f;
 
@@ -351,11 +411,15 @@ public class ActorMovement : MonoBehaviour
     private float _verticalClampMin;
     private float _verticalClampMax;
 
+<<<<<<< HEAD
     /// <summary>
     /// 直接设置当前运行时重力倍率（一般不用于 Action/Timeline；整招请用 <see cref="SetActionGravityScale"/>）。
     /// Clip 请用 <see cref="BeginClipGravity"/>。
     /// </summary>
     [Obsolete("请使用 SetActionGravityScale（整招）或 BeginClipGravity（Clip）；勿绕过 Action baseline。")]
+=======
+    /// <summary>设置重力缩放。1.0=正常, 0=无重力(浮空), 2.0=加速下落。</summary>
+>>>>>>> parent of 50a4ffc (基本完成第一步整理)
     public void SetGravityScale(float scale)
     {
         _gravityScale = scale;
@@ -375,7 +439,10 @@ public class ActorMovement : MonoBehaviour
     /// <summary>
     /// 直接覆盖最终垂直速度（米/秒，正上负下）。
     /// </summary>
+<<<<<<< HEAD
     [Obsolete("遗留 API：请使用 VelocityClip 垂直 Program Velocity owner。")]
+=======
+>>>>>>> parent of 50a4ffc (基本完成第一步整理)
     public void SetVerticalVelocityOverride(float verticalSpeed)
     {
         _hasVerticalVelocityOverride = true;
@@ -385,7 +452,10 @@ public class ActorMovement : MonoBehaviour
     /// <summary>
     /// 取消垂直速度覆盖，回到通道叠加（重力+冲量+外部速度）。
     /// </summary>
+<<<<<<< HEAD
     [Obsolete("遗留 API：请使用 VelocityClip 垂直 Program Velocity owner。")]
+=======
+>>>>>>> parent of 50a4ffc (基本完成第一步整理)
     public void ClearVerticalVelocityOverride()
     {
         _hasVerticalVelocityOverride = false;
@@ -396,7 +466,10 @@ public class ActorMovement : MonoBehaviour
     /// 设置垂直速度钳制范围（作用于通道求和之后）。
     /// 例：(-0.5f, 0f) = 最多缓降 0.5m/s，且不允许上升。
     /// </summary>
+<<<<<<< HEAD
     [Obsolete("遗留 API：请使用 BeginLegacyVerticalClamp / EndLegacyVerticalClamp（owner）。")]
+=======
+>>>>>>> parent of 50a4ffc (基本完成第一步整理)
     public void SetVerticalClamp(float min, float max)
     {
         _hasVerticalClamp = true;
@@ -407,7 +480,10 @@ public class ActorMovement : MonoBehaviour
     /// <summary>
     /// 取消垂直速度钳制，回到通道叠加结果。
     /// </summary>
+<<<<<<< HEAD
     [Obsolete("遗留 API：请使用 BeginLegacyVerticalClamp / EndLegacyVerticalClamp（owner）。")]
+=======
+>>>>>>> parent of 50a4ffc (基本完成第一步整理)
     public void ClearVerticalClamp()
     {
         _hasVerticalClamp = false;
@@ -422,8 +498,13 @@ public class ActorMovement : MonoBehaviour
     /// </summary>
     public void ResetVerticalState()
     {
+<<<<<<< HEAD
         _channels.GravityAccumulator = 0f;
         _channels.VerticalImpulseVelocity = 0f;
+=======
+        _gravityAccumulator = 0f;
+        _verticalImpulseVelocity = 0f;
+>>>>>>> parent of 50a4ffc (基本完成第一步整理)
     }
 
     /// <summary>
@@ -437,12 +518,41 @@ public class ActorMovement : MonoBehaviour
     public void AddVerticalImpulse(float upwardSpeed)
     {
         if (upwardSpeed >= 0f)
+<<<<<<< HEAD
             _channels.VerticalImpulseVelocity = Mathf.Max(_channels.VerticalImpulseVelocity, upwardSpeed);
         else
             _channels.VerticalImpulseVelocity = upwardSpeed;
 
         if (upwardSpeed > 0f)
             _channels.GravityAccumulator = 0f;
+=======
+            _verticalImpulseVelocity = Mathf.Max(_verticalImpulseVelocity, upwardSpeed);
+        else
+            _verticalImpulseVelocity = upwardSpeed;
+
+        if (upwardSpeed > 0f)
+            _gravityAccumulator = 0f;
+    }
+
+    /// <summary>
+    /// 写入外部持续垂直速度（米/秒，正值向上）。
+    /// 约定由 VelocityClip 每帧调用；Clip 结束时务必调用 ClearExternalVelocity 归零。
+    /// 与 Impulse / 重力通道独立叠加，不会互相覆盖。
+    /// </summary>
+    public void SetExternalVerticalVelocity(float verticalSpeed)
+    {
+        _externalVerticalVelocity = verticalSpeed;
+    }
+
+    /// <summary>
+    /// 清空外部持续速度通道（水平 + 垂直）。
+    /// 约定由 VelocityClip.OnClipStop 调用，确保 Clip 结束后不会有速度残留。
+    /// </summary>
+    public void ClearExternalVelocity()
+    {
+        _externalHorizontalVelocity = Vector3.zero;
+        _externalVerticalVelocity = 0f;
+>>>>>>> parent of 50a4ffc (基本完成第一步整理)
     }
 
     #endregion
@@ -464,6 +574,7 @@ public class ActorMovement : MonoBehaviour
 
     [SerializeField, Tooltip("当前地面状态（运行时只读，调试观察用）")]
     private GroundState _groundState = GroundState.Grounded;
+    private int _airborneFrameCounter;
 
     /// <summary>当前地面状态。</summary>
     public GroundState groundState => _groundState;
@@ -615,6 +726,7 @@ public class ActorMovement : MonoBehaviour
             finalMovement += _cachedRootMotionDelta;
         }
 
+<<<<<<< HEAD
         // 水平：无 Velocity 覆盖 = Locomotion + 冲量；有覆盖 = 仅程序 Velocity。
         Vector3 horizontal;
         if (_channels.HasHorizontalVelocityControl)
@@ -642,6 +754,23 @@ public class ActorMovement : MonoBehaviour
             else
                 vertical = rawVertical;
         }
+=======
+        // 水平通道：Locomotion + HorizontalImpulse + ExternalHorizontal（VelocityClip 持续速度）
+        Vector3 horizontal = locomotionVelocity + _horizontalImpulseVelocity + _externalHorizontalVelocity;
+        horizontal.y = 0f;
+
+        // 垂直通道：
+        // - rawVertical = GravityAccumulator + VerticalImpulse + ExternalVertical
+        // - 后处理优先级：VerticalOverride > VerticalClamp > Raw
+        float rawVertical = _gravityAccumulator + _verticalImpulseVelocity + _externalVerticalVelocity;
+        float vertical;
+        if (_hasVerticalVelocityOverride)
+            vertical = _verticalVelocityOverride;
+        else if (_hasVerticalClamp)
+            vertical = Mathf.Clamp(rawVertical, _verticalClampMin, _verticalClampMax);
+        else
+            vertical = rawVertical;
+>>>>>>> parent of 50a4ffc (基本完成第一步整理)
 
         finalMovement += (horizontal + Vector3.up * vertical) * dt;
 
@@ -660,7 +789,16 @@ public class ActorMovement : MonoBehaviour
         _cachedRootMotionDelta = Vector3.zero;
         _cachedRootMotionRotationDelta = Quaternion.identity;
         _hasLocomotionIntent = false; // 意图层每帧重置，要求外部每帧写入
+<<<<<<< HEAD
         // 不清零：冲量与重力累积由各自系统演化；Velocity 由 Clip owner 生命周期管理。
+=======
+        // 不清零：_horizontalImpulseVelocity（由 drag 自然衰减）
+        //         _verticalImpulseVelocity（由 PerformVerticalImpulseDecay 在着地/撞顶时清零）
+        //         _gravityAccumulator（由 PerformGravity 演化）
+        //         _externalHorizontalVelocity / _externalVerticalVelocity（由 VelocityClip 生命周期管理：
+        //             OnClipUpdate 每帧写入，OnClipStop 调 ClearExternalVelocity 归零）
+        //         _hasFacingOverride / _locomotionSuppressed（由外部显式控制）
+>>>>>>> parent of 50a4ffc (基本完成第一步整理)
     }
 
     #endregion
@@ -677,6 +815,7 @@ public class ActorMovement : MonoBehaviour
         if (actor == null || actor.characterController == null) return;
 
         bool rawGrounded = actor.characterController.isGrounded;
+<<<<<<< HEAD
         var result = _groundStateTracker.Step(rawGrounded, dt, _airborneFrameThreshold);
         _groundState = result.State;
 
@@ -688,6 +827,34 @@ public class ActorMovement : MonoBehaviour
 
         if (result.LeftGroundThisFrame)
             OnLeftGround?.Invoke();
+=======
+
+        // 先把上一帧的瞬时状态收敛到稳定状态
+        if (_groundState == GroundState.JustLanded) _groundState = GroundState.Grounded;
+        else if (_groundState == GroundState.JustLeftGround) _groundState = GroundState.Airborne;
+
+        if (rawGrounded)
+        {
+            _airborneFrameCounter = 0;
+            if (_groundState == GroundState.Airborne)
+            {
+                _groundState = GroundState.JustLanded;
+                jumpCount = 0; // 落地重置跳跃计数（内部闭环，无需跨组件事件）
+                OnLanded?.Invoke();
+            }
+        }
+        else
+        {
+            // 离地滤波：连续 N 帧离地才真正切换（HitStop 时 dt≈0 不推进计数，避免冻结期间误切状态）
+            if (dt > 1e-8f)
+                _airborneFrameCounter++;
+            if (_groundState == GroundState.Grounded && _airborneFrameCounter > _airborneFrameThreshold)
+            {
+                _groundState = GroundState.JustLeftGround;
+                OnLeftGround?.Invoke();
+            }
+        }
+>>>>>>> parent of 50a4ffc (基本完成第一步整理)
     }
 
     /// <summary>朝向管线：覆盖层 > Intent 默认层。被压制时不从 Intent 更新朝向。</summary>
@@ -758,6 +925,7 @@ public class ActorMovement : MonoBehaviour
     /// </summary>
     private void PerformGravity(float dt)
     {
+<<<<<<< HEAD
         if (_channels.HasVerticalVelocityControl)
             return;
 
@@ -768,12 +936,22 @@ public class ActorMovement : MonoBehaviour
         else
         {
             _channels.GravityAccumulator += Physics.gravity.y * _gravityScale * dt;
+=======
+        if (IsGrounded && _verticalImpulseVelocity <= 0f)
+        {
+            _gravityAccumulator = -2f;
+        }
+        else
+        {
+            _gravityAccumulator += Physics.gravity.y * _gravityScale * dt;
+>>>>>>> parent of 50a4ffc (基本完成第一步整理)
         }
     }
 
     /// <summary>水平冲量指数衰减：v *= exp(-drag * dt)。低于阈值时归零，避免浮点垃圾。</summary>
     private void PerformHorizontalDrag(float dt)
     {
+<<<<<<< HEAD
         if (_channels.HorizontalImpulseVelocity.sqrMagnitude <= 0.0001f)
         {
             _channels.HorizontalImpulseVelocity = Vector3.zero;
@@ -781,6 +959,15 @@ public class ActorMovement : MonoBehaviour
         }
         float factor = Mathf.Exp(-_horizontalDrag * dt);
         _channels.HorizontalImpulseVelocity *= factor;
+=======
+        if (_horizontalImpulseVelocity.sqrMagnitude <= 0.0001f)
+        {
+            _horizontalImpulseVelocity = Vector3.zero;
+            return;
+        }
+        float factor = Mathf.Exp(-_horizontalDrag * dt);
+        _horizontalImpulseVelocity *= factor;
+>>>>>>> parent of 50a4ffc (基本完成第一步整理)
     }
 
     /// <summary>
@@ -792,6 +979,7 @@ public class ActorMovement : MonoBehaviour
     /// </summary>
     private void PerformVerticalImpulseDecay(float dt)
     {
+<<<<<<< HEAD
         if (_channels.HasVerticalVelocityControl)
             return;
 
@@ -799,11 +987,18 @@ public class ActorMovement : MonoBehaviour
         {
             float factor = Mathf.Exp(-_verticalImpulseAirDrag * dt);
             _channels.VerticalImpulseVelocity *= factor;
+=======
+        if (IsAirborne && _verticalImpulseAirDrag > 0f && Mathf.Abs(_verticalImpulseVelocity) > 0.01f)
+        {
+            float factor = Mathf.Exp(-_verticalImpulseAirDrag * dt);
+            _verticalImpulseVelocity *= factor;
+>>>>>>> parent of 50a4ffc (基本完成第一步整理)
         }
 
         if (actor != null && actor.characterController != null)
         {
             bool hitCeiling = (actor.characterController.collisionFlags & CollisionFlags.Above) != 0;
+<<<<<<< HEAD
             if (hitCeiling && _channels.VerticalImpulseVelocity > 0f)
                 _channels.VerticalImpulseVelocity = 0f;
         }
@@ -813,6 +1008,17 @@ public class ActorMovement : MonoBehaviour
 
         if (Mathf.Abs(_channels.VerticalImpulseVelocity) < 0.01f)
             _channels.VerticalImpulseVelocity = 0f;
+=======
+            if (hitCeiling && _verticalImpulseVelocity > 0f)
+                _verticalImpulseVelocity = 0f;
+        }
+
+        if (IsGrounded && _verticalImpulseVelocity < 0f)
+            _verticalImpulseVelocity = 0f;
+
+        if (Mathf.Abs(_verticalImpulseVelocity) < 0.01f)
+            _verticalImpulseVelocity = 0f;
+>>>>>>> parent of 50a4ffc (基本完成第一步整理)
     }
 
     #endregion
