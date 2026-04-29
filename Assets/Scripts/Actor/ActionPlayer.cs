@@ -70,6 +70,12 @@ public class ActionPlayer : MonoBehaviour
     /// <summary>动作被中断或切走时触发（非本组件 StopAction 先清空引用的情况）。</summary>
     public event Action<ActionInstance> OnActionInterrupted;
 
+    /// <summary>
+    /// StopAction 主动停止 Director 时，stopped 回调会同步/异步进入。
+    /// 该标记用于避免回调重复执行 Action 退出流程。
+    /// </summary>
+    private bool _isStoppingAction;
+
     private void Awake()
     {
         _director = GetComponent<PlayableDirector>();
@@ -89,28 +95,25 @@ public class ActionPlayer : MonoBehaviour
         _director.stopped -= HandleDirectorStopped;
     }
 
-    /// <summary>停止当前动作：OnExit、清空 transient、卸 Timeline。先于 Director.Stop 置空 CurrentAction，避免 stopped 回调重复处理。</summary>
+    /// <summary>停止当前动作：先停 Timeline 触发 Clip 清理，再执行 Action 退出与状态恢复。</summary>
     public void StopAction()
     {
         var inst = CurrentAction;
         if (inst == null)
             return;
 
-        CurrentAction = null;
-        inst.OnExit();
-        _actor?.ClearTransientTags();
+        _isStoppingAction = true;
+        try
+        {
+            if (_director.playableAsset != null)
+                _director.Stop();
+        }
+        finally
+        {
+            _isStoppingAction = false;
+        }
 
-        if (_director.state == PlayState.Playing)
-            _director.Stop();
-
-        _director.playableAsset = null;
-        // 注意：不在这里重置 _expectedSpeed。
-        // 速度控制现在由外部 Effect（如 ActionSpeedEffect）全权管理。
-        // StopAction 只是停止当前动作，不应干预速度状态。
-        _currentContext = default;
-        CurrentFrame = 0;
-        CurrentFrameRate = 0;
-        TotalFrames = 0;
+        FinalizeCurrentAction(inst, clearTimeline: true);
     }
 
     /// <summary>播放指定动作：先 StopAction，再绑定 Timeline、OnEnter。</summary>
@@ -218,6 +221,9 @@ public class ActionPlayer : MonoBehaviour
 
     private void HandleDirectorStopped(PlayableDirector director)
     {
+        if (_isStoppingAction)
+            return;
+
         if (CurrentAction == null)
             return;
 
@@ -236,13 +242,7 @@ public class ActionPlayer : MonoBehaviour
                 return;
             }
 
-            finished.OnExit();
-            _actor?.ClearTransientTags();
-            CurrentAction = null;
-            _director.playableAsset = null;
-            CurrentFrame = 0;
-            CurrentFrameRate = 0;
-            TotalFrames = 0;
+            FinalizeCurrentAction(finished, clearTimeline: true);
             // 注意：不在这里重置 _expectedSpeed。
             // 速度控制现在由外部 Effect（如 ActionSpeedEffect）全权管理。
             // 动作结束时不自动恢复速度，确保 HitStop 等效果能持续到 Effect 主动恢复。
@@ -250,10 +250,27 @@ public class ActionPlayer : MonoBehaviour
             return;
         }
 
-        CurrentAction = null;
+        FinalizeCurrentAction(finished, clearTimeline: false);
+        OnActionInterrupted?.Invoke(finished);
+    }
+
+    private void FinalizeCurrentAction(ActionInstance action, bool clearTimeline)
+    {
+        if (action == null)
+            return;
+
+        if (CurrentAction == action)
+            CurrentAction = null;
+
+        action.OnExit();
+        _actor?.ClearTransientTags();
+
+        if (clearTimeline)
+            _director.playableAsset = null;
+
+        _currentContext = default;
         CurrentFrame = 0;
         CurrentFrameRate = 0;
         TotalFrames = 0;
-        OnActionInterrupted?.Invoke(finished);
     }
 }

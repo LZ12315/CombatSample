@@ -19,8 +19,14 @@ public struct ActionMotionConfig
     [Tooltip("整招期间的重力倍率。-1 = 不覆盖")]
     public float gravityScale;
 
+    [Range(0f, 1f), Tooltip("入场时继承多少旧水平动量。0=完全清掉，1=完整保留。")]
+    public float horizontalMomentumInheritance;
+
+    [Range(0f, 1f), Tooltip("入场时继承多少旧垂直动量。0=完全清掉，1=完整保留。")]
+    public float verticalMomentumInheritance;
+
     /// <summary>
-    /// 默认配置：RootMotion 托管、压制 Locomotion、起手朝目标/摇杆、不覆盖重力。
+    /// 默认配置：RootMotion 托管、压制 Locomotion、起手朝目标/摇杆、不覆盖重力、不继承旧动作动量。
     /// 适用于大多数攻击动作。
     /// </summary>
     public static ActionMotionConfig Default => new()
@@ -29,5 +35,7 @@ public struct ActionMotionConfig
         suppressLocomotion = true,
         facingOnStart = ActionFacingOnStart.SnapToInputOrTarget,
         gravityScale = -1f,
+        horizontalMomentumInheritance = 0f,
+        verticalMomentumInheritance = 0f,
     };
 }
