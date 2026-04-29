@@ -42,6 +42,14 @@ public class ActionHitBoxBehavior : ActionBehaviourBase
         collider = hitboxObject.AddComponent<CapsuleCollider>();
         collider.isTrigger = true;
 
+        if (!IsEditorPreview)
+        {
+            var rb = hitboxObject.AddComponent<Rigidbody>();
+            rb.isKinematic = true;
+            rb.useGravity = false;
+            rb.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
+        }
+
         // 运行时才挂载 AttackHandler（编辑器预览时只做碰撞体可视化）
         if (!IsEditorPreview && actor != null && actor.combater != null)
         {

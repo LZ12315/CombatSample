@@ -1,5 +1,5 @@
 /// <summary>
-/// Converts raw CharacterController grounding into stable ActorMovement ground states.
+/// Converts raw grounding input (KCC stable-ground feed in phase-1) into stable ActorMovement ground states.
 /// Plain C# state so ActorMovement remains the only Unity component.
 /// </summary>
 public sealed class GroundStateTracker

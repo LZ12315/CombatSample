@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 
 /// <summary>
-/// 角色移动执行层 — 唯一调用 CC.Move 的地方。
+/// 角色移动执行层 — 负责组装运动学目标并交给底层 Motor。
 /// 
 /// 意图层：接收 LocomotionIntent（由 ActorLogicInput / AI 每帧写入），内部换算速度和朝向。
 /// 位移管线：
@@ -236,6 +236,8 @@ public class ActorMovement : MonoBehaviour
 
     private void ForceUngroundForVerticalLaunch()
     {
+        actor?.actorMotor?.ForceUnground(0.1f);
+
         bool leftGround = _groundTracker.ForceUnground(_airborneFrameThreshold + 1);
         _groundState = _groundTracker.State;
 
@@ -397,24 +399,30 @@ public class ActorMovement : MonoBehaviour
     /// <summary>抓取动画位移和旋转，缓存起来供 Update 使用。</summary>
     private void OnAnimatorMove()
     {
-        if (actor.characterController == null) return;
+        if (animator == null) return;
 
         _cachedRootMotionDelta = ProcessRootMotionDeadZone(animator.deltaPosition);
         _cachedRootMotionRotationDelta = animator.deltaRotation;
     }
 
-    /// <summary>统一计算与最终执行：地面状态 → 朝向 → 位移合成 → CC.Move → 帧末清零。</summary>
-    private void Update()
+    /// <summary>
+    /// Legacy Update entry kept intentionally light.
+    /// KCC-timed motion is evaluated in BuildMotorVelocity/BuildMotorRotation and consumed by ActorMotor callbacks.
+    /// </summary>
+    private void Update() { }
+
+    /// <summary>
+    /// Builds desired motor velocity for this simulation step.
+    /// Called from ActorMotor.UpdateVelocity in KCC update order.
+    /// </summary>
+    public Vector3 BuildMotorVelocity(float dt, bool isStableGrounded, bool hitCeiling)
     {
-        float dt = Time.deltaTime * _movementTimeScale;
+        float scaledDt = dt * _movementTimeScale;
+        if (scaledDt <= 1e-8f)
+            return Vector3.zero;
 
-        // ── 1. 更新地面状态（在位移之前，供通道演化和其它系统读取）──
-        UpdateGroundState(dt);
+        UpdateGroundState(scaledDt, isStableGrounded);
 
-        // ── 2. 朝向执行 ──
-        PerformRotation(dt);
-
-        // ── 3. 从 Intent 换算 Locomotion 速度（内部计算，不再由外部写入）──
         Vector3 locomotionVelocity = Vector3.zero;
         if (!_locomotionSuppressed && _hasLocomotionIntent)
         {
@@ -424,53 +432,52 @@ public class ActorMovement : MonoBehaviour
             {
                 dir.Normalize();
                 float speed = _locomotionIntent.MoveStrength * _locomotionBaseSpeed;
-                // 只削弱 Locomotion，Velocity 和 Impulse 保持设计值
                 if (IsAirborne) speed *= _airControlFactor;
                 locomotionVelocity = dir * speed;
             }
         }
 
-        // ── 4. 通道演化：重力、冲量衰减、撞顶/落地清理 ──
-        bool hitCeiling = actor != null &&
-                          actor.characterController != null &&
-                          (actor.characterController.collisionFlags & CollisionFlags.Above) != 0;
-        _channels.StepGravity(dt, IsGrounded, _gravityScale);
-        _channels.StepHorizontalDrag(dt, _horizontalDrag);
-        _channels.StepVerticalImpulseDecay(dt, IsAirborne, IsGrounded, hitCeiling, _verticalImpulseAirDrag);
+        _channels.StepGravity(scaledDt, IsGrounded, _gravityScale);
+        _channels.StepHorizontalDrag(scaledDt, _horizontalDrag);
+        _channels.StepVerticalImpulseDecay(scaledDt, IsAirborne, IsGrounded, hitCeiling, _verticalImpulseAirDrag);
 
-        // ── 6. 位移合成 ──
-        Vector3 finalMovement = Vector3.zero;
-
-        // RootMotion 托管层
+        Vector3 desiredVelocity = Vector3.zero;
         if (_rootMotionApplyMode == RootMotionApplyMode.Managed)
-        {
-            finalMovement += _cachedRootMotionDelta;
-        }
+            desiredVelocity += _cachedRootMotionDelta / scaledDt;
 
-        // VelocityClip 持续控制时覆盖对应轴；未控制的轴回到 Locomotion/Impulse/Gravity 合成。
         Vector3 horizontal = _channels.ComposeHorizontal(locomotionVelocity);
         float vertical = _channels.ComposeVertical();
+        desiredVelocity += horizontal + Vector3.up * vertical;
 
-        finalMovement += (horizontal + Vector3.up * vertical) * dt;
+        return desiredVelocity;
+    }
 
-        // ── 7. 执行移动 ──
-        if (actor.characterController != null)
-        {
-            actor.characterController.Move(finalMovement);
-        }
+    /// <summary>
+    /// Builds desired motor rotation for this simulation step.
+    /// Called from ActorMotor.UpdateRotation in KCC update order.
+    /// </summary>
+    public Quaternion BuildMotorRotation(float dt, Quaternion currentRotation)
+    {
+        float scaledDt = dt * _movementTimeScale;
+        if (scaledDt <= 1e-8f)
+            return currentRotation;
 
-        // ── 8. 记录实际速度（供动画系统读取）──
-        _currentVelocity = dt > 0f ? finalMovement / dt : Vector3.zero;
+        return PerformRotation(scaledDt, currentRotation);
+    }
+
+    /// <summary>
+    /// Called after KCC simulation finishes this step.
+    /// Records current velocity and clears per-frame caches consumed by motor callbacks.
+    /// </summary>
+    public void AfterMotorUpdate(Vector3 finalVelocity)
+    {
+        _currentVelocity = finalVelocity;
         _currentHorizontalSpeed = new Vector2(_currentVelocity.x, _currentVelocity.z).magnitude;
         _currentVerticalSpeed = _currentVelocity.y;
 
-        // ── 9. 帧末清零（只清零每帧必须重置的量）──
         _cachedRootMotionDelta = Vector3.zero;
         _cachedRootMotionRotationDelta = Quaternion.identity;
-        _hasLocomotionIntent = false; // 意图层每帧重置，要求外部每帧写入
-        // 不清零：MotionChannels 内的 Impulse / Gravity / Velocity owner 状态
-        //         （由 drag、重力、Handoff 或 Clip owner 生命周期管理）
-        //         _hasFacingOverride / _locomotionSuppressed（由外部显式控制）
+        _hasLocomotionIntent = false;
     }
 
     #endregion
@@ -478,15 +485,10 @@ public class ActorMovement : MonoBehaviour
     #region === 内部计算 ===
 
     /// <summary>
-    /// 更新地面状态机。每帧读取 CC.isGrounded，经过离地帧数滤波，产生 4 种状态 + 落地/离地事件。
-    /// 滤波原因：CharacterController 在斜坡、台阶上会偶发性地 isGrounded=false 1-2 帧，
-    ///           直接用会导致事件频繁误触发。
+    /// 更新地面状态机。每帧读取 KCC 的稳定 grounded 回传，经过轻量滤波，产生 4 种状态 + 落地/离地事件。
     /// </summary>
-    private void UpdateGroundState(float dt)
+    private void UpdateGroundState(float dt, bool rawGrounded)
     {
-        if (actor == null || actor.characterController == null) return;
-
-        bool rawGrounded = actor.characterController.isGrounded;
         _groundTracker.Update(
             rawGrounded,
             dt,
@@ -509,7 +511,7 @@ public class ActorMovement : MonoBehaviour
     }
 
     /// <summary>朝向管线：覆盖层 > Intent 默认层。被压制时不从 Intent 更新朝向。</summary>
-    private void PerformRotation(float dt)
+    private Quaternion PerformRotation(float dt, Quaternion currentRotation)
     {
         if (_hasFacingOverride)
         {
@@ -536,12 +538,14 @@ public class ActorMovement : MonoBehaviour
             ? _overrideAngularSpeed
             : rotateSpeed;
 
-        // 平滑旋转
-        transform.rotation = Quaternion.RotateTowards(
-            transform.rotation,
+        // 平滑旋转（最终旋转由 ActorMotor 在 KCC 回调中应用）
+        _targetRotation = Quaternion.RotateTowards(
+            currentRotation,
             _targetRotation,
             angularSpeed * dt
         );
+
+        return _targetRotation;
     }
 
     /// <summary>Y 轴死区处理，过滤 RootMotion 中微小的垂直抖动。</summary>

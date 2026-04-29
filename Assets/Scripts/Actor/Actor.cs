@@ -1,14 +1,19 @@
 using Animancer;
 using DeiveEx.TagTree;
 using DeiveEx.TagTree.GameObjects;
+using KinematicCharacterController;
 using UnityEngine;
 
-[RequireComponent(typeof(CharacterController))]
+[RequireComponent(typeof(KinematicCharacterMotor))]
+[RequireComponent(typeof(ActorMotor))]
 public class Actor : MonoBehaviour
 {
     #region === 组件引用 ===
 
+    // Transitional nullable field. KCC phase should not depend on CharacterController for movement/collision.
     public CharacterController characterController;
+    public KinematicCharacterMotor motor;
+    public ActorMotor actorMotor;
     public ActorLogicInput logicInput;
     public ActionStateManager actionManager;
     public ActorMovement movement;
@@ -31,6 +36,13 @@ public class Actor : MonoBehaviour
 
     private void Awake()
     {
+        characterController = GetComponent<CharacterController>();
+        motor = GetComponent<KinematicCharacterMotor>();
+        actorMotor = GetComponent<ActorMotor>();
+
+        if (characterController != null)
+            characterController.enabled = false;
+
         persistentTags = gameObject.GetTagContainer();
         transientTags = new TagContainer();
     }

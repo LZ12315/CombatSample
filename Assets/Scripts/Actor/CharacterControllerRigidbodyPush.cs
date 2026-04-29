@@ -6,8 +6,9 @@ namespace CombatSample.PhysicsInteraction
 /// 正式功能：玩家 CharacterController 对「可推动」动态刚体的水平挤开。
 /// 挂在与 <see cref="CharacterController"/> 同一物体（如 ActorRoot）。
 /// 配置推挤层、与 <see cref="RigidbodyHorizontalDamping"/> 配合用于小怪/木桩分级。
+/// KCC 阶段该组件处于停用状态：当角色主运动不再由 CharacterController.Move 驱动时，本组件不会产生推挤回调。
+/// 后续若需要推刚体，请迁移到 KCC 的 rigidbody interaction 路径。
 /// </summary>
-[RequireComponent(typeof(CharacterController))]
 public class CharacterControllerRigidbodyPush : MonoBehaviour
 {
     [SerializeField, Tooltip("Only push rigidbodies on these layers. Example: Enemy only.")]
