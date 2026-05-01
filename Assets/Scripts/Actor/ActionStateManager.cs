@@ -1,10 +1,23 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using DeiveEx.TagTree;
 
+/// <summary>
+/// Action 状态管理器：每帧收集候选 Action（Neutral / CancelRule / Event / External 请求），
+/// 统一优先级仲裁后播放。External 请求仅登记，在本帧 <see cref="LateUpdate"/> 与 ASM 正常流程一起裁决
+///（让 NodeCanvas/输入等在 <see cref="Update"/> 先登记，帧末统一仲裁）。
+/// 有当前 Action 时 External 必须匹配当前帧打开的 <see cref="CancelRule"/>，不绕过取消规则。
+/// </summary>
 [RequireComponent(typeof(Actor))]
 public class ActionStateManager : MonoBehaviour
 {
+    private sealed class ExternalActionRequest
+    {
+        public ActionAsset Action;
+        public Action<bool> Callback;
+    }
+
     [Header("References")]
     [SerializeField] private ActionPlayer _actionPlayer;
     [SerializeField] private Actor _actor;
@@ -12,29 +25,22 @@ public class ActionStateManager : MonoBehaviour
     [Header("Settings")]
     [SerializeField] private ActionAssetList _actionList;
 
-    private List<ActionAsset> _validCandidatesCache = new List<ActionAsset>(10);
-    private readonly List<ActionAsset> _externalCandidatesThisFrame = new List<ActionAsset>(4);
+    private readonly List<ActionAsset> _validCandidatesCache = new List<ActionAsset>(10);
+    private readonly List<ExternalActionRequest> _externalRequestsThisFrame = new List<ExternalActionRequest>(4);
 
     // ── 事件触发路径 ──
     private Dictionary<int, List<ActionAsset>> _eventActionMap;
     private readonly List<ActionAsset> _eventCandidatesThisFrame = new List<ActionAsset>(4);
     private ActionEventContext _pendingEventContext;
 
-    // ── CancelRule.AnyWithTag 反向索引 ──
-    /// <summary>
-    /// SelfTag 反向索引：Tag.Id → 所有 SelfTags 中包含该 Tag 的 ActionAsset 列表。
-    /// <para>用途：<see cref="CancelRule"/> 的 <c>AnyWithTag</c> 取消规则在运行时通过该索引 O(1) 查表，
-    /// 避免每次取消都扫全表（<c>_actionList</c> 可能有几十个 Action）。</para>
-    /// <para>来源：扫描 <c>_actionList</c> 的所有 Action，把它们的 <c>SelfTags</c>
-    /// 按 Tag.Id 建反向映射。</para>
-    /// <para>构建时机：<see cref="Awake"/> 一次性构建，之后不再变更（_actionList 是编辑期配置）。</para>
-    /// </summary>
-    private Dictionary<int, List<ActionAsset>> _selfTagIndex;
+    /// <summary>当前正在播放的 Action 配置；无当前动作时为 null。供 NodeCanvas 等查询。</summary>
+    public ActionAsset CurrentActionAsset => _actionPlayer != null
+        ? _actionPlayer.CurrentAction?.Config
+        : null;
 
     private void Awake()
     {
         BuildEventMap();
-        BuildSelfTagIndex();
     }
 
     private void OnEnable()
@@ -47,47 +53,275 @@ public class ActionStateManager : MonoBehaviour
         _actionPlayer.OnActionFinished -= HandleActionFinished;
     }
 
-    private void Update()
+    /// <summary>
+    /// 登记本帧 External 播放请求（例如 AI / NodeCanvas）。不做即时判定，不播放；
+    /// 在 <see cref="LateUpdate"/> 中与 Neutral/Cancel/Event 候选统一仲裁。
+    /// </summary>
+    public void RequestExternalAction(ActionAsset action, Action<bool> callback)
     {
-        // 每帧开头先做自愿退出检查：若当前动作的 ExitConditions 判定为 true，则立即 StopAction。
-        // 停掉之后，本帧仍可继续 CheckForTransition 选出新 Action（例如 Locomotion 接管），无需等下一帧。
+        _externalRequestsThisFrame.Add(new ExternalActionRequest
+        {
+            Action = action,
+            Callback = callback,
+        });
+    }
+
+    private void LateUpdate()
+    {
+        // 自愿退出：停掉之后本帧仍可继续选新 Action
         var currentInst = _actionPlayer.CurrentAction;
         if (currentInst != null && currentInst.Config.CheckExit(_actor))
-        {
             _actionPlayer.StopAction();
-        }
 
-        ActionAsset chosen = CheckForTransition();
+        currentInst = _actionPlayer.CurrentAction;
 
-        if (chosen != null)
-        {
-            // 若选中与当前相同的 Action：默认跳过重复播放（避免 Loop 轮询每帧重启）；
-            // 受击等需在连打中反复打断自身的，在 ActionAsset 上开启 AllowReenterWhilePlaying。
-            bool sameAsCurrent = _actionPlayer.CurrentAction != null && _actionPlayer.CurrentAction.Config == chosen;
-            if (sameAsCurrent && !chosen.AllowReenterWhilePlaying)
-            {
-                // 同一个 Action 正在播放且未允许重入：不重复启动；也不消费输入（本次判定视为沿用而非新进入）
-            }
-            else
-            {
-                // 胜选：先让条件消费本次命中的输入（例如 InputSequenceCondition 标记 buffer 为 IsConsumed），
-                // 避免同一条输入驱动下一帧/下一个 Action 再次触发（典型：一段跳→二段跳自动连触）。
-                chosen.ClaimEntry(_actor);
+        _validCandidatesCache.Clear();
 
-                ActionEventContext startContext = ResolveStartContext(chosen);
-                PlayNewAction(chosen, startContext);
-            }
-        }
+        CollectNormalCandidates(currentInst);
+        CollectEventCandidatesIntoPool();
 
-        _externalCandidatesThisFrame.Clear();
+        ActionAsset chosen = _validCandidatesCache.Count > 0
+            ? SelectHighestPriorityAction(_validCandidatesCache)
+            : null;
+
+        ActionAsset startedAction = TryPlayChosenAction(chosen);
+
+        ResolveExternalRequestResults(startedAction);
+
+        _externalRequestsThisFrame.Clear();
         _eventCandidatesThisFrame.Clear();
         _pendingEventContext = default;
     }
 
-    public void RegisterExternalCandidate(ActionAsset action)
+    private void CollectNormalCandidates(ActionInstance currentInst)
     {
-        if (action == null) return;
-        _externalCandidatesThisFrame.Add(action);
+        if (currentInst == null)
+            CollectNeutralCandidates();
+        else
+            CollectCancelCandidates(currentInst);
+    }
+
+    private void CollectNeutralCandidates()
+    {
+        CollectActionListNeutralCandidates();
+        CollectExternalNeutralCandidates();
+    }
+
+    /// <summary>无当前 Action：扫 ActionList，跳过 Event。</summary>
+    private void CollectActionListNeutralCandidates()
+    {
+        if (_actionList == null) return;
+
+        var allActions = _actionList.GetAllAvailableActions();
+        for (int i = 0; i < allActions.Count; i++)
+        {
+            if (allActions[i] != null && allActions[i].TriggerMode == ActionTriggerMode.Event)
+                continue;
+            TryAddCandidate(allActions[i]);
+        }
+    }
+
+    /// <summary>无当前 Action：External 只需通过目标自身的 EntryCondition。</summary>
+    private void CollectExternalNeutralCandidates()
+    {
+        for (int i = 0; i < _externalRequestsThisFrame.Count; i++)
+        {
+            var request = _externalRequestsThisFrame[i];
+            var action = request.Action;
+            if (!IsValidExternalAction(action))
+                continue;
+
+            if (action.CheckEntry(_actor))
+                TryAddCandidate(action);
+        }
+    }
+
+    private void CollectCancelCandidates(ActionInstance currentInst)
+    {
+        CollectCancelRuleCandidates(currentInst);
+        CollectExternalCancelCandidates(currentInst);
+    }
+
+    /// <summary>有当前 Action：按 CancelRule 自动展开候选（Specific / AnyWithTag / Any）。</summary>
+    private void CollectCancelRuleCandidates(ActionInstance currentInstance)
+    {
+        var rules = currentInstance.Config.CancelRules;
+        if (rules == null || rules.Count == 0) return;
+
+        int currentFrame = _actionPlayer.CurrentFrame;
+        int totalFrames = _actionPlayer.TotalFrames;
+
+        for (int i = 0; i < rules.Count; i++)
+        {
+            var rule = rules[i];
+            if (rule == null) continue;
+            if (!rule.window.ContainsFrame(currentFrame, totalFrames)) continue;
+
+            switch (rule.targetKind)
+            {
+                case CancelTargetKind.SpecificAction:
+                    TryAddCandidate(rule.specificTarget);
+                    break;
+
+                case CancelTargetKind.AnyWithTag:
+                    if (_actionList == null || rule.targetTag == null) break;
+                    {
+                        var allActionsForTag = _actionList.GetAllAvailableActions();
+                        for (int j = 0; j < allActionsForTag.Count; j++)
+                        {
+                            var candidate = allActionsForTag[j];
+                            if (candidate == null || candidate.TriggerMode == ActionTriggerMode.Event)
+                                continue;
+                            if (ActionHasSelfTagMatchingRule(candidate, rule.targetTag))
+                                TryAddCandidate(candidate);
+                        }
+                    }
+                    break;
+
+                case CancelTargetKind.Any:
+                    if (_actionList != null)
+                    {
+                        var allActions = _actionList.GetAllAvailableActions();
+                        for (int j = 0; j < allActions.Count; j++)
+                        {
+                            if (allActions[j] != null && allActions[j].TriggerMode == ActionTriggerMode.Event)
+                                continue;
+                            TryAddCandidate(allActions[j]);
+                        }
+                    }
+                    break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// 有当前 Action：External 指定目标必须先匹配当前帧某条打开的 CancelRule，再通过 EntryCondition。
+    /// 不展开候选，只验证“请求的这一招”是否合法。
+    /// </summary>
+    private void CollectExternalCancelCandidates(ActionInstance currentInst)
+    {
+        for (int i = 0; i < _externalRequestsThisFrame.Count; i++)
+        {
+            var request = _externalRequestsThisFrame[i];
+            var action = request.Action;
+            if (!IsValidExternalAction(action))
+                continue;
+
+            if (!CanCancelTo(currentInst, action))
+                continue;
+
+            if (action.CheckEntry(_actor))
+                TryAddCandidate(action);
+        }
+    }
+
+    private static bool IsValidExternalAction(ActionAsset action)
+    {
+        return action != null && action.TriggerMode != ActionTriggerMode.Event;
+    }
+
+    /// <summary>
+    /// 当前动作在当帧取消窗口内，是否允许取消到 <paramref name="requestedAction"/>。
+    /// </summary>
+    private bool CanCancelTo(ActionInstance currentInst, ActionAsset requestedAction)
+    {
+        if (currentInst == null || requestedAction == null)
+            return false;
+
+        var rules = currentInst.Config.CancelRules;
+        if (rules == null || rules.Count == 0)
+            return false;
+
+        int currentFrame = _actionPlayer.CurrentFrame;
+        int totalFrames = _actionPlayer.TotalFrames;
+
+        for (int i = 0; i < rules.Count; i++)
+        {
+            var rule = rules[i];
+            if (rule == null || !rule.window.ContainsFrame(currentFrame, totalFrames))
+                continue;
+
+            switch (rule.targetKind)
+            {
+                case CancelTargetKind.SpecificAction:
+                    if (rule.specificTarget == requestedAction)
+                        return true;
+                    break;
+
+                case CancelTargetKind.AnyWithTag:
+                    if (ActionHasSelfTagMatchingRule(requestedAction, rule.targetTag))
+                        return true;
+                    break;
+
+                case CancelTargetKind.Any:
+                    return requestedAction.TriggerMode != ActionTriggerMode.Event;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>目标 Action 的 SelfTags 中是否有任意标签匹配规则标签（含层级：子匹配父）。</summary>
+    private static bool ActionHasSelfTagMatchingRule(ActionAsset action, TagReference ruleTagRef)
+    {
+        if (action == null || ruleTagRef == null)
+            return false;
+
+        Tag ruleTag = ruleTagRef.GetTag();
+        if (ruleTag == null)
+            return false;
+
+        var selfTags = action.SelfTags;
+        if (selfTags == null) return false;
+
+        for (int i = 0; i < selfTags.Count; i++)
+        {
+            var selfRef = selfTags[i];
+            if (selfRef == null) continue;
+            Tag selfTag = selfRef.GetTag();
+            if (selfTag == null) continue;
+            if (selfTag.Matches(ruleTag))
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// 将本帧 <see cref="SendEvent"/> 产生的 Event 候选并入仲裁池（不受 CancelRule 限制）。
+    /// </summary>
+    private void CollectEventCandidatesIntoPool()
+    {
+        for (int i = 0; i < _eventCandidatesThisFrame.Count; i++)
+            TryAddCandidate(_eventCandidatesThisFrame[i]);
+    }
+
+    private ActionAsset TryPlayChosenAction(ActionAsset chosen)
+    {
+        if (chosen == null)
+            return null;
+
+        bool sameAsCurrent = _actionPlayer.CurrentAction != null &&
+                             _actionPlayer.CurrentAction.Config == chosen;
+        if (sameAsCurrent && !chosen.AllowReenterWhilePlaying)
+            return null;
+
+        chosen.ClaimEntry(_actor);
+        ActionEventContext startContext = ResolveStartContext(chosen);
+        PlayNewAction(chosen, startContext);
+        return chosen;
+    }
+
+    private void ResolveExternalRequestResults(ActionAsset startedAction)
+    {
+        for (int i = 0; i < _externalRequestsThisFrame.Count; i++)
+        {
+            var request = _externalRequestsThisFrame[i];
+            bool started = request.Action != null
+                           && startedAction != null
+                           && request.Action == startedAction;
+            request.Callback?.Invoke(started);
+        }
     }
 
     private void PlayNewAction(ActionAsset actionToPlay, ActionEventContext startContext)
@@ -130,21 +364,12 @@ public class ActionStateManager : MonoBehaviour
         };
     }
 
-    private void StopCurrentAction()
-    {
-        _actionPlayer.StopAction();
-    }
-
     private void HandleActionFinished(ActionInstance _)
     {
         // Action 正常结束，ActionInstance.OnExit 已恢复 Movement 状态。
-        // Locomotion ActionAsset 的条件会在下一帧通过 → ASM 选中它 → 播放。
     }
 
     #region 事件触发
-    /// <summary>
-    /// 初始化时构建事件映射表：将 TriggerMode == Event 的 Action 按 EventTriggerTag 分组。
-    /// </summary>
     private void BuildEventMap()
     {
         _eventActionMap = new Dictionary<int, List<ActionAsset>>();
@@ -192,145 +417,11 @@ public class ActionStateManager : MonoBehaviour
     }
     #endregion
 
-    #region Action切换
-    private ActionAsset CheckForTransition()
-    {
-        _validCandidatesCache.Clear();
-
-        // 按「有无当前动作」分叉收集基础候选：
-        //   - 无当前动作：扫全表（Locomotion/Idle/起手类等需要从 Neutral 态进入的都在这里被选中）
-        //   - 有当前动作：只从当前动作的 CancelRules 派生（按帧窗口 + 目标/Tag 过滤）
-        var currentInstance = _actionPlayer.CurrentAction;
-        if (currentInstance == null)
-        {
-            if (_actionList != null)
-            {
-                var allActions = _actionList.GetAllAvailableActions();
-                for (int i = 0; i < allActions.Count; i++)
-                {
-                    // 跳过事件模式的 Action，它们只通过 SendEvent 进入候选
-                    if (allActions[i] != null && allActions[i].TriggerMode == ActionTriggerMode.Event)
-                        continue;
-                    TryAddCandidate(allActions[i]);
-                }
-            }
-        }
-        else
-        {
-            CollectCancelCandidates(currentInstance);
-        }
-
-        // 事件候选：两种分叉下都参与（它们是独立的插入通道，不受 CancelRules 约束）
-        for (int i = 0; i < _eventCandidatesThisFrame.Count; i++)
-            TryAddCandidate(_eventCandidatesThisFrame[i]);
-
-        // 外部候选：同上
-        for (int i = 0; i < _externalCandidatesThisFrame.Count; i++)
-            TryAddCandidate(_externalCandidatesThisFrame[i]);
-
-        if (_validCandidatesCache.Count > 0)
-            return SelectHighestPriorityAction(_validCandidatesCache);
-        return null;
-    }
-
-    /// <summary>
-    /// 从当前正在播放的动作的 <c>CancelRules</c> 中派生本帧候选。
-    /// <para>流程：遍历规则 → 检查 <c>window.ContainsFrame(CurrentFrame, TotalFrames)</c> → 按 targetKind 分发：</para>
-    /// <list type="bullet">
-    ///   <item><b>SpecificAction</b>：直接把 <c>specificTarget</c> 送入 <see cref="TryAddCandidate"/>。</item>
-    ///   <item><b>AnyWithTag</b>：用 <c>_selfTagIndex</c> 查表得到所有 SelfTags 含此 Tag 的 Action，逐一送入候选。</item>
-    ///   <item><b>Any</b>：把全表（跳过 Event 模式）送入候选。</item>
-    /// </list>
-    /// <para>注意：是否最终进入仍由目标 Action 的 <c>CheckEntry</c>（EntryConditions）决定，CancelRule 仅负责"递交候选"。</para>
-    /// </summary>
-    private void CollectCancelCandidates(ActionInstance currentInstance)
-    {
-        var rules = currentInstance.Config.CancelRules;
-        if (rules == null || rules.Count == 0) return;
-
-        int currentFrame = _actionPlayer.CurrentFrame;
-        int totalFrames = _actionPlayer.TotalFrames;
-
-        for (int i = 0; i < rules.Count; i++)
-        {
-            var rule = rules[i];
-            if (rule == null) continue;
-            if (!rule.window.ContainsFrame(currentFrame, totalFrames)) continue;
-
-            switch (rule.targetKind)
-            {
-                case CancelTargetKind.SpecificAction:
-                    TryAddCandidate(rule.specificTarget);
-                    break;
-
-                case CancelTargetKind.AnyWithTag:
-                    if (rule.targetTag == null) break;
-                    var tag = rule.targetTag.GetTag();
-                    if (tag == null) break;
-                    if (_selfTagIndex != null && _selfTagIndex.TryGetValue(tag.Id, out var actions))
-                    {
-                        for (int j = 0; j < actions.Count; j++)
-                            TryAddCandidate(actions[j]);
-                    }
-                    break;
-
-                case CancelTargetKind.Any:
-                    if (_actionList != null)
-                    {
-                        var allActions = _actionList.GetAllAvailableActions();
-                        for (int j = 0; j < allActions.Count; j++)
-                        {
-                            if (allActions[j] != null && allActions[j].TriggerMode == ActionTriggerMode.Event)
-                                continue;
-                            TryAddCandidate(allActions[j]);
-                        }
-                    }
-                    break;
-            }
-        }
-    }
-
-    /// <summary>
-    /// 构建 <see cref="_selfTagIndex"/>：Tag.Id → SelfTags 中包含该 Tag 的 ActionAsset 列表。
-    /// 在 <see cref="Awake"/> 一次性调用。
-    /// </summary>
-    private void BuildSelfTagIndex()
-    {
-        _selfTagIndex = new Dictionary<int, List<ActionAsset>>();
-        if (_actionList == null) return;
-
-        var allActions = _actionList.GetAllAvailableActions();
-        for (int i = 0; i < allActions.Count; i++)
-        {
-            var action = allActions[i];
-            if (action == null) continue;
-
-            var selfTags = action.SelfTags;
-            if (selfTags == null || selfTags.Count == 0) continue;
-
-            for (int k = 0; k < selfTags.Count; k++)
-            {
-                var tagRef = selfTags[k];
-                if (tagRef == null) continue;
-                var tag = tagRef.GetTag();
-                if (tag == null) continue;
-
-                if (!_selfTagIndex.TryGetValue(tag.Id, out var list))
-                {
-                    list = new List<ActionAsset>(4);
-                    _selfTagIndex[tag.Id] = list;
-                }
-                if (!list.Contains(action))
-                    list.Add(action);
-            }
-        }
-    }
-
+    #region 候选
     private void TryAddCandidate(ActionAsset action)
     {
         if (action == null || _actor == null) return;
 
-        // 事件模式的 Action 使用事件专用条件检查（跳过输入条件）
         bool passed = action.TriggerMode == ActionTriggerMode.Event
             ? action.CheckEntryForEvent(_actor)
             : action.CheckEntry(_actor);

@@ -37,7 +37,7 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
     private List<CancelRule> _cancelRules = new List<CancelRule>();
 
     [Header("Tags")]
-    [SerializeField, Tooltip("此 Action 播放期间写入 Actor Transient TagContainer 的 Tag。同时作为 CancelRule.AnyWithTag 反向索引的匹配来源。")]
+    [SerializeField, Tooltip("此 Action 播放期间写入 Actor Transient TagContainer 的 Tag。CancelRule.AnyWithTag 会据此与规则 Tag 做 Tag.Matches（含层级）匹配。")]
     private List<TagReference> _selfTags = new List<TagReference>();
 
     [SerializeField, HideInInspector, FormerlySerializedAs("_selfTag")]
