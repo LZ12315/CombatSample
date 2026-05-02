@@ -21,4 +21,28 @@ public static class NodeCanvasCombatTargetUtility
         target = null;
         return false;
     }
+
+    /// <summary>
+    /// 计算 Actor 到解析目标的距离（可选仅水平面）。
+    /// </summary>
+    public static bool TryComputeDistanceToTarget(
+        Actor actor,
+        BBParameter<Transform> targetOverride,
+        bool horizontalOnly,
+        out float distance)
+    {
+        distance = 0f;
+        if (actor == null)
+            return false;
+
+        if (!TryResolveTarget(actor, targetOverride, out Transform target))
+            return false;
+
+        Vector3 delta = target.position - actor.transform.position;
+        if (horizontalOnly)
+            delta.y = 0f;
+
+        distance = delta.magnitude;
+        return true;
+    }
 }

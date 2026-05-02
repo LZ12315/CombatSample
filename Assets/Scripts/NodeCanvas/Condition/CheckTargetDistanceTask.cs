@@ -1,4 +1,5 @@
 using NodeCanvas.Framework;
+using ParadoxNotion;
 using ParadoxNotion.Design;
 using UnityEngine;
 
@@ -8,24 +9,48 @@ namespace NodeCanvas.Tasks.Conditions
     [Category("Custom/Combat")]
     public class CheckTargetDistanceTask : ConditionTask
     {
+        public enum DistanceCheckMode
+        {
+            Range,
+            Compare,
+        }
+
         public BBParameter<Actor> actor;
         public BBParameter<Transform> targetOverride;
-        public float minDistance = 0f;
-        public float maxDistance = 3f;
-        public bool horizontalOnly = true;
+
+        public DistanceCheckMode checkMode = DistanceCheckMode.Range;
+
+        public BBParameter<float> minDistance = 0f;
+        public BBParameter<float> maxDistance = 3f;
+
+        public CompareMethod compareMethod = CompareMethod.LessOrEqualTo;
+        public BBParameter<float> compareDistance = 3f;
+
+        [SliderField(0, 0.1f)]
+        public float floatingPoint = 0.05f;
+
+        public BBParameter<bool> horizontalOnly = true;
 
         protected override bool OnCheck()
         {
-            var actorValue = actor.value;
-            if (!NodeCanvasCombatTargetUtility.TryResolveTarget(actorValue, targetOverride, out Transform target))
+            var actorValue = actor?.value;
+            if (actorValue == null)
                 return false;
 
-            Vector3 delta = target.position - actorValue.transform.position;
-            if (horizontalOnly)
-                delta.y = 0f;
+            bool horiz = horizontalOnly == null || horizontalOnly.value;
 
-            float distance = delta.magnitude;
-            return distance >= minDistance && distance <= maxDistance;
+            if (!NodeCanvasCombatTargetUtility.TryComputeDistanceToTarget(actorValue, targetOverride, horiz, out float distance))
+                return false;
+
+            if (checkMode == DistanceCheckMode.Range)
+            {
+                float min = minDistance != null ? minDistance.value : 0f;
+                float max = maxDistance != null ? maxDistance.value : 0f;
+                return distance >= min && distance <= max;
+            }
+
+            float cmp = compareDistance != null ? compareDistance.value : 0f;
+            return OperationTools.Compare(distance, cmp, compareMethod, floatingPoint);
         }
     }
 }
