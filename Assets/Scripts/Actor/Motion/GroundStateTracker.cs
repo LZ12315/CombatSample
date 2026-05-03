@@ -1,7 +1,10 @@
+using System;
+
 /// <summary>
-/// Converts raw CharacterController grounding into stable ActorMovement ground states.
-/// Plain C# state so ActorMovement remains the only Unity component.
+/// [Obsolete] 地面状态追踪已由 ActorMovement.ApplyGroundingUpdate 接管。
+/// 保留此文件仅作为迁移参考，后续版本将移除。
 /// </summary>
+[Obsolete("Ground state tracking is now handled by ActorMovement.ApplyGroundingUpdate.")]
 public sealed class GroundStateTracker
 {
     private ActorMovement.GroundState _state = ActorMovement.GroundState.Grounded;
@@ -62,10 +65,6 @@ public sealed class GroundStateTracker
         }
     }
 
-    /// <summary>
-    /// Forces the actor into airborne state for a few frames after an explicit upward launch.
-    /// This mirrors KCC-style ForceUnground so grounded fallback actions cannot clear the launch impulse.
-    /// </summary>
     public bool ForceUnground(int frames)
     {
         bool wasGrounded =

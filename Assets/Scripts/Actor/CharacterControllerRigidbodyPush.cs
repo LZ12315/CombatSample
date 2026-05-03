@@ -1,19 +1,20 @@
+using System;
 using UnityEngine;
 
 namespace CombatSample.PhysicsInteraction
 {
 /// <summary>
-/// 正式功能：玩家 CharacterController 对「可推动」动态刚体的水平挤开。
-/// 挂在与 <see cref="CharacterController"/> 同一物体（如 ActorRoot）。
-/// 配置推挤层、与 <see cref="RigidbodyHorizontalDamping"/> 配合用于小怪/木桩分级。
+/// [Obsolete] 此组件基于旧 CharacterController.OnControllerColliderHit。
+/// 后续改用 KCC 的 rigidbody interaction 或 hit callback 方案替代。
 /// </summary>
+[Obsolete("Use KCC rigidbody interaction or hit callback instead.")]
 [RequireComponent(typeof(CharacterController))]
 public class CharacterControllerRigidbodyPush : MonoBehaviour
 {
     [SerializeField, Tooltip("Only push rigidbodies on these layers. Example: Enemy only.")]
     private LayerMask _pushableLayers = ~0;
 
-    [SerializeField, Tooltip("Push = (moveLength/dt) × this. Walk bump should be much smaller than sprint hit.")]
+    [SerializeField, Tooltip("Push = (moveLength/dt) x this. Walk bump should be much smaller than sprint hit.")]
     private float _pushGain = 0.35f;
 
     [SerializeField, Tooltip("Max speed add per callback (m/s). Stops runaway values.")]
@@ -44,7 +45,6 @@ public class CharacterControllerRigidbodyPush : MonoBehaviour
         pushDir.Normalize();
 
         float dt = Mathf.Max(Time.deltaTime, 1e-5f);
-        // 本帧 Move 里「朝该碰撞体方向」想推进多少（米）→ 换算成等效速度
         float trySpeed = hit.moveLength / dt;
 
         if (trySpeed < _minTrySpeedToPush)

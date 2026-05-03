@@ -118,7 +118,8 @@ public class ActorMovement : MonoBehaviour
     private float _smoothedVelocityY;
     private float _smoothedVelocityYRef;
 
-    /// <summary>由 ActorMotor 在 UpdateVelocity 结尾调用，发布 KCC 后处理速度。</summary>
+    /// 发布 KCC 最终求解后的 gameplay velocity。
+    /// 动画、条件系统、调试面板都应该读这个值。
     internal void PublishMotorVelocity(Vector3 velocity, bool isStableGrounded)
     {
         // 平滑 Y：落地时垂直速度不跳变，Animancer 自然过渡
@@ -229,6 +230,7 @@ public class ActorMovement : MonoBehaviour
 
     public event Action OnLanded;
     public event Action OnLeftGround;
+    private bool _suppressNextKccLeftGroundEvent;
 
     /// <summary>由 ActorMotor.PostGroundingUpdate 调用，桥接 KCC 地面状态。</summary>
     internal void ApplyGroundingUpdate(bool isStableNow, bool wasStable)
@@ -243,11 +245,32 @@ public class ActorMovement : MonoBehaviour
         {
             _groundState = GroundState.JustLanded;
             jumpCount = 0;
+            _suppressNextKccLeftGroundEvent = false;
             OnLanded?.Invoke();
         }
         else if (!isStableNow && wasStable)
         {
             _groundState = GroundState.JustLeftGround;
+            if (_suppressNextKccLeftGroundEvent)
+            {
+                _suppressNextKccLeftGroundEvent = false;
+            }
+            else
+            {
+                OnLeftGround?.Invoke();
+            }
+        }
+    }
+
+    /// <summary>由 ActorMotor 在调用 Motor.ForceUnground 后同步调用，让 gameplay 状态当帧进入 JustLeftGround。</summary>
+    internal void ApplyForcedUnground()
+    {
+        if (_groundState == GroundState.Grounded || _groundState == GroundState.JustLanded)
+        {
+            _groundState = GroundState.JustLeftGround;
+            // Forced unground emits the gameplay left-ground event now.
+            // The next KCC stable->unstable transition should update state only.
+            _suppressNextKccLeftGroundEvent = true;
             OnLeftGround?.Invoke();
         }
     }

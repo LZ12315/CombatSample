@@ -26,13 +26,13 @@ public static class HitVfxFacingUtility
             return Vector3.zero;
         }
 
-        if (TryCharacterControllerCenter(attacker.transform, out Vector3 p))
+        if (TryCharacterBodyCenter(attacker.transform, out Vector3 p))
             return p;
 
         return attacker.transform.position;
     }
 
-    static bool TryCharacterControllerCenter(Transform root, out Vector3 world)
+    static bool TryCharacterBodyCenter(Transform root, out Vector3 world)
     {
         var cap = root.GetComponent<CapsuleCollider>()
                   ?? root.GetComponentInChildren<CapsuleCollider>();
