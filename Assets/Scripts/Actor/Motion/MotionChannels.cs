@@ -146,13 +146,25 @@ public sealed class MotionChannels
         _verticalVelocity = 0f;
     }
 
+    /// <summary>
+    /// 着地时调和垂直内部状态：清掉向下冲量，重力钳到 GroundStickVelocity。
+    /// 只影响下一次离地手感，不影响外部 CurrentVelocity（由 PublishMotorVelocity 归零 y）。
+    /// 不清除水平冲量。
+    /// </summary>
+    internal void ResetVerticalForGround()
+    {
+        if (_verticalImpulseVelocity < 0f)
+            _verticalImpulseVelocity = 0f;
+        _gravityAccumulator = GroundStickVelocity;
+    }
+
     public void StepGravity(float dt, bool isGrounded, float gravityScale)
     {
         if (_verticalVelocityOwner.IsValid)
             return;
 
-        if (isGrounded && _verticalImpulseVelocity <= 0f)
-            _gravityAccumulator = GroundStickVelocity;
+        if (isGrounded)
+            ResetVerticalForGround();
         else
             _gravityAccumulator += Physics.gravity.y * gravityScale * dt;
     }

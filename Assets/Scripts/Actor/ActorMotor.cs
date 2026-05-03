@@ -5,7 +5,8 @@ using UnityEngine;
 /// KCC 桥接层 — 实现 ICharacterController，在 KCC 回调中将 ActorMovement 的业务意图
 /// 翻译为 KCC 所需的 BaseVelocity 和 Rotation。
 ///
-/// 只负责翻译，不持有业务逻辑。业务逻辑全部在 ActorMovement 中。
+/// 速度发布：UpdateVelocity 结尾调用 ActorMovement.PublishMotorVelocity()，
+/// 确保 CurrentVelocity 反映 KCC 后处理（接地裁剪、切向投影）后的实际速度。
 /// </summary>
 [DefaultExecutionOrder(-50)]
 public class ActorMotor : MonoBehaviour, ICharacterController
@@ -53,19 +54,26 @@ public class ActorMotor : MonoBehaviour, ICharacterController
         }
 
         float effDt = deltaTime * _movement.MovementTimeScale;
-        var state = _movement.GetMovementState();
-
         if (effDt <= 0.0001f)
         {
             currentVelocity = Vector3.zero;
             return;
         }
 
-        if (state.ShouldForceUnground)
+        // 1. 读取 pre-state（通道演化前的快照，用于 ShouldForceUnground / RootMotion 判定）
+        var preState = _movement.GetMovementState();
+
+        if (preState.ShouldForceUnground)
             Motor.ForceUnground(0.1f);
 
+        // 2. 演化通道（以当前 tick 的 KCC 地面状态为准）
         bool isGrounded = Motor.GroundingStatus.IsStableOnGround;
+        _movement.StepChannels(deltaTime, isGrounded, !isGrounded);
 
+        // 3. 读取 post-state（通道演化后的值，用于速度组合）
+        var state = _movement.GetMovementState();
+
+        // 4. Managed RootMotion：动画位移转速度，覆盖程序化速度
         if (state.IsRootMotionManaged && state.RootMotionDelta.sqrMagnitude > 0.0001f)
         {
             currentVelocity = state.RootMotionDelta / deltaTime;
@@ -77,13 +85,12 @@ public class ActorMotor : MonoBehaviour, ICharacterController
                     Motor.GroundingStatus.GroundNormal
                 ) * currentVelocity.magnitude;
             }
+
+            _movement.PublishMotorVelocity(currentVelocity, isGrounded);
             return;
         }
 
-        bool isAirborne = !isGrounded;
-
-        _movement.StepChannels(deltaTime, isGrounded, isAirborne);
-
+        // 5. External 模式：程序化速度 + 地面处理
         Vector3 horizontal = state.HorizontalVelocity;
         float vertical = state.VerticalVelocity;
 
@@ -97,6 +104,7 @@ public class ActorMotor : MonoBehaviour, ICharacterController
         }
 
         currentVelocity = horizontal + Motor.CharacterUp * vertical;
+        _movement.PublishMotorVelocity(currentVelocity, isGrounded);
     }
 
     public void AfterCharacterUpdate(float deltaTime)

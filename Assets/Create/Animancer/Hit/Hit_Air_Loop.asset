@@ -27,15 +27,15 @@ MonoBehaviour:
           _Callbacks: []
           _Names: []
         _Animations:
-        - {fileID: -4292595648373067345, guid: 3ef74a66b84e1494c96ae1df712fefb0, type: 3}
-        - {fileID: -7834289691689456118, guid: dc0c0f16cd5c4eece9541ca139636d5f, type: 3}
-        - {fileID: -7834289691689456118, guid: fdd0921b988e086bcb420f0b8ed1c3c9, type: 3}
+        - {fileID: -7999431134675774170, guid: 230f94fc3ab5f2e4db43a7017e8b579b, type: 3}
+        - {fileID: -3369356185835101061, guid: 8ac268c7b895fde448c222a36f4651de, type: 3}
+        - {fileID: -3369356185835101061, guid: e7198b1cde8a8fd499832bf34b959852, type: 3}
         _Speeds: []
         _SynchronizeChildren: 
         _Thresholds:
-        - -2
+        - -7
         - 0
-        - 10
+        - 7
         _DefaultParameter: 0
         _ExtrapolateSpeed: 0
         _ParameterName: {fileID: 0}

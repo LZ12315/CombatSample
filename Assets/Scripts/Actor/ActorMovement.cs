@@ -8,8 +8,11 @@ using UnityEngine;
 /// ActorMotor 在 KCC 的 FixedUpdate 回调中读取本文件的 MovementState 并写入 KCC BaseVelocity / Rotation。
 ///
 /// 职责分离：
-///   - Update(): 朝向管线、Locomotion 换算、RootMotion 累积、调试速度记录
-///   - KCC 回调（via ActorMotor）: 通道演化、速度组合、地面状态桥接、帧末重置
+///   - Update(): 朝向管线、Locomotion 换算、RootMotion 累积
+///   - KCC 回调（via ActorMotor）: 通道演化、速度组合、地面状态桥接、速度发布、帧末重置
+///
+/// 速度权威：CurrentVelocity 由 ActorMotor 通过 PublishMotorVelocity() 发布，
+/// 是 KCC 后处理（接地裁剪、切向投影）后的 gameplay 速度，不是通道合成原始值。
 ///
 /// 会原样保留的（业务层职责）：
 ///   - LocomotionIntent / SetLocomotionIntent / SetLocomotionSuppressed
@@ -42,6 +45,9 @@ public class ActorMovement : MonoBehaviour
 
     [SerializeField, Tooltip("垂直冲量在空中的衰减系数（1/秒）。0=不衰减，2≈0.35 秒半衰期，5≈0.14 秒半衰期。")]
     private float _verticalImpulseAirDrag = 0f;
+
+    [SerializeField, Range(0.01f, 0.5f), Tooltip("着地时垂直速度平滑时间。值越大过渡越缓，越小越接近物理真值。")]
+    private float _verticalSmoothTime = 0.1f;
 
     /// <summary>Locomotion 基础移动速度，供 AnimancerBehaviour 读取以归一化 Mixer 参数。</summary>
     public float LocomotionBaseSpeed => _locomotionBaseSpeed;
@@ -95,18 +101,35 @@ public class ActorMovement : MonoBehaviour
     #region === 水平 / 垂直位移通道 ===
 
     [Header("Debug (ReadOnly)")]
-    [SerializeField, Tooltip("当前帧实际移动速度（米/秒，世界空间）。运行时只读，仅调试观察用。")]
+    [SerializeField, Tooltip("KCC 后处理 gameplay 速度（米/秒，世界空间）。稳定接地时 Y=0。运行时只读。")]
     private Vector3 _currentVelocity = Vector3.zero;
 
-    [SerializeField, Tooltip("水平速度大小（米/秒）= √(vx²+vz²)。运行时只读，仅调试观察用。")]
+    [SerializeField, Tooltip("水平速度大小（米/秒）= √(vx²+vz²)。运行时只读。")]
     private float _currentHorizontalSpeed;
 
-    [SerializeField, Tooltip("垂直速度（米/秒，正上负下）= vy。运行时只读，仅调试观察用。")]
+    [SerializeField, Tooltip("KCC 后处理垂直速度（米/秒）。接地时归零，空中为实际垂直速度。运行时只读。")]
     private float _currentVerticalSpeed;
 
+    /// <summary>KCC 后处理后的 gameplay 速度。动画和条件系统应以此为准。</summary>
     public Vector3 CurrentVelocity => _currentVelocity;
     public float CurrentHorizontalSpeed => _currentHorizontalSpeed;
     public float CurrentVerticalSpeed => _currentVerticalSpeed;
+
+    private float _smoothedVelocityY;
+    private float _smoothedVelocityYRef;
+
+    /// <summary>由 ActorMotor 在 UpdateVelocity 结尾调用，发布 KCC 后处理速度。</summary>
+    internal void PublishMotorVelocity(Vector3 velocity, bool isStableGrounded)
+    {
+        // 平滑 Y：落地时垂直速度不跳变，Animancer 自然过渡
+        float targetY = isStableGrounded ? 0f : velocity.y;
+        _smoothedVelocityY = Mathf.SmoothDamp(_smoothedVelocityY, targetY,
+            ref _smoothedVelocityYRef, _verticalSmoothTime, float.MaxValue, Time.fixedDeltaTime);
+
+        _currentVelocity = new Vector3(velocity.x, _smoothedVelocityY, velocity.z);
+        _currentHorizontalSpeed = new Vector2(velocity.x, velocity.z).magnitude;
+        _currentVerticalSpeed = _smoothedVelocityY;
+    }
 
     public void AddHorizontalImpulse(Vector3 velocity)
     {
@@ -373,17 +396,10 @@ public class ActorMovement : MonoBehaviour
         // 1. 朝向管线
         PerformRotation(dt);
 
-        // 2. 缓存 locomotion 速度（FixedUpdate 可能在本帧 Update 之后运行，需提前计算并缓存）
+        // 2. 缓存 locomotion 速度（供 FixedUpdate 中 GetMovementState 读取）
         _cachedLocomotionVelocity = ComputeLocomotionVelocity();
 
-        // 3. 记录速度（供动画系统 / 调试读取）
-        Vector3 horizontal = _channels.ComposeHorizontal(_cachedLocomotionVelocity);
-        float vertical = _channels.ComposeVertical();
-        _currentVelocity = horizontal + Vector3.up * vertical;
-        _currentHorizontalSpeed = new Vector2(_currentVelocity.x, _currentVelocity.z).magnitude;
-        _currentVerticalSpeed = _currentVelocity.y;
-
-        // 4. 帧末清理
+        // 3. 帧末清理
         _hasLocomotionIntent = false;
     }
 

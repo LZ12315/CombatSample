@@ -84,6 +84,14 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
             Cursor.visible = true;
         }
 
+        // R：暂停/恢复 Editor 运行，方便逐帧检查（用 Game 视图顶部的 Step 按钮逐帧前进）。
+        if (Input.GetKeyDown(KeyCode.R))
+        {
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPaused = !UnityEditor.EditorApplication.isPaused;
+#endif
+        }
+
         // 每帧更新长按帧计数并派发 Short/Long 事件。
         UpdateInputState();
     }
