@@ -11,34 +11,13 @@ using UnityEngine;
 public class ActorMotor : MonoBehaviour, ICharacterController
 {
     public KinematicCharacterMotor Motor { get; private set; }
-    private Actor _actor;
     private ActorMovement _movement;
-
-    private ActorMovement Movement
-    {
-        get
-        {
-            if (_movement == null)
-            {
-                if (_actor == null)
-                    _actor = GetComponent<Actor>();
-                if (_actor != null)
-                    _movement = _actor.movement;
-                if (_movement == null)
-                    _movement = GetComponent<ActorMovement>();
-            }
-            return _movement;
-        }
-    }
 
     private void Awake()
     {
         Motor = GetComponent<KinematicCharacterMotor>();
-        _actor = GetComponent<Actor>();
-        if (_actor != null)
-            _movement = _actor.movement;
-        if (_movement == null)
-            _movement = GetComponent<ActorMovement>();
+        var actor = GetComponent<Actor>();
+        _movement = actor != null ? actor.movement : GetComponent<ActorMovement>();
         Motor.CharacterController = this;
     }
 
@@ -50,31 +29,31 @@ public class ActorMotor : MonoBehaviour, ICharacterController
 
     public void PostGroundingUpdate(float deltaTime)
     {
-        if (Movement == null) return;
+        if (_movement == null) return;
         bool isStableNow = Motor.GroundingStatus.IsStableOnGround;
         bool wasStable = Motor.LastGroundingStatus.IsStableOnGround;
-        Movement.ApplyGroundingUpdate(isStableNow, wasStable);
+        _movement.ApplyGroundingUpdate(isStableNow, wasStable);
     }
 
     public void UpdateRotation(ref Quaternion currentRotation, float deltaTime)
     {
-        if (Movement == null) return;
-        currentRotation = Movement.ConsumePendingRotation();
-        var rmRot = Movement.ConsumePendingRootRotation();
+        if (_movement == null) return;
+        currentRotation = _movement.GetPendingRotation();
+        var rmRot = _movement.GetPendingRootRotation();
         if (rmRot != Quaternion.identity)
             currentRotation = rmRot * currentRotation;
     }
 
     public void UpdateVelocity(ref Vector3 currentVelocity, float deltaTime)
     {
-        if (Movement == null || deltaTime <= 0f)
+        if (_movement == null || deltaTime <= 0f)
         {
             currentVelocity = Vector3.zero;
             return;
         }
 
-        float effDt = deltaTime * Movement.MovementTimeScale;
-        var state = Movement.GetMovementState();
+        float effDt = deltaTime * _movement.MovementTimeScale;
+        var state = _movement.GetMovementState();
 
         if (effDt <= 0.0001f)
         {
@@ -84,6 +63,8 @@ public class ActorMotor : MonoBehaviour, ICharacterController
 
         if (state.ShouldForceUnground)
             Motor.ForceUnground(0.1f);
+
+        bool isGrounded = Motor.GroundingStatus.IsStableOnGround;
 
         if (state.IsRootMotionManaged && state.RootMotionDelta.sqrMagnitude > 0.0001f)
         {
@@ -99,10 +80,9 @@ public class ActorMotor : MonoBehaviour, ICharacterController
             return;
         }
 
-        bool isGrounded = Motor.GroundingStatus.IsStableOnGround;
         bool isAirborne = !isGrounded;
 
-        Movement.StepChannels(deltaTime, isGrounded, isAirborne);
+        _movement.StepChannels(deltaTime, isGrounded, isAirborne);
 
         Vector3 horizontal = state.HorizontalVelocity;
         float vertical = state.VerticalVelocity;
@@ -121,8 +101,8 @@ public class ActorMotor : MonoBehaviour, ICharacterController
 
     public void AfterCharacterUpdate(float deltaTime)
     {
-        if (Movement == null) return;
-        Movement.SignalMotorFrameEnd();
+        if (_movement == null) return;
+        _movement.SignalMotorFrameEnd();
     }
 
     public bool IsColliderValidForCollisions(Collider coll) => true;
@@ -133,8 +113,8 @@ public class ActorMotor : MonoBehaviour, ICharacterController
     public void OnMovementHit(Collider hitCollider, Vector3 hitNormal, Vector3 hitPoint,
         ref HitStabilityReport hitStabilityReport)
     {
-        if (Movement != null && Vector3.Dot(hitNormal, Motor.CharacterUp) < -0.3f)
-            Movement.SignalCeilingHit();
+        if (_movement != null && Vector3.Dot(hitNormal, Motor.CharacterUp) < -0.3f)
+            _movement.SignalCeilingHit();
     }
 
     public void ProcessHitStabilityReport(Collider hitCollider, Vector3 hitNormal, Vector3 hitPoint,

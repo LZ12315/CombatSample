@@ -34,14 +34,15 @@ public static class KccMigrationTool
     {
         GameObject go = actor.gameObject;
 
-        // 1. 保存旧 CC 参数
+        // 1. 保存旧 CC 参数。CC 的 skinWidth 会扩大有效碰撞半径，CapsuleCollider 没有这个参数，
+        //    所以把 skinWidth 加到 radius 上以保持等效碰撞体积。
         var oldCC = go.GetComponent<CharacterController>();
         float radius = 0.5f;
         float height = 2f;
         float yOffset = 1f;
         if (oldCC != null)
         {
-            radius = oldCC.radius;
+            radius = oldCC.radius + oldCC.skinWidth;
             height = oldCC.height;
             yOffset = oldCC.center.y;
         }

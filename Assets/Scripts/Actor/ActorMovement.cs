@@ -59,6 +59,7 @@ public class ActorMovement : MonoBehaviour
     private RootMotionApplyMode _rootMotionApplyMode = RootMotionApplyMode.Managed;
     private Vector3 _pendingRootMotionPosition;
     private Quaternion _pendingRootMotionRotation = Quaternion.identity;
+    private Vector3 _cachedLocomotionVelocity;
 
     public Vector3 RootMotionDelta => _pendingRootMotionPosition;
     public Quaternion RootMotionRotationDelta => _pendingRootMotionRotation;
@@ -274,13 +275,13 @@ public class ActorMovement : MonoBehaviour
     }
 
     /// <summary>由 ActorMotor.UpdateRotation 调用，读取当前帧的期望旋转。</summary>
-    internal Quaternion ConsumePendingRotation()
+    internal Quaternion GetPendingRotation()
     {
         return _pendingRotation;
     }
 
     /// <summary>由 ActorMotor.UpdateRotation 调用，读取累积的 RootMotion 旋转增量。</summary>
-    internal Quaternion ConsumePendingRootRotation()
+    internal Quaternion GetPendingRootRotation()
     {
         return _pendingRootMotionRotation;
     }
@@ -302,7 +303,7 @@ public class ActorMovement : MonoBehaviour
     {
         return new MovementState
         {
-            HorizontalVelocity = _channels.ComposeHorizontal(ComputeLocomotionVelocity()),
+            HorizontalVelocity = _channels.ComposeHorizontal(_cachedLocomotionVelocity),
             VerticalVelocity = _channels.ComposeVertical(),
             RootMotionDelta = _pendingRootMotionPosition,
             IsRootMotionManaged = _rootMotionApplyMode == RootMotionApplyMode.Managed,
@@ -372,14 +373,17 @@ public class ActorMovement : MonoBehaviour
         // 1. 朝向管线
         PerformRotation(dt);
 
-        // 2. 记录速度（供动画系统 / 调试读取）
-        Vector3 horizontal = _channels.ComposeHorizontal(ComputeLocomotionVelocity());
+        // 2. 缓存 locomotion 速度（FixedUpdate 可能在本帧 Update 之后运行，需提前计算并缓存）
+        _cachedLocomotionVelocity = ComputeLocomotionVelocity();
+
+        // 3. 记录速度（供动画系统 / 调试读取）
+        Vector3 horizontal = _channels.ComposeHorizontal(_cachedLocomotionVelocity);
         float vertical = _channels.ComposeVertical();
         _currentVelocity = horizontal + Vector3.up * vertical;
         _currentHorizontalSpeed = new Vector2(_currentVelocity.x, _currentVelocity.z).magnitude;
         _currentVerticalSpeed = _currentVelocity.y;
 
-        // 3. 帧末清理
+        // 4. 帧末清理
         _hasLocomotionIntent = false;
     }
 
