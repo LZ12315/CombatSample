@@ -34,6 +34,14 @@ public static class HitVfxFacingUtility
 
     static bool TryCharacterControllerCenter(Transform root, out Vector3 world)
     {
+        var cap = root.GetComponent<CapsuleCollider>()
+                  ?? root.GetComponentInChildren<CapsuleCollider>();
+        if (cap != null)
+        {
+            world = cap.transform.TransformPoint(cap.center);
+            return true;
+        }
+
         var cc = root.GetComponent<CharacterController>()
                  ?? root.GetComponentInChildren<CharacterController>();
         if (cc != null)

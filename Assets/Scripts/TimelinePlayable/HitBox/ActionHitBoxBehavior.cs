@@ -38,6 +38,10 @@ public class ActionHitBoxBehavior : ActionBehaviourBase
         hitboxObject = new GameObject("HitBox");
         hitboxObject.hideFlags = HideFlags.HideInHierarchy;
 
+        // Rigidbody 必须存在，否则 Trigger 事件不会触发（Unity 物理规则）
+        var rb = hitboxObject.AddComponent<Rigidbody>();
+        rb.isKinematic = true;
+
         // Add Collider
         collider = hitboxObject.AddComponent<CapsuleCollider>();
         collider.isTrigger = true;

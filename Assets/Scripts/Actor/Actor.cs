@@ -1,14 +1,16 @@
 using Animancer;
 using DeiveEx.TagTree;
 using DeiveEx.TagTree.GameObjects;
+using KinematicCharacterController;
 using UnityEngine;
 
-[RequireComponent(typeof(CharacterController))]
+[RequireComponent(typeof(KinematicCharacterMotor))]
 public class Actor : MonoBehaviour
 {
     #region === 组件引用 ===
 
-    public CharacterController characterController;
+    public KinematicCharacterMotor kccMotor;
+    public ActorMotor actorMotor;
     public ActorLogicInput logicInput;
     public ActionStateManager actionManager;
     public ActorMovement movement;
