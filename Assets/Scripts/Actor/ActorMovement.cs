@@ -2,82 +2,148 @@ using System;
 using UnityEngine;
 
 /// <summary>
-/// 角色移动业务层 — 负责意图处理、速度通道组合、朝向管线和 RootMotion 捕获。
+/// Character movement facade — keeps serialized config, locomotion intent,
+/// and facing pipeline. Runtime state is delegated to ActorMotor.MotionRuntime
+/// via BindMotor / ResolveMotor.
 ///
-/// 不再直接调用物理 API（CC.Move）。所有物理执行委托给 ActorMotor（ICharacterController 桥接层），
-/// ActorMotor 在 KCC 的 FixedUpdate 回调中读取本文件的 MovementState 并写入 KCC BaseVelocity / Rotation。
-///
-/// 职责分离：
-///   - Update(): 朝向管线、Locomotion 换算、RootMotion 累积
-///   - KCC 回调（via ActorMotor）: 通道演化、速度组合、地面状态桥接、速度发布、帧末重置
-///
-/// 速度权威：CurrentVelocity 由 ActorMotor 通过 PublishMotorVelocity() 发布，
-/// 是 KCC 后处理（接地裁剪、切向投影）后的 gameplay 速度，不是通道合成原始值。
-///
-/// 会原样保留的（业务层职责）：
-///   - LocomotionIntent / SetLocomotionIntent / SetLocomotionSuppressed
-///   - 朝向三层管线（Override / Intent / Snap）
-///   - RootMotion 的 Managed / External 模式
-///   - AddHorizontalImpulse / AddVerticalImpulse + drag 衰减
-///   - ActionMotionConfig 压制机制、gravityScale 覆盖
-///   - MovementTimeScale（HitStop 等与 Timeline 同步）
+/// External callers continue to use actor.movement.* unchanged.
 /// </summary>
 public class ActorMovement : MonoBehaviour
 {
-    private readonly MotionChannels _channels = new MotionChannels();
-
-    #region === 序列化字段 ===
+    #region === Serialized Config (stays on ActorMovement) ===
 
     public Actor actor;
     public Animator animator;
 
-    [SerializeField, Tooltip("默认旋转速度（度/秒）")]
+    [SerializeField, Tooltip("Default rotation speed (degrees/sec).")]
     private float rotateSpeed = 600f;
 
-    [SerializeField, Tooltip("Locomotion 基础移动速度（米/秒）")]
+    [SerializeField, Tooltip("Locomotion base speed (m/s).")]
     private float _locomotionBaseSpeed = 5f;
 
-    [SerializeField, Range(0f, 1f), Tooltip("空中 Locomotion 控制系数（0=完全失控，1=与地面一致）。只影响 Locomotion 通道，不影响 Velocity / Impulse。")]
+    [SerializeField, Range(0f, 1f), Tooltip("Air control factor (0=no control, 1=same as ground). Affects locomotion channel only.")]
     private float _airControlFactor = 0.4f;
 
-    [SerializeField, Tooltip("水平冲量阻力系数（1/秒）。值越大衰减越快，5 ≈ 0.2 秒衰减到 37%。")]
+    [SerializeField, Tooltip("Horizontal impulse drag coefficient (1/s). Higher = faster decay.")]
     private float _horizontalDrag = 5f;
 
-    [SerializeField, Tooltip("垂直冲量在空中的衰减系数（1/秒）。0=不衰减，2≈0.35 秒半衰期，5≈0.14 秒半衰期。")]
-    private float _verticalImpulseAirDrag = 0f;
+    [SerializeField, Tooltip("Vertical impulse air drag (1/s). 0=no decay, 5≈0.14s half-life.")]
+    private float _verticalImpulseAirDrag;
 
-    [SerializeField, Range(0.01f, 0.5f), Tooltip("着地时垂直速度平滑时间。值越大过渡越缓，越小越接近物理真值。")]
+    [SerializeField, Range(0.01f, 0.5f), Tooltip("Vertical smoothing time on landing. Smaller = faster snap to 0.")]
     private float _verticalSmoothTime = 0.1f;
 
-    /// <summary>Locomotion 基础移动速度，供 AnimancerBehaviour 读取以归一化 Mixer 参数。</summary>
+    [SerializeField, Tooltip("Y-axis dead zone for root motion delta accumulation.")]
+    private float _rootMotionYDeadZone = 0.5f;
+
+    [Header("Jump Ability")]
+    [SerializeField, Tooltip("Max jump count. 2 = double jump.")]
+    private int _maxJumpCount = 2;
+
+    /// <summary>Locomotion base speed for AnimancerBehaviour mixer normalisation.</summary>
     public float LocomotionBaseSpeed => _locomotionBaseSpeed;
 
+    public int maxJumpCount => _maxJumpCount;
+
     #endregion
 
-    #region === RootMotion 数据层 ===
+    #region === Runtime Config Snapshot ===
 
-    public enum RootMotionApplyMode
+    public ActorMotionRuntimeConfig GetRuntimeConfig()
     {
-        Managed,
-        External
-    }
-
-    private RootMotionApplyMode _rootMotionApplyMode = RootMotionApplyMode.Managed;
-    private Vector3 _pendingRootMotionPosition;
-    private Quaternion _pendingRootMotionRotation = Quaternion.identity;
-    private Vector3 _cachedLocomotionVelocity;
-
-    public Vector3 RootMotionDelta => _pendingRootMotionPosition;
-    public Quaternion RootMotionRotationDelta => _pendingRootMotionRotation;
-
-    public void SetRootMotionApplyMode(RootMotionApplyMode mode)
-    {
-        _rootMotionApplyMode = mode;
+        return new ActorMotionRuntimeConfig(
+            _horizontalDrag,
+            _verticalImpulseAirDrag,
+            _verticalSmoothTime,
+            _rootMotionYDeadZone);
     }
 
     #endregion
 
-    #region === 意图层 ===
+    #region === Motor Binding ===
+
+    private ActorMotor _boundMotor;
+
+    // Buffered event subscribers that arrived before BindMotor.
+    private Action _bufferedOnLanded;
+    private Action _bufferedOnLeftGround;
+
+    // Buffered strategy state that arrived before BindMotor.
+    private float? _bufferedGravityScale;
+    private float? _bufferedMovementTimeScale;
+    private RootMotionApplyMode? _bufferedRootMotionApplyMode;
+
+    internal void BindMotor(ActorMotor motor)
+    {
+        _boundMotor = motor;
+        ReplayBufferedState();
+    }
+
+    private void ReplayBufferedState()
+    {
+        if (_boundMotor == null) return;
+        var runtime = _boundMotor.MotionRuntime;
+        if (runtime == null) return;
+
+        if (_bufferedOnLanded != null)
+        {
+            foreach (Delegate d in _bufferedOnLanded.GetInvocationList())
+                runtime.OnLanded += (Action)d;
+            _bufferedOnLanded = null;
+        }
+
+        if (_bufferedOnLeftGround != null)
+        {
+            foreach (Delegate d in _bufferedOnLeftGround.GetInvocationList())
+                runtime.OnLeftGround += (Action)d;
+            _bufferedOnLeftGround = null;
+        }
+
+        if (_bufferedGravityScale.HasValue)
+        {
+            runtime.SetGravityScale(_bufferedGravityScale.Value);
+            _bufferedGravityScale = null;
+        }
+
+        if (_bufferedMovementTimeScale.HasValue)
+        {
+            runtime.SetMovementTimeScale(_bufferedMovementTimeScale.Value);
+            _bufferedMovementTimeScale = null;
+        }
+
+        if (_bufferedRootMotionApplyMode.HasValue)
+        {
+            runtime.SetRootMotionApplyMode(_bufferedRootMotionApplyMode.Value);
+            _bufferedRootMotionApplyMode = null;
+        }
+    }
+
+    private ActorMotor ResolveMotor()
+    {
+        if (_boundMotor != null)
+            return _boundMotor;
+
+        _boundMotor = actor != null && actor.actorMotor != null
+            ? actor.actorMotor
+            : GetComponent<ActorMotor>();
+
+        return _boundMotor;
+    }
+
+    /// <summary>
+    /// Returns the resolved MotionRuntime, or null if either ActorMotor
+    /// or its MotionRuntime is not yet available.
+    /// </summary>
+    private ActorMotionRuntime ResolveRuntime()
+    {
+        var motor = ResolveMotor();
+        if (motor == null) return null;
+        return motor.MotionRuntime;
+    }
+
+    #endregion
+
+    #region === Locomotion Intent ===
 
     private LocomotionIntent _locomotionIntent = LocomotionIntent.Idle;
     private bool _hasLocomotionIntent;
@@ -98,120 +164,131 @@ public class ActorMovement : MonoBehaviour
 
     #endregion
 
-    #region === 水平 / 垂直位移通道 ===
+    #region === RootMotion Data (facade) ===
 
-    [Header("Debug (ReadOnly)")]
-    [SerializeField, Tooltip("KCC 后处理 gameplay 速度（米/秒，世界空间）。稳定接地时 Y=0。运行时只读。")]
-    private Vector3 _currentVelocity = Vector3.zero;
-
-    [SerializeField, Tooltip("水平速度大小（米/秒）= √(vx²+vz²)。运行时只读。")]
-    private float _currentHorizontalSpeed;
-
-    [SerializeField, Tooltip("KCC 后处理垂直速度（米/秒）。接地时归零，空中为实际垂直速度。运行时只读。")]
-    private float _currentVerticalSpeed;
-
-    /// <summary>KCC 后处理后的 gameplay 速度。动画和条件系统应以此为准。</summary>
-    public Vector3 CurrentVelocity => _currentVelocity;
-    public float CurrentHorizontalSpeed => _currentHorizontalSpeed;
-    public float CurrentVerticalSpeed => _currentVerticalSpeed;
-
-    private float _smoothedVelocityY;
-    private float _smoothedVelocityYRef;
-
-    /// 发布 KCC 最终求解后的 gameplay velocity。
-    /// 动画、条件系统、调试面板都应该读这个值。
-    internal void PublishMotorVelocity(Vector3 velocity, bool isStableGrounded)
+    public enum RootMotionApplyMode
     {
-        // 平滑 Y：落地时垂直速度不跳变，Animancer 自然过渡
-        float targetY = isStableGrounded ? 0f : velocity.y;
-        _smoothedVelocityY = Mathf.SmoothDamp(_smoothedVelocityY, targetY,
-            ref _smoothedVelocityYRef, _verticalSmoothTime, float.MaxValue, Time.fixedDeltaTime);
-
-        _currentVelocity = new Vector3(velocity.x, _smoothedVelocityY, velocity.z);
-        _currentHorizontalSpeed = new Vector2(velocity.x, velocity.z).magnitude;
-        _currentVerticalSpeed = _smoothedVelocityY;
+        Managed,
+        External
     }
+
+    public void SetRootMotionApplyMode(RootMotionApplyMode mode)
+    {
+        var rt = ResolveRuntime();
+        if (rt != null)
+            rt.SetRootMotionApplyMode(mode);
+        else
+            _bufferedRootMotionApplyMode = mode;
+    }
+
+    #endregion
+
+    #region === Impulse Channels (facade → runtime) ===
 
     public void AddHorizontalImpulse(Vector3 velocity)
     {
-        _channels.AddHorizontalImpulse(velocity);
+        ResolveRuntime()?.AddHorizontalImpulse(velocity);
     }
 
     public void ClearHorizontalImpulse()
     {
-        _channels.ClearHorizontalImpulse();
+        ResolveRuntime()?.ClearHorizontalImpulse();
     }
 
     public MotionOwner BeginHorizontalVelocity()
     {
-        return _channels.BeginHorizontalVelocity();
+        return ResolveRuntime()?.BeginHorizontalVelocity() ?? default;
     }
 
     public void SetHorizontalVelocity(MotionOwner owner, Vector3 velocity)
     {
-        _channels.SetHorizontalVelocity(owner, velocity);
+        ResolveRuntime()?.SetHorizontalVelocity(owner, velocity);
     }
 
     public void EndHorizontalVelocity(MotionOwner owner)
     {
-        _channels.EndHorizontalVelocity(owner);
-    }
-
-    #endregion
-
-    #region === 垂直位移通道 ===
-
-    private float _gravityScale = 1f;
-    private float _movementTimeScale = 1f;
-
-    public void SetGravityScale(float scale)
-    {
-        _gravityScale = scale;
-    }
-
-    public float MovementTimeScale => _movementTimeScale;
-
-    public void SetMovementTimeScale(float scale)
-    {
-        _movementTimeScale = Mathf.Max(0f, scale);
+        ResolveRuntime()?.EndHorizontalVelocity(owner);
     }
 
     public void AddVerticalImpulse(float upwardSpeed)
     {
-        _channels.AddVerticalImpulse(upwardSpeed);
-
-        if (upwardSpeed > 0f)
-            _pendingForceUnground = true;
+        ResolveRuntime()?.AddVerticalImpulse(upwardSpeed);
     }
 
     public MotionOwner BeginVerticalVelocity()
     {
-        return _channels.BeginVerticalVelocity();
+        return ResolveRuntime()?.BeginVerticalVelocity() ?? default;
     }
 
     public void SetVerticalVelocity(MotionOwner owner, float verticalSpeed)
     {
-        _channels.SetVerticalVelocity(owner, verticalSpeed);
+        ResolveRuntime()?.SetVerticalVelocity(owner, verticalSpeed);
     }
 
     public void EndVerticalVelocity(MotionOwner owner)
     {
-        _channels.EndVerticalVelocity(owner);
+        ResolveRuntime()?.EndVerticalVelocity(owner);
     }
 
     public void ClearVelocityOwners()
     {
-        _channels.ClearVelocityOwners();
+        ResolveRuntime()?.ClearVelocityOwners();
     }
 
     public void ApplyMotionHandoff(float horizontalInheritance, float verticalInheritance)
     {
-        _channels.ApplyHandoff(horizontalInheritance, verticalInheritance);
+        ResolveRuntime()?.ApplyMotionHandoff(horizontalInheritance, verticalInheritance);
     }
 
     #endregion
 
-    #region === 地面状态 ===
+    #region === Gravity / Time Scale Strategy (facade → runtime) ===
+
+    public void SetGravityScale(float scale)
+    {
+        var rt = ResolveRuntime();
+        if (rt != null)
+            rt.SetGravityScale(scale);
+        else
+            _bufferedGravityScale = scale;
+    }
+
+    public void SetMovementTimeScale(float scale)
+    {
+        scale = Mathf.Max(0f, scale);
+        var rt = ResolveRuntime();
+        if (rt != null)
+            rt.SetMovementTimeScale(scale);
+        else
+            _bufferedMovementTimeScale = scale;
+    }
+
+    public float MovementTimeScale
+    {
+        get
+        {
+            if (_bufferedMovementTimeScale.HasValue)
+                return _bufferedMovementTimeScale.Value;
+            return ResolveRuntime()?.MovementTimeScale ?? 1f;
+        }
+    }
+
+    #endregion
+
+    #region === Velocity Readout (facade → runtime) ===
+
+    public Vector3 CurrentVelocity =>
+        ResolveRuntime()?.CurrentVelocity ?? Vector3.zero;
+
+    public float CurrentHorizontalSpeed =>
+        ResolveRuntime()?.CurrentHorizontalSpeed ?? 0f;
+
+    public float CurrentVerticalSpeed =>
+        ResolveRuntime()?.CurrentVerticalSpeed ?? 0f;
+
+    #endregion
+
+    #region === Ground State (facade → runtime) ===
 
     public enum GroundState
     {
@@ -221,76 +298,81 @@ public class ActorMovement : MonoBehaviour
         JustLanded
     }
 
-    [SerializeField, Tooltip("当前地面状态（运行时只读，调试观察用）")]
-    private GroundState _groundState = GroundState.Grounded;
+    public GroundState groundState =>
+        ResolveRuntime()?.GroundState ?? GroundState.Grounded;
 
-    public GroundState groundState => _groundState;
-    public bool IsGrounded => _groundState == GroundState.Grounded || _groundState == GroundState.JustLanded;
+    public bool IsGrounded
+    {
+        get
+        {
+            var state = ResolveRuntime()?.GroundState ?? GroundState.Grounded;
+            return state == GroundState.Grounded || state == GroundState.JustLanded;
+        }
+    }
+
     public bool IsAirborne => !IsGrounded;
 
-    public event Action OnLanded;
-    public event Action OnLeftGround;
-    private bool _suppressNextKccLeftGroundEvent;
-
-    /// <summary>由 ActorMotor.PostGroundingUpdate 调用，桥接 KCC 地面状态。</summary>
-    internal void ApplyGroundingUpdate(bool isStableNow, bool wasStable)
+    public event Action OnLanded
     {
-        // 过渡态 → 稳态
-        if (_groundState == GroundState.JustLanded)
-            _groundState = GroundState.Grounded;
-        else if (_groundState == GroundState.JustLeftGround)
-            _groundState = GroundState.Airborne;
-
-        if (isStableNow && !wasStable)
+        add
         {
-            _groundState = GroundState.JustLanded;
-            jumpCount = 0;
-            _suppressNextKccLeftGroundEvent = false;
-            OnLanded?.Invoke();
-        }
-        else if (!isStableNow && wasStable)
-        {
-            _groundState = GroundState.JustLeftGround;
-            if (_suppressNextKccLeftGroundEvent)
-            {
-                _suppressNextKccLeftGroundEvent = false;
-            }
+            var runtime = ResolveRuntime();
+            if (runtime != null)
+                runtime.OnLanded += value;
             else
-            {
-                OnLeftGround?.Invoke();
-            }
+                _bufferedOnLanded += value;
         }
-    }
-
-    /// <summary>由 ActorMotor 在调用 Motor.ForceUnground 后同步调用，让 gameplay 状态当帧进入 JustLeftGround。</summary>
-    internal void ApplyForcedUnground()
-    {
-        if (_groundState == GroundState.Grounded || _groundState == GroundState.JustLanded)
+        remove
         {
-            _groundState = GroundState.JustLeftGround;
-            // Forced unground emits the gameplay left-ground event now.
-            // The next KCC stable->unstable transition should update state only.
-            _suppressNextKccLeftGroundEvent = true;
-            OnLeftGround?.Invoke();
+            var runtime = ResolveRuntime();
+            if (runtime != null)
+                runtime.OnLanded -= value;
+            else
+                _bufferedOnLanded -= value;
+        }
+    }
+
+    public event Action OnLeftGround
+    {
+        add
+        {
+            var runtime = ResolveRuntime();
+            if (runtime != null)
+                runtime.OnLeftGround += value;
+            else
+                _bufferedOnLeftGround += value;
+        }
+        remove
+        {
+            var runtime = ResolveRuntime();
+            if (runtime != null)
+                runtime.OnLeftGround -= value;
+            else
+                _bufferedOnLeftGround -= value;
         }
     }
 
     #endregion
 
-    #region === 运动能力状态 ===
+    #region === Jump State (facade → runtime) ===
 
-    [Header("Jump Ability")]
-    [SerializeField, Tooltip("最大跳跃次数。2 = 支持二段跳。")]
-    private int _maxJumpCount = 2;
+    public int jumpCount =>
+        ResolveRuntime()?.JumpCount ?? 0;
 
-    public int jumpCount { get; private set; }
-    public int maxJumpCount => _maxJumpCount;
-    public bool CanJump() => jumpCount < _maxJumpCount;
-    public void ConsumeJump() => jumpCount++;
+    public bool CanJump()
+    {
+        var runtime = ResolveRuntime();
+        return runtime != null && runtime.CanJump(_maxJumpCount);
+    }
+
+    public void ConsumeJump()
+    {
+        ResolveRuntime()?.ConsumeJump();
+    }
 
     #endregion
 
-    #region === 朝向管线 ===
+    #region === Facing Pipeline (stays on ActorMovement for phase 1) ===
 
     private Vector3 _overrideFacingDirection;
     private bool _hasFacingOverride;
@@ -320,83 +402,14 @@ public class ActorMovement : MonoBehaviour
         _pendingRotation = _targetRotation;
     }
 
-    /// <summary>由 ActorMotor.UpdateRotation 调用，读取当前帧的期望旋转。</summary>
     internal Quaternion GetPendingRotation()
     {
         return _pendingRotation;
     }
 
-    /// <summary>由 ActorMotor.UpdateRotation 调用，读取累积的 RootMotion 旋转增量。</summary>
-    internal Quaternion GetPendingRootRotation()
-    {
-        return _pendingRootMotionRotation;
-    }
-
     #endregion
 
-    #region === MovementState（供 ActorMotor 读取） ===
-
-    public struct MovementState
-    {
-        public Vector3 HorizontalVelocity;
-        public float VerticalVelocity;
-        public Vector3 RootMotionDelta;
-        public bool IsRootMotionManaged;
-        public bool ShouldForceUnground;
-    }
-
-    internal MovementState GetMovementState()
-    {
-        return new MovementState
-        {
-            HorizontalVelocity = _channels.ComposeHorizontal(_cachedLocomotionVelocity),
-            VerticalVelocity = _channels.ComposeVertical(),
-            RootMotionDelta = _pendingRootMotionPosition,
-            IsRootMotionManaged = _rootMotionApplyMode == RootMotionApplyMode.Managed,
-            ShouldForceUnground = _pendingForceUnground,
-        };
-    }
-
-    /// <summary>由 ActorMotor.UpdateVelocity 调用，在 KCC 回调中以 FixedUpdate dt 演化通道。</summary>
-    internal void StepChannels(float deltaTime, bool isGrounded, bool isAirborne)
-    {
-        float dt = deltaTime * _movementTimeScale;
-        if (dt <= 0f) return;
-
-        _channels.StepGravity(dt, isGrounded, _gravityScale);
-        _channels.StepHorizontalDrag(dt, _horizontalDrag);
-        _channels.StepVerticalImpulseDecay(dt, isAirborne, isGrounded, _pendingCeilingHit, _verticalImpulseAirDrag);
-        _pendingCeilingHit = false;
-    }
-
-    /// <summary>由 ActorMotor.AfterCharacterUpdate 调用，重置每 tick 累积的状态。</summary>
-    internal void SignalMotorFrameEnd()
-    {
-        _pendingRootMotionPosition = Vector3.zero;
-        _pendingRootMotionRotation = Quaternion.identity;
-        _pendingForceUnground = false;
-    }
-
-    /// <summary>由 ActorMotor.OnMovementHit 调用，通知天花板碰撞。</summary>
-    internal void SignalCeilingHit()
-    {
-        _pendingCeilingHit = true;
-    }
-
-    #endregion
-
-    #region === 内部状态 ===
-
-    private bool _pendingForceUnground;
-    private bool _pendingCeilingHit;
-
-    // Y 轴死区逻辑参数
-    private float _yPositionDeadZone = 0.5f;
-    private float _accumulatedYDelta;
-
-    #endregion
-
-    #region === 生命周期 ===
+    #region === Lifecycle ===
 
     private void Start()
     {
@@ -408,27 +421,34 @@ public class ActorMovement : MonoBehaviour
     {
         if (animator == null) return;
 
-        _pendingRootMotionPosition += ProcessRootMotionDeadZone(animator.deltaPosition);
-        _pendingRootMotionRotation = animator.deltaRotation * _pendingRootMotionRotation;
+        var runtime = ResolveRuntime();
+        if (runtime == null) return;
+
+        runtime.AddAnimatorDelta(
+            animator.deltaPosition,
+            animator.deltaRotation,
+            GetRuntimeConfig().RootMotionYDeadZone);
     }
 
     private void Update()
     {
-        float dt = Time.deltaTime * _movementTimeScale;
+        float dt = Time.deltaTime * MovementTimeScale;
 
-        // 1. 朝向管线
         PerformRotation(dt);
-
-        // 2. 缓存 locomotion 速度（供 FixedUpdate 中 GetMovementState 读取）
         _cachedLocomotionVelocity = ComputeLocomotionVelocity();
-
-        // 3. 帧末清理
         _hasLocomotionIntent = false;
     }
 
     #endregion
 
-    #region === 内部计算 ===
+    #region === Internal Computation ===
+
+    private Vector3 _cachedLocomotionVelocity;
+
+    internal Vector3 GetCachedLocomotionVelocity()
+    {
+        return _cachedLocomotionVelocity;
+    }
 
     private Vector3 ComputeLocomotionVelocity()
     {
@@ -474,29 +494,6 @@ public class ActorMovement : MonoBehaviour
             _targetRotation,
             angularSpeed * dt
         );
-    }
-
-    private Vector3 ProcessRootMotionDeadZone(Vector3 rawDelta)
-    {
-        float currentYDelta = rawDelta.y;
-        if (Mathf.Abs(currentYDelta) < _yPositionDeadZone)
-        {
-            _accumulatedYDelta += currentYDelta;
-            if (Mathf.Abs(_accumulatedYDelta) >= _yPositionDeadZone)
-            {
-                rawDelta.y = _accumulatedYDelta;
-                _accumulatedYDelta = 0;
-            }
-            else
-            {
-                rawDelta.y = 0;
-            }
-        }
-        else
-        {
-            _accumulatedYDelta = 0;
-        }
-        return rawDelta;
     }
 
     #endregion
