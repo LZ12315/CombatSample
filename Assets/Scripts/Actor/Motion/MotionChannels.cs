@@ -1,8 +1,8 @@
 using UnityEngine;
 
 /// <summary>
-/// Lightweight identity for clip-level motion ownership.
-/// A clip can only release the state it acquired with the same owner.
+/// 轻量级运动控制所有权标识。
+/// Clip 只能释放自己用同一个 owner 获取到的控制权。
 /// </summary>
 public readonly struct MotionOwner
 {
@@ -17,9 +17,20 @@ public readonly struct MotionOwner
 }
 
 /// <summary>
-/// Runtime motion channels owned by ActorMovement.
-/// This is plain C# state, not a Unity component.
-/// Velocity owner is single-slot per axis (no stack and no fallback).
+/// 由 ActorMotionRuntime 持有的运行时运动通道。
+/// 这是纯 C# 状态，不是 Unity 组件。
+///
+/// 水平和垂直 API 有意保持不对称：
+/// 水平运动建模的是平面动量，垂直运动同时混合了起跳/击飞、下砸、
+/// 重力和接地贴附等语义。
+///
+/// 通道分类：
+/// - Locomotion：调用方提供的基础水平速度。
+/// - Impulse：可叠加的水平动量，以及 launch/slam 语义的垂直意图。
+/// - Velocity owner：Action/Timeline 对单轴速度的单槽强覆盖。
+/// - Gravity accumulator：没有垂直 owner 时的内部垂直演化状态。
+///
+/// Velocity owner 每个轴只有一个槽位，没有栈，也不会恢复旧 owner。
 /// </summary>
 public sealed class MotionChannels
 {
@@ -42,8 +53,8 @@ public sealed class MotionChannels
     public bool HasVerticalVelocityOwner => _verticalVelocityOwner.IsValid;
 
     /// <summary>
-    /// Clears velocity owners for both axes and their cached velocity values.
-    /// Use this as an Action-entry hard reset so owner control never leaks across Actions.
+    /// 清空两个轴的 velocity owner 及其缓存速度。
+    /// Action 入场时用它做硬重置，避免旧 Action 的 owner 泄漏到新 Action。
     /// </summary>
     public void ClearVelocityOwners()
     {
@@ -64,6 +75,11 @@ public sealed class MotionChannels
         _horizontalImpulseVelocity = Vector3.zero;
     }
 
+    /// <summary>
+    /// 写入垂直 launch/slam 意图。
+    /// 向上冲量保留当前最强的 launch；向下冲量直接覆盖当前垂直冲量，
+    /// 让下砸能立刻生效。
+    /// </summary>
     public void AddVerticalImpulse(float upwardSpeed)
     {
         if (upwardSpeed >= 0f)
@@ -75,6 +91,10 @@ public sealed class MotionChannels
             _gravityAccumulator = 0f;
     }
 
+    /// <summary>
+    /// Action 入场时按配置继承已有动量的一部分。
+    /// Velocity owner 不参与继承；ActionInstance 会显式清空它们。
+    /// </summary>
     public void ApplyHandoff(float horizontalInheritance, float verticalInheritance)
     {
         horizontalInheritance = Mathf.Clamp01(horizontalInheritance);
@@ -147,17 +167,22 @@ public sealed class MotionChannels
     }
 
     /// <summary>
-    /// 着地时调和垂直内部状态：清掉向下冲量，重力钳到 GroundStickVelocity。
-    /// 只影响下一次离地手感，不影响外部 CurrentVelocity（由 PublishMotorVelocity 归零 y）。
-    /// 不清除水平冲量。
+    /// 接地时调和内部垂直状态。
+    /// 清掉垂直冲量，并把重力钳到一个较小的贴地速度。
+    /// 这只影响下一次离地手感；接地时对外发布的 CurrentVelocity.y
+    /// 仍由 VelocityReadout 负责归零。
+    /// 水平冲量有意保留，不在这里清除。
     /// </summary>
     internal void ResetVerticalForGround()
     {
-        if (_verticalImpulseVelocity < 0f)
-            _verticalImpulseVelocity = 0f;
+        _verticalImpulseVelocity = 0f;
         _gravityAccumulator = GroundStickVelocity;
     }
 
+    /// <summary>
+    /// 演化重力。若垂直 velocity owner 正在接管该轴，则暂停内部重力演化。
+    /// 稳定接地时会钳制垂直内部状态，而不是继续累积重力。
+    /// </summary>
     public void StepGravity(float dt, bool isGrounded, float gravityScale)
     {
         if (_verticalVelocityOwner.IsValid)
@@ -169,6 +194,10 @@ public sealed class MotionChannels
             _gravityAccumulator += Physics.gravity.y * gravityScale * dt;
     }
 
+    /// <summary>
+    /// 衰减可叠加的水平冲量。
+    /// Locomotion 和 velocity owner 不在这里衰减。
+    /// </summary>
     public void StepHorizontalDrag(float dt, float drag)
     {
         if (_horizontalImpulseVelocity.sqrMagnitude <= VelocityEpsilon * VelocityEpsilon)
@@ -181,6 +210,10 @@ public sealed class MotionChannels
         _horizontalImpulseVelocity *= factor;
     }
 
+    /// <summary>
+    /// 衰减垂直冲量，并处理一次性的垂直碰撞反馈。
+    /// 撞天花板会截断向上速度，但不会把已累积的重力瞬间暴露成过快下落。
+    /// </summary>
     public void StepVerticalImpulseDecay(
         float dt,
         bool isAirborne,
@@ -195,15 +228,23 @@ public sealed class MotionChannels
         }
 
         if (hitCeiling && _verticalImpulseVelocity > 0f)
+        {
+            float currentVerticalSpeed = _gravityAccumulator + _verticalImpulseVelocity;
             _verticalImpulseVelocity = 0f;
+            _gravityAccumulator = Mathf.Min(0f, currentVerticalSpeed);
+        }
 
-        if (isGrounded && _verticalImpulseVelocity < 0f)
+        if (isGrounded)
             _verticalImpulseVelocity = 0f;
 
         if (Mathf.Abs(_verticalImpulseVelocity) < 0.01f)
             _verticalImpulseVelocity = 0f;
     }
 
+    /// <summary>
+    /// 合成送给 ActorMotor 做 KCC 地面投影前的水平请求速度。
+    /// 水平 owner 会完全覆盖 locomotion 和水平冲量。
+    /// </summary>
     public Vector3 ComposeHorizontal(Vector3 locomotionVelocity)
     {
         if (_horizontalVelocityOwner.IsValid)
@@ -214,6 +255,10 @@ public sealed class MotionChannels
         return horizontal;
     }
 
+    /// <summary>
+    /// 合成 ActorMotor 执行接地钳制前的垂直请求速度。
+    /// 垂直 owner 会完全覆盖重力和垂直冲量。
+    /// </summary>
     public float ComposeVertical()
     {
         if (_verticalVelocityOwner.IsValid)

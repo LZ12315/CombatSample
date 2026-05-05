@@ -1,8 +1,8 @@
 using System;
 
 /// <summary>
-/// Owns GroundState, jumpCount, forced unground event suppression.
-/// Emits OnLanded / OnLeftGround events.
+/// 管理 KCC 接地事实映射出来的 gameplay 接地状态。
+/// 负责 GroundState、jumpCount，以及 OnLanded / OnLeftGround 事件发布。
 /// </summary>
 public sealed class GroundingRuntime
 {
@@ -11,8 +11,11 @@ public sealed class GroundingRuntime
     public event Action OnLanded;
     public event Action OnLeftGround;
 
-    private bool _suppressNextKccLeftGroundEvent;
+    private bool _leftGroundEventAlreadyEmittedByForceUnground;
 
+    /// <summary>
+    /// 同步 KCC 的稳定接地状态，并把 stable/unstable 边沿转换为 gameplay 事件。
+    /// </summary>
     public void ApplyKccGrounding(bool isStableNow, bool wasStable)
     {
         AdvanceTransientState();
@@ -21,27 +24,31 @@ public sealed class GroundingRuntime
         {
             State = ActorMovement.GroundState.JustLanded;
             JumpCount = 0;
-            _suppressNextKccLeftGroundEvent = false;
+            _leftGroundEventAlreadyEmittedByForceUnground = false;
             OnLanded?.Invoke();
         }
         else if (!isStableNow && wasStable)
         {
             State = ActorMovement.GroundState.JustLeftGround;
 
-            if (_suppressNextKccLeftGroundEvent)
-                _suppressNextKccLeftGroundEvent = false;
+            if (_leftGroundEventAlreadyEmittedByForceUnground)
+                _leftGroundEventAlreadyEmittedByForceUnground = false;
             else
                 OnLeftGround?.Invoke();
         }
     }
 
+    /// <summary>
+    /// 主动离地当帧立即进入 JustLeftGround 并发布 OnLeftGround。
+    /// KCC 下一次 stable -> unstable 边沿只同步状态，不重复发布事件。
+    /// </summary>
     public void ForceUngroundNow()
     {
         if (State is ActorMovement.GroundState.Grounded
             or ActorMovement.GroundState.JustLanded)
         {
             State = ActorMovement.GroundState.JustLeftGround;
-            _suppressNextKccLeftGroundEvent = true;
+            _leftGroundEventAlreadyEmittedByForceUnground = true;
             OnLeftGround?.Invoke();
         }
     }
