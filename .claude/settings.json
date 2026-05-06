@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s \"https://api.github.com/repos/YishenTu/claudian/releases/latest\")",
+      "Bash(winget --version)",
+      "Bash(scoop --version)",
+      "Bash(choco --version)",
+      "Bash(curl -s -L -o main.js \"https://github.com/YishenTu/claudian/releases/latest/download/main.js\")",
+      "Bash(curl -k -s -L -o \"D:/Project Library/Materials/Obsidian/GameDev_Growth_KB/.obsidian/plugins/claudian/main.js\" \"https://github.com/YishenTu/claudian/releases/latest/download/main.js\")",
+      "Bash(echo \"Exit: $?\")",
+      "Bash(curl -k -s -L -o \"D:/Project Library/Materials/Obsidian/GameDev_Growth_KB/.obsidian/plugins/claudian/styles.css\" \"https://github.com/YishenTu/claudian/releases/latest/download/styles.css\")",
+      "Bash(where.exe claude:*)"
+    ]
+  }
+}
