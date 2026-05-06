@@ -57,5 +57,6 @@
         "Temp/": true
     },
     "dotnet.defaultSolution": "CombatSample.sln",
-    "dotnet.preferCSharpExtension": true
+    "dotnet.preferCSharpExtension": true,
+    "claudeCode.disableLoginPrompt": true
 }
