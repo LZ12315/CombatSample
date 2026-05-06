@@ -34,6 +34,8 @@ public readonly struct MotionOwner
 /// </summary>
 public sealed class MotionChannels
 {
+    #region === 常量与状态 ===
+
     private const float GroundStickVelocity = -2f;
     private const float VelocityEpsilon = 0.001f;
 
@@ -52,6 +54,10 @@ public sealed class MotionChannels
     public bool HasHorizontalVelocityOwner => _horizontalVelocityOwner.IsValid;
     public bool HasVerticalVelocityOwner => _verticalVelocityOwner.IsValid;
 
+    #endregion
+
+    #region === Velocity Owner 控制 ===
+
     /// <summary>
     /// 清空两个轴的 velocity owner 及其缓存速度。
     /// Action 入场时用它做硬重置，避免旧 Action 的 owner 泄漏到新 Action。
@@ -62,47 +68,6 @@ public sealed class MotionChannels
         _horizontalVelocity = Vector3.zero;
         _verticalVelocityOwner = default;
         _verticalVelocity = 0f;
-    }
-
-    public void AddHorizontalImpulse(Vector3 velocity)
-    {
-        velocity.y = 0f;
-        _horizontalImpulseVelocity += velocity;
-    }
-
-    public void ClearHorizontalImpulse()
-    {
-        _horizontalImpulseVelocity = Vector3.zero;
-    }
-
-    /// <summary>
-    /// 写入垂直 launch/slam 意图。
-    /// 向上冲量保留当前最强的 launch；向下冲量直接覆盖当前垂直冲量，
-    /// 让下砸能立刻生效。
-    /// </summary>
-    public void AddVerticalImpulse(float upwardSpeed)
-    {
-        if (upwardSpeed >= 0f)
-            _verticalImpulseVelocity = Mathf.Max(_verticalImpulseVelocity, upwardSpeed);
-        else
-            _verticalImpulseVelocity = upwardSpeed;
-
-        if (upwardSpeed > 0f)
-            _gravityAccumulator = 0f;
-    }
-
-    /// <summary>
-    /// Action 入场时按配置继承已有动量的一部分。
-    /// Velocity owner 不参与继承；ActionInstance 会显式清空它们。
-    /// </summary>
-    public void ApplyHandoff(float horizontalInheritance, float verticalInheritance)
-    {
-        horizontalInheritance = Mathf.Clamp01(horizontalInheritance);
-        verticalInheritance = Mathf.Clamp01(verticalInheritance);
-
-        _horizontalImpulseVelocity *= horizontalInheritance;
-        _verticalImpulseVelocity *= verticalInheritance;
-        _gravityAccumulator *= verticalInheritance;
     }
 
     public MotionOwner BeginHorizontalVelocity()
@@ -166,6 +131,55 @@ public sealed class MotionChannels
         _verticalVelocity = 0f;
     }
 
+    #endregion
+
+    #region === Impulse 与 Handoff ===
+
+    public void AddHorizontalImpulse(Vector3 velocity)
+    {
+        velocity.y = 0f;
+        _horizontalImpulseVelocity += velocity;
+    }
+
+    public void ClearHorizontalImpulse()
+    {
+        _horizontalImpulseVelocity = Vector3.zero;
+    }
+
+    /// <summary>
+    /// 写入垂直 launch/slam 意图。
+    /// 向上冲量保留当前最强的 launch；向下冲量直接覆盖当前垂直冲量，
+    /// 让下砸能立刻生效。
+    /// </summary>
+    public void ApplyVerticalImpulse(float verticalSpeed)
+    {
+        if (verticalSpeed >= 0f)
+            _verticalImpulseVelocity = Mathf.Max(_verticalImpulseVelocity, verticalSpeed);
+        else
+            _verticalImpulseVelocity = verticalSpeed;
+
+        if (verticalSpeed > 0f)
+            _gravityAccumulator = 0f;
+    }
+
+    /// <summary>
+    /// Action 入场时按配置继承已有动量的一部分。
+    /// Velocity owner 不参与继承；ActionInstance 会显式清空它们。
+    /// </summary>
+    public void ApplyHandoff(float horizontalInheritance, float verticalInheritance)
+    {
+        horizontalInheritance = Mathf.Clamp01(horizontalInheritance);
+        verticalInheritance = Mathf.Clamp01(verticalInheritance);
+
+        _horizontalImpulseVelocity *= horizontalInheritance;
+        _verticalImpulseVelocity *= verticalInheritance;
+        _gravityAccumulator *= verticalInheritance;
+    }
+
+    #endregion
+
+    #region === Tick 演化 ===
+
     /// <summary>
     /// 接地时调和内部垂直状态。
     /// 清掉垂直冲量，并把重力钳到一个较小的贴地速度。
@@ -173,7 +187,7 @@ public sealed class MotionChannels
     /// 仍由 VelocityReadout 负责归零。
     /// 水平冲量有意保留，不在这里清除。
     /// </summary>
-    internal void ResetVerticalForGround()
+    internal void ResetVerticalStateForGround()
     {
         _verticalImpulseVelocity = 0f;
         _gravityAccumulator = GroundStickVelocity;
@@ -189,7 +203,7 @@ public sealed class MotionChannels
             return;
 
         if (isGrounded)
-            ResetVerticalForGround();
+            ResetVerticalStateForGround();
         else
             _gravityAccumulator += Physics.gravity.y * gravityScale * dt;
     }
@@ -214,7 +228,7 @@ public sealed class MotionChannels
     /// 衰减垂直冲量，并处理一次性的垂直碰撞反馈。
     /// 撞天花板会截断向上速度，但不会把已累积的重力瞬间暴露成过快下落。
     /// </summary>
-    public void StepVerticalImpulseDecay(
+    public void StepVerticalImpulse(
         float dt,
         bool isAirborne,
         bool isGrounded,
@@ -240,6 +254,10 @@ public sealed class MotionChannels
         if (Mathf.Abs(_verticalImpulseVelocity) < 0.01f)
             _verticalImpulseVelocity = 0f;
     }
+
+    #endregion
+
+    #region === 速度合成 ===
 
     /// <summary>
     /// 合成送给 ActorMotor 做 KCC 地面投影前的水平请求速度。
@@ -267,6 +285,10 @@ public sealed class MotionChannels
         return _gravityAccumulator + _verticalImpulseVelocity;
     }
 
+    #endregion
+
+    #region === 内部工具 ===
+
     private MotionOwner NewOwner()
     {
         if (_nextOwnerId == int.MaxValue)
@@ -279,4 +301,6 @@ public sealed class MotionChannels
     {
         return owner.IsValid && owner.Id == current.Id;
     }
+
+    #endregion
 }

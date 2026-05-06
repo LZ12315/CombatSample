@@ -105,7 +105,7 @@ public sealed class ActorMotionRuntime
 
     public void AddVerticalImpulse(float speed)
     {
-        _channels.AddVerticalImpulse(speed);
+        _channels.ApplyVerticalImpulse(speed);
         if (speed > 0f)
             _pendingForceUnground = true;
     }
@@ -190,7 +190,7 @@ public sealed class ActorMotionRuntime
         float dt = deltaTime * _movementTimeScale;
         _channels.StepGravity(dt, grounded, _gravityScale);
         _channels.StepHorizontalDrag(dt, config.HorizontalDrag);
-        _channels.StepVerticalImpulseDecay(
+        _channels.StepVerticalImpulse(
             dt,
             !grounded,
             grounded,
