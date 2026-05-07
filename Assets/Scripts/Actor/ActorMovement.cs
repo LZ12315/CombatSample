@@ -168,7 +168,10 @@ public class ActorMovement : MonoBehaviour
 
     public enum RootMotionApplyMode
     {
+        /// <summary>由 ActorMotionRuntime/KCC 应用动画根位移和根旋转。</summary>
         Managed,
+
+        /// <summary>ActorMotionRuntime 不应用动画根位移和根旋转，由外部系统或程序运动负责。</summary>
         External
     }
 

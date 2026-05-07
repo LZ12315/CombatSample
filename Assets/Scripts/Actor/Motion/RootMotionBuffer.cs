@@ -1,8 +1,8 @@
 using UnityEngine;
 
 /// <summary>
-/// Owns pending root position/rotation and Y dead-zone accumulation,
-/// migrated from ActorMovement.
+/// 缓存 Animator 输出的原始 RootMotion 位移/旋转，以及 Y 轴死区累计。
+/// 是否把这些 RootMotion 应用到 KCC，由 ActorMotionRuntime 的 RootMotionApplyMode 决定。
 /// </summary>
 public sealed class RootMotionBuffer
 {

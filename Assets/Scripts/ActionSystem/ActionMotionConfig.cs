@@ -7,7 +7,7 @@ using UnityEngine;
 [Serializable]
 public struct ActionMotionConfig
 {
-    [Tooltip("位移由 RootMotion 驱动(Managed) 还是程序驱动(External)")]
+    [Tooltip("RootMotion 应用策略：Managed=由 ActorMotionRuntime/KCC 应用动画根位移和根旋转；External=两者都不应用，由程序或外部系统负责。")]
     public ActorMovement.RootMotionApplyMode rootMotionMode;
 
     [Tooltip("是否压制 Locomotion 的移动和朝向输出")]

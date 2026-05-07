@@ -55,7 +55,8 @@ public sealed class ActorMotionRuntime
 
     public int JumpCount => _grounding.JumpCount;
 
-    public Quaternion RootMotionPendingRotation => _rootMotion.PendingRotation;
+    public Quaternion AppliedRootMotionRotation =>
+        ShouldApplyRootMotion ? _rootMotion.PendingRotation : Quaternion.identity;
 
     // ─── events (forward to GroundingRuntime) ───
 
@@ -206,8 +207,7 @@ public sealed class ActorMotionRuntime
         bool isGrounded,
         float deltaTime)
     {
-        if (_rootMotionApplyMode == ActorMovement.RootMotionApplyMode.Managed &&
-            _rootMotion.PendingPosition.sqrMagnitude > 0.0001f)
+        if (ShouldApplyRootMotion && _rootMotion.PendingPosition.sqrMagnitude > 0.0001f)
         {
             Vector3 velocity = _rootMotion.PendingPosition / deltaTime;
             if (isGrounded)
@@ -272,4 +272,7 @@ public sealed class ActorMotionRuntime
     {
         _rootMotion.AddAnimatorDelta(deltaPosition, deltaRotation, yDeadZone);
     }
+
+    private bool ShouldApplyRootMotion =>
+        _rootMotionApplyMode == ActorMovement.RootMotionApplyMode.Managed;
 }

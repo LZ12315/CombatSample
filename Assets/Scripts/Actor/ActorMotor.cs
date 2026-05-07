@@ -62,7 +62,7 @@ public class ActorMotor : MonoBehaviour, ICharacterController
     {
         if (_movement == null) return;
         currentRotation = _movement.GetPendingRotation();
-        var rmRot = MotionRuntime.RootMotionPendingRotation;
+        var rmRot = MotionRuntime.AppliedRootMotionRotation;
         if (rmRot != Quaternion.identity)
             currentRotation = rmRot * currentRotation;
     }
