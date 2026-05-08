@@ -2,36 +2,39 @@ using UnityEngine;
 
 /// <summary>
 /// Animator 所在对象上的 RootMotion 转发器。
-/// OnAnimatorMove 由 Animator 同对象脚本接收，再把原始 delta 交给 ActorMotor 权威入口。
+/// 收到 OnAnimatorMove 后把 delta 交给父级 ActorMotor。
+///
+/// 参照 Animancer RedirectRootMotion 的风格：
+/// - RequireComponent 保证与 Animator 同物体
+/// - 零手动配置，Awake / OnValidate 自动拉引用
 /// </summary>
+[RequireComponent(typeof(Animator))]
 public sealed class ActorRootMotionRelay : MonoBehaviour
 {
-    [SerializeField] private Actor actor;
-    [SerializeField] private Animator animator;
-
+    private Animator _animator;
     private ActorMotor _motor;
 
     private void Awake()
     {
-        actor = actor != null ? actor : GetComponentInParent<Actor>();
-        animator = animator != null ? animator : GetComponent<Animator>();
-        _motor = actor != null ? actor.actorMotor : GetComponentInParent<ActorMotor>();
+        _animator = GetComponent<Animator>();
+        _motor = GetComponentInParent<ActorMotor>();
     }
 
     private void OnAnimatorMove()
     {
-        if (animator == null)
-            animator = GetComponent<Animator>();
-        if (animator == null)
-            return;
+        if (_motor != null)
+        {
+            _motor.AddAnimatorRootMotionDelta(
+                _animator.deltaPosition,
+                _animator.deltaRotation);
+        }
+    }
 
+    private void OnValidate()
+    {
+        if (_animator == null)
+            _animator = GetComponent<Animator>();
         if (_motor == null)
-            _motor = actor != null ? actor.actorMotor : GetComponentInParent<ActorMotor>();
-        if (_motor == null)
-            return;
-
-        _motor.AddAnimatorRootMotionDelta(
-            animator.deltaPosition,
-            animator.deltaRotation);
+            _motor = GetComponentInParent<ActorMotor>();
     }
 }

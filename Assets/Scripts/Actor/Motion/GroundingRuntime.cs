@@ -11,6 +11,7 @@ public sealed class GroundingRuntime
     public event Action OnLanded;
     public event Action OnLeftGround;
 
+    private bool _hasGroundingSample;
     private bool _leftGroundEventAlreadyEmittedByForceUnground;
 
     /// <summary>
@@ -18,6 +19,16 @@ public sealed class GroundingRuntime
     /// </summary>
     public void ApplyKccGrounding(bool isStableNow, bool wasStable)
     {
+        if (!_hasGroundingSample)
+        {
+            _hasGroundingSample = true;
+            State = isStableNow ? ActorGroundState.Grounded : ActorGroundState.Airborne;
+            if (isStableNow)
+                JumpCount = 0;
+            _leftGroundEventAlreadyEmittedByForceUnground = false;
+            return;
+        }
+
         AdvanceTransientState();
 
         if (isStableNow && !wasStable)

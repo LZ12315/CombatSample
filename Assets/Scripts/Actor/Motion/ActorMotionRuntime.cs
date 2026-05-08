@@ -12,18 +12,15 @@ public readonly struct ActorMotionRuntimeConfig
     public readonly float HorizontalDrag;
     public readonly float VerticalImpulseAirDrag;
     public readonly float VerticalSmoothTime;
-    public readonly float RootMotionYDeadZone;
 
     public ActorMotionRuntimeConfig(
         float horizontalDrag,
         float verticalImpulseAirDrag,
-        float verticalSmoothTime,
-        float rootMotionYDeadZone)
+        float verticalSmoothTime)
     {
         HorizontalDrag = horizontalDrag;
         VerticalImpulseAirDrag = verticalImpulseAirDrag;
         VerticalSmoothTime = verticalSmoothTime;
-        RootMotionYDeadZone = rootMotionYDeadZone;
     }
 }
 
@@ -47,7 +44,7 @@ public sealed class ActorMotionRuntime
 
     private float _movementTimeScale = 1f;
     private float _gravityScale = 1f;
-    private RootMotionApplyMode _rootMotionApplyMode;
+    private RootMotionApplyMode _rootMotionApplyMode = RootMotionApplyMode.External;
 
     #endregion
 
@@ -113,12 +110,12 @@ public sealed class ActorMotionRuntime
     public void BeginMotorTick()
     {
         _forceUngroundedThisTick = false;
+        _rootMotion.BeginMotorTick();
     }
 
     public void EndMotorTick()
     {
         _forceUngroundedThisTick = false;
-        _rootMotion.ClearAfterMotorTick();
     }
 
     #endregion
@@ -148,11 +145,10 @@ public sealed class ActorMotionRuntime
         bool grounded,
         ActorMotionRuntimeConfig config)
     {
-        float dt = deltaTime * _movementTimeScale;
-        _channels.StepGravity(dt, grounded, _gravityScale);
-        _channels.StepHorizontalDrag(dt, config.HorizontalDrag);
+        _channels.StepGravity(deltaTime, grounded, _gravityScale);
+        _channels.StepHorizontalDrag(deltaTime, config.HorizontalDrag);
         _channels.StepVerticalImpulse(
-            dt,
+            deltaTime,
             !grounded,
             grounded,
             _pendingCeilingHit,
@@ -167,9 +163,11 @@ public sealed class ActorMotionRuntime
         bool isGrounded,
         float deltaTime)
     {
+        float ts = _movementTimeScale;
+
         if (ShouldApplyRootMotion && _rootMotion.PendingPosition.sqrMagnitude > 0.0001f)
         {
-            Vector3 velocity = _rootMotion.PendingPosition / deltaTime;
+            Vector3 velocity = _rootMotion.PendingPosition / deltaTime * ts;
             if (isGrounded)
                 velocity = motor.GetDirectionTangentToSurface(
                     velocity,
@@ -177,8 +175,8 @@ public sealed class ActorMotionRuntime
             return velocity;
         }
 
-        Vector3 horizontal = _channels.ComposeHorizontal(locomotionVelocity);
-        float vertical = _channels.ComposeVertical();
+        Vector3 horizontal = _channels.ComposeHorizontal(locomotionVelocity, ts);
+        float vertical = _channels.ComposeVertical(ts);
 
         if (isGrounded)
         {
@@ -290,10 +288,9 @@ public sealed class ActorMotionRuntime
 
     public void AddAnimatorDelta(
         Vector3 deltaPosition,
-        Quaternion deltaRotation,
-        float yDeadZone)
+        Quaternion deltaRotation)
     {
-        _rootMotion.AddAnimatorDelta(deltaPosition, deltaRotation, yDeadZone);
+        _rootMotion.AddAnimatorDelta(deltaPosition, deltaRotation);
     }
 
     #endregion

@@ -33,9 +33,6 @@ public class ActorMotor : MonoBehaviour, ICharacterController
     [SerializeField, Range(0.01f, 0.5f), Tooltip("落地时垂直速度读数的平滑时间。越小越快归零。")]
     private float _verticalSmoothTime = 0.1f;
 
-    [SerializeField, Tooltip("RootMotion Y 轴位移死区，小幅抖动会先累计再释放。")]
-    private float _rootMotionYDeadZone = 0.5f;
-
     [Header("跳跃能力")]
     [SerializeField, Tooltip("最大跳跃次数。2 = 二段跳。")]
     private int _maxJumpCount = 2;
@@ -59,8 +56,7 @@ public class ActorMotor : MonoBehaviour, ICharacterController
 
     private Vector3 _motorFrameStartWorldPosition;
     private Vector3 _requestedVelocity;
-    private bool _hasRequestedVelocity;
-    private bool _pausedThisTick;
+    private bool _kccPaused;
 
     #endregion
 
@@ -103,7 +99,7 @@ public class ActorMotor : MonoBehaviour, ICharacterController
 
     public void AddAnimatorRootMotionDelta(Vector3 deltaPosition, Quaternion deltaRotation)
     {
-        MotionRuntime.AddAnimatorDelta(deltaPosition, deltaRotation, _rootMotionYDeadZone);
+        MotionRuntime.AddAnimatorDelta(deltaPosition, deltaRotation);
     }
 
     public void AddHorizontalImpulse(Vector3 velocity)
@@ -174,6 +170,7 @@ public class ActorMotor : MonoBehaviour, ICharacterController
     public float MovementTimeScale => MotionRuntime.MovementTimeScale;
 
     public Vector3 CurrentVelocity => MotionRuntime.CurrentVelocity;
+    public Vector3 RequestedVelocity => _requestedVelocity;
     public float CurrentHorizontalSpeed => MotionRuntime.CurrentHorizontalSpeed;
     public float CurrentVerticalSpeed => MotionRuntime.CurrentVerticalSpeed;
 
@@ -218,6 +215,11 @@ public class ActorMotor : MonoBehaviour, ICharacterController
         animator = animator != null ? animator : GetComponentInChildren<Animator>();
 
         Motor = GetComponent<KinematicCharacterMotor>();
+        if (Motor == null)
+        {
+            Debug.LogError($"[ActorMotor] Missing KinematicCharacterMotor on '{name}'.", this);
+            return;
+        }
         Motor.CharacterController = this;
 
         if (actor != null)
@@ -227,11 +229,19 @@ public class ActorMotor : MonoBehaviour, ICharacterController
                 actor.kccMotor = Motor;
         }
 
+        if (animator != null && !animator.TryGetComponent<ActorRootMotionRelay>(out _))
+        {
+            animator.gameObject.AddComponent<ActorRootMotionRelay>();
+        }
+
         _facing.Initialize(transform.rotation);
     }
 
     private void Update()
     {
+        if (Motor == null)
+            return;
+
         float dt = Time.deltaTime * MovementTimeScale;
 
         _facing.Tick(
@@ -244,19 +254,7 @@ public class ActorMotor : MonoBehaviour, ICharacterController
         _locomotion.Tick(
             _locomotionBaseSpeed,
             _airControlFactor,
-            IsAirborne);
-    }
-
-    private void OnAnimatorMove()
-    {
-        if (animator == null)
-            animator = GetComponent<Animator>();
-        if (animator == null)
-            return;
-
-        AddAnimatorRootMotionDelta(
-            animator.deltaPosition,
-            animator.deltaRotation);
+            !Motor.GroundingStatus.IsStableOnGround);
     }
 
     #endregion
@@ -267,8 +265,7 @@ public class ActorMotor : MonoBehaviour, ICharacterController
     {
         _motorFrameStartWorldPosition = transform.position;
         _requestedVelocity = Vector3.zero;
-        _hasRequestedVelocity = false;
-        _pausedThisTick = false;
+        _kccPaused = false;
 
         MotionRuntime.BeginMotorTick();
     }
@@ -297,13 +294,6 @@ public class ActorMotor : MonoBehaviour, ICharacterController
             return;
         }
 
-        float effDt = deltaTime * MotionRuntime.MovementTimeScale;
-        if (effDt <= 0.0001f)
-        {
-            SetPausedVelocity(ref currentVelocity);
-            return;
-        }
-
         // 主动离地请求需要在 KCC 计算速度前消费。
         if (MotionRuntime.ConsumeForceUngroundRequest())
         {
@@ -325,7 +315,6 @@ public class ActorMotor : MonoBehaviour, ICharacterController
             deltaTime);
 
         _requestedVelocity = currentVelocity;
-        _hasRequestedVelocity = true;
     }
 
     public void AfterCharacterUpdate(float deltaTime)
@@ -338,7 +327,7 @@ public class ActorMotor : MonoBehaviour, ICharacterController
         MotionRuntime.PublishSolvedVelocity(
             solvedVelocity,
             grounded,
-            Time.fixedDeltaTime,
+            deltaTime,
             config.VerticalSmoothTime);
 
         MotionRuntime.EndMotorTick();
@@ -374,20 +363,16 @@ public class ActorMotor : MonoBehaviour, ICharacterController
         return new ActorMotionRuntimeConfig(
             _horizontalDrag,
             _verticalImpulseAirDrag,
-            _verticalSmoothTime,
-            _rootMotionYDeadZone);
+            _verticalSmoothTime);
     }
 
     private Vector3 ComputeSolvedVelocity(float deltaTime)
     {
-        if (_pausedThisTick || deltaTime <= 0f)
+        if (_kccPaused || deltaTime <= 0f)
             return Vector3.zero;
 
         Vector3 solvedDelta = Motor.TransientPosition - _motorFrameStartWorldPosition;
         Vector3 finalVelocity = solvedDelta / deltaTime;
-
-        if (finalVelocity.sqrMagnitude < 0.000001f && _hasRequestedVelocity)
-            finalVelocity = Motor.BaseVelocity;
 
         return finalVelocity;
     }
@@ -396,8 +381,7 @@ public class ActorMotor : MonoBehaviour, ICharacterController
     {
         currentVelocity = Vector3.zero;
         _requestedVelocity = Vector3.zero;
-        _hasRequestedVelocity = true;
-        _pausedThisTick = true;
+        _kccPaused = true;
     }
 
     #endregion

@@ -262,27 +262,29 @@ public sealed class MotionChannels
     /// <summary>
     /// 合成送给 ActorMotor 做 KCC 地面投影前的水平请求速度。
     /// 水平 owner 会完全覆盖 locomotion 和水平冲量。
+    /// timeScale 是 MovementTimeScale，作为统一出口倍率在此应用。
     /// </summary>
-    public Vector3 ComposeHorizontal(Vector3 locomotionVelocity)
+    public Vector3 ComposeHorizontal(Vector3 locomotionVelocity, float timeScale)
     {
         if (_horizontalVelocityOwner.IsValid)
-            return _horizontalVelocity;
+            return _horizontalVelocity * timeScale;
 
         Vector3 horizontal = locomotionVelocity + _horizontalImpulseVelocity;
         horizontal.y = 0f;
-        return horizontal;
+        return horizontal * timeScale;
     }
 
     /// <summary>
     /// 合成 ActorMotor 执行接地钳制前的垂直请求速度。
     /// 垂直 owner 会完全覆盖重力和垂直冲量。
+    /// timeScale 是 MovementTimeScale，作为统一出口倍率在此应用。
     /// </summary>
-    public float ComposeVertical()
+    public float ComposeVertical(float timeScale)
     {
         if (_verticalVelocityOwner.IsValid)
-            return _verticalVelocity;
+            return _verticalVelocity * timeScale;
 
-        return _gravityAccumulator + _verticalImpulseVelocity;
+        return (_gravityAccumulator + _verticalImpulseVelocity) * timeScale;
     }
 
     #endregion
