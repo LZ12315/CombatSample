@@ -5,6 +5,7 @@ using KinematicCharacterController;
 using UnityEngine;
 
 [RequireComponent(typeof(KinematicCharacterMotor))]
+[RequireComponent(typeof(ActorMotor))]
 public class Actor : MonoBehaviour
 {
     #region === 组件引用 ===
@@ -13,7 +14,6 @@ public class Actor : MonoBehaviour
     public ActorMotor actorMotor;
     public ActorLogicInput logicInput;
     public ActionStateManager actionManager;
-    public ActorMovement movement;
     public ActionPlayer actionPlayer;
     public AnimancerComponent animancer;
     public ActorCameraControl cameraControl;
@@ -33,6 +33,9 @@ public class Actor : MonoBehaviour
 
     private void Awake()
     {
+        kccMotor = kccMotor != null ? kccMotor : GetComponent<KinematicCharacterMotor>();
+        actorMotor = actorMotor != null ? actorMotor : GetComponent<ActorMotor>();
+
         persistentTags = gameObject.GetTagContainer();
         transientTags = new TagContainer();
     }

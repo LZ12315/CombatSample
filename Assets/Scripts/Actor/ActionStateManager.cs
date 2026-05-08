@@ -346,10 +346,10 @@ public class ActionStateManager : MonoBehaviour
 
     private ActionEventContext BuildContextFromLocomotionIntent()
     {
-        if (_actor == null || _actor.movement == null)
+        if (_actor == null || _actor.actorMotor == null)
             return default;
 
-        var intent = _actor.movement.LocomotionIntent;
+        var intent = _actor.actorMotor.LocomotionIntent;
         var direction = intent.WorldMoveDirection;
         direction.y = 0f;
         if (direction.sqrMagnitude > 0.0001f)
@@ -366,7 +366,7 @@ public class ActionStateManager : MonoBehaviour
 
     private void HandleActionFinished(ActionInstance _)
     {
-        // Action 正常结束，ActionInstance.OnExit 已恢复 Movement 状态。
+        // Action 正常结束，ActionInstance.OnExit 已恢复 ActorMotor 运动策略。
     }
 
     #region 事件触发

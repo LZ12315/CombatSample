@@ -113,18 +113,18 @@ public class ActorLogicInput : MonoBehaviour
     }
     #endregion
 
-    #region === Locomotion：推送意图 → ActorMovement ===
+    #region === Locomotion：推送意图 → ActorMotor ===
 
     private void PushLocomotionIntent()
     {
-        if (actor == null || actor.movement == null)
+        if (actor == null || actor.actorMotor == null)
             return;
 
         Vector2 move = Vector2.ClampMagnitude(_moveInput, 1f);
 
         if (move.sqrMagnitude <= 0.01f)
         {
-            actor.movement.SetLocomotionIntent(LocomotionIntent.Idle);
+            actor.actorMotor.SetLocomotionIntent(LocomotionIntent.Idle);
             return;
         }
 
@@ -144,7 +144,7 @@ public class ActorLogicInput : MonoBehaviour
 
         if (worldDir.sqrMagnitude < 0.0001f)
         {
-            actor.movement.SetLocomotionIntent(LocomotionIntent.Idle);
+            actor.actorMotor.SetLocomotionIntent(LocomotionIntent.Idle);
             return;
         }
 
@@ -167,7 +167,7 @@ public class ActorLogicInput : MonoBehaviour
                 intent.FacingDirection = face;
         }
 
-        actor.movement.SetLocomotionIntent(intent);
+        actor.actorMotor.SetLocomotionIntent(intent);
     }
 
     private bool TryGetLockFacingDirection(out Vector3 faceDir)

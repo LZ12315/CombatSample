@@ -6,7 +6,7 @@ using System;
 /// </summary>
 public sealed class GroundingRuntime
 {
-    public ActorMovement.GroundState State { get; private set; }
+    public ActorGroundState State { get; private set; }
     public int JumpCount { get; private set; }
     public event Action OnLanded;
     public event Action OnLeftGround;
@@ -22,14 +22,14 @@ public sealed class GroundingRuntime
 
         if (isStableNow && !wasStable)
         {
-            State = ActorMovement.GroundState.JustLanded;
+            State = ActorGroundState.JustLanded;
             JumpCount = 0;
             _leftGroundEventAlreadyEmittedByForceUnground = false;
             OnLanded?.Invoke();
         }
         else if (!isStableNow && wasStable)
         {
-            State = ActorMovement.GroundState.JustLeftGround;
+            State = ActorGroundState.JustLeftGround;
 
             if (_leftGroundEventAlreadyEmittedByForceUnground)
                 _leftGroundEventAlreadyEmittedByForceUnground = false;
@@ -44,10 +44,10 @@ public sealed class GroundingRuntime
     /// </summary>
     public void ForceUngroundNow()
     {
-        if (State is ActorMovement.GroundState.Grounded
-            or ActorMovement.GroundState.JustLanded)
+        if (State is ActorGroundState.Grounded
+            or ActorGroundState.JustLanded)
         {
-            State = ActorMovement.GroundState.JustLeftGround;
+            State = ActorGroundState.JustLeftGround;
             _leftGroundEventAlreadyEmittedByForceUnground = true;
             OnLeftGround?.Invoke();
         }
@@ -65,9 +65,9 @@ public sealed class GroundingRuntime
 
     private void AdvanceTransientState()
     {
-        if (State == ActorMovement.GroundState.JustLanded)
-            State = ActorMovement.GroundState.Grounded;
-        else if (State == ActorMovement.GroundState.JustLeftGround)
-            State = ActorMovement.GroundState.Airborne;
+        if (State == ActorGroundState.JustLanded)
+            State = ActorGroundState.Grounded;
+        else if (State == ActorGroundState.JustLeftGround)
+            State = ActorGroundState.Airborne;
     }
 }

@@ -49,6 +49,12 @@ namespace NodeCanvas.Tasks.Actions
         private void TickMove()
         {
             var actorValue = actor.value;
+            if (actorValue?.actorMotor == null)
+            {
+                EndAction(false);
+                return;
+            }
+
             if (!NodeCanvasCombatTargetUtility.TryResolveTarget(actorValue, targetOverride, out Transform target))
             {
                 EndAction(false);
@@ -82,7 +88,7 @@ namespace NodeCanvas.Tasks.Actions
             }
 
             Vector3 dir = toTarget.normalized;
-            actorValue.movement.SetLocomotionIntent(new LocomotionIntent
+            actorValue.actorMotor.SetLocomotionIntent(new LocomotionIntent
             {
                 WorldMoveDirection = dir,
                 MoveStrength = Mathf.Clamp01(moveStrength),
@@ -92,7 +98,7 @@ namespace NodeCanvas.Tasks.Actions
 
         private void PushIdle(Actor actorValue, Transform target)
         {
-            if (actorValue?.movement == null)
+            if (actorValue?.actorMotor == null)
                 return;
 
             Vector3 face = Vector3.zero;
@@ -104,7 +110,7 @@ namespace NodeCanvas.Tasks.Actions
                     face.Normalize();
             }
 
-            actorValue.movement.SetLocomotionIntent(new LocomotionIntent
+            actorValue.actorMotor.SetLocomotionIntent(new LocomotionIntent
             {
                 WorldMoveDirection = Vector3.zero,
                 MoveStrength = 0f,

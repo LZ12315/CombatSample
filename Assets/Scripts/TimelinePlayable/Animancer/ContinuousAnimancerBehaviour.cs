@@ -46,8 +46,8 @@ public class ContinuousAnimancerBehaviour : ActionBehaviourBase
             mixer1D.Parameter = 0f;
 
         // 初始化 VerticalVelocity 平滑状态：用当前实际竖直速度打底，避免进入瞬间从 0 蹦到真实值
-        if (actor?.movement != null)
-            _smoothedVertVel = actor.movement.CurrentVelocity.y;
+        if (actor?.actorMotor != null)
+            _smoothedVertVel = actor.actorMotor.CurrentVelocity.y;
         else
             _smoothedVertVel = 0f;
         _smoothedVertVelVelocity = 0f;
@@ -131,9 +131,9 @@ public class ContinuousAnimancerBehaviour : ActionBehaviourBase
     /// </summary>
     private void UpdateMixerFromLocomotionIntent()
     {
-        if (actor?.movement == null) return;
+        if (actor?.actorMotor == null) return;
 
-        var intent = actor.movement.LocomotionIntent;
+        var intent = actor.actorMotor.LocomotionIntent;
 
         if (_currentState is MixerState<Vector2> mixer2D)
         {
@@ -180,15 +180,15 @@ public class ContinuousAnimancerBehaviour : ActionBehaviourBase
     /// </summary>
     private void UpdateMixerFromVelocity()
     {
-        if (actor?.movement == null) return;
+        if (actor?.actorMotor == null) return;
 
-        Vector3 velocity = actor.movement.CurrentVelocity;
+        Vector3 velocity = actor.actorMotor.CurrentVelocity;
         velocity.y = 0f; // 只看水平速度
 
         if (_currentState is MixerState<Vector2> mixer2D)
         {
             Vector3 localVel = actor.transform.InverseTransformDirection(velocity);
-            float maxSpeed = actor.movement.LocomotionBaseSpeed;
+            float maxSpeed = actor.actorMotor.LocomotionBaseSpeed;
             if (maxSpeed > 0.001f)
             {
                 Vector2 param = new Vector2(localVel.x / maxSpeed, localVel.z / maxSpeed);
@@ -203,7 +203,7 @@ public class ContinuousAnimancerBehaviour : ActionBehaviourBase
         else if (_currentState is MixerState<float> mixer1D)
         {
             float speed = velocity.magnitude;
-            float maxSpeed = actor.movement.LocomotionBaseSpeed;
+            float maxSpeed = actor.actorMotor.LocomotionBaseSpeed;
             mixer1D.Parameter = maxSpeed > 0.001f ? speed / maxSpeed : 0f;
         }
     }
@@ -217,11 +217,11 @@ public class ContinuousAnimancerBehaviour : ActionBehaviourBase
     /// </summary>
     private void UpdateMixerFromVerticalVelocity()
     {
-        if (actor?.movement == null) return;
+        if (actor?.actorMotor == null) return;
 
         if (_currentState is MixerState<float> mixer1D)
         {
-            float rawVertVel = actor.movement.CurrentVelocity.y;
+            float rawVertVel = actor.actorMotor.CurrentVelocity.y;
 
             if (verticalVelocitySmoothTime > 0f)
             {

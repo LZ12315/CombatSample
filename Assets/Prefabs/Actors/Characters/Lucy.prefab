@@ -2064,11 +2064,6 @@ PrefabInstance:
       objectReference: {fileID: 7495814304291120958}
     - target: {fileID: 3617314882186939484, guid: a299ab9894312a643ac83699cf7e0da3,
         type: 3}
-      propertyPath: movement
-      value: 
-      objectReference: {fileID: 6445007305448871394}
-    - target: {fileID: 3617314882186939484, guid: a299ab9894312a643ac83699cf7e0da3,
-        type: 3}
       propertyPath: blackboard
       value: 
       objectReference: {fileID: 1618804317317775116}
@@ -2172,12 +2167,11 @@ MonoBehaviour:
   m_GameObject: {fileID: 2835142141587246755}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 35d657cc645542e45abb14e99ccc4d6a, type: 3}
+  m_Script: {fileID: 11500000, guid: 9c5a4d86a98f47f9b5121d94910cf120, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   actor: {fileID: 6652218765266463647}
   animator: {fileID: 6262526084617835426}
-  rotateSpeed: 500
 --- !u!320 &4678852854842947967 stripped
 PlayableDirector:
   m_CorrespondingSourceObject: {fileID: 3354261299216637628, guid: a299ab9894312a643ac83699cf7e0da3,

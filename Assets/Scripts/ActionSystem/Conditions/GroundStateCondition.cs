@@ -3,7 +3,7 @@ using UnityEngine;
 
 /// <summary>
 /// 检查角色当前的地面状态，用于 ActionAsset 的 EntryCondition。
-/// 数据源 = ActorMovement.groundState（唯一权威），不依赖独立的 GroundCheck 组件。
+/// 数据源 = ActorMotor.GroundState（唯一权威），不依赖独立的 GroundCheck 组件。
 ///
 /// 使用 Flags 枚举支持多选：比如同时勾选 Grounded + JustLanded 表达"在地面上（含刚落地那一帧）"。
 /// 与基类 invertResult 配合可表达"不在地面"等反向语义。
@@ -20,21 +20,21 @@ public class GroundStateCondition : ActionCondition
 
     protected override bool OnCheck(Actor actor)
     {
-        if (actor == null || actor.movement == null)
+        if (actor == null || actor.actorMotor == null)
             return false;
 
-        var mask = ToMask(actor.movement.groundState);
+        var mask = ToMask(actor.actorMotor.GroundState);
         return (acceptedStates & mask) != 0;
     }
 
-    private static GroundStateMask ToMask(ActorMovement.GroundState state)
+    private static GroundStateMask ToMask(ActorGroundState state)
     {
         switch (state)
         {
-            case ActorMovement.GroundState.Grounded:        return GroundStateMask.Grounded;
-            case ActorMovement.GroundState.JustLanded:      return GroundStateMask.JustLanded;
-            case ActorMovement.GroundState.Airborne:        return GroundStateMask.Airborne;
-            case ActorMovement.GroundState.JustLeftGround:  return GroundStateMask.JustLeftGround;
+            case ActorGroundState.Grounded:        return GroundStateMask.Grounded;
+            case ActorGroundState.JustLanded:      return GroundStateMask.JustLanded;
+            case ActorGroundState.Airborne:        return GroundStateMask.Airborne;
+            case ActorGroundState.JustLeftGround:  return GroundStateMask.JustLeftGround;
             default:                                        return 0;
         }
     }

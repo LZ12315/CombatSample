@@ -2,7 +2,7 @@ using UnityEngine;
 
 /// <summary>
 /// 一帧的移动/动画/朝向意图。由 <see cref="ActorLogicInput"/>（玩家）或 AI/行为树（敌人）填写；
-/// <see cref="ActorMovement"/> 只消费，不读相机与摇杆。
+/// <see cref="ActorMotor"/> 只消费，不读相机与摇杆。
 /// </summary>
 public struct LocomotionIntent
 {

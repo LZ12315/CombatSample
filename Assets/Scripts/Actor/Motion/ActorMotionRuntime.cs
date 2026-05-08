@@ -4,7 +4,7 @@ using UnityEngine;
 
 /// <summary>
 /// ActorMotor 每帧传给运行时的配置快照。
-/// 配置仍由 ActorMovement 的序列化字段持有，ActorMotionRuntime 只消费快照，
+/// 配置由 ActorMotor 的序列化字段持有，ActorMotionRuntime 只消费快照，
 /// 避免 plain C# runtime 反向依赖 MonoBehaviour。
 /// </summary>
 public readonly struct ActorMotionRuntimeConfig
@@ -47,13 +47,13 @@ public sealed class ActorMotionRuntime
 
     private float _movementTimeScale = 1f;
     private float _gravityScale = 1f;
-    private ActorMovement.RootMotionApplyMode _rootMotionApplyMode;
+    private RootMotionApplyMode _rootMotionApplyMode;
 
     #endregion
 
     #region === 对外只读状态 ===
 
-    public ActorMovement.GroundState GroundState => _grounding.State;
+    public ActorGroundState GroundState => _grounding.State;
     public Vector3 CurrentVelocity => _velocity.CurrentVelocity;
     public float CurrentHorizontalSpeed => _velocity.CurrentHorizontalSpeed;
     public float CurrentVerticalSpeed => _velocity.CurrentVerticalSpeed;
@@ -101,7 +101,7 @@ public sealed class ActorMotionRuntime
         _gravityScale = scale;
     }
 
-    public void SetRootMotionApplyMode(ActorMovement.RootMotionApplyMode mode)
+    public void SetRootMotionApplyMode(RootMotionApplyMode mode)
     {
         _rootMotionApplyMode = mode;
     }
@@ -301,7 +301,7 @@ public sealed class ActorMotionRuntime
     #region === 内部工具 ===
 
     private bool ShouldApplyRootMotion =>
-        _rootMotionApplyMode == ActorMovement.RootMotionApplyMode.Managed;
+        _rootMotionApplyMode == RootMotionApplyMode.Managed;
 
     #endregion
 }
