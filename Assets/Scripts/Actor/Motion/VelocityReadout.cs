@@ -1,8 +1,9 @@
 using UnityEngine;
 
 /// <summary>
-/// Owns CurrentVelocity / horizontal / vertical speed and vertical smoothing,
-/// migrated from ActorMovement.PublishMotorVelocity.
+/// 对外速度读数。
+/// 输入是 KCC 解算后的真实位移速度，输出给 gameplay 使用的 CurrentVelocity、
+/// 水平速度和经过落地平滑的垂直速度。
 /// </summary>
 public sealed class VelocityReadout
 {

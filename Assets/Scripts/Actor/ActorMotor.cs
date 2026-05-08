@@ -2,11 +2,9 @@ using KinematicCharacterController;
 using UnityEngine;
 
 /// <summary>
-/// KCC bridge — implements ICharacterController, owns ActorMotionRuntime,
-/// and drives it during KCC callbacks.
-///
-/// Velocity publishing: AfterCharacterUpdate computes solved velocity from
-/// KCC displacement and hands it to runtime for readout.
+/// KCC 桥接组件。
+/// 负责实现 ICharacterController、持有 ActorMotionRuntime，
+/// 并在 KCC 回调中驱动运行时完成接地、速度合成和速度读数发布。
 /// </summary>
 [DefaultExecutionOrder(-50)]
 public class ActorMotor : MonoBehaviour, ICharacterController
@@ -15,10 +13,10 @@ public class ActorMotor : MonoBehaviour, ICharacterController
     public ActorMotionRuntime MotionRuntime { get; private set; }
     private ActorMovement _movement;
 
-    [SerializeField, Tooltip("Collision filter layer mask. Only colliders on these layers cause collisions. ~0 = all.")]
+    [SerializeField, Tooltip("碰撞过滤层。只有这些层上的 Collider 会参与角色碰撞。~0 = 全部。")]
     private LayerMask _collisionMask = ~0;
 
-    // Per-tick bridge state (stays on ActorMotor — see plan §7)
+    // KCC 回调之间共享的单帧桥接状态，保留在 ActorMotor 上。
     private Vector3 _motorFrameStartWorldPosition;
     private Vector3 _requestedVelocity;
     private bool _hasRequestedVelocity;
@@ -38,7 +36,7 @@ public class ActorMotor : MonoBehaviour, ICharacterController
         Motor.CharacterController = this;
     }
 
-    // ─────────────────── ICharacterController ───────────────────
+    #region === ICharacterController ===
 
     public void BeforeCharacterUpdate(float deltaTime)
     {
@@ -82,22 +80,20 @@ public class ActorMotor : MonoBehaviour, ICharacterController
             return;
         }
 
-        // 1. Force unground: consume pending request, apply this tick
+        // 主动离地请求需要在 KCC 计算速度前消费。
         if (MotionRuntime.ConsumeForceUngroundRequest())
         {
             Motor.ForceUnground(0.1f);
             MotionRuntime.MarkForcedUngroundedThisTick();
         }
 
-        // 2. Determine groundedness for this tick (KCC status + local override)
+        // 本帧接地判断 = KCC 稳定接地状态 + 本地强制离地覆盖。
         bool grounded = Motor.GroundingStatus.IsStableOnGround &&
                         !MotionRuntime.ForceUngroundedThisTick;
 
-        // 3. Step channels with config from ActorMovement
         ActorMotionRuntimeConfig config = _movement.GetRuntimeConfig();
         MotionRuntime.StepChannels(deltaTime, grounded, config);
 
-        // 4. Compose KCC velocity from runtime
         Vector3 locomotion = _movement.GetCachedLocomotionVelocity();
         currentVelocity = MotionRuntime.ComposeKccVelocity(
             Motor,
@@ -148,7 +144,9 @@ public class ActorMotor : MonoBehaviour, ICharacterController
 
     public void OnDiscreteCollisionDetected(Collider hitCollider) { }
 
-    // ─────────────────── internal helpers ───────────────────
+    #endregion
+
+    #region === 内部工具 ===
 
     private Vector3 ComputeSolvedVelocity(float deltaTime)
     {
@@ -171,4 +169,6 @@ public class ActorMotor : MonoBehaviour, ICharacterController
         _hasRequestedVelocity = true;
         _pausedThisTick = true;
     }
+
+    #endregion
 }
