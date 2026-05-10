@@ -79,7 +79,7 @@ public class ActorCameraControl : MonoBehaviour, ICameraFrameProvider
 
         transform.localRotation = Quaternion.identity;
         UpdateFollowAnchor();
-        SetCameraState(currentState, true);
+        ApplyPresentationState(ResolvePresentationState(), true);
 
         ValidateImpulseListenersOnVirtualCameras();
     }
@@ -145,6 +145,45 @@ public class ActorCameraControl : MonoBehaviour, ICameraFrameProvider
     public void SetCameraState(Enums.PlayerCameraState newState, bool forceUpdate = false)
     {
         actor = actor != null ? actor : GetComponentInParent<Actor>();
+
+        // Route through ActorCombater as the lock authority
+        if (actor?.combater != null)
+        {
+            switch (newState)
+            {
+                case Enums.PlayerCameraState.Free:
+                    actor.combater.ClearLock();
+                    break;
+                case Enums.PlayerCameraState.SoftLock:
+                    actor.combater.TryEnterSoftLock();
+                    break;
+                case Enums.PlayerCameraState.HardLock:
+                    actor.combater.TryEnterHardLock();
+                    break;
+            }
+        }
+
+        ApplyPresentationState(ResolvePresentationState(), forceUpdate);
+    }
+
+    private Enums.PlayerCameraState ResolvePresentationState()
+    {
+        if (actor == null || actor.combater == null)
+            return Enums.PlayerCameraState.Free;
+
+        if (actor.combater.CombatTarget == null)
+            return Enums.PlayerCameraState.Free;
+
+        return actor.combater.LockMode switch
+        {
+            Enums.LockMode.SoftLock => Enums.PlayerCameraState.SoftLock,
+            Enums.LockMode.HardLock => Enums.PlayerCameraState.HardLock,
+            _ => Enums.PlayerCameraState.Free,
+        };
+    }
+
+    private void ApplyPresentationState(Enums.PlayerCameraState newState, bool forceUpdate = false)
+    {
         CreateRuntimeFollowAnchor();
         CreateRuntimeTargetGroup();
 
@@ -276,23 +315,26 @@ public class ActorCameraControl : MonoBehaviour, ICameraFrameProvider
         CreateRuntimeFollowAnchor();
         CreateRuntimeTargetGroup();
 
+        Enums.PlayerCameraState presentationState = ResolvePresentationState();
         Transform enemyTarget = GetCombatTarget();
-        if (currentState != Enums.PlayerCameraState.Free && enemyTarget == null)
+
+        bool stateChanged = currentState != presentationState;
+        if (stateChanged)
         {
-            SetCameraState(Enums.PlayerCameraState.Free);
-            return;
+            ApplyPresentationState(presentationState, forceUpdate: true);
         }
-
-        bool inCombat = currentState != Enums.PlayerCameraState.Free && enemyTarget != null;
-        if (inCombat)
-            UpdateCombatFollowAnchor(enemyTarget);
         else
-            UpdateFollowAnchor();
+        {
+            if (currentState != Enums.PlayerCameraState.Free && enemyTarget != null)
+                UpdateCombatFollowAnchor(enemyTarget);
+            else
+                UpdateFollowAnchor();
 
-        RefreshTargetGroup(enemyTarget);
-        ApplyCameraBindings();
-        ApplyCameraPriorities();
-        _targetGroup.DoUpdate();
+            RefreshTargetGroup(enemyTarget);
+            ApplyCameraBindings();
+            ApplyCameraPriorities();
+            _targetGroup.DoUpdate();
+        }
     }
 
     private void RefreshTargetGroup(Transform enemyTarget)

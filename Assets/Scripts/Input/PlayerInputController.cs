@@ -179,6 +179,13 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
         controlledActor.logicInput.InputLook(rawLook);
     }
 
+    public void OnLock(InputAction.CallbackContext context)
+    {
+        if (controlledActor == null || !context.performed) return;
+
+        controlledActor.combater?.ToggleSoftLock();
+    }
+
     public void OnDodge(InputAction.CallbackContext context)
     {
         if (controlledActor == null) return;
