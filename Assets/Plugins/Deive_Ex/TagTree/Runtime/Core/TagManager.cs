@@ -78,7 +78,10 @@ namespace DeiveEx.TagTree
         
         private static void LoadSettings()
         {
-            var settingsAssets = Resources.LoadAll<TagTreeSettingsSO>("");
+            var settingsAsset = Resources.Load<TagTreeSettingsSO>(SETTINGS_ASSET_NAME);
+            var settingsAssets = settingsAsset != null
+                ? new[] { settingsAsset }
+                : Resources.LoadAll<TagTreeSettingsSO>("");
 
             if (settingsAssets.Length == 0)
             {
