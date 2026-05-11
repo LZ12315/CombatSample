@@ -18,6 +18,8 @@ public class ActorLogicInput : MonoBehaviour
     private Vector2 _lookInput = Vector2.zero;
     public Vector2 LookInput => _lookInput;
 
+    private ICameraFrameProvider _cameraFrameProvider;
+
     private void Awake()
     {
         actor = GetComponent<Actor>();
@@ -37,6 +39,17 @@ public class ActorLogicInput : MonoBehaviour
     public void InputLook(Vector2 lookInput)
     {
         _lookInput = lookInput;
+    }
+
+    public void SetCameraFrameProvider(ICameraFrameProvider provider)
+    {
+        _cameraFrameProvider = provider;
+    }
+
+    public void ClearCameraFrameProvider(ICameraFrameProvider provider)
+    {
+        if (_cameraFrameProvider == provider)
+            _cameraFrameProvider = null;
     }
 
     /// <summary>
@@ -113,25 +126,25 @@ public class ActorLogicInput : MonoBehaviour
     }
     #endregion
 
-    #region === Locomotion：推送意图 → ActorMovement ===
+    #region === Locomotion：推送意图 → ActorMotor ===
 
     private void PushLocomotionIntent()
     {
-        if (actor == null || actor.movement == null)
+        if (actor == null || actor.actorMotor == null)
             return;
 
         Vector2 move = Vector2.ClampMagnitude(_moveInput, 1f);
 
         if (move.sqrMagnitude <= 0.01f)
         {
-            actor.movement.SetLocomotionIntent(LocomotionIntent.Idle);
+            actor.actorMotor.SetLocomotionIntent(LocomotionIntent.Idle);
             return;
         }
 
         Vector3 worldDir;
-        if (actor.cameraControl != null)
+        if (_cameraFrameProvider != null)
         {
-            worldDir = actor.cameraControl.CalculateWorldDirection(move);
+            worldDir = _cameraFrameProvider.ToWorldMoveDirection(move);
         }
         else
         {
@@ -144,15 +157,12 @@ public class ActorLogicInput : MonoBehaviour
 
         if (worldDir.sqrMagnitude < 0.0001f)
         {
-            actor.movement.SetLocomotionIntent(LocomotionIntent.Idle);
+            actor.actorMotor.SetLocomotionIntent(LocomotionIntent.Idle);
             return;
         }
 
         worldDir.y = 0f;
         worldDir.Normalize();
-
-        bool lockOn = actor.cameraControl != null
-            && actor.cameraControl.CinemachineState != Enums.PlayerCameraState.Free;
 
         var intent = new LocomotionIntent
         {
@@ -161,42 +171,7 @@ public class ActorLogicInput : MonoBehaviour
             FacingDirection = Vector3.zero
         };
 
-        if (lockOn)
-        {
-            if (TryGetLockFacingDirection(out Vector3 face))
-                intent.FacingDirection = face;
-        }
-
-        actor.movement.SetLocomotionIntent(intent);
-    }
-
-    private bool TryGetLockFacingDirection(out Vector3 faceDir)
-    {
-        faceDir = Vector3.zero;
-        Transform target = actor.combater != null ? actor.combater.CombatTarget?.transform : null;
-        if (target != null)
-        {
-            Vector3 to = target.position - actor.transform.position;
-            to.y = 0f;
-            if (to.sqrMagnitude > 0.001f)
-            {
-                faceDir = to.normalized;
-                return true;
-            }
-        }
-
-        if (Camera.main != null)
-        {
-            Vector3 cf = Camera.main.transform.forward;
-            cf.y = 0f;
-            if (cf.sqrMagnitude > 0.001f)
-            {
-                faceDir = cf.normalized;
-                return true;
-            }
-        }
-
-        return false;
+        actor.actorMotor.SetLocomotionIntent(intent);
     }
 
     #endregion

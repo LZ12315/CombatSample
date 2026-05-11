@@ -30,15 +30,15 @@ public class ActionVelocityBehavior : ActionBehaviourBase
 
     protected override void OnClipStart(Playable playable)
     {
-        if (actor?.movement == null || config == null) return;
+        if (actor?.actorMotor == null || config == null) return;
 
         _instigatorTransform = null;
 
         if (ShouldUseHorizontalVelocity())
-            _horizontalOwner = actor.movement.BeginHorizontalVelocity();
+            _horizontalOwner = actor.actorMotor.BeginHorizontalVelocity();
 
         if (ShouldUseVerticalVelocity())
-            _verticalOwner = actor.movement.BeginVerticalVelocity();
+            _verticalOwner = actor.actorMotor.BeginVerticalVelocity();
 
         if (config.debugLog)
         {
@@ -48,7 +48,7 @@ public class ActionVelocityBehavior : ActionBehaviourBase
 
     protected override void OnClipUpdate(Playable playable, FrameData info)
     {
-        if (actor == null || actor.movement == null || config == null) return;
+        if (actor == null || actor.actorMotor == null || config == null) return;
 
         // 1. 计算 Clip 归一化进度（0..1），用于曲线采样
         double duration = playable.GetDuration();
@@ -67,7 +67,7 @@ public class ActionVelocityBehavior : ActionBehaviourBase
 
             float hCurve = config.horizontalCurve?.Evaluate(t) ?? 1f;
             Vector3 horizontal = dir * (config.horizontalSpeed * hCurve);
-            actor.movement.SetHorizontalVelocity(_horizontalOwner, horizontal);
+            actor.actorMotor.SetHorizontalVelocity(_horizontalOwner, horizontal);
         }
 
         // 3. 垂直通道：声明接管时覆盖最终垂直程序速度。
@@ -75,16 +75,16 @@ public class ActionVelocityBehavior : ActionBehaviourBase
         {
             float vCurve = config.verticalCurve?.Evaluate(t) ?? 1f;
             float vertical = config.verticalSpeed * vCurve;
-            actor.movement.SetVerticalVelocity(_verticalOwner, vertical);
+            actor.actorMotor.SetVerticalVelocity(_verticalOwner, vertical);
         }
     }
 
     protected override void OnClipStop(bool isFinish)
     {
-        if (actor == null || actor.movement == null) return;
+        if (actor == null || actor.actorMotor == null) return;
 
-        actor.movement.EndHorizontalVelocity(_horizontalOwner);
-        actor.movement.EndVerticalVelocity(_verticalOwner);
+        actor.actorMotor.EndHorizontalVelocity(_horizontalOwner);
+        actor.actorMotor.EndVerticalVelocity(_verticalOwner);
         _horizontalOwner = default;
         _verticalOwner = default;
 

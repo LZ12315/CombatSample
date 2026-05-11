@@ -1,17 +1,19 @@
 using Animancer;
 using DeiveEx.TagTree;
 using DeiveEx.TagTree.GameObjects;
+using KinematicCharacterController;
 using UnityEngine;
 
-[RequireComponent(typeof(CharacterController))]
+[RequireComponent(typeof(KinematicCharacterMotor))]
+[RequireComponent(typeof(ActorMotor))]
 public class Actor : MonoBehaviour
 {
     #region === 组件引用 ===
 
-    public CharacterController characterController;
+    public KinematicCharacterMotor kccMotor;
+    public ActorMotor actorMotor;
     public ActorLogicInput logicInput;
     public ActionStateManager actionManager;
-    public ActorMovement movement;
     public ActionPlayer actionPlayer;
     public AnimancerComponent animancer;
     public ActorCameraControl cameraControl;
@@ -31,6 +33,9 @@ public class Actor : MonoBehaviour
 
     private void Awake()
     {
+        kccMotor = kccMotor != null ? kccMotor : GetComponent<KinematicCharacterMotor>();
+        actorMotor = actorMotor != null ? actorMotor : GetComponent<ActorMotor>();
+
         persistentTags = gameObject.GetTagContainer();
         transientTags = new TagContainer();
     }

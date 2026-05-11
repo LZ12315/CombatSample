@@ -2033,11 +2033,6 @@ PrefabInstance:
       objectReference: {fileID: 8709708826383607793}
     - target: {fileID: 3617314882186939484, guid: a299ab9894312a643ac83699cf7e0da3,
         type: 3}
-      propertyPath: movement
-      value: 
-      objectReference: {fileID: 5559681152811203731}
-    - target: {fileID: 3617314882186939484, guid: a299ab9894312a643ac83699cf7e0da3,
-        type: 3}
       propertyPath: animancer
       value: 
       objectReference: {fileID: 5661920583769265516}
@@ -2171,12 +2166,11 @@ MonoBehaviour:
   m_GameObject: {fileID: 392424332184601432}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 35d657cc645542e45abb14e99ccc4d6a, type: 3}
+  m_Script: {fileID: 11500000, guid: 9c5a4d86a98f47f9b5121d94910cf120, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   actor: {fileID: 9113936135464953444}
   animator: {fileID: 8413479826414542425}
-  rotateSpeed: 500
 --- !u!114 &876052482482885673 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 4638743967393742353, guid: a299ab9894312a643ac83699cf7e0da3,

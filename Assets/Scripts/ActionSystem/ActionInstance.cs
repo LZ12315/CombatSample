@@ -83,29 +83,29 @@ public class ActionInstance
 
     private void ApplyMotionConfig(ActionEventContext context)
     {
-        if (Actor?.movement == null) return;
+        if (Actor?.actorMotor == null) return;
         var motion = Config.MotionConfig;
-        var mv = Actor.movement;
+        var motor = Actor.actorMotor;
 
-        // Hard reset velocity ownership on Action entry, then apply momentum inheritance.
-        mv.ClearVelocityOwners();
-        mv.ApplyMotionHandoff(
+        // Action 入场时清理旧 velocity owner，再按配置继承动量。
+        motor.ClearVelocityOwners();
+        motor.ApplyMotionHandoff(
             motion.horizontalMomentumInheritance,
             motion.verticalMomentumInheritance);
-        mv.SetRootMotionApplyMode(motion.rootMotionMode);
-        mv.SetLocomotionSuppressed(motion.suppressLocomotion);
+        motor.SetRootMotionApplyMode(motion.rootMotionMode);
+        motor.SetLocomotionSuppressed(motion.suppressLocomotion);
         if (motion.gravityScale >= 0f)
-            mv.SetGravityScale(motion.gravityScale);
+            motor.SetGravityScale(motion.gravityScale);
         ApplyFacingOnStart(motion.facingOnStart, context);
     }
 
     private void RestoreMotionConfig()
     {
-        if (Actor?.movement == null) return;
-        var mv = Actor.movement;
-        mv.SetRootMotionApplyMode(ActorMovement.RootMotionApplyMode.External);
-        mv.SetLocomotionSuppressed(false);
-        mv.SetGravityScale(1f);
+        if (Actor?.actorMotor == null) return;
+        var motor = Actor.actorMotor;
+        motor.SetRootMotionApplyMode(RootMotionApplyMode.External);
+        motor.SetLocomotionSuppressed(false);
+        motor.SetGravityScale(1f);
     }
 
     private void ApplyFacingOnStart(ActionFacingOnStart mode, ActionEventContext context)
@@ -127,18 +127,18 @@ public class ActionInstance
                 dir = context.Direction;
             // context 也没有 → 用当前移动意图
             if (dir.sqrMagnitude < 0.001f)
-                dir = Actor.movement.LocomotionIntent.WorldMoveDirection;
+                dir = Actor.actorMotor.LocomotionIntent.WorldMoveDirection;
         }
         else if (mode == ActionFacingOnStart.SnapToInput)
         {
             dir = context.Direction;
             if (dir.sqrMagnitude < 0.001f)
-                dir = Actor.movement.LocomotionIntent.WorldMoveDirection;
+                dir = Actor.actorMotor.LocomotionIntent.WorldMoveDirection;
         }
 
         dir.y = 0f;
         if (dir.sqrMagnitude > 0.001f)
-            Actor.movement.SnapFacing(dir.normalized);
+            Actor.actorMotor.SnapFacing(dir.normalized);
     }
 
     #endregion

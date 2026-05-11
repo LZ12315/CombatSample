@@ -24,13 +24,14 @@ MonoBehaviour:
     TagId: 0
   _startContextMode: 0
   _motionConfig:
-    rootMotionMode: 0
+    rootMotionMode: 1
     suppressLocomotion: 1
-    facingOnStart: 2
+    facingOnStart: 0
     gravityScale: -1
     horizontalMomentumInheritance: 0
     verticalMomentumInheritance: 0
   isLoop: 0
+  _allowReenterWhilePlaying: 0
   _entryConditions:
   - rid: 2842927523881811972
   _exitConditions: []

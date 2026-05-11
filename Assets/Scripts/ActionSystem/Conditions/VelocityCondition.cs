@@ -3,7 +3,7 @@ using UnityEngine;
 
 /// <summary>
 /// 通用的速度阈值条件检查，用于 ActionAsset 的 EntryCondition。
-/// 数据源 = ActorMovement.CurrentVelocity（Locomotion + Impulse + Velocity + 重力 的合成速度，
+/// 数据源 = ActorMotor.CurrentVelocity（KCC 解算后的真实位移速度，
 /// 最贴近"此刻真实速度"）。
 ///
 /// 用法：选轴 → 选比较方式 → 填阈值。
@@ -42,10 +42,10 @@ public class VelocityCondition : ActionCondition
 
     protected override bool OnCheck(Actor actor)
     {
-        if (actor == null || actor.movement == null)
+        if (actor == null || actor.actorMotor == null)
             return false;
 
-        Vector3 v = actor.movement.CurrentVelocity;
+        Vector3 v = actor.actorMotor.CurrentVelocity;
 
         float value;
         switch (axis)

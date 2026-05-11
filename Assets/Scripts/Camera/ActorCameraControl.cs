@@ -2,260 +2,450 @@ using System.Collections.Generic;
 using UnityEngine;
 using Cinemachine;
 
-/// <summary>
-/// 核心相机控制器。
-/// 挂载位置：角色根物体下的 CameraPivot 子物体。
-/// </summary>
-
-public class ActorCameraControl : MonoBehaviour
+[DefaultExecutionOrder(-20)]
+public partial class ActorCameraControl : MonoBehaviour, ICameraFrameProvider
 {
-    #region 1. 组件与配置
+    // ==================================================================
+    // Serialized Fields
+    // ==================================================================
 
+    /// <summary>
+    /// Semantic: focused/presentation actor. Does NOT imply Actor owns Camera.
+    /// CameraControl is an external observer that focuses on an Actor.
+    /// </summary>
     public Actor actor;
 
-    // 【修改】改为私有，代码在 Awake 中自动创建
-    private CinemachineTargetGroup _targetGroup;
-    public CinemachineTargetGroup TargetGroup => _targetGroup;
-
     [Header("Cameras")]
-    public CinemachineFreeLook normalFreeLookCamera; // Free
-    public CinemachineVirtualCamera softLockCamera;   // SoftLock
-    public CinemachineVirtualCamera hardLockCamera;   // HardLock
+    public CinemachineFreeLook normalFreeLookCamera;
+    public CinemachineVirtualCamera softLockCamera;
+    public CinemachineVirtualCamera hardLockCamera;
 
     [Header("Pivot")]
-    [Tooltip("How fast pivot follows lock target")]
+    [Tooltip("Deprecated in Camera phase 1. Kept for serialized compatibility.")]
     public float pivotRotationSpeed = 10f;
-    [Tooltip("How fast pivot resets when leaving lock-on")]
+    [Tooltip("Deprecated in Camera phase 1. Kept for serialized compatibility.")]
     public float freeModeResetSpeed = 5f;
 
     [Header("Lock-on Offset")]
-    [Tooltip("Fixed shoulder offset angle. Pivot keeps this instead of snapping to 0.")]
+    [Tooltip("Deprecated in Camera phase 1. Kept for serialized compatibility.")]
     public float fixedOffsetAngle = 15f;
-    [Tooltip("Smooth time for offset angle changes")]
+    [Tooltip("Deprecated in Camera phase 1. Kept for serialized compatibility.")]
     public float offsetSmoothTime = 0.2f;
-    [Tooltip("Min input to swap left/right shoulder")]
+    [Tooltip("Deprecated in Camera phase 1. Kept for serialized compatibility.")]
     public float shoulderSwitchThreshold = 0.1f;
 
-    // 内部状态
+    [Header("Combat Follow Anchor")]
+#pragma warning disable CS0414 // Deprecated serialized fields kept for Unity inspector compatibility.
+    [Tooltip("Deprecated. Kept for serialized compatibility. Use Distance-Driven Composition parameters instead.")]
+    [SerializeField] private float combatCenterBias = 0.4f;
+    [Tooltip("Deprecated. Kept for serialized compatibility. Use followDistNear / followDistFar instead.")]
+    [SerializeField] private float minFollowDistance = 4f;
+    [Tooltip("Deprecated. Kept for serialized compatibility. Use followDistNear / followDistFar instead.")]
+    [SerializeField] private float maxFollowDistance = 12f;
+    [Tooltip("Deprecated. Kept for serialized compatibility. Use followDistNear / followDistFar instead.")]
+    [SerializeField] private float followDistanceScale = 1.0f;
+    [Tooltip("Deprecated. Kept for serialized compatibility. Use sideBiasNear / sideBiasFar instead.")]
+    [SerializeField] private float sideOffsetScale = 0.6f;
+#pragma warning restore CS0414
+    [SerializeField] private float heightOffset = 1.5f;
+    [SerializeField] private float positionSmoothTime = 0.3f;
+    [SerializeField] private float rotationSmoothTime = 0.2f;
+    [SerializeField] private float sideSmoothTime = 0.5f;
+
+    [Header("Distance-Driven Composition")]
+    [SerializeField] private float compositionNearDist = 5f;
+    [SerializeField] private float compositionFarDist = 22f;
+    [SerializeField] private float followDistNear = 8f;
+    [SerializeField] private float followDistFar = 22f;
+    [SerializeField] private float fovNear = 50f;
+    [SerializeField] private float fovFar = 65f;
+    [SerializeField] private float centerBiasNear = 0.38f;
+    [SerializeField] private float centerBiasFar = 0.55f;
+    [SerializeField] private float sideBiasNear = 0.28f;
+    [SerializeField] private float sideBiasFar = 0.42f;
+    [SerializeField] private float playerWeightNear = 1.2f;
+    [SerializeField] private float playerWeightFar = 1.3f;
+    [SerializeField] private float enemyWeightNear = 1.0f;
+    [SerializeField] private float enemyWeightFar = 0.9f;
+    [SerializeField] private float playerRadiusNear = 2f;
+    [SerializeField] private float playerRadiusFar = 3.5f;
+    [SerializeField] private float enemyRadiusNear = 2f;
+    [SerializeField] private float enemyRadiusFar = 4f;
+    [SerializeField] private float framingSizeNear = 0.82f;
+    [SerializeField] private float framingSizeFar = 0.60f;
+
+    [Header("Camera Diagnostics")]
+    [SerializeField] private bool debugCameraTransitions = false;
+    [SerializeField] private int debugFramesAfterTransition = 8;
+    [SerializeField] private bool debugCameraEveryLateUpdate = false;
+    [SerializeField] private bool debugBrainAfterUpdate = false;
+
+    // ==================================================================
+    // Runtime State
+    // ==================================================================
+
     [SerializeField] private Enums.PlayerCameraState currentState;
     private Dictionary<Enums.PlayerCameraState, ICinemachineCamera> _stateToCameraMap;
 
-    // 平滑计算变量
-    private float _currentOffsetAngle;
-    private float _offsetVelocity;
-    private float _targetShoulderSide = 1f; // 1: 右肩, -1: 左肩 (记忆方向)
+    private LockCameraRigRuntime _softRuntime;
+    private LockCameraRigRuntime _hardRuntime;
+
+    /// <summary>
+    /// Backward-compat passthrough: points to active lock runtime's target group.
+    /// Updated by SyncCompatReferences() on state change.
+    /// </summary>
+    private CinemachineTargetGroup _targetGroup;
+
+    // Internal helpers (non-Mono, created in Awake)
+    private CameraRigRouter _rigRouter;
+    private CombatLockComposer _composer;
+    private CameraDiagnostics _diagnostics;
+
+    // ==================================================================
+    // Public API
+    // ==================================================================
+
+    public CinemachineTargetGroup TargetGroup => _targetGroup;
 
     public Enums.PlayerCameraState CinemachineState
     {
         get => currentState;
         set => SetCameraState(value);
     }
-    #endregion
-
-    #region 2. 初始化与生命周期
-
-    void Awake()
-    {
-        // 1. 动态创建 TargetGroup
-        GameObject groupObj = new GameObject("Runtime_TargetGroup");
-        _targetGroup = groupObj.AddComponent<CinemachineTargetGroup>();
-        _targetGroup.m_PositionMode = CinemachineTargetGroup.PositionMode.GroupCenter;
-        _targetGroup.m_RotationMode = CinemachineTargetGroup.RotationMode.Manual;
-
-        // 2. 添加玩家自己 (因为脚本挂在 CameraPivot 上，transform 就是 Pivot)
-        _targetGroup.AddMember(transform, 1f, 2f); // Weight 1, Radius 2
-    }
-
-    void Start()
-    {
-        InitializeCameraMap();
-
-        // 3. 自动将动态创建的 Group 赋值给锁定相机的 LookAt
-        if (softLockCamera != null) softLockCamera.LookAt = _targetGroup.transform;
-        if (hardLockCamera != null) hardLockCamera.LookAt = _targetGroup.transform;
-
-        // 初始对齐
-        transform.localRotation = Quaternion.identity;
-
-        // 初始化状态
-        SetCameraState(currentState, true);
-
-        ValidateImpulseListenersOnVirtualCameras();
-    }
-
-    static void ValidateImpulseListenerOn(CinemachineVirtualCameraBase vcam)
-    {
-        if (vcam == null) return;
-        if (vcam.GetComponent<CinemachineImpulseListener>() != null) return;
-        Debug.LogWarning($"Virtual camera '{vcam.name}' has no CinemachineImpulseListener. Impact screen shake will not affect it.", vcam);
-    }
-
-    void ValidateImpulseListenersOnVirtualCameras()
-    {
-        if (normalFreeLookCamera != null) ValidateImpulseListenerOn(normalFreeLookCamera);
-        if (softLockCamera != null) ValidateImpulseListenerOn(softLockCamera);
-        if (hardLockCamera != null) ValidateImpulseListenerOn(hardLockCamera);
-    }
-
-    void InitializeCameraMap()
-    {
-        _stateToCameraMap = new Dictionary<Enums.PlayerCameraState, ICinemachineCamera>
-            {
-                { Enums.PlayerCameraState.Free, normalFreeLookCamera },
-                { Enums.PlayerCameraState.SoftLock, softLockCamera },
-                { Enums.PlayerCameraState.HardLock, hardLockCamera }
-            };
-    }
-
-    // 核心逻辑放在 LateUpdate，确保在 LogicInput(Update) 之后执行
-    void LateUpdate()
-    {
-        UpdatePivotBehavior();
-    }
-
-    #endregion
-
-    #region 3. 核心逻辑：Pivot 驱动
 
     /// <summary>
-    /// 控制 CameraPivot 的旋转，包含“智能偏移”和“肩部记忆”逻辑
+    /// Legacy compatibility: SetCameraState calls ActorCombater.TryEnterSoftLock/ClearLock.
+    /// Future: input/gameplay layer should request lock; camera should only read Combat state.
     /// </summary>
-    public void UpdatePivotBehavior()
-    {
-        Transform enemy = actor.combater.CombatTarget?.transform;
-        bool isLockMode = currentState != Enums.PlayerCameraState.Free;
-
-        if (isLockMode && enemy != null)
-        {
-            // ===========================
-            // 锁定模式 (Soft / Hard)
-            // ===========================
-
-            // A. 计算基础朝向：从 Pivot 指向 敌人 (忽略高度差)
-            Vector3 dirToEnemy = enemy.position - transform.position;
-            dirToEnemy.y = 0;
-
-            if (dirToEnemy.sqrMagnitude > 0.001f)
-            {
-                // B. 获取输入并更新肩部记忆
-                float inputX = (actor.logicInput != null) ? actor.logicInput.MoveInput.x : 0f;
-
-                // 只有当输入明确超过阈值时，才切换肩部方向
-                // 如果停下或只按前后，保持上一次的 _targetShoulderSide
-                if (inputX > shoulderSwitchThreshold) _targetShoulderSide = 1f;      // 向右偏移
-                else if (inputX < -shoulderSwitchThreshold) _targetShoulderSide = -1f; // 向左偏移
-
-                // C. 计算目标角度 (固定偏移量)
-                float targetOffset = _targetShoulderSide * fixedOffsetAngle;
-
-                // D. 平滑插值角度
-                _currentOffsetAngle = Mathf.SmoothDamp(_currentOffsetAngle, targetOffset, ref _offsetVelocity, offsetSmoothTime);
-
-                // E. 合成最终旋转：基础朝向 * 偏移旋转
-                Quaternion baseRotation = Quaternion.LookRotation(dirToEnemy);
-                Quaternion finalRotation = baseRotation * Quaternion.Euler(0, _currentOffsetAngle, 0);
-
-                // F. 应用旋转
-                transform.rotation = Quaternion.Slerp(transform.rotation, finalRotation, Time.deltaTime * pivotRotationSpeed);
-            }
-        }
-        else
-        {
-            // ===========================
-            // 自由模式 (Free)
-            // ===========================
-
-            // 重置偏移计算变量
-            _currentOffsetAngle = 0f;
-            _offsetVelocity = 0f;
-            // _targetShoulderSide 保持不变，或者重置为 1f (默认右肩)
-            _targetShoulderSide = 1f;
-
-            // Pivot 归零：
-            // 在自由模式下，Pivot 不需要旋转，它应该保持相对静止（跟随父物体），
-            // 或者平滑回正到 Identity，把旋转权交给 CinemachineFreeLook。
-            transform.localRotation = Quaternion.Slerp(transform.localRotation, Quaternion.identity, Time.deltaTime * freeModeResetSpeed);
-        }
-    }
-
-    #endregion
-
-    #region 4. 状态切换与 TargetGroup
-
     public void SetCameraState(Enums.PlayerCameraState newState, bool forceUpdate = false)
     {
-        if (currentState == newState && !forceUpdate) return;
+        actor = actor != null ? actor : GetComponentInParent<Actor>();
 
-        Transform enemyTarget = actor.combater.CombatTarget?.transform;
+        _diagnostics.LogCameraEvent($"SetCameraState request={newState} force={forceUpdate} beforeLock={FormatLockMode()} beforeTarget={FormatObjectName(GetCombatTarget())}");
 
-        // 安全检查：无目标强制回退 Free
-        if (newState != Enums.PlayerCameraState.Free && enemyTarget == null)
+        if (actor?.combater != null)
         {
-            newState = Enums.PlayerCameraState.Free;
-        }
-
-        currentState = newState;
-
-        // --- 更新 TargetGroup 成员 ---
-        if (_targetGroup != null)
-        {
-            // 清理旧敌人 (保留 Index 0 的玩家)
-            for (int i = _targetGroup.m_Targets.Length - 1; i > 0; i--)
+            switch (newState)
             {
-                _targetGroup.RemoveMember(_targetGroup.m_Targets[i].target);
-            }
-
-            // 添加新敌人
-            if (currentState != Enums.PlayerCameraState.Free && enemyTarget != null)
-            {
-                // Weight=1: 玩家和敌人视觉比重 1:1，GroupCenter 会在两人连线中点
-                // Radius=2: 给敌人一点缓冲圈
-                _targetGroup.AddMember(enemyTarget, 1f, 2f);
+                case Enums.PlayerCameraState.Free:
+                    actor.combater.ClearLock();
+                    break;
+                case Enums.PlayerCameraState.SoftLock:
+                    actor.combater.TryEnterSoftLock();
+                    break;
+                case Enums.PlayerCameraState.HardLock:
+                    actor.combater.TryEnterHardLock();
+                    break;
             }
         }
 
-        // --- 切换 LookAt ---
-        // 锁定模式 LookAt Group，自由模式 LookAt Null (FreeLook 自己处理)
-        Transform lookAtTarget = (currentState == Enums.PlayerCameraState.Free) ? null : _targetGroup.transform;
-        if (softLockCamera != null) softLockCamera.LookAt = lookAtTarget;
-        if (hardLockCamera != null) hardLockCamera.LookAt = lookAtTarget;
-
-        // --- 切换相机优先级 ---
-        foreach (var kvp in _stateToCameraMap)
-        {
-            if (kvp.Value == null) continue;
-
-            var camBase = kvp.Value as CinemachineVirtualCameraBase;
-            if (camBase != null)
-            {
-                camBase.Priority = (kvp.Key == currentState) ? 20 : 10;
-            }
-        }
+        _diagnostics.LogCameraEvent($"SetCameraState after authority lock={FormatLockMode()} target={FormatObjectName(GetCombatTarget())} resolved={ResolvePresentationState()}");
+        ApplyPresentationState(ResolvePresentationState(), forceUpdate);
     }
 
-    #endregion
+    public void UpdatePivotBehavior()
+    {
+        RefreshCameraRuntime();
+    }
 
-    #region 5. 工具方法
+    // ==================================================================
+    // Unity Lifecycle
+    // ==================================================================
+
+    private void Awake()
+    {
+        actor = actor != null ? actor : GetComponentInParent<Actor>();
+
+        _rigRouter = new CameraRigRouter(this);
+        _composer = new CombatLockComposer(this);
+        _diagnostics = new CameraDiagnostics(this);
+
+        _rigRouter.InitializeCameraMap();
+
+        _softRuntime = new LockCameraRigRuntime();
+        _hardRuntime = new LockCameraRigRuntime();
+
+        // Keep runtime objects in world space so blended-out cameras can truly freeze.
+        _softRuntime.CreateAnchor(transform);
+        _softRuntime.CreateTargetGroup(transform);
+        _hardRuntime.CreateAnchor(transform);
+        _hardRuntime.CreateTargetGroup(transform);
+
+        _rigRouter.ConfigureLockCameraTransitions();
+    }
+
+    private void OnEnable()
+    {
+        RegisterCameraFrameProvider();
+        CinemachineCore.CameraUpdatedEvent.RemoveListener(_diagnostics.OnCinemachineBrainUpdated);
+        CinemachineCore.CameraUpdatedEvent.AddListener(_diagnostics.OnCinemachineBrainUpdated);
+    }
+
+    private void Start()
+    {
+        actor = actor != null ? actor : GetComponentInParent<Actor>();
+        RegisterCameraFrameProvider();
+
+        transform.localRotation = Quaternion.identity;
+        UpdateFollowAnchor(_softRuntime);
+        UpdateFollowAnchor(_hardRuntime);
+        ApplyPresentationState(ResolvePresentationState(), true);
+
+        _rigRouter.ValidateImpulseListenersOnVirtualCameras();
+    }
+
+    private void LateUpdate()
+    {
+        RefreshCameraRuntime();
+    }
+
+    private void OnDisable()
+    {
+        CinemachineCore.CameraUpdatedEvent.RemoveListener(_diagnostics.OnCinemachineBrainUpdated);
+        UnregisterCameraFrameProvider();
+    }
+
+    private void OnDestroy()
+    {
+        _softRuntime?.DestroyRuntime();
+        _hardRuntime?.DestroyRuntime();
+        _softRuntime = null;
+        _hardRuntime = null;
+        _targetGroup = null;
+    }
+
+    // ==================================================================
+    // High-Level Camera Flow
+    // ==================================================================
+
+    private void RefreshCameraRuntime()
+    {
+        Enums.PlayerCameraState presentationState = ResolvePresentationState();
+        Transform enemyTarget = GetCombatTarget();
+
+        bool stateChanged = currentState != presentationState;
+        if (stateChanged)
+        {
+            _diagnostics.StartCameraDebugWindow($"RefreshCameraRuntime resolved change {currentState}->{presentationState}");
+            _diagnostics.LogCameraSnapshot("LateUpdate.BeforeStateApply", enemyTarget);
+            ApplyPresentationState(presentationState, forceUpdate: true);
+        }
+
+        _diagnostics.LogCameraSnapshot("LateUpdate.BeforeRuntimeRefresh", enemyTarget);
+
+        CinemachineBrain brain = _rigRouter.ResolveBrain();
+        bool hasEnemy = enemyTarget != null;
+
+        // --- Active lock camera (always update) ---
+        if (currentState != Enums.PlayerCameraState.Free && hasEnemy)
+        {
+            LockCameraRigRuntime activeRt = GetActiveRuntime();
+            if (activeRt != null)
+            {
+                _composer.UpdateCombatFollowAnchor(activeRt, enemyTarget);
+                _composer.RefreshTargetGroup(activeRt, enemyTarget, currentState);
+                _rigRouter.ApplyCameraBindingForRuntime(activeRt);
+                activeRt.targetGroup?.DoUpdate();
+            }
+        }
+
+        // --- Background pre-warm: SoftLock runtime ---
+        if (currentState != Enums.PlayerCameraState.SoftLock && hasEnemy)
+        {
+            bool isLive = brain != null && brain.IsLive(softLockCamera);
+            if (!isLive)
+            {
+                _composer.UpdateCombatFollowAnchor(_softRuntime, enemyTarget);
+                _composer.RefreshTargetGroup(_softRuntime, enemyTarget, currentState);
+                _rigRouter.ApplyCameraBindingForRuntime(_softRuntime);
+                _softRuntime.targetGroup?.DoUpdate();
+            }
+        }
+
+        // --- Background pre-warm: HardLock runtime ---
+        if (currentState != Enums.PlayerCameraState.HardLock && hasEnemy)
+        {
+            bool isLive = brain != null && brain.IsLive(hardLockCamera);
+            if (!isLive)
+            {
+                _composer.UpdateCombatFollowAnchor(_hardRuntime, enemyTarget);
+                _composer.RefreshTargetGroup(_hardRuntime, enemyTarget, currentState);
+                _rigRouter.ApplyCameraBindingForRuntime(_hardRuntime);
+                _hardRuntime.targetGroup?.DoUpdate();
+            }
+        }
+
+        _rigRouter.ApplyCameraPriorities(currentState);
+        _diagnostics.LogCameraSnapshot("LateUpdate.AfterRuntimeRefresh", enemyTarget);
+    }
+
+    private Enums.PlayerCameraState ResolvePresentationState()
+    {
+        if (actor == null || actor.combater == null)
+            return Enums.PlayerCameraState.Free;
+
+        if (actor.combater.CombatTarget == null)
+            return Enums.PlayerCameraState.Free;
+
+        return actor.combater.LockMode switch
+        {
+            Enums.LockMode.SoftLock => Enums.PlayerCameraState.SoftLock,
+            Enums.LockMode.HardLock => Enums.PlayerCameraState.HardLock,
+            _ => Enums.PlayerCameraState.Free,
+        };
+    }
 
     /// <summary>
-    /// 计算基于当前主相机视角的移动方向 (用于 LogicInput)
+    /// Presentation state: only switches priority.
+    /// Runtime data is maintained separately in RefreshCameraRuntime.
     /// </summary>
-    public Vector3 CalculateWorldDirection(Vector2 rawMove)
+    private void ApplyPresentationState(Enums.PlayerCameraState newState, bool forceUpdate = false)
     {
-        if (rawMove.sqrMagnitude <= 0.01f) return Vector3.zero;
+        if (_stateToCameraMap == null)
+            _rigRouter.InitializeCameraMap();
 
-        Transform mainCam = Camera.main.transform;
+        Transform enemyTarget = GetCombatTarget();
+        if (newState != Enums.PlayerCameraState.Free && enemyTarget == null)
+            newState = Enums.PlayerCameraState.Free;
+
+        if (currentState == newState && !forceUpdate) return;
+
+        Enums.PlayerCameraState previousState = currentState;
+        _diagnostics.StartCameraDebugWindow($"ApplyPresentationState {previousState}->{newState} force={forceUpdate}");
+        _diagnostics.LogCameraSnapshot("Apply.Before", enemyTarget);
+
+        currentState = newState;
+        SyncCompatReferences();
+
+        bool enteringLock = previousState != newState
+                         && newState != Enums.PlayerCameraState.Free
+                         && enemyTarget != null;
+        if (enteringLock)
+        {
+            // Snap incoming lock camera to target (avoid long blend arc).
+            LockCameraRigRuntime incoming = GetActiveRuntime();
+            if (incoming != null)
+            {
+                _composer.UpdateCombatFollowAnchor(incoming, enemyTarget, instant: true);
+                _composer.RefreshTargetGroup(incoming, enemyTarget, currentState);
+                _rigRouter.ApplyCameraBindingForRuntime(incoming);
+                incoming.targetGroup?.DoUpdate();
+                _rigRouter.PrepareIncomingLockCamera(newState);
+            }
+        }
+
+        bool exitingToFree = previousState != Enums.PlayerCameraState.Free
+                          && newState == Enums.PlayerCameraState.Free;
+        if (exitingToFree)
+        {
+            _rigRouter.PrepareIncomingFreeLookCamera();
+        }
+
+        _rigRouter.ApplyCameraPriorities(currentState);
+        _diagnostics.LogCameraSnapshot("Apply.AfterPriorities", enemyTarget);
+    }
+
+    // ==================================================================
+    // Internal Helpers (orchestration glue)
+    // ==================================================================
+
+    private LockCameraRigRuntime GetActiveRuntime()
+    {
+        return currentState switch
+        {
+            Enums.PlayerCameraState.SoftLock => _softRuntime,
+            Enums.PlayerCameraState.HardLock => _hardRuntime,
+            _ => null,
+        };
+    }
+
+    private void SyncCompatReferences()
+    {
+        LockCameraRigRuntime active = GetActiveRuntime();
+        _targetGroup = active?.targetGroup;
+    }
+
+    private void UpdateFollowAnchor(LockCameraRigRuntime rt)
+    {
+        if (rt == null || rt.anchor == null) return;
+        rt.anchor.position = transform.position;
+        rt.anchor.rotation = Quaternion.identity;
+    }
+
+    private Transform GetCombatTarget()
+    {
+        return actor != null && actor.combater != null
+            ? actor.combater.CombatTarget?.transform
+            : null;
+    }
+
+    private string FormatLockMode()
+    {
+        return actor != null && actor.combater != null
+            ? actor.combater.LockMode.ToString()
+            : "null";
+    }
+
+    private static string FormatObjectName(Object obj) => obj != null ? obj.name : "null";
+
+    // ==================================================================
+    // ICameraFrameProvider Bridge
+    // ==================================================================
+    //
+    // TRANSITIONAL: This bridge exists for migration compatibility.
+    // ActorLogicInput reads move-direction from ICameraFrameProvider.
+    // Future Actor/Input refactor should decouple this: LogicInput should
+    // read camera direction from a scene-level service, not from a
+    // per-Actor MonoBehaviour.
+    // ==================================================================
+
+    private ActorLogicInput ResolveLogicInput()
+    {
+        if (actor == null) return null;
+        return actor.logicInput != null ? actor.logicInput : actor.GetComponent<ActorLogicInput>();
+    }
+
+    private void RegisterCameraFrameProvider()
+    {
+        actor = actor != null ? actor : GetComponentInParent<Actor>();
+        ResolveLogicInput()?.SetCameraFrameProvider(this);
+    }
+
+    private void UnregisterCameraFrameProvider()
+    {
+        ResolveLogicInput()?.ClearCameraFrameProvider(this);
+    }
+
+    public Vector3 ToWorldMoveDirection(Vector2 moveInput)
+    {
+        if (moveInput.sqrMagnitude <= 0.01f) return Vector3.zero;
+
+        Camera mainCamera = Camera.main;
+        if (mainCamera == null)
+        {
+            Vector3 fallback = new Vector3(moveInput.x, 0f, moveInput.y);
+            return fallback.sqrMagnitude > 0.0001f ? fallback.normalized : Vector3.zero;
+        }
+
+        Transform mainCam = mainCamera.transform;
         Vector3 forward = mainCam.forward;
         Vector3 right = mainCam.right;
         forward.y = 0;
         right.y = 0;
-        forward.Normalize();
-        right.Normalize();
 
-        return (forward * rawMove.y) + (right * rawMove.x);
+        if (forward.sqrMagnitude > 0.0001f)
+            forward.Normalize();
+        if (right.sqrMagnitude > 0.0001f)
+            right.Normalize();
+
+        return (forward * moveInput.y) + (right * moveInput.x);
     }
 
-    #endregion
+    public Vector3 CalculateWorldDirection(Vector2 rawMove)
+    {
+        return ToWorldMoveDirection(rawMove);
+    }
+
 }
 
 public partial class Enums

@@ -36,11 +36,6 @@ PrefabInstance:
       objectReference: {fileID: 3227611223364516578}
     - target: {fileID: 3617314882186939484, guid: a299ab9894312a643ac83699cf7e0da3,
         type: 3}
-      propertyPath: movement
-      value: 
-      objectReference: {fileID: 6843028217763198781}
-    - target: {fileID: 3617314882186939484, guid: a299ab9894312a643ac83699cf7e0da3,
-        type: 3}
       propertyPath: actionPlayer
       value: 
       objectReference: {fileID: 5640355854909903216}
@@ -251,13 +246,11 @@ MonoBehaviour:
   m_GameObject: {fileID: 8384945429905303827}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 35d657cc645542e45abb14e99ccc4d6a, type: 3}
+  m_Script: {fileID: 11500000, guid: 9c5a4d86a98f47f9b5121d94910cf120, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   actor: {fileID: 1104595804043283503}
   animator: {fileID: 427221822623560722}
-  rotateSpeed: 500
-  _locomotionBaseSpeed: 5
 --- !u!1001 &4794614036970768515
 PrefabInstance:
   m_ObjectHideFlags: 0

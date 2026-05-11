@@ -20,11 +20,6 @@ public static class HitVfxAnchorUtility
 
         Transform t = attacker.transform;
 
-        var cc = attacker.GetComponent<CharacterController>()
-                 ?? attacker.GetComponentInParent<CharacterController>();
-        if (cc != null)
-            return PointAtHeightFraction(cc.bounds, 0.75f);
-
         var cap = attacker.GetComponent<CapsuleCollider>()
                   ?? attacker.GetComponentInParent<CapsuleCollider>();
         if (cap != null)

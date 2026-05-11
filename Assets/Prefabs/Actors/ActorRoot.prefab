@@ -77,7 +77,6 @@ MonoBehaviour:
   characterController: {fileID: 919094109243400488}
   logicInput: {fileID: 4638743967393742353}
   actionManager: {fileID: 0}
-  movement: {fileID: 0}
   actionPlayer: {fileID: 0}
   animancer: {fileID: 205849317729812308}
   cameraControl: {fileID: 7979688053302251136}

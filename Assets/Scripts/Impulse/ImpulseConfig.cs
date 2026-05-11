@@ -5,7 +5,7 @@ using UnityEngine;
 /// Impulse configuration — defines horizontal/vertical initial speed.
 /// Attached to ActionImpulseClip on a Timeline, read by ActionImpulseBehavior at runtime.
 /// 
-/// 语义说明：Impulse 模式一次性注入初始速度（m/s），水平分量由 ActorMovement 的 _horizontalDrag
+/// 语义说明：Impulse 模式一次性注入初始速度（m/s），水平分量由 ActorMotor 的 _horizontalDrag
 /// 自然衰减，垂直分量由重力自然衰减。字段名沿用 horizontalForce/verticalForce 是历史原因
 /// （重构前按"施力"设计，现已改为"初速度"语义），不改名以避免已有 Timeline 资源里的数值失效。
 /// 持续重力/浮空由 ActionMotionConfig 或 VelocityClip 表达。

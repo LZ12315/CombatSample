@@ -56,23 +56,23 @@ public sealed class ActionMagnetismSession
         }
 
         if (!_config.rotateToTarget || _config.rotationMode == MagnetismRotationMode.None) return;
-        if (_actor.movement == null) return;
+        if (_actor.actorMotor == null) return;
 
         Vector3 faceDir = dir;
         if (_config.rotationAxis == MagnetismRotationAxis.YawOnly)
             faceDir.y = 0f;
 
         if (_config.rotationMode == MagnetismRotationMode.InstantSnap || _config.rotationAngularSpeed <= 0f)
-            _actor.movement.SnapFacing(faceDir);
+            _actor.actorMotor.SnapFacing(faceDir);
         else
         {
-            _actor.movement.SetFacingOverride(faceDir, _config.rotationAngularSpeed);
+            _actor.actorMotor.SetFacingOverride(faceDir, _config.rotationAngularSpeed);
         }
     }
 
     public void End()
     {
         _hasCachedHorizontalDir = false;
-        _actor?.movement?.ClearFacingOverride();
+        _actor?.actorMotor?.ClearFacingOverride();
     }
 }
