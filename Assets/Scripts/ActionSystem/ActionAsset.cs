@@ -3,7 +3,6 @@ using UnityEngine.Serialization;
 using UnityEngine.Timeline;
 using System;
 using System.Collections.Generic;
-using CombatSample.Consts;
 using DeiveEx.TagTree;
 
 public enum ActionTriggerMode

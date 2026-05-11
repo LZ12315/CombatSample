@@ -19,8 +19,8 @@ public class ActionStateManager : MonoBehaviour
     }
 
     [Header("References")]
-    [SerializeField] private ActionPlayer _actionPlayer;
     [SerializeField] private Actor _actor;
+    private ActionPlayer _actionPlayer => _actor != null ? _actor.actionPlayer : null;
 
     [Header("Settings")]
     [SerializeField] private ActionAssetList _actionList;

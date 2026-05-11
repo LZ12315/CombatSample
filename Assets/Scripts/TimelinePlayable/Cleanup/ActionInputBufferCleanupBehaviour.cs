@@ -9,7 +9,7 @@ public class ActionInputBufferCleanupBehaviour : ActionBehaviourBase
     protected override void OnClipStart(Playable playable)
     {
         if (clearOnClipStart)
-            actor?.logicInput?.ClearBuffer();
+            ClearInputBuffer();
     }
 
     protected override void OnClipStop(bool isNormal)
@@ -17,12 +17,18 @@ public class ActionInputBufferCleanupBehaviour : ActionBehaviourBase
         if (isNormal)
         {
             if (clearOnEndFinished)
-                actor?.logicInput?.ClearBuffer();
+                ClearInputBuffer();
         }
         else
         {
             if (clearOnEndCut)
-                actor?.logicInput?.ClearBuffer();
+                ClearInputBuffer();
         }
+    }
+
+    private void ClearInputBuffer()
+    {
+        if (actor == null) return;
+        actor.GetComponent<ActorLogicInput>()?.ClearBuffer();
     }
 }

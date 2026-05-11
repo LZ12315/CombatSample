@@ -1,13 +1,13 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
-using CombatSample.Consts;
 using System;
 
 public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerActions
 {
     PlayerInputControl actions;
     public Actor controlledActor;
+    [SerializeField] private ActorLogicInput logicInput;
 
     [Header("Debug")]
     public bool debug = false;
@@ -98,9 +98,12 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
 
     void SendButtonInputData(Enums.InputButton button, Enums.ButtonState state)
     {
+        ActorLogicInput logicInput = ResolveLogicInput();
+        if (logicInput == null) return;
+
         InputButtonData buttonInput = new InputButtonData(button, state);
 
-        controlledActor.logicInput.GetInputData(buttonInput);
+        logicInput.GetInputData(buttonInput);
 
         if (debug)
             Debug.Log(buttonInput.inputButton + "   " + buttonInput.buttonState);
@@ -108,9 +111,12 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
 
     void SendJoystickInputData(Enums.InputJoystick joystick, Enums.JoystickVigor vigor)
     {
+        ActorLogicInput logicInput = ResolveLogicInput();
+        if (logicInput == null) return;
+
         InputJoystickData joystickInput = new InputJoystickData(joystick, vigor);
 
-        controlledActor.logicInput.GetInputData(joystickInput);
+        logicInput.GetInputData(joystickInput);
 
         if (debug)
             Debug.Log(joystickInput.inputJoystick + "   " + joystickInput.joystickVigor);
@@ -170,13 +176,13 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
                 break;
         }
 
-        controlledActor.logicInput.InputMove(rawMove);
+        ResolveLogicInput()?.InputMove(rawMove);
     }
 
     public void OnLook(InputAction.CallbackContext context)
     {
         rawLook = context.ReadValue<Vector2>();
-        controlledActor.logicInput.InputLook(rawLook);
+        ResolveLogicInput()?.InputLook(rawLook);
     }
 
     public void OnLock(InputAction.CallbackContext context)
@@ -381,5 +387,17 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
     }
 
     #endregion
+
+    private ActorLogicInput ResolveLogicInput()
+    {
+        if (logicInput != null)
+            return logicInput;
+
+        if (controlledActor == null)
+            return null;
+
+        logicInput = controlledActor.GetComponent<ActorLogicInput>();
+        return logicInput;
+    }
 
 }

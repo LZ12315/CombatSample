@@ -7,6 +7,7 @@ public class ActorLogicInput : MonoBehaviour
 {
     [Header("References")]
     [SerializeField] private Actor actor;
+    [SerializeField] private ActorCameraControl cameraControl;
 
     [Header("Input Buffer")]
     [SerializeField, Tooltip("Max age (seconds) for buffered input events; older entries are removed.")]
@@ -18,7 +19,6 @@ public class ActorLogicInput : MonoBehaviour
     private Vector2 _lookInput = Vector2.zero;
     public Vector2 LookInput => _lookInput;
 
-    private ICameraFrameProvider _cameraFrameProvider;
 
     private void Awake()
     {
@@ -39,17 +39,6 @@ public class ActorLogicInput : MonoBehaviour
     public void InputLook(Vector2 lookInput)
     {
         _lookInput = lookInput;
-    }
-
-    public void SetCameraFrameProvider(ICameraFrameProvider provider)
-    {
-        _cameraFrameProvider = provider;
-    }
-
-    public void ClearCameraFrameProvider(ICameraFrameProvider provider)
-    {
-        if (_cameraFrameProvider == provider)
-            _cameraFrameProvider = null;
     }
 
     /// <summary>
@@ -142,9 +131,9 @@ public class ActorLogicInput : MonoBehaviour
         }
 
         Vector3 worldDir;
-        if (_cameraFrameProvider != null)
+        if (cameraControl != null)
         {
-            worldDir = _cameraFrameProvider.ToWorldMoveDirection(move);
+            worldDir = cameraControl.ToWorldMoveDirection(move);
         }
         else
         {

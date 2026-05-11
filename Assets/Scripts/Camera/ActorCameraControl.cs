@@ -3,7 +3,7 @@ using UnityEngine;
 using Cinemachine;
 
 [DefaultExecutionOrder(-20)]
-public partial class ActorCameraControl : MonoBehaviour, ICameraFrameProvider
+public partial class ActorCameraControl : MonoBehaviour
 {
     // ==================================================================
     // Serialized Fields
@@ -176,7 +176,6 @@ public partial class ActorCameraControl : MonoBehaviour, ICameraFrameProvider
 
     private void OnEnable()
     {
-        RegisterCameraFrameProvider();
         CinemachineCore.CameraUpdatedEvent.RemoveListener(_diagnostics.OnCinemachineBrainUpdated);
         CinemachineCore.CameraUpdatedEvent.AddListener(_diagnostics.OnCinemachineBrainUpdated);
     }
@@ -184,7 +183,6 @@ public partial class ActorCameraControl : MonoBehaviour, ICameraFrameProvider
     private void Start()
     {
         actor = actor != null ? actor : GetComponentInParent<Actor>();
-        RegisterCameraFrameProvider();
 
         transform.localRotation = Quaternion.identity;
         UpdateFollowAnchor(_softRuntime);
@@ -202,7 +200,6 @@ public partial class ActorCameraControl : MonoBehaviour, ICameraFrameProvider
     private void OnDisable()
     {
         CinemachineCore.CameraUpdatedEvent.RemoveListener(_diagnostics.OnCinemachineBrainUpdated);
-        UnregisterCameraFrameProvider();
     }
 
     private void OnDestroy()
@@ -387,34 +384,6 @@ public partial class ActorCameraControl : MonoBehaviour, ICameraFrameProvider
     }
 
     private static string FormatObjectName(Object obj) => obj != null ? obj.name : "null";
-
-    // ==================================================================
-    // ICameraFrameProvider Bridge
-    // ==================================================================
-    //
-    // TRANSITIONAL: This bridge exists for migration compatibility.
-    // ActorLogicInput reads move-direction from ICameraFrameProvider.
-    // Future Actor/Input refactor should decouple this: LogicInput should
-    // read camera direction from a scene-level service, not from a
-    // per-Actor MonoBehaviour.
-    // ==================================================================
-
-    private ActorLogicInput ResolveLogicInput()
-    {
-        if (actor == null) return null;
-        return actor.logicInput != null ? actor.logicInput : actor.GetComponent<ActorLogicInput>();
-    }
-
-    private void RegisterCameraFrameProvider()
-    {
-        actor = actor != null ? actor : GetComponentInParent<Actor>();
-        ResolveLogicInput()?.SetCameraFrameProvider(this);
-    }
-
-    private void UnregisterCameraFrameProvider()
-    {
-        ResolveLogicInput()?.ClearCameraFrameProvider(this);
-    }
 
     public Vector3 ToWorldMoveDirection(Vector2 moveInput)
     {

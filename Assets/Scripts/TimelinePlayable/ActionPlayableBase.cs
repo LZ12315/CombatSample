@@ -4,8 +4,6 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Playables;
 using UnityEngine.Timeline;
-using CombatSample.Consts;
-
 public abstract class ActionTrackBase : TrackAsset{ }
 
 public abstract class ActionBehaviourBase : PlayableBehaviour

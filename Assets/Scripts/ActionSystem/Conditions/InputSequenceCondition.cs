@@ -28,7 +28,10 @@ public class InputSequenceCondition : ActionCondition
             return false;
 
         // 获取底层的只读录像带
-        var buffer = actor.logicInput.InputBuffer;
+        ActorLogicInput logicInput = actor.GetComponent<ActorLogicInput>();
+        if (logicInput == null) return false;
+
+        var buffer = logicInput.InputBuffer;
         if (buffer.Count == 0) return false;
 
         // 从最新的需要的指令开始往前匹配（例如：↓ ↘ → [轻击]，我们先找 [轻击]）
@@ -92,14 +95,15 @@ public class InputSequenceCondition : ActionCondition
     public override void OnClaim(Actor actor)
     {
         if (_matchedBufferIndices.Count == 0) return;
-        if (actor == null || actor.logicInput == null)
+        ActorLogicInput logicInput = actor != null ? actor.GetComponent<ActorLogicInput>() : null;
+        if (logicInput == null)
         {
             _matchedBufferIndices.Clear();
             return;
         }
 
         // InputBuffer 对外是 IReadOnlyList，但元素是引用类型，可以直接改字段。
-        var buffer = actor.logicInput.InputBuffer;
+        var buffer = logicInput.InputBuffer;
         for (int k = 0; k < _matchedBufferIndices.Count; k++)
         {
             int idx = _matchedBufferIndices[k];

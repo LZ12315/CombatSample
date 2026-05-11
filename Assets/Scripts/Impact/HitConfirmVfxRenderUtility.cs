@@ -2,7 +2,7 @@ using UnityEngine;
 
 public static class HitConfirmVfxRenderUtility
 {
-    public const string HitConfirmVfxLayerName = "HitConfirmVfx";
+    public const string HitConfirmVfxLayerName = "DeferredVFX";
     public const int OccluderStencilRef = 1;
 
     public static int HitConfirmVfxLayer => LayerMask.NameToLayer(HitConfirmVfxLayerName);

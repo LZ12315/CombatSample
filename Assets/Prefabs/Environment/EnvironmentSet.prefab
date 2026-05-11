@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 5702571750328623590}
   - component: {fileID: 2253879266193025640}
   - component: {fileID: 1669592878669945394}
-  m_Layer: 3
+  m_Layer: 9
   m_Name: Floor
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -155,7 +155,7 @@ GameObject:
   - component: {fileID: 4793541952455383123}
   - component: {fileID: 7940514753871810860}
   - component: {fileID: 7249450574942597027}
-  m_Layer: 3
+  m_Layer: 10
   m_Name: Obstacle_1
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -260,7 +260,7 @@ GameObject:
   - component: {fileID: 2015345515861095704}
   - component: {fileID: 7734325843952146750}
   - component: {fileID: 6712346319046139552}
-  m_Layer: 3
+  m_Layer: 8
   m_Name: Plane
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -366,7 +366,7 @@ GameObject:
   - component: {fileID: 4581366057391190525}
   - component: {fileID: 935075873528218953}
   - component: {fileID: 7095614624921116867}
-  m_Layer: 3
+  m_Layer: 8
   m_Name: Slope
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -471,7 +471,7 @@ GameObject:
   - component: {fileID: 5088518469609571562}
   - component: {fileID: 7137843244773695049}
   - component: {fileID: 5576589962912770772}
-  m_Layer: 3
+  m_Layer: 10
   m_Name: Wall
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -694,7 +694,7 @@ GameObject:
   - component: {fileID: 8061742120552944593}
   - component: {fileID: 6450206759777525082}
   - component: {fileID: 8297790574873099134}
-  m_Layer: 3
+  m_Layer: 10
   m_Name: Obstacle_2
   m_TagString: Untagged
   m_Icon: {fileID: 0}

@@ -7,13 +7,13 @@ using UnityEngine;
 /// 负责实现 ICharacterController、持有 ActorMotionRuntime，
 /// 并调度 locomotion、facing、root motion 与 KCC 速度解算。
 /// </summary>
+[RequireComponent(typeof(KinematicCharacterMotor))]
 [DefaultExecutionOrder(-50)]
 public class ActorMotor : MonoBehaviour, ICharacterController
 {
     #region === Inspector 配置 ===
 
     [SerializeField] private Actor actor;
-    [SerializeField] private Animator animator;
 
     [SerializeField, Tooltip("默认转向速度（度/秒）。")]
     private float rotateSpeed = 600f;
@@ -212,7 +212,6 @@ public class ActorMotor : MonoBehaviour, ICharacterController
     private void Awake()
     {
         actor = actor != null ? actor : GetComponent<Actor>();
-        animator = animator != null ? animator : GetComponentInChildren<Animator>();
 
         Motor = GetComponent<KinematicCharacterMotor>();
         if (Motor == null)
@@ -223,16 +222,7 @@ public class ActorMotor : MonoBehaviour, ICharacterController
         Motor.CharacterController = this;
 
         if (actor != null)
-        {
             actor.actorMotor = this;
-            if (actor.kccMotor == null)
-                actor.kccMotor = Motor;
-        }
-
-        if (animator != null && !animator.TryGetComponent<ActorRootMotionRelay>(out _))
-        {
-            animator.gameObject.AddComponent<ActorRootMotionRelay>();
-        }
 
         _facing.Initialize(transform.rotation);
     }

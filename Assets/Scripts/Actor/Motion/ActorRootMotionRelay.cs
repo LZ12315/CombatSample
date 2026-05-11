@@ -1,30 +1,39 @@
 using UnityEngine;
 
 /// <summary>
-/// Animator 所在对象上的 RootMotion 转发器。
-/// 收到 OnAnimatorMove 后把 delta 交给父级 ActorMotor。
+/// 挂在 Animator 同 GameObject 上，把 Root Motion delta 转发给父级 ActorMotor。
 ///
-/// 参照 Animancer RedirectRootMotion 的风格：
-/// - RequireComponent 保证与 Animator 同物体
-/// - 零手动配置，Awake / OnValidate 自动拉引用
+/// 所有者：Animator GameObject 的 prefab 层级。
+/// 依赖：必须挂在 Animator 所在物体上；父级必须有 ActorMotor 组件。
+/// 不要运行时自动添加——应由 prefab Inspector 显式装配。
 /// </summary>
 [RequireComponent(typeof(Animator))]
 public sealed class ActorRootMotionRelay : MonoBehaviour
 {
+    [SerializeField] private ActorMotor motor;
     private Animator _animator;
-    private ActorMotor _motor;
 
     private void Awake()
     {
         _animator = GetComponent<Animator>();
-        _motor = GetComponentInParent<ActorMotor>();
+        if (motor == null)
+            motor = GetComponentInParent<ActorMotor>();
+
+        if (motor == null)
+        {
+            Debug.LogError(
+                $"[ActorRootMotionRelay] No ActorMotor assigned or found in parent of '{name}'. "
+                + "Root Motion will NOT be applied. Assign the motor in the Inspector or ensure "
+                + "this relay is on a child of a GameObject with an ActorMotor component.",
+                this);
+        }
     }
 
     private void OnAnimatorMove()
     {
-        if (_motor != null)
+        if (motor != null && _animator != null)
         {
-            _motor.AddAnimatorRootMotionDelta(
+            motor.AddAnimatorRootMotionDelta(
                 _animator.deltaPosition,
                 _animator.deltaRotation);
         }
@@ -34,7 +43,15 @@ public sealed class ActorRootMotionRelay : MonoBehaviour
     {
         if (_animator == null)
             _animator = GetComponent<Animator>();
-        if (_motor == null)
-            _motor = GetComponentInParent<ActorMotor>();
+        if (motor == null)
+            motor = GetComponentInParent<ActorMotor>();
+        if (motor == null)
+        {
+            Debug.LogWarning(
+                $"[ActorRootMotionRelay] No ActorMotor assigned or found in parent of '{name}'. "
+                + "Assign the motor in the Inspector or place this relay on a child of the "
+                + "ActorMotor GameObject.",
+                this);
+        }
     }
 }
