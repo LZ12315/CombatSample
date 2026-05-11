@@ -3,7 +3,9 @@
     "allow": [
       "Bash(ls -la \"d:/Project Library/Projects/Unity/CombatSample/Assets/Scripts/Actor/Motion/\"*.meta)",
       "Read(//d/ApplicationLibrary/ClaudeCode/**)",
-      "Bash(dotnet build:*)"
+      "Bash(dotnet build:*)",
+      "Skill(update-config)",
+      "Skill(update-config:*)"
     ]
   }
 }
