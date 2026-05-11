@@ -1,18 +1,24 @@
 @AGENTS.md
+@agent-system/README.md
+@agent-system/protocols/COLLABORATION_PROTOCOL.md
+@agent-system/protocols/TASK_PROTOCOL.md
+@agent-system/protocols/REVIEW_PROTOCOL.md
+@agent-system/protocols/ARCHIVE_PROTOCOL.md
+@agent-system/protocols/STATUS_GUIDE.md
+@agent-system/rules/PLANNER_RULES.md
+@agent-system/rules/EXECUTOR_RULES.md
+@agent-system/rules/REVIEWER_RULES.md
+@agent-system/rules/UNITY_RULES.md
 
-## Claude Execution Mode
-When receiving a task contract from Codex, ChatGPT, GPT-5.5, or another planning agent, treat the contract as the primary source of truth for execution.
+# Claude Project Entry
 
-Execution rules:
-- Start by reading the files and areas named in the contract.
-- Keep changes inside the allowed edit scope.
-- Do not do unrelated cleanup, formatting, prefab edits, scene edits, or project setting changes.
-- If the contract conflicts with existing code or Unity serialization constraints, stop and report the conflict before making broad changes.
-- If the task is risky or ambiguous, first reply with the understood goal, intended file changes, approach, and open questions.
-- If the task is clear, implement directly and keep the final report concise.
+This file is intentionally short. Claude Code discovers `CLAUDE.md` at the repository root, so it stays here as the stable entry point.
 
-Required final report:
-- Changed files
-- What behavior changed
-- How it was verified
-- Remaining risks or unverified areas
+Follow the shared AI collaboration system in `agent-system/`.
+
+When acting as:
+- Planner: follow `agent-system/rules/PLANNER_RULES.md`.
+- Executor: follow `agent-system/rules/EXECUTOR_RULES.md`.
+- Reviewer: follow `agent-system/rules/REVIEWER_RULES.md`.
+
+Do not treat Claude as always executor. The user instruction and task file determine the role.
