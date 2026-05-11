@@ -6,6 +6,7 @@
       "Edit",
       "Glob",
       "Grep",
+      "Bash",
       "Bash(git:*)",
       "Bash(dotnet:*)",
       "Bash(wc:*)",
