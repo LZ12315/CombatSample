@@ -40,6 +40,7 @@ MonoBehaviour:
     horizontalMomentumInheritance: 1
     verticalMomentumInheritance: 1
   isLoop: 1
+  _allowReenterWhilePlaying: 0
   _entryConditions:
   - rid: 5174319773871505417
   _exitConditions: []

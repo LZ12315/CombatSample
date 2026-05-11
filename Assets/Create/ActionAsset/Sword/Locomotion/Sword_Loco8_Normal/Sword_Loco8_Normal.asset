@@ -15,7 +15,16 @@ MonoBehaviour:
   _timelineAsset: {fileID: 11400000, guid: a414f4d7063c4a04097121e96fe7f47b, type: 2}
   _priorityLayer: 0
   _priorityValue: 1
-  _branches: []
+  _cancelRules:
+  - targetKind: 2
+    specificTarget: {fileID: 0}
+    targetTag:
+      TagId: 0
+    window:
+      startAnchor: 1
+      startFrame: 0
+      endAnchor: 2
+      endFrame: 0
   _selfTags: []
   _legacySelfTag:
     TagId: 0
@@ -31,30 +40,16 @@ MonoBehaviour:
     horizontalMomentumInheritance: 1
     verticalMomentumInheritance: 1
   isLoop: 1
+  _allowReenterWhilePlaying: 0
   _entryConditions:
-  - rid: 5174319682080735234
-  - rid: 5174319728963354635
+  - rid: 8665090659046391808
+  _exitConditions: []
   references:
     version: 2
     RefIds:
-    - rid: 5174319682080735234
-      type: {class: TagCondition, ns: , asm: Assembly-CSharp}
-      data:
-        invertResult: 1
-        overrideAll: 0
-        requiredTag:
-          TagId: -928178065
-        targetContainer: 0
-        matchMode: 1
-    - rid: 5174319728963354635
-      type: {class: InputStateCondition, ns: , asm: Assembly-CSharp}
+    - rid: 8665090659046391808
+      type: {class: LocomotionIntentCondition, ns: , asm: Assembly-CSharp}
       data:
         invertResult: 0
         overrideAll: 0
-        stateCheck:
-          rid: 5174319728963354636
-    - rid: 5174319728963354636
-      type: {class: JoystickStateCheck, ns: , asm: Assembly-CSharp}
-      data:
-        requiredState: 1
-        check: -1
+        threshold: 0.01
