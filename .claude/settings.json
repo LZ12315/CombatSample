@@ -25,6 +25,6 @@
       "Bash(scoop:*)",
       "Bash(choco:*)"
     ],
-    "defaultMode": "acceptEdits"
+    "defaultMode": "dontAsk"
   }
 }
