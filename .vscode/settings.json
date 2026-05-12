@@ -56,7 +56,13 @@
         "temp/": true,
         "Temp/": true
     },
-    "dotnet.defaultSolution": "CombatSample.sln",
+    "explorer.fileNesting.enabled": true,
+    "explorer.fileNesting.patterns": {
+        "*.sln": "*.csproj",
+        "*.slnx": "*.csproj"
+    },
+    "dotnet.defaultSolution": "CombatSample.slnx",
+    "dotnet.enableWorkspaceBasedDevelopment": false,
     "dotnet.preferCSharpExtension": true,
     "claudeCode.disableLoginPrompt": true
 }
