@@ -58,10 +58,9 @@
     },
     "explorer.fileNesting.enabled": true,
     "explorer.fileNesting.patterns": {
-        "*.sln": "*.csproj",
-        "*.slnx": "*.csproj"
+        "*.sln": "*.csproj"
     },
-    "dotnet.defaultSolution": "CombatSample.slnx",
+    "dotnet.defaultSolution": "CombatSample.sln",
     "dotnet.enableWorkspaceBasedDevelopment": false,
     "dotnet.preferCSharpExtension": true,
     "claudeCode.disableLoginPrompt": true
