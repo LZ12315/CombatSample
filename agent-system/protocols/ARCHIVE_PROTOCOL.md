@@ -1,7 +1,7 @@
 # Archive Protocol
 
 ## Purpose
-Archives preserve how the project learned, not just what changed.
+Archives preserve completed task history.
 
 ## When To Archive
 Archive a task after:
@@ -30,13 +30,4 @@ status: archived
 
 Keep all rounds intact. Do not clean up failed plans, rejected reports, or review criticism.
 
-## Lessons
-When a completed task contains reusable project knowledge, add a concise lesson to:
-
-```text
-agent-tasks/lessons/
-```
-
-Lessons should be short and actionable. Link back to the archived task when possible.
-
-Archive is evidence. Lessons are distilled project memory.
+Archiving is the final phase of this collaboration system.

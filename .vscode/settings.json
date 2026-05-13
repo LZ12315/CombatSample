@@ -63,5 +63,8 @@
     "dotnet.defaultSolution": "CombatSample.sln",
     "dotnet.enableWorkspaceBasedDevelopment": false,
     "dotnet.preferCSharpExtension": true,
-    "claudeCode.disableLoginPrompt": true
+    "claudeCode.disableLoginPrompt": true,
+    "workbench.editorAssociations": {
+        "*.md": "vscode.markdown.preview.editor"
+    }
 }

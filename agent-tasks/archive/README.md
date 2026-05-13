@@ -8,4 +8,4 @@ Use year folders:
 agent-tasks/archive/2026/
 ```
 
-Keep archived task files intact. They are evidence for future lessons.
+Keep archived task files intact. They are the final record of completed AI collaboration work.

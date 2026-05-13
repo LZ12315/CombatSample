@@ -17,6 +17,8 @@ Use one of these decisions:
 - `changes_requested`: More work is needed in a new round.
 - `blocked`: The task cannot continue without user input or a revised plan.
 
+The review decision (e.g. `accepted`) is for the review section. The task status (`done`, `changes_requested`, `blocked`) is for the front matter. When the decision is `accepted`, set `status: done` in the front matter.
+
 ## Writing Reviews
 Write reviews in the current round under `## Review`.
 

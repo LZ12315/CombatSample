@@ -7,9 +7,6 @@ Active tasks live in:
 Completed task history lives in:
 - `agent-tasks/archive/`
 
-Lessons distilled from completed tasks live in:
-- `agent-tasks/lessons/`
-
 ## File Naming
 Use readable names:
 
@@ -49,38 +46,91 @@ completed_at:
 
 The front matter is the mutable task index. The body is the append-only work history.
 
+## Workspace Scope
+Tasks belong to the workspace where their task file lives.
+
+- New task files do not need `project_id`.
+- Task files should live under `agent-tasks/` in the current workspace.
+- Do not execute, review, archive, or edit a task file from another workspace unless the user explicitly asks for cross-workspace work.
+- If chat history points to a task that is not present in the current workspace, ask the user for the correct task path.
+
+## User-Gated Phase Control
+Task phases are controlled by the user, not by agent initiative.
+
+- A planner may create or update a task, but must not claim or execute it unless the user explicitly asks for execution.
+- An executor may claim and execute a task only when the user explicitly asks for execution.
+- An executor may set `status: review` after its report, but must not write the review or mark the task `done`.
+- A reviewer may review the latest report and set `status: done`, `changes_requested`, or `blocked`, but must not start the next execution round.
+- Archiving requires a separate user request unless the user explicitly combines acceptance and archiving in the same instruction.
+
+When in doubt, stop at the end of the current phase and ask the user what role to perform next.
+
 ## Language Policy
 - Front matter keys and status values stay in English.
 - File names and directory names stay in English.
 - Task body content should be written in Chinese by default so the project owner can read it comfortably.
-- Use bilingual section headings when they help agents parse the document, for example `## 计划 / Plan`.
+- Use bilingual section headings when they help agents parse the document, for example `### 1. 计划 / Plan`.
 - Keep code identifiers, paths, commands, API names, and exact tool output in their original language.
 - If the user explicitly requests another language for a specific task, follow that request.
 
 ## Body Structure
 Use rounds.
 
+Old task bodies are historical records. They may reflect earlier conventions that no longer apply. New tasks should follow the current templates and protocols in `agent-system/`, not copy the body format of older tasks.
+
+The task body should be readable in Markdown preview. Because some previewers hide or downplay YAML front matter, repeat the key task attributes in a visible Markdown table after the front matter.
+
+Use heading levels consistently:
+- `#` for the task title.
+- `##` for visible task metadata and each round.
+- `###` for the three phase sections in a round.
+- `####` for detailed subsections inside a phase.
+
+Separate rounds with a horizontal rule (`---`).
+
 ```md
-# 第 1 轮 / Round 1
+# 任务：Short task title
 
-## 计划 / Plan
+## 0. 任务属性 / Task Metadata
 
-## 执行报告 / Execution Report
+| 属性 / Field | 值 / Value |
+| --- | --- |
+| id | `task-YYYYMMDD-short-topic` |
+| status | `todo` |
+| current_round | `1` |
+| planner |  |
+| executor |  |
+| reviewer |  |
+| created_at | `YYYY-MM-DD` |
+| updated_at | `YYYY-MM-DD` |
+| completed_at |  |
 
-## 审查 / Review
+---
+
+## 第 1 轮 / Round 1
+
+### 1. 计划 / Plan
+
+### 2. 执行报告 / Execution Report
+
+### 3. 审查 / Review
 ```
 
 If more work is needed, append:
 
 ```md
-# 第 2 轮 / Round 2
+---
 
-## 计划 / Plan
+## 第 2 轮 / Round 2
 
-## 执行报告 / Execution Report
+### 1. 计划 / Plan
 
-## 审查 / Review
+### 2. 执行报告 / Execution Report
+
+### 3. 审查 / Review
 ```
+
+When front matter status, round, or agent fields change, update the visible metadata table in the same edit.
 
 ## Planning Requirements
 The plan should include:

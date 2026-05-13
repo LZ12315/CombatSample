@@ -5,7 +5,6 @@ This directory stores AI task files for cross-agent collaboration.
 ## Directories
 - `active/` contains tasks that are not finished or not archived.
 - `archive/` contains completed task history.
-- `lessons/` contains distilled project lessons from completed tasks.
 
 ## Rules
 - Active tasks use the format in `agent-system/templates/TASK_TEMPLATE.md`.
