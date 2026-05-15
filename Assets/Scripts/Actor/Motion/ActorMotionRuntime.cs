@@ -140,15 +140,20 @@ public sealed class ActorMotionRuntime
         _pendingCeilingHit = true;
     }
 
+    /// <summary>
+    /// 推进内部运动通道（重力、冲量阻尼等）。
+    /// motionDeltaTime = realDeltaTime * MovementTimeScale，
+    /// 确保 HitStop / HitStick 期间运动内部演化与输出速度同步减慢。
+    /// </summary>
     public void StepChannels(
-        float deltaTime,
+        float motionDeltaTime,
         bool grounded,
         ActorMotionRuntimeConfig config)
     {
-        _channels.StepGravity(deltaTime, grounded, _gravityScale);
-        _channels.StepHorizontalDrag(deltaTime, config.HorizontalDrag);
+        _channels.StepGravity(motionDeltaTime, grounded, _gravityScale);
+        _channels.StepHorizontalDrag(motionDeltaTime, config.HorizontalDrag);
         _channels.StepVerticalImpulse(
-            deltaTime,
+            motionDeltaTime,
             !grounded,
             grounded,
             _pendingCeilingHit,
@@ -157,6 +162,11 @@ public sealed class ActorMotionRuntime
         _pendingCeilingHit = false;
     }
 
+    /// <summary>
+    /// 合成送给 KCC 的请求速度。
+    /// deltaTime 是 KCC 传入的真实 tick delta，用于 RootMotion
+    /// 位移→速度换算；不在此处参与 time scale 语义。
+    /// </summary>
     public Vector3 ComposeKccVelocity(
         KinematicCharacterMotor motor,
         Vector3 locomotionVelocity,

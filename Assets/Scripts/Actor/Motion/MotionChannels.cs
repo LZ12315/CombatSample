@@ -194,7 +194,8 @@ public sealed class MotionChannels
     }
 
     /// <summary>
-    /// 演化重力。若垂直 velocity owner 正在接管该轴，则暂停内部重力演化。
+    /// 演化重力。dt 是 Actor 本地 motion delta（已乘 MovementTimeScale）。
+    /// 若垂直 velocity owner 正在接管该轴，则暂停内部重力演化。
     /// 稳定接地时会钳制垂直内部状态，而不是继续累积重力。
     /// </summary>
     public void StepGravity(float dt, bool isGrounded, float gravityScale)
@@ -209,7 +210,7 @@ public sealed class MotionChannels
     }
 
     /// <summary>
-    /// 衰减可叠加的水平冲量。
+    /// 衰减可叠加的水平冲量。dt 是 Actor 本地 motion delta。
     /// Locomotion 和 velocity owner 不在这里衰减。
     /// </summary>
     public void StepHorizontalDrag(float dt, float drag)
@@ -225,7 +226,7 @@ public sealed class MotionChannels
     }
 
     /// <summary>
-    /// 衰减垂直冲量，并处理一次性的垂直碰撞反馈。
+    /// 衰减垂直冲量，并处理一次性的垂直碰撞反馈。dt 是 Actor 本地 motion delta。
     /// 撞天花板会截断向上速度，但不会把已累积的重力瞬间暴露成过快下落。
     /// </summary>
     public void StepVerticalImpulse(

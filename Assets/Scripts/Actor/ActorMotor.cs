@@ -295,8 +295,15 @@ public class ActorMotor : MonoBehaviour, ICharacterController
         bool grounded = Motor.GroundingStatus.IsStableOnGround &&
                         !MotionRuntime.ForceUngroundedThisTick;
 
+        // motionDeltaTime 是 Actor 本地运动时间。HitStop / HitStick
+        // 期间 MovementTimeScale < 1，gravity、impulse drag 等内部
+        // 演化也应按此时间推进，否则 Impulse 距离/高度会缩水。
+        // ComposeKccVelocity 和 ComputeSolvedVelocity 对接 KCC
+        // 真实 tick，仍使用 deltaTime。
+        float motionDeltaTime = deltaTime * MovementTimeScale;
+
         ActorMotionRuntimeConfig config = GetRuntimeConfig();
-        MotionRuntime.StepChannels(deltaTime, grounded, config);
+        MotionRuntime.StepChannels(motionDeltaTime, grounded, config);
 
         currentVelocity = MotionRuntime.ComposeKccVelocity(
             Motor,
