@@ -18,6 +18,11 @@ public enum ContinuousParameterSource
     /// （例如 Threshold 配 -15/-5/0/+5/+15 对应 FastFall/Fall/Apex/Rise/JumpStart）。
     /// </summary>
     VerticalVelocity = 2,
+    /// <summary>
+    /// 直接注入 LocomotionIntent.MoveStrength，作为 1D LinearMixer 参数。
+    /// 适用于只关心输入强度、不关心移动方向的混合。
+    /// </summary>
+    LocoIntentMagnitude = 3,
 }
 
 /// <summary>
@@ -32,11 +37,6 @@ public class ContinuousAnimancerClip : PlayableAsset, ITimelineClipAsset
 
     [Tooltip("每帧参数注入的数据源。")]
     public ContinuousParameterSource parameterSource = ContinuousParameterSource.LocomotionIntent;
-
-    [Tooltip("仅 VerticalVelocity 模式生效：参数平滑时间（秒）。0 = 不平滑。\n" +
-             "典型值 0.08~0.12，用于消除顶点附近姿态抖动、拉长 Apex 视觉停留。")]
-    [Min(0f)]
-    public float verticalVelocitySmoothTime = 0.1f;
 
     public ClipCaps clipCaps => ClipCaps.SpeedMultiplier;
 
@@ -56,7 +56,6 @@ public class ContinuousAnimancerClip : PlayableAsset, ITimelineClipAsset
 
         behaviour.transitionAsset = this.transitionAsset;
         behaviour.parameterSource = this.parameterSource;
-        behaviour.verticalVelocitySmoothTime = this.verticalVelocitySmoothTime;
 
         return playable;
     }
