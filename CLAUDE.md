@@ -25,9 +25,9 @@ When acting as:
 - Reviewer: follow `agent-system/rules/REVIEWER_RULES.md`.
 
 Task console helper:
-- Use `python tools/agent_task.py list` to inspect active tasks.
-- Use `python tools/agent_task.py next` before selecting an executable task unless the user names a task explicitly.
-- Use `python tools/agent_task.py validate <task-file>` before or after editing a task file when checking metadata consistency.
+- Use `python Tool/agent_task.py list` to inspect active tasks.
+- Use `python Tool/agent_task.py next` before selecting an executable task unless the user names a task explicitly.
+- Use `python Tool/agent_task.py validate <task-file>` before or after editing a task file when checking metadata consistency.
 
 Do not treat Claude as always executor. The user instruction and task file determine the role.
 
