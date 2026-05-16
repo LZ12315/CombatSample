@@ -27,13 +27,11 @@ MonoBehaviour:
           _Callbacks: []
           _Names: []
         _Animations:
-        - {fileID: 0}
-        - {fileID: 0}
-        - {fileID: 0}
+        - {fileID: 1652673175506064298, guid: c5ac01c5546a68e4b86d02db7c1f3d7d, type: 3}
+        - {fileID: -6940667639068230761, guid: 624de805652622e44958d3b8d48a248f, type: 3}
         _Speeds: []
         _SynchronizeChildren: 
         _Thresholds:
-        - 0
         - 0.4
         - 1
         _DefaultParameter: 0

@@ -10,9 +10,9 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d4a14c808be2c4f4a8f1b6d45ebd172f, type: 3}
-  m_Name: Boxing_Loco8_Normal
+  m_Name: Boxing_NormaLoco
   m_EditorClassIdentifier: 
-  _timelineAsset: {fileID: 11400000, guid: 3dfe751ead1ae24479b96fc6e92ce8e7, type: 2}
+  _timelineAsset: {fileID: 11400000, guid: f5fcb0a29b4954941a5a043886c5cc45, type: 2}
   _priorityLayer: 0
   _priorityValue: 1
   _cancelRules:
@@ -24,7 +24,7 @@ MonoBehaviour:
       startAnchor: 0
       startFrame: 0
       endAnchor: 2
-      endFrame: 48
+      endFrame: 0
   _selfTags:
   - TagId: -229303555
   _legacySelfTag:
@@ -41,27 +41,21 @@ MonoBehaviour:
     horizontalMomentumInheritance: 1
     verticalMomentumInheritance: 1
   isLoop: 1
+  _allowReenterWhilePlaying: 0
   _entryConditions:
-  - rid: 5174319843170058246
-  - rid: 5174319843170058247
-  _exitConditions:
-  - rid: 5174319843170058244
+  - rid: 8665090978523381764
+  - rid: 8665090978523381765
+  _exitConditions: []
   references:
     version: 2
     RefIds:
-    - rid: 5174319843170058244
-      type: {class: LocomotionIntentCondition, ns: , asm: Assembly-CSharp}
-      data:
-        invertResult: 1
-        overrideAll: 0
-        threshold: 0.01
-    - rid: 5174319843170058246
+    - rid: 8665090978523381764
       type: {class: LocomotionIntentCondition, ns: , asm: Assembly-CSharp}
       data:
         invertResult: 0
         overrideAll: 0
         threshold: 0.01
-    - rid: 5174319843170058247
+    - rid: 8665090978523381765
       type: {class: GroundStateCondition, ns: , asm: Assembly-CSharp}
       data:
         invertResult: 0
