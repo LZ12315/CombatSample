@@ -5,9 +5,9 @@ This tool intentionally uses only Python's standard library so Codex, Claude,
 or another agent can run it without installing project-specific packages.
 
 Commands:
-  python tools/agent_task.py list
-  python tools/agent_task.py next
-  python tools/agent_task.py validate agent-tasks/active/task-xxx.md
+  python Tool/agent_task.py list
+  python Tool/agent_task.py next
+  python Tool/agent_task.py validate agent-tasks/active/task-xxx.md
 """
 
 from __future__ import annotations
