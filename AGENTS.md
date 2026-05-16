@@ -9,6 +9,11 @@ Task files live in:
 - `agent-tasks/active/`
 - `agent-tasks/archive/`
 
+Task console helper:
+- `python tools/agent_task.py list` lists active task files.
+- `python tools/agent_task.py next` shows the next executable active task.
+- `python tools/agent_task.py validate <task-file>` checks task front matter and basic state consistency.
+
 Before planning, executing, reviewing, or archiving AI tasks, read:
 - `agent-system/WORKSPACE_BOUNDARY.md`
 - `agent-system/README.md`
@@ -24,6 +29,7 @@ Core rules:
 - Any agent can act as planner, executor, or reviewer. The current task and user instruction decide the role.
 - Agents must not move themselves into another role. Publishing, executing, reviewing, and archiving are separate user-initiated actions.
 - Use task markdown files as the source of truth for cross-agent handoff.
+- When choosing an active task, prefer the task console helper over manually guessing from the directory listing.
 - Keep task rounds append-only: plan, execution report, and review are added round by round until done.
 - Do not overwrite another agent's historical plan, report, or review. Add a new round or append a dated note instead.
 - Keep Unity edits local and reviewable. Follow `agent-system/rules/UNITY_RULES.md`.
