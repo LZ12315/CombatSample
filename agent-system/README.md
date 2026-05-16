@@ -19,6 +19,17 @@ Those files should stay short and point back to this directory.
 - `agent-tasks/active/` stores current tasks.
 - `agent-tasks/archive/` stores completed task history.
 
+## Task Console
+A small local helper exists for inspecting active task files before agents choose work:
+
+```bash
+python tools/agent_task.py list
+python tools/agent_task.py next
+python tools/agent_task.py validate agent-tasks/active/task-xxx.md
+```
+
+Use it to list active tasks, select the next executable task, and catch obvious task metadata issues before handoff or review.
+
 ## Roles
 Any capable agent can act as:
 - Planner: creates or updates a task plan.
