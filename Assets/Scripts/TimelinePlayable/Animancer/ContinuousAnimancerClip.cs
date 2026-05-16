@@ -18,11 +18,6 @@ public enum ContinuousParameterSource
     /// （例如 Threshold 配 -15/-5/0/+5/+15 对应 FastFall/Fall/Apex/Rise/JumpStart）。
     /// </summary>
     VerticalVelocity = 2,
-    /// <summary>
-    /// 直接注入 LocomotionIntent.MoveStrength，作为 1D LinearMixer 参数。
-    /// 适用于只关心输入强度、不关心移动方向的混合。
-    /// </summary>
-    LocoIntentMagnitude = 3,
 }
 
 /// <summary>
