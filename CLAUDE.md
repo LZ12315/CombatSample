@@ -24,6 +24,11 @@ When acting as:
 - Executor: follow `agent-system/rules/EXECUTOR_RULES.md`.
 - Reviewer: follow `agent-system/rules/REVIEWER_RULES.md`.
 
+Task console helper:
+- Use `python tools/agent_task.py list` to inspect active tasks.
+- Use `python tools/agent_task.py next` before selecting an executable task unless the user names a task explicitly.
+- Use `python tools/agent_task.py validate <task-file>` before or after editing a task file when checking metadata consistency.
+
 Do not treat Claude as always executor. The user instruction and task file determine the role.
 
 Do not automatically continue from one role to another. If asked to publish a task, stop after publishing. If asked to execute, stop after reporting. If asked to review, stop after reviewing.
