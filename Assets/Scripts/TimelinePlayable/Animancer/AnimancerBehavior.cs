@@ -120,9 +120,6 @@ public class AnimancerBehaviour : ActionBehaviourBase
                 case AnimancerParameterMode.SerializedFallback:
                     mixer2D.Parameter = fallbackVector2;
                     break;
-                case AnimancerParameterMode.LocomotionIntent:
-                    mixer2D.Parameter = TryGetLocomotionIntent2D(out var intent2D) ? intent2D : fallbackVector2;
-                    break;
             }
         }
         else if (_currentState is MixerState<float> mixer1D)
@@ -134,9 +131,6 @@ public class AnimancerBehaviour : ActionBehaviourBase
                     break;
                 case AnimancerParameterMode.SerializedFallback:
                     mixer1D.Parameter = fallbackFloat;
-                    break;
-                case AnimancerParameterMode.LocomotionIntent:
-                    mixer1D.Parameter = TryGetLocomotionIntentMagnitude(out var intentMagnitude) ? intentMagnitude : fallbackFloat;
                     break;
             }
         }
@@ -170,50 +164,6 @@ public class AnimancerBehaviour : ActionBehaviourBase
 
         magnitude = actionInstance.EventContext.Magnitude;
         return Mathf.Abs(magnitude) > 0.001f;
-    }
-
-    private bool TryGetLocomotionIntent2D(out Vector2 parameter)
-    {
-        parameter = fallbackVector2;
-        if (actor?.actorMotor == null)
-            return false;
-
-        var intent = actor.actorMotor.LocomotionIntent;
-
-        Vector3 referenceForward = intent.FacingDirection;
-        referenceForward.y = 0f;
-
-        if (referenceForward.sqrMagnitude < 0.0001f)
-        {
-            referenceForward = actor.transform.forward;
-        }
-        referenceForward.Normalize();
-
-        Vector3 moveDir = intent.WorldMoveDirection;
-        moveDir.y = 0f;
-
-        if (moveDir.sqrMagnitude < 0.0001f || intent.MoveStrength < 0.01f)
-            return false;
-
-        moveDir.Normalize();
-        Quaternion refRotation = Quaternion.LookRotation(referenceForward, Vector3.up);
-        Vector3 localDir = Quaternion.Inverse(refRotation) * moveDir;
-
-        parameter = new Vector2(localDir.x, localDir.z) * intent.MoveStrength;
-        if (parameter.sqrMagnitude > 1f)
-            parameter.Normalize();
-
-        return true;
-    }
-
-    private bool TryGetLocomotionIntentMagnitude(out float magnitude)
-    {
-        magnitude = fallbackFloat;
-        if (actor?.actorMotor == null)
-            return false;
-
-        magnitude = actor.actorMotor.LocomotionIntent.MoveStrength;
-        return true;
     }
 
     #endregion
