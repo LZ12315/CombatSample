@@ -10,9 +10,9 @@ Task files live in:
 - `agent-tasks/archive/`
 
 Task console helper:
-- `python tools/agent_task.py list` lists active task files.
-- `python tools/agent_task.py next` shows the next executable active task.
-- `python tools/agent_task.py validate <task-file>` checks task front matter and basic state consistency.
+- `python Tool/agent_task.py list` lists active task files.
+- `python Tool/agent_task.py next` shows the next executable active task.
+- `python Tool/agent_task.py validate <task-file>` checks task front matter and basic state consistency.
 
 Before planning, executing, reviewing, or archiving AI tasks, read:
 - `agent-system/WORKSPACE_BOUNDARY.md`
