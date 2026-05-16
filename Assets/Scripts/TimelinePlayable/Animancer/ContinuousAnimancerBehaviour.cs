@@ -80,9 +80,6 @@ public class ContinuousAnimancerBehaviour : ActionBehaviourBase
             case ContinuousParameterSource.VerticalVelocity:
                 UpdateMixerFromVerticalVelocity();
                 break;
-            case ContinuousParameterSource.LocoIntentMagnitude:
-                UpdateMixerFromLocoIntentMagnitude();
-                break;
         }
     }
 
@@ -116,6 +113,7 @@ public class ContinuousAnimancerBehaviour : ActionBehaviourBase
     /// <summary>
     /// LocomotionIntent 模式：从移动意图计算 Mixer 参数。
     /// 以 FacingDirection 为参考系（锁定时稳定），将移动方向投影到本地空间。
+    /// 2D Mixer 使用移动方向和输入强度；1D Mixer 直接使用输入强度 MoveStrength。
     /// </summary>
     private void UpdateMixerFromLocomotionIntent()
     {
@@ -208,21 +206,6 @@ public class ContinuousAnimancerBehaviour : ActionBehaviourBase
         if (_currentState is MixerState<float> mixer1D)
         {
             mixer1D.Parameter = actor.actorMotor.CurrentVelocity.y;
-        }
-        // 2D Mixer 等其他类型：此模式无对应语义，跳过。
-    }
-
-    /// <summary>
-    /// LocoIntentMagnitude 模式：直接注入 LocomotionIntent.MoveStrength。
-    /// 用于 1D LinearMixerTransition，表示输入强度 / 摇杆模长。
-    /// </summary>
-    private void UpdateMixerFromLocoIntentMagnitude()
-    {
-        if (actor?.actorMotor == null) return;
-
-        if (_currentState is MixerState<float> mixer1D)
-        {
-            mixer1D.Parameter = actor.actorMotor.LocomotionIntent.MoveStrength;
         }
         // 2D Mixer 等其他类型：此模式无对应语义，跳过。
     }
