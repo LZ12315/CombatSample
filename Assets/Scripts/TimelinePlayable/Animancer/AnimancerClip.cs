@@ -8,8 +8,8 @@ public enum AnimancerParameterMode
     None = 0,
     ContextDirection2D = 1,
     ContextMagnitude = 2,
-    SerializedFallback = 3,
-    LocomotionIntent = 4,
+    LocomotionIntent = 3,
+    SerializedFallback = 4,
 }
 
 [System.Serializable]
