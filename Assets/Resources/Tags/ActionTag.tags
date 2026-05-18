@@ -18,3 +18,4 @@ State.Physics.Airbone
 Hit.Air.Light
 Hit.Air.Medium
 Hit.Air.Hard
+Hit.Air.ReHit

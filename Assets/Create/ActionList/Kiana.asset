@@ -12,4 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4e484c16208db8333b7c6578a14e5a8e, type: 3}
   m_Name: Kiana
   m_EditorClassIdentifier: 
-  _globalActions: []
+  _globalActions:
+  - {fileID: 11400000, guid: 712d8138f9fe5794fa20b04a100b1a34, type: 2}
+  - {fileID: 11400000, guid: 7c5ca198895cfad4491af35083d23dbf, type: 2}
+  - {fileID: 11400000, guid: fb7792fca5d16524fbfc3cce6512d352, type: 2}
+  - {fileID: 11400000, guid: 521efc826aa605646a75f9570ebdc2f0, type: 2}
+  - {fileID: 11400000, guid: 2a2a5db946b511d408939f1625a604ff, type: 2}
+  - {fileID: 11400000, guid: fa5e5e67f621b5e42a4860cc69b3a521, type: 2}

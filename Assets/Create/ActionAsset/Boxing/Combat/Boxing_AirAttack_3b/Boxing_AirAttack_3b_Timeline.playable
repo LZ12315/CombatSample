@@ -27,7 +27,7 @@ MonoBehaviour:
       m_Bits: 64
     _baseDamage: 10
     hitEventTag:
-      TagId: 90086665
+      TagId: -750215503
   effects:
   - rid: 4877214280882585608
   - rid: 4877214280882585609
