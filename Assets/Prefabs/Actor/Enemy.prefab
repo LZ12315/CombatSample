@@ -23,6 +23,11 @@ PrefabInstance:
       propertyPath: m_Layer
       value: 6
       objectReference: {fileID: 0}
+    - target: {fileID: 5391054559327852829, guid: 9b0b1c79130bc9d4ba7067988ae1edfd,
+        type: 3}
+      propertyPath: StableGroundLayers.m_Bits
+      value: 1280
+      objectReference: {fileID: 0}
     - target: {fileID: 5430425547270008086, guid: 9b0b1c79130bc9d4ba7067988ae1edfd,
         type: 3}
       propertyPath: _actor
@@ -159,15 +164,3 @@ MonoBehaviour:
   _updateMode: 0
   _graph: {fileID: 0}
   _blackboard: {fileID: 6095726686050045593}
---- !u!114 &5941942476261624252 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 5430425547270008086, guid: 9b0b1c79130bc9d4ba7067988ae1edfd,
-    type: 3}
-  m_PrefabInstance: {fileID: 1813466790997337258}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5a5a06ca151dd0d449a97301a369bd51, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
