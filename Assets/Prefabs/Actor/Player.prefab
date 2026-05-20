@@ -170,6 +170,16 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 760913534941012436, guid: 9b0b1c79130bc9d4ba7067988ae1edfd,
+        type: 3}
+      propertyPath: _actorPushMass
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 760913534941012436, guid: 9b0b1c79130bc9d4ba7067988ae1edfd,
+        type: 3}
+      propertyPath: _canBeActorPushed
+      value: 1
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects:

@@ -1,16 +1,16 @@
 ---
 id: task-20260511-test-agent-handoff
-title: Test agent task handoff workflow
-summary: Validate that an agent can discover, claim, execute, and hand off a minimal active task without touching Unity code or assets.
-status: done
-current_round: 3
+title: Agent system — 工作流验证、设计审查与协议修正
+summary: Establish the agent-system collaboration infrastructure through handoff validation (task-20260511), design review (task-20260513-review), and protocol polish (task-20260513-polish). All three merged into one document.
+status: archived
+current_round: 7
 planner: Codex
-executor: Claude
-reviewer: Codex
+executor: Claude / Codex
+reviewer: Codex / Claude
 created_at: 2026-05-11
-updated_at: 2026-05-12
+updated_at: 2026-05-20
 claimed_at: 2026-05-11
-completed_at: 2026-05-12
+completed_at: 2026-05-20
 ---
 
 # Round 1
@@ -262,3 +262,103 @@ Non-blocking note:
 Result:
 - The task handoff workflow is accepted.
 - Front matter has been marked `status: done` with `completed_at: 2026-05-12`.
+
+---
+
+# Part 2：Agent 系统设计审查
+
+> 原独立任务 `task-20260513-agent-system-design-review`。
+> 对 agent-system 全套协议/规则进行设计审查，产出过严规则清单、规范不足清单和建议调整方案。
+
+## 第 4 轮 / Round 4 — 设计审查执行
+
+### 1. 计划 / Plan (摘要)
+
+Agent: Codex, Role: Planner, Date: 2026-05-13
+
+评估 `agent-system/` 是否适合长期用于 Unity 多 Agent 协作。产出阻塞级/中等问题/轻微问题/值得保留的设计/建议改动清单。只允许修改本任务文件，不修改 agent-system 协议本身。
+
+### 2. 执行报告 / Execution Report (摘要)
+
+Agent: Claude, Role: Executor, Date: 2026-05-13
+
+阅读了全部 17 个协议/规则/模板/任务文件，基于实际内容而非记忆出具报告。
+
+**总体结论：** 核心方向正确，但存在"过于严格导致执行效率低下"和"部分规范不足导致 Agent 行为不一致"两类问题。整体评级：可用但需迭代优化。
+
+**过严规则（建议降级）：**
+- 五阶段用户门控每阶段都需用户单独发起，简单任务交互次数过多
+- `Verification Accuracy` 要求精确到数量，对非资产变更可用类别描述
+- 用户门控规则在三处重复，应合并到 `COLLABORATION_PROTOCOL.md`
+- `UNITY_RULES.md` "Prefer existing patterns" 偏模糊，应加例外条件
+
+**规范不足（建议补充）：**
+- 缺少 `depends_on` 字段和 `waiting` 状态（任务间依赖）
+- 缺少 `priority` 字段（执行者无法判断优先顺序）
+- 缺少 `workspace` 字段（跨工作区时无明确标识）
+- 缺少 `lessons/` 提炼流程和模板
+- 缺少 `blocked` 状态的解除流程
+- 缺少 task console / CLI 辅助工具
+- `TASK_TEMPLATE.md` 无双语标题示例
+
+**值得保留的设计：**
+- 用户门控阶段（核心价值，不能去掉）
+- append-only 多轮任务历史
+- 任务文件作为跨 Agent 事实来源
+- 中文正文 + 英文 front matter 的语言策略
+- `UNITY_RULES.md` 的资产/序列化约束
+
+### 3. 审查 / Review
+
+Agent: Codex, Role: Reviewer, Date: 2026-05-13
+
+Decision: `changes_requested` → `accepted` (after 2 revision rounds).
+
+Round 2 修复了验证声明不精确问题（`_bodies` 清理验证）。Round 3 接受了轻微文案偏差。设计审查报告详实、区分了事实与建议、未修改协议本身。
+
+---
+
+# Part 3：协议歧义修正
+
+> 原独立任务 `task-20260513-protocol-ambiguity-polish`。
+> 根据设计审查发现，对协作协议做小范围澄清性修正。
+
+## 第 5-7 轮 / Rounds 5-7 — 协议修正执行
+
+### 1. 计划 / Plan (摘要)
+
+Agent: Codex, Role: Planner, Date: 2026-05-13
+
+修正设计审查中最明确的协议歧义，不改核心工作流：
+- `TASK_PROTOCOL.md`：补充 Workspace Scope 段、Language Policy 段、`claimed_at`/`completed_at` 字段说明、双语标题示例
+- `STATUS_GUIDE.md`：补充 `blocked` 状态解除流程
+- `TASK_TEMPLATE.md`：添加 visible metadata table
+- `PLANNER_RULES.md`：补充 When Updating 段、中文正文约束、双语标题
+- `EXECUTOR_RULES.md`：补充 workspace 边界确认、verification accuracy 规则、中文正文约束
+- `REVIEWER_RULES.md`：补充 review 正文用中文
+- `ARCHIVE_PROTOCOL.md`：补充归档年份子目录规则
+- `agent-tasks/README.md`：补充 `lessons/` 目录说明
+
+### 2. 执行报告 / Execution Report
+
+Agent: Claude, Role: Executor, Date: 2026-05-13 → 2026-05-14
+
+| 文件 | 修改 |
+|---|---|
+| `TASK_PROTOCOL.md` | +Workspace Scope, +Language Policy, +`claimed_at`/`completed_at`, +双语 body 示例, +Verification Accuracy 段 |
+| `STATUS_GUIDE.md` | +blocked→todo/in_progress 恢复路径 |
+| `TASK_TEMPLATE.md` | +visible metadata table |
+| `PLANNER_RULES.md` | +When Updating, +front matter English constraint, +bilingual headings |
+| `EXECUTOR_RULES.md` | +workspace 确认, +verification accuracy rules, +Chinese body constraint |
+| `REVIEWER_RULES.md` | +review 正文中文约束 |
+| `ARCHIVE_PROTOCOL.md` | +archive into YYYY/ subdirectory |
+| `agent-tasks/README.md` | +lessons/ 说明 |
+| `AGENTS.md` / `CLAUDE.md` | 同步更新协议文件引用列表 |
+
+经过 3 轮 review+修正（Round 5 初版 → Round 6 修正文案 → Round 7 修正 reviewer rules），所有变更被接受。
+
+### 3. 最终审查
+
+Agent: Codex, Role: Reviewer, Date: 2026-05-14
+
+Decision: `accepted`。所有修改仅针对协议文件，未动 Unity 资产。Task-20260513-protocol-ambiguity-polish 标记为 `done`。

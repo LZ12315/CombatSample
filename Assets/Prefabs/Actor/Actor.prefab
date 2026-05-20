@@ -143,6 +143,8 @@ MonoBehaviour:
   _collisionMask:
     serializedVersion: 2
     m_Bits: 4294967295
+  _actorPushMass: 1
+  _canBeActorPushed: 1
 --- !u!114 &6202206151019820556
 MonoBehaviour:
   m_ObjectHideFlags: 0

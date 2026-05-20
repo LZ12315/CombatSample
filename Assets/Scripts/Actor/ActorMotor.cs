@@ -40,6 +40,13 @@ public class ActorMotor : MonoBehaviour, ICharacterController
     [SerializeField, Tooltip("碰撞过滤层。只有这些层上的 Collider 会参与角色碰撞。~0 = 全部。")]
     private LayerMask _collisionMask = ~0;
 
+    [Header("Actor 互推")]
+    [SerializeField, Range(0.1f, 100f), Tooltip("互推质量。值越大越难被挤动，值越小越容易被推开。默认 1。")]
+    private float _actorPushMass = 1f;
+
+    [SerializeField, Tooltip("是否可以参与 Actor 互推分离。关闭后该 Actor 不会被水平推开，但也不会让另一方穿模。")]
+    private bool _canBeActorPushed = true;
+
     #endregion
 
     #region === 运行时对象 ===
@@ -49,6 +56,25 @@ public class ActorMotor : MonoBehaviour, ICharacterController
 
     public KinematicCharacterMotor Motor { get; private set; }
     public ActorMotionRuntime MotionRuntime { get; } = new();
+    public CapsuleCollider Capsule { get; private set; }
+
+    // Actor collision properties
+    public float ActorPushMass => _actorPushMass;
+    public bool CanBeActorPushed => _canBeActorPushed;
+
+    #endregion
+
+    #region === Actor 识别 ===
+
+    /// <summary>
+    /// Returns the ActorMotor on the collider's root GameObject, or null if none.
+    /// Uses GetComponentInParent to handle colliders on child GameObjects (e.g. hitboxes).
+    /// </summary>
+    public static ActorMotor GetActorMotor(Collider collider)
+    {
+        if (collider == null) return null;
+        return collider.GetComponentInParent<ActorMotor>();
+    }
 
     #endregion
 
@@ -214,6 +240,7 @@ public class ActorMotor : MonoBehaviour, ICharacterController
         actor = actor != null ? actor : GetComponent<Actor>();
 
         Motor = GetComponent<KinematicCharacterMotor>();
+        Capsule = GetComponent<CapsuleCollider>();
         if (Motor == null)
         {
             Debug.LogError($"[ActorMotor] Missing KinematicCharacterMotor on '{name}'.", this);
@@ -225,6 +252,16 @@ public class ActorMotor : MonoBehaviour, ICharacterController
             actor.actorMotor = this;
 
         _facing.Initialize(transform.rotation);
+    }
+
+    private void OnEnable()
+    {
+        ActorCollisionResolver.Register(this);
+    }
+
+    private void OnDisable()
+    {
+        ActorCollisionResolver.Unregister(this);
     }
 
     private void Update()
@@ -332,6 +369,13 @@ public class ActorMotor : MonoBehaviour, ICharacterController
 
     public bool IsColliderValidForCollisions(Collider coll)
     {
+        // Filter out other KCC-driven actors so they don't block each other
+        // as if they were solid walls. Actor-actor separation is handled by
+        // ActorCollisionResolver after all motors tick.
+        ActorMotor otherMotor = GetActorMotor(coll);
+        if (otherMotor != null && otherMotor != this)
+            return false;
+
         return (_collisionMask & (1 << coll.gameObject.layer)) != 0;
     }
 
@@ -347,7 +391,18 @@ public class ActorMotor : MonoBehaviour, ICharacterController
 
     public void ProcessHitStabilityReport(Collider hitCollider, Vector3 hitNormal, Vector3 hitPoint,
         Vector3 atCharacterPosition, Quaternion atCharacterRotation,
-        ref HitStabilityReport hitStabilityReport) { }
+        ref HitStabilityReport hitStabilityReport)
+    {
+        // Actor-on-actor: prevent treating another actor as stable ground or valid step.
+        // This stops characters from standing on each other's heads.
+        ActorMotor otherMotor = GetActorMotor(hitCollider);
+        if (otherMotor != null && otherMotor != this)
+        {
+            hitStabilityReport.IsStable = false;
+            hitStabilityReport.ValidStepDetected = false;
+            hitStabilityReport.LedgeDetected = false;
+        }
+    }
 
     public void OnDiscreteCollisionDetected(Collider hitCollider) { }
 

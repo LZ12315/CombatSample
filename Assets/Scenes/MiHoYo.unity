@@ -1093,6 +1093,21 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: 8dc627b1d74945f40afae2830d53895c,
         type: 2}
+    - target: {fileID: 1415806643822593406, guid: 7351e195eb0fa1445af9e9e72fcc017f,
+        type: 3}
+      propertyPath: _pushWeight
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1415806643822593406, guid: 7351e195eb0fa1445af9e9e72fcc017f,
+        type: 3}
+      propertyPath: _pushPriority
+      value: 10
+      objectReference: {fileID: 0}
+    - target: {fileID: 1415806643822593406, guid: 7351e195eb0fa1445af9e9e72fcc017f,
+        type: 3}
+      propertyPath: _actorPushMass
+      value: 2
+      objectReference: {fileID: 0}
     - target: {fileID: 1805172419140318867, guid: 7351e195eb0fa1445af9e9e72fcc017f,
         type: 3}
       propertyPath: m_Name
@@ -1323,6 +1338,21 @@ PrefabInstance:
         type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4791876501680979571, guid: 00e2921e173238048b0aabe7dcf421a9,
+        type: 3}
+      propertyPath: _pushWeight
+      value: 0.01
+      objectReference: {fileID: 0}
+    - target: {fileID: 4791876501680979571, guid: 00e2921e173238048b0aabe7dcf421a9,
+        type: 3}
+      propertyPath: _canBePushed
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4791876501680979571, guid: 00e2921e173238048b0aabe7dcf421a9,
+        type: 3}
+      propertyPath: _pushPriority
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 5199577492668779934, guid: 00e2921e173238048b0aabe7dcf421a9,
         type: 3}

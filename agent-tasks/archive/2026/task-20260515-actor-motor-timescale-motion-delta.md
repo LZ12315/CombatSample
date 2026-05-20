@@ -2,11 +2,11 @@
 id: task-20260515-actor-motor-timescale-motion-delta
 title: Fix ActorMotor movement timescale delta semantics
 summary: 修正 ActorMotor 中 MovementTimeScale 只缩放输出速度、未缩放运动通道步进时间的问题，避免 HitStop/HitStick 期间 Impulse、重力和阻尼被正常时间提前消耗。
-status: review
+status: archived
 current_round: 1
 planner: ChatGPT
 executor: Claude
-reviewer:
+reviewer: Claude
 created_at: 2026-05-15
 updated_at: 2026-05-15
 claimed_at:
@@ -20,14 +20,14 @@ completed_at:
 | 属性 / Field | 值 / Value |
 | --- | --- |
 | id | `task-20260515-actor-motor-timescale-motion-delta` |
-| status | `review` |
+| status | `done` |
 | current_round | `1` |
 | planner | `ChatGPT` |
 | executor | `Claude` |
-| reviewer |  |
+| reviewer | `Claude` |
 | created_at | `2026-05-15` |
-| updated_at | `2026-05-15` |
-| completed_at |  |
+| updated_at | `2026-05-20` |
+| completed_at | `2026-05-20` |
 
 ---
 
@@ -304,4 +304,37 @@ currentVelocity = MotionRuntime.ComposeKccVelocity(
 
 ### 3. 审查 / Review
 
-未审查。
+Agent: Claude
+Role: Reviewer
+Date: 2026-05-20
+
+#### 3.1 决策 / Decision
+
+accepted
+
+#### 3.2 验收标准逐项核查
+
+| # | 标准 | 状态 | 证据 |
+|---|---|---|---|
+| 1 | `UpdateVelocity` 中存在 `motionDeltaTime = deltaTime * MovementTimeScale` | ✅ | `ActorMotor.cs:340` |
+| 2 | `StepChannels` 使用 `motionDeltaTime` | ✅ | `ActorMotor.cs:343`；`ActorMotionRuntime.cs:148` 参数已更名 |
+| 3 | `ComposeKccVelocity` 仍使用真实 `deltaTime` | ✅ | `ActorMotionRuntime.cs:170-174`，RootMotion 位移换算走 `deltaTime` |
+| 4 | `ComputeSolvedVelocity` 仍使用真实 `deltaTime` | ✅ | 未修改，使用 KCC 传入的 `deltaTime` |
+| 5 | 未修改 KCC 插件 | ✅ | `git diff --name-only -- Assets/Plugins/KinematicCharacterController/Core/` → exit 0 |
+| 6 | 未修改受击 Asset impulse force 数值 | ✅ | `git diff --name-only -- Assets/Create/ActionAsset/Hit/` → exit 0 |
+
+#### 3.3 代码质量
+
+- `realDeltaTime` / `motionDeltaTime` 语义区分清晰，命名自解释
+- `StepChannels(motionDeltaTime, ...)` 参数 rename 让所有底层 channel 的 `dt` 语义一致
+- XML 注释准确说明了 `ComposeKccVelocity(deltaTime)` 和 `StepChannels(motionDeltaTime)` 的差异
+- 改动极小（3 个文件，+26/-8 行），符合 plan 的"不要所有 deltaTime 无脑替换"
+
+#### 3.4 非阻断观察
+
+- Unity PlayMode 验证未执行（报告中如实标注），但代码静态分析确认时间语义修正逻辑正确
+- `Update()` 中 `dt = Time.deltaTime * MovementTimeScale` 使用 Unity `Time.deltaTime` 而非 KCC tick `deltaTime`——locomotion/facing 走 Unity Update 时间是预期行为，不属于本轮范围
+
+#### 3.5 是否可以标记为 done
+
+可以。代码层面的时间语义修正完整、精确，架构约束全部满足。
