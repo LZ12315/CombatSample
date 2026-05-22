@@ -47,6 +47,10 @@ public partial class ActorCameraControl
 
             Vector3 right = Vector3.Cross(Vector3.up, combatDir).normalized;
 
+            // ---- side tracking with dead zone --------------------------
+            // Only update the side target when the camera crosses a
+            // meaningful threshold. This prevents the micro‑adjustments
+            // that make the soft‑lock feel mechanical.
             Camera mainCam = Camera.main;
             float rawSide = 0f;
             if (mainCam != null)
@@ -66,11 +70,21 @@ public partial class ActorCameraControl
             }
             else
             {
-                rt.smoothedSide = Mathf.SmoothDamp(rt.smoothedSide, rawSide, ref rt.sideSmoothVelocity, _o.sideSmoothTime);
+                const float sideDeadZone = 0.15f;
+                float sideDelta = Mathf.Abs(rawSide - rt.smoothedSide);
+                if (sideDelta > sideDeadZone
+                    || Mathf.Abs(rawSide) < 0.05f
+                    || Mathf.Abs(rt.smoothedSide) < 0.05f)
+                {
+                    rt.smoothedSide = Mathf.SmoothDamp(
+                        rt.smoothedSide, rawSide,
+                        ref rt.sideSmoothVelocity, _o.sideSmoothTime);
+                }
             }
 
             float sideSign = rt.smoothedSide >= 0f ? 1f : -1f;
 
+            // ---- anchor position ---------------------------------------
             float t = ComputeCompositionT(combatDist);
             float centerBias = Mathf.Lerp(_o.centerBiasNear, _o.centerBiasFar, t);
             float forwardBias = combatDist * centerBias;
@@ -89,8 +103,10 @@ public partial class ActorCameraControl
                     rt.anchor.position, desiredAnchorPos,
                     ref rt.anchorPositionVelocity, _o.positionSmoothTime);
 
+            // ---- follow distance & FOV (distance‑driven) --------------
             rt.currentFollowDistance = Mathf.Lerp(_o.followDistNear, _o.followDistFar, t);
 
+            // Anchor yaw: face toward the combat center from behind
             Vector3 desiredCamPos = combatCenter
                 - combatDir * (rt.currentFollowDistance * 0.6f)
                 + right * (sideSign * rt.currentFollowDistance * 0.5f);

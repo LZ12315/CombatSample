@@ -1372,6 +1372,16 @@ PrefabInstance:
         type: 2}
     - target: {fileID: 6694325498286556767, guid: 00e2921e173238048b0aabe7dcf421a9,
         type: 3}
+      propertyPath: fovNear
+      value: 35
+      objectReference: {fileID: 0}
+    - target: {fileID: 6694325498286556767, guid: 00e2921e173238048b0aabe7dcf421a9,
+        type: 3}
+      propertyPath: followDistNear
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 6694325498286556767, guid: 00e2921e173238048b0aabe7dcf421a9,
+        type: 3}
       propertyPath: hardLockCamera
       value: 
       objectReference: {fileID: 1905565880}

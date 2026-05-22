@@ -47,32 +47,32 @@ public partial class ActorCameraControl : MonoBehaviour
     [Tooltip("Deprecated. Kept for serialized compatibility. Use sideBiasNear / sideBiasFar instead.")]
     [SerializeField] private float sideOffsetScale = 0.6f;
 #pragma warning restore CS0414
-    [SerializeField] private float heightOffset = 1.5f;
-    [SerializeField] private float positionSmoothTime = 0.3f;
-    [SerializeField] private float rotationSmoothTime = 0.2f;
-    [SerializeField] private float sideSmoothTime = 0.5f;
+    [SerializeField] private float heightOffset = 0.6f;
+    [SerializeField] private float positionSmoothTime = 0.35f;
+    [SerializeField] private float rotationSmoothTime = 0.3f;
+    [SerializeField] private float sideSmoothTime = 0.8f;
 
     [Header("Distance-Driven Composition")]
-    [SerializeField] private float compositionNearDist = 5f;
-    [SerializeField] private float compositionFarDist = 22f;
-    [SerializeField] private float followDistNear = 8f;
-    [SerializeField] private float followDistFar = 22f;
-    [SerializeField] private float fovNear = 50f;
-    [SerializeField] private float fovFar = 65f;
-    [SerializeField] private float centerBiasNear = 0.38f;
-    [SerializeField] private float centerBiasFar = 0.55f;
-    [SerializeField] private float sideBiasNear = 0.28f;
-    [SerializeField] private float sideBiasFar = 0.42f;
-    [SerializeField] private float playerWeightNear = 1.2f;
-    [SerializeField] private float playerWeightFar = 1.3f;
+    [SerializeField] private float compositionNearDist = 3f;
+    [SerializeField] private float compositionFarDist = 18f;
+    [SerializeField] private float followDistNear = 4.5f;
+    [SerializeField] private float followDistFar = 14f;
+    [SerializeField] private float fovNear = 45f;
+    [SerializeField] private float fovFar = 55f;
+    [SerializeField] private float centerBiasNear = 0.42f;
+    [SerializeField] private float centerBiasFar = 0.50f;
+    [SerializeField] private float sideBiasNear = 0.15f;
+    [SerializeField] private float sideBiasFar = 0.30f;
+    [SerializeField] private float playerWeightNear = 1.3f;
+    [SerializeField] private float playerWeightFar = 1.2f;
     [SerializeField] private float enemyWeightNear = 1.0f;
     [SerializeField] private float enemyWeightFar = 0.9f;
-    [SerializeField] private float playerRadiusNear = 2f;
-    [SerializeField] private float playerRadiusFar = 3.5f;
-    [SerializeField] private float enemyRadiusNear = 2f;
-    [SerializeField] private float enemyRadiusFar = 4f;
-    [SerializeField] private float framingSizeNear = 0.82f;
-    [SerializeField] private float framingSizeFar = 0.60f;
+    [SerializeField] private float playerRadiusNear = 1.5f;
+    [SerializeField] private float playerRadiusFar = 2.5f;
+    [SerializeField] private float enemyRadiusNear = 1.5f;
+    [SerializeField] private float enemyRadiusFar = 2.8f;
+    [SerializeField] private float framingSizeNear = 0.58f;
+    [SerializeField] private float framingSizeFar = 0.48f;
 
     [Header("Camera Diagnostics")]
     [SerializeField] private bool debugCameraTransitions = false;
@@ -319,11 +319,35 @@ public partial class ActorCameraControl : MonoBehaviour
                          && enemyTarget != null;
         if (enteringLock)
         {
-            // Snap incoming lock camera to target (avoid long blend arc).
             LockCameraRigRuntime incoming = GetActiveRuntime();
             if (incoming != null)
             {
-                _composer.UpdateCombatFollowAnchor(incoming, enemyTarget, instant: true);
+                // Seed smoothedSide to the main camera's current side relative to
+                // the player–enemy line so we stay on the same shoulder, then let
+                // position & yaw smoothly transition from current to formula.
+                Camera mainCam = Camera.main;
+                if (mainCam != null)
+                {
+                    Vector3 playerPos = transform.position;
+                    Vector3 enemyPos = enemyTarget.position;
+                    Vector3 playerPosXZ = new Vector3(playerPos.x, 0f, playerPos.z);
+                    Vector3 enemyPosXZ = new Vector3(enemyPos.x, 0f, enemyPos.z);
+                    Vector3 combatDirXZ = (enemyPosXZ - playerPosXZ).normalized;
+                    if (combatDirXZ.sqrMagnitude < 0.0001f)
+                        combatDirXZ = Vector3.forward;
+
+                    Vector3 right = Vector3.Cross(Vector3.up, combatDirXZ).normalized;
+                    Vector3 playerToCam = mainCam.transform.position - playerPos;
+                    playerToCam.y = 0f;
+                    float rawSide = 0f;
+                    if (playerToCam.sqrMagnitude > 0.001f)
+                        rawSide = Vector3.Dot(right, playerToCam.normalized);
+
+                    incoming.smoothedSide = rawSide;
+                    incoming.sideSmoothVelocity = 0f;
+                }
+
+                _composer.UpdateCombatFollowAnchor(incoming, enemyTarget, instant: false);
                 _composer.RefreshTargetGroup(incoming, enemyTarget, currentState);
                 _rigRouter.ApplyCameraBindingForRuntime(incoming);
                 incoming.targetGroup?.DoUpdate();
