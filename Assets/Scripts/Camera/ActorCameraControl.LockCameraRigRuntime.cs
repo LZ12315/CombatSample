@@ -27,6 +27,33 @@ public partial class ActorCameraControl
         public float currentAnchorYaw;
         public float currentFollowDistance = 8f;
 
+        // Diagnostic snapshot — captures the last frame's raw inputs and
+        // resolved outputs so the diagnostics layer can log them without
+        // reaching back into CombatLockComposer internals.
+        public Vector3 dbgCombatCenter;
+        public Vector3 dbgCombatDir;
+        public float dbgCombatDist;
+        public float dbgRawSide;
+        public float dbgSideAmount;
+        public Vector3 dbgDesiredAnchorPos;
+        public Vector3 dbgTargetGroupPos;
+        public string dbgLabel;
+        // Yaw gate diagnostic
+        public float dbgSectorDelta;
+        public bool dbgSectorInside;
+        public float dbgSectorTargetYaw;
+        public string dbgYawSource;        // InstantFormula/InsideHold/OutsideBoundary/NoCameraFallback
+        public float dbgYawBefore;
+        public float dbgYawAfter;
+        public float dbgFormulaYaw;
+        public float dbgBoundaryYaw;
+        public float dbgEnemyToPlayerYaw;
+        public float dbgEnemyToCameraYaw;
+        public float dbgBoundaryDirYaw;
+        public Vector3 dbgBoundaryCamPos;
+        public float dbgBoundaryRadius;
+        public bool dbgIsActiveRuntime;
+
         public void CreateAnchor(Transform parent)
         {
             if (anchor != null) return;

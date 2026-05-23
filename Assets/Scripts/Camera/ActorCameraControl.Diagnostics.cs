@@ -19,12 +19,22 @@ public partial class ActorCameraControl
 
         public CameraDiagnostics(ActorCameraControl owner) { _o = owner; }
 
+        /// <summary>
+        /// Returns true when any debug path that reads dbg* snapshot fields
+        /// is active. CombatLockComposer uses this to skip diagnostic writes
+        /// when debug is fully off.
+        /// </summary>
+        public bool ShouldCaptureDiagnostics =>
+            _o.debugLockCameraGizmos
+            || _o.debugBrainAfterUpdate
+            || ShouldLogCameraDebug();
+
         // -- Brain callback ---------------------------------------------
 
         public void OnCinemachineBrainUpdated(CinemachineBrain brain)
         {
             if (!_o.debugBrainAfterUpdate) return;
-            LogCameraSnapshot("Brain.AfterUpdate", _o.GetCombatTarget(), brain);
+            LogCameraSnapshot("Brain.AfterUpdate", _o.GetCombatTarget(), brain, force: true);
         }
 
         // -- Debug window -----------------------------------------------
@@ -55,9 +65,11 @@ public partial class ActorCameraControl
 
         // -- Snapshot ---------------------------------------------------
 
-        public void LogCameraSnapshot(string phase, Transform enemyTarget, CinemachineBrain brainOverride = null)
+        public void LogCameraSnapshot(
+            string phase, Transform enemyTarget,
+            CinemachineBrain brainOverride = null, bool force = false)
         {
-            if (!ShouldLogCameraDebug()) return;
+            if (!force && !ShouldLogCameraDebug()) return;
 
             Camera mainCam = Camera.main;
             CinemachineBrain brain = brainOverride ?? (mainCam != null ? mainCam.GetComponent<CinemachineBrain>() : null);
@@ -84,6 +96,8 @@ public partial class ActorCameraControl
                 $"  player={FormatVector(_o.transform.position)} enemy={enemyInfo} distances={FormatDistances(enemyTarget, mainCam)}\n" +
                 $"  softAnchor={softAnchorInfo} softFollowDist={_o._softRuntime?.currentFollowDistance ?? 0f:F2} softSmoothedSide={_o._softRuntime?.smoothedSide ?? 0f:F2} softTG={FormatTargetGroupFor(_o._softRuntime)}\n" +
                 $"  hardAnchor={hardAnchorInfo} hardFollowDist={_o._hardRuntime?.currentFollowDistance ?? 0f:F2} hardSmoothedSide={_o._hardRuntime?.smoothedSide ?? 0f:F2} hardTG={FormatTargetGroupFor(_o._hardRuntime)}\n" +
+                $"  lockDiag soft={FormatLockDiagnosticsFor(_o._softRuntime)}\n" +
+                $"  lockDiag hard={FormatLockDiagnosticsFor(_o._hardRuntime)}\n" +
                 $"  free={FormatCamera(_o.normalFreeLookCamera, brain)}\n" +
                 $"  soft={FormatCamera(_o.softLockCamera, brain)}\n" +
                 $"  hard={FormatCamera(_o.hardLockCamera, brain)}",
@@ -113,6 +127,23 @@ public partial class ActorCameraControl
         {
             if (rt?.targetGroup == null) return "null";
             return $"pos={FormatVector(rt.targetGroup.transform.position)} targets={FormatTargetGroupTargetsFor(rt)}";
+        }
+
+        private static string FormatLockDiagnosticsFor(LockCameraRigRuntime rt)
+        {
+            if (rt == null) return "null";
+            string label = string.IsNullOrEmpty(rt.dbgLabel) ? "uninitialized" : rt.dbgLabel;
+            string activeTag = rt.dbgIsActiveRuntime ? "active" : "prewarm";
+            return $"[{label}:{activeTag}] center={FormatVector(rt.dbgCombatCenter)} " +
+                   $"dir={FormatVector(rt.dbgCombatDir)} dist={rt.dbgCombatDist:F2} " +
+                   $"rawSide={rt.dbgRawSide:F2} sideAmount={rt.dbgSideAmount:F2} " +
+                   $"desAnchor={FormatVector(rt.dbgDesiredAnchorPos)} tgPos={FormatVector(rt.dbgTargetGroupPos)}\n" +
+                   $"  yawGate src={rt.dbgYawSource} before={rt.dbgYawBefore:F1}° after={rt.dbgYawAfter:F1}° " +
+                   $"formula={rt.dbgFormulaYaw:F1}° boundary={rt.dbgBoundaryYaw:F1}°\n" +
+                   $"  sectorΔ={rt.dbgSectorDelta:F1}° inside={rt.dbgSectorInside} " +
+                   $"e2p={rt.dbgEnemyToPlayerYaw:F1}° e2cam={rt.dbgEnemyToCameraYaw:F1}° " +
+                   $"bndDir={rt.dbgBoundaryDirYaw:F1}° bndRadius={rt.dbgBoundaryRadius:F2} " +
+                   $"bndCamPos={FormatVector(rt.dbgBoundaryCamPos)}";
         }
 
         private static string FormatTargetGroupTargetsFor(LockCameraRigRuntime rt)

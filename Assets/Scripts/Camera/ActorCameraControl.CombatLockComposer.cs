@@ -33,7 +33,20 @@ public partial class ActorCameraControl
             UpdateShoulderSide(rt, rawSide, instant);
 
             float sideAmount = ResolveSideAmount(rt, frame);
+
+            if (_o._diagnostics.ShouldCaptureDiagnostics)
+            {
+                rt.dbgLabel = rt == _o._softRuntime ? "SoftLock" : "HardLock";
+                rt.dbgCombatCenter = frame.Center;
+                rt.dbgCombatDir = frame.CombatDir;
+                rt.dbgCombatDist = frame.Distance;
+                rt.dbgRawSide = rawSide;
+                rt.dbgSideAmount = sideAmount;
+                rt.dbgDesiredAnchorPos = frame.Center + frame.Right * sideAmount;
+            }
+
             ApplyAnchorPose(rt, frame, sideAmount, instant);
+
             ApplyCinemachineSettings(rt);
         }
 
@@ -144,21 +157,159 @@ public partial class ActorCameraControl
             float sideSign = Mathf.Abs(sideAmount) > 0.001f
                 ? Mathf.Sign(sideAmount)
                 : (rt.smoothedSide >= 0f ? 1f : -1f);
+
+            // Formula target yaw (fallback / instant init)
             Vector3 desiredCamPos = frame.Center
                 - frame.CombatDir * (rt.currentFollowDistance * 0.6f)
                 + frame.Right * (sideSign * rt.currentFollowDistance * 0.5f);
             desiredCamPos.y = frame.Center.y + _o.heightOffset * 0.3f;
 
-            Vector3 toCamera = desiredCamPos - rt.anchor.position;
-            if (toCamera.sqrMagnitude <= 0.001f) return;
+            float formulaYaw;
+            {
+                Vector3 toCam = desiredCamPos - rt.anchor.position;
+                formulaYaw = toCam.sqrMagnitude > 0.001f
+                    ? Mathf.Atan2(-toCam.normalized.x, -toCam.normalized.z) * Mathf.Rad2Deg
+                    : rt.currentAnchorYaw;
+            }
 
-            Vector3 anchorForward = -toCamera.normalized;
-            float targetYaw = Mathf.Atan2(anchorForward.x, anchorForward.z) * Mathf.Rad2Deg;
-            rt.currentAnchorYaw = instant
-                ? targetYaw
-                : Mathf.SmoothDampAngle(rt.currentAnchorYaw, targetYaw,
-                    ref rt.anchorYawVelocity, _o.rotationSmoothTime);
+            rt.dbgYawBefore = rt.currentAnchorYaw;
+            rt.dbgFormulaYaw = formulaYaw;
+
+            if (instant)
+            {
+                rt.currentAnchorYaw = formulaYaw;
+                rt.anchorYawVelocity = 0f;
+                rt.dbgYawSource = "InstantFormula";
+            }
+            else
+            {
+                rt.currentAnchorYaw = ResolveSectorGatedYaw(
+                    rt, frame, formulaYaw);
+            }
+
+            rt.dbgYawAfter = rt.currentAnchorYaw;
             rt.anchor.rotation = Quaternion.Euler(0f, rt.currentAnchorYaw, 0f);
+        }
+
+        private float ResolveSectorGatedYaw(
+            LockCameraRigRuntime rt, CombatFrame frame, float formulaYaw)
+        {
+            Camera mainCam = Camera.main;
+            if (mainCam == null)
+            {
+                rt.dbgSectorInside = false;
+                rt.dbgSectorTargetYaw = formulaYaw;
+                rt.dbgYawSource = "NoCameraFallback";
+                rt.dbgBoundaryYaw = formulaYaw;
+                return formulaYaw;
+            }
+
+            Vector3 enemyXZ = new Vector3(frame.PlayerPos.x, 0f, frame.PlayerPos.z)
+                + frame.CombatDir * frame.Distance;
+            Vector3 playerFlat = new Vector3(frame.PlayerPos.x, 0f, frame.PlayerPos.z);
+            Vector3 eToPlayer = (playerFlat - enemyXZ).normalized;
+            Vector3 camFlat = new Vector3(mainCam.transform.position.x, 0f, mainCam.transform.position.z);
+            Vector3 eToCam = (camFlat - enemyXZ).normalized;
+
+            float sectorDelta = Vector3.SignedAngle(eToPlayer, eToCam, Vector3.up);
+            float halfAngle = _o.lockYawSectorHalfAngle;
+
+            // --- diag: raw inputs ---
+            rt.dbgSectorDelta = sectorDelta;
+            rt.dbgSectorInside = Mathf.Abs(sectorDelta) <= halfAngle;
+            rt.dbgEnemyToPlayerYaw = Mathf.Atan2(eToPlayer.x, eToPlayer.z) * Mathf.Rad2Deg;
+            rt.dbgEnemyToCameraYaw = Mathf.Atan2(eToCam.x, eToCam.z) * Mathf.Rad2Deg;
+            rt.dbgSectorTargetYaw = formulaYaw;
+            rt.dbgBoundaryYaw = formulaYaw;
+
+            if (rt.dbgSectorInside)
+            {
+                rt.dbgYawSource = "InsideHold";
+                return rt.currentAnchorYaw;
+            }
+
+            // Outside sector - rotate toward the nearest reachable boundary point.
+            Vector3 boundaryDir = Quaternion.Euler(0f,
+                Mathf.Sign(sectorDelta) * halfAngle, 0f) * eToPlayer;
+
+            Vector3 anchorXZ = new Vector3(rt.anchor.position.x, 0f, rt.anchor.position.z);
+            float followDistance = Mathf.Max(rt.currentFollowDistance, 0.01f);
+            float currentBoundaryRadius = Vector3.Dot(camFlat - enemyXZ, boundaryDir);
+            float boundaryRadius = ResolveBoundaryRadiusOnFollowCircle(
+                enemyXZ, anchorXZ, boundaryDir, followDistance, currentBoundaryRadius);
+
+            if (boundaryRadius <= 0.01f)
+            {
+                boundaryRadius = (camFlat - enemyXZ).magnitude;
+            }
+
+            if (boundaryRadius <= 0.01f)
+            {
+                boundaryRadius = followDistance;
+            }
+
+            Vector3 boundaryCamPos = enemyXZ + boundaryDir * boundaryRadius;
+            boundaryCamPos.y = frame.Center.y + _o.heightOffset * 0.3f;
+
+            Vector3 toCam = boundaryCamPos - rt.anchor.position;
+            float boundaryYaw = toCam.sqrMagnitude > 0.001f
+                ? Mathf.Atan2(-toCam.normalized.x, -toCam.normalized.z) * Mathf.Rad2Deg
+                : rt.currentAnchorYaw;
+
+            // --- diag: outside-boundary outputs ---
+            rt.dbgYawSource = "OutsideBoundary";
+            rt.dbgSectorTargetYaw = boundaryYaw;
+            rt.dbgBoundaryYaw = boundaryYaw;
+            rt.dbgBoundaryDirYaw = Mathf.Atan2(boundaryDir.x, boundaryDir.z) * Mathf.Rad2Deg;
+            rt.dbgBoundaryCamPos = boundaryCamPos;
+            rt.dbgBoundaryRadius = boundaryRadius;
+
+            return Mathf.MoveTowardsAngle(rt.currentAnchorYaw, boundaryYaw,
+                _o.lockYawSectorReturnSpeed * Time.deltaTime);
+        }
+
+        private static float ResolveBoundaryRadiusOnFollowCircle(
+            Vector3 enemyXZ, Vector3 anchorXZ, Vector3 boundaryDir,
+            float followDistance, float currentBoundaryRadius)
+        {
+            Vector3 enemyToAnchor = enemyXZ - anchorXZ;
+            float b = Vector3.Dot(boundaryDir, enemyToAnchor);
+            float c = enemyToAnchor.sqrMagnitude - followDistance * followDistance;
+            float discriminant = b * b - c;
+
+            if (discriminant < 0f)
+            {
+                return 0f;
+            }
+
+            float root = Mathf.Sqrt(discriminant);
+            float nearRadius = -b - root;
+            float farRadius = -b + root;
+            return PickPositiveBoundaryRadius(nearRadius, farRadius, currentBoundaryRadius);
+        }
+
+        private static float PickPositiveBoundaryRadius(
+            float first, float second, float reference)
+        {
+            const float minRadius = 0.01f;
+            bool firstValid = first > minRadius;
+            bool secondValid = second > minRadius;
+
+            if (firstValid && secondValid)
+            {
+                if (reference > minRadius)
+                {
+                    return Mathf.Abs(first - reference) <= Mathf.Abs(second - reference)
+                        ? first
+                        : second;
+                }
+
+                return Mathf.Max(first, second);
+            }
+
+            if (firstValid) return first;
+            if (secondValid) return second;
+            return 0f;
         }
 
         private void ApplyCinemachineSettings(LockCameraRigRuntime rt)

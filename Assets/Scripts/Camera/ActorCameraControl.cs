@@ -74,6 +74,8 @@ public partial class ActorCameraControl : MonoBehaviour
 #pragma warning disable CS0414 // Legacy near/far camera fields kept for Unity serialized compatibility.
     [SerializeField, HideInInspector] private float softLockSideDeadZone = 0.8f;
     [SerializeField, HideInInspector] private float softLockSideCatchUpSpeed = 3.5f;
+    [SerializeField, HideInInspector] private float lockYawSectorHalfAngle = 30f;
+    [SerializeField, HideInInspector] private float lockYawSectorReturnSpeed = 90f;
     [SerializeField, HideInInspector] private float compositionNearDist = 3f;
     [SerializeField, HideInInspector] private float compositionFarDist = 18f;
     [SerializeField, HideInInspector] private float followDistNear = 4.0f;
@@ -105,6 +107,8 @@ public partial class ActorCameraControl : MonoBehaviour
     [SerializeField] private bool debugCameraEveryLateUpdate = false;
     [Tooltip("每次相机更新后输出 Cinemachine Brain 日志。日志量极大，仅在调试时开启。")]
     [SerializeField] private bool debugBrainAfterUpdate = false;
+    [Tooltip("在 Scene 视图中绘制锁定相机的战斗框架、锚点、TargetGroup 和主相机位置。")]
+    [SerializeField] private bool debugLockCameraGizmos = false;
 
     // ==================================================================
     // Runtime State
@@ -223,6 +227,151 @@ public partial class ActorCameraControl : MonoBehaviour
         RefreshCameraRuntime();
     }
 
+    private void OnDrawGizmos()
+    {
+        if (!debugLockCameraGizmos) return;
+
+        Transform enemy = GetCombatTarget();
+        if (enemy == null || actor == null) return;
+        Vector3 playerPos = transform.position;
+        Vector3 enemyPos = enemy.position;
+
+        LockCameraRigRuntime rt = GetActiveRuntime();
+        if (rt?.anchor == null) return;
+        bool isSoft = rt == _softRuntime;
+        Color theme = isSoft ? new Color(0.2f, 0.7f, 1f) : new Color(1f, 0.35f, 0.7f);
+        Camera mainCam = Camera.main;
+
+        // Player–enemy
+        Gizmos.color = Color.yellow;
+        Gizmos.DrawLine(playerPos, enemyPos);
+        Gizmos.DrawWireSphere(playerPos, 0.1f);
+        Gizmos.DrawWireSphere(enemyPos, 0.1f);
+
+        // Enemy-centered yaw sector
+        DrawLockYawSectorGizmo(enemyPos, playerPos, mainCam, rt);
+
+        // Combat center
+        Vector3 center = rt.dbgCombatCenter;
+        Gizmos.color = Color.yellow;
+        Gizmos.DrawWireSphere(center, 0.1f);
+        Gizmos.DrawLine(playerPos, center);
+
+        // Desired anchor (formula)
+        Vector3 desAnchor = rt.dbgDesiredAnchorPos;
+        Gizmos.color = theme * 0.5f;
+        Gizmos.DrawWireSphere(desAnchor, 0.12f);
+        Gizmos.DrawLine(center, desAnchor);
+
+        // Actual anchor (SmoothDamped)
+        Vector3 anchor = rt.anchor.position;
+        Gizmos.color = theme;
+        Gizmos.DrawSphere(anchor, 0.08f);
+        Gizmos.DrawRay(anchor, rt.anchor.forward * 0.5f);
+        Gizmos.color = Color.gray;
+        Gizmos.DrawLine(desAnchor, anchor);
+
+        // TargetGroup
+        if (rt.targetGroup != null)
+        {
+            Gizmos.color = Color.green;
+            Gizmos.DrawWireSphere(rt.targetGroup.transform.position, 0.15f);
+        }
+
+        // Camera
+        if (mainCam != null)
+        {
+            Gizmos.color = Color.white;
+            Gizmos.DrawWireSphere(mainCam.transform.position, 0.08f);
+            Gizmos.DrawLine(anchor, mainCam.transform.position);
+        }
+    }
+
+    private void DrawLockYawSectorGizmo(
+        Vector3 enemyPos, Vector3 playerPos,
+        Camera mainCam, LockCameraRigRuntime rt)
+    {
+        float drawY = rt.anchor != null ? rt.anchor.position.y : enemyPos.y;
+        Vector3 origin = new Vector3(enemyPos.x, drawY, enemyPos.z);
+        Vector3 playerFlat = new Vector3(playerPos.x, drawY, playerPos.z);
+        Vector3 centerDir = playerFlat - origin;
+        centerDir.y = 0f;
+        if (centerDir.sqrMagnitude <= 0.0001f) return;
+        centerDir.Normalize();
+
+        float halfAngle = Mathf.Max(0f, lockYawSectorHalfAngle);
+        float radius = Mathf.Max(rt.currentFollowDistance, 1.5f);
+        Vector3 cameraDir = centerDir;
+        bool hasCamera = mainCam != null;
+        if (hasCamera)
+        {
+            Vector3 camFlat = new Vector3(
+                mainCam.transform.position.x, drawY,
+                mainCam.transform.position.z);
+            Vector3 toCamera = camFlat - origin;
+            toCamera.y = 0f;
+            if (toCamera.sqrMagnitude > 0.0001f)
+            {
+                radius = Mathf.Max(toCamera.magnitude, 1.5f);
+                cameraDir = toCamera.normalized;
+            }
+        }
+
+        float sectorDelta = hasCamera
+            ? Vector3.SignedAngle(centerDir, cameraDir, Vector3.up)
+            : 0f;
+        bool inside = Mathf.Abs(sectorDelta) <= halfAngle;
+
+        Vector3 leftDir = Quaternion.Euler(0f, -halfAngle, 0f) * centerDir;
+        Vector3 rightDir = Quaternion.Euler(0f, halfAngle, 0f) * centerDir;
+        Color sectorColor = inside
+            ? new Color(0.25f, 1f, 0.35f, 0.8f)
+            : new Color(1f, 0.25f, 0.2f, 0.8f);
+
+        Gizmos.color = new Color(1f, 0.9f, 0.1f, 0.75f);
+        Gizmos.DrawWireSphere(origin, 0.14f);
+        Gizmos.DrawLine(origin, origin + centerDir * radius);
+
+        Gizmos.color = new Color(1f, 0.6f, 0.1f, 0.85f);
+        Gizmos.DrawLine(origin, origin + leftDir * radius);
+        Gizmos.DrawLine(origin, origin + rightDir * radius);
+        DrawYawSectorArc(origin, centerDir, halfAngle, radius);
+
+        Gizmos.color = sectorColor;
+        Gizmos.DrawLine(origin, origin + cameraDir * radius);
+
+        if (!inside)
+        {
+            Vector3 boundaryDir = Quaternion.Euler(
+                0f, Mathf.Sign(sectorDelta) * halfAngle, 0f) * centerDir;
+            Gizmos.DrawWireSphere(origin + boundaryDir * radius, 0.12f);
+        }
+
+#if UNITY_EDITOR
+        UnityEditor.Handles.color = sectorColor;
+        string state = inside ? "inside" : "outside";
+        UnityEditor.Handles.Label(
+            origin + Vector3.up * 0.25f,
+            $"YawSector {state} delta={sectorDelta:F1} half={halfAngle:F0} targetYaw={rt.dbgSectorTargetYaw:F1}");
+#endif
+    }
+
+    private static void DrawYawSectorArc(
+        Vector3 origin, Vector3 centerDir,
+        float halfAngle, float radius)
+    {
+        const int segments = 24;
+        Vector3 prev = origin + (Quaternion.Euler(0f, -halfAngle, 0f) * centerDir) * radius;
+        for (int i = 1; i <= segments; i++)
+        {
+            float t = i / (float)segments;
+            float angle = Mathf.Lerp(-halfAngle, halfAngle, t);
+            Vector3 next = origin + (Quaternion.Euler(0f, angle, 0f) * centerDir) * radius;
+            Gizmos.DrawLine(prev, next);
+            prev = next;
+        }
+    }
+
     private void OnDisable()
     {
         CinemachineCore.CameraUpdatedEvent.RemoveListener(_diagnostics.OnCinemachineBrainUpdated);
@@ -265,6 +414,7 @@ public partial class ActorCameraControl : MonoBehaviour
             LockCameraRigRuntime activeRt = GetActiveRuntime();
             if (activeRt != null)
             {
+                activeRt.dbgIsActiveRuntime = true;
                 _composer.UpdateCombatFollowAnchor(activeRt, enemyTarget);
                 _composer.RefreshTargetGroup(activeRt, enemyTarget, currentState);
                 _rigRouter.ApplyCameraBindingForRuntime(activeRt);
@@ -278,6 +428,7 @@ public partial class ActorCameraControl : MonoBehaviour
             bool isLive = brain != null && brain.IsLive(softLockCamera);
             if (!isLive)
             {
+                _softRuntime.dbgIsActiveRuntime = false;
                 _composer.UpdateCombatFollowAnchor(_softRuntime, enemyTarget);
                 _composer.RefreshTargetGroup(_softRuntime, enemyTarget, currentState);
                 _rigRouter.ApplyCameraBindingForRuntime(_softRuntime);
@@ -291,11 +442,21 @@ public partial class ActorCameraControl : MonoBehaviour
             bool isLive = brain != null && brain.IsLive(hardLockCamera);
             if (!isLive)
             {
+                _hardRuntime.dbgIsActiveRuntime = false;
                 _composer.UpdateCombatFollowAnchor(_hardRuntime, enemyTarget);
                 _composer.RefreshTargetGroup(_hardRuntime, enemyTarget, currentState);
                 _rigRouter.ApplyCameraBindingForRuntime(_hardRuntime);
                 _hardRuntime.targetGroup?.DoUpdate();
             }
+        }
+
+        // Refresh TG snapshot positions after DoUpdate for both runtimes.
+        if (_diagnostics.ShouldCaptureDiagnostics)
+        {
+            if (_softRuntime?.targetGroup != null)
+                _softRuntime.dbgTargetGroupPos = _softRuntime.targetGroup.transform.position;
+            if (_hardRuntime?.targetGroup != null)
+                _hardRuntime.dbgTargetGroupPos = _hardRuntime.targetGroup.transform.position;
         }
 
         _rigRouter.ApplyCameraPriorities(currentState);

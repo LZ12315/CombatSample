@@ -1415,6 +1415,26 @@ PrefabInstance:
       propertyPath: softLockSideDeadZone
       value: 2.5
       objectReference: {fileID: 0}
+    - target: {fileID: 6694325498286556767, guid: 00e2921e173238048b0aabe7dcf421a9,
+        type: 3}
+      propertyPath: debugBrainAfterUpdate
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6694325498286556767, guid: 00e2921e173238048b0aabe7dcf421a9,
+        type: 3}
+      propertyPath: debugLockCameraGizmos
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6694325498286556767, guid: 00e2921e173238048b0aabe7dcf421a9,
+        type: 3}
+      propertyPath: debugCameraTransitions
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6694325498286556767, guid: 00e2921e173238048b0aabe7dcf421a9,
+        type: 3}
+      propertyPath: debugCameraEveryLateUpdate
+      value: 1
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects:
@@ -1815,22 +1835,22 @@ PrefabInstance:
     - target: {fileID: 669078744664659267, guid: c0707a8c6ed296841b5bfd2bddd936b1,
         type: 3}
       propertyPath: m_LocalRotation.w
-      value: 0.797015
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 669078744664659267, guid: c0707a8c6ed296841b5bfd2bddd936b1,
         type: 3}
       propertyPath: m_LocalRotation.x
-      value: 0.107570946
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 669078744664659267, guid: c0707a8c6ed296841b5bfd2bddd936b1,
         type: 3}
       propertyPath: m_LocalRotation.y
-      value: -0.5887512
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 669078744664659267, guid: c0707a8c6ed296841b5bfd2bddd936b1,
         type: 3}
       propertyPath: m_LocalRotation.z
-      value: 0.08104152
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2751187809108684161, guid: c0707a8c6ed296841b5bfd2bddd936b1,
         type: 3}
