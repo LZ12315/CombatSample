@@ -64,10 +64,10 @@ MonoBehaviour:
   sideSmoothTime: 0.8
   compositionNearDist: 3
   compositionFarDist: 18
-  followDistNear: 4.5
-  followDistFar: 14
-  fovNear: 45
-  fovFar: 55
+  followDistNear: 4.0
+  followDistFar: 11
+  fovNear: 42
+  fovFar: 50
   centerBiasNear: 0.42
   centerBiasFar: 0.5
   sideBiasNear: 0.15
@@ -76,12 +76,12 @@ MonoBehaviour:
   playerWeightFar: 1.2
   enemyWeightNear: 1
   enemyWeightFar: 0.9
-  playerRadiusNear: 1.5
-  playerRadiusFar: 2.5
-  enemyRadiusNear: 1.5
-  enemyRadiusFar: 2.8
-  framingSizeNear: 0.58
-  framingSizeFar: 0.48
+  playerRadiusNear: 1.0
+  playerRadiusFar: 1.8
+  enemyRadiusNear: 1.0
+  enemyRadiusFar: 2.0
+  framingSizeNear: 0.72
+  framingSizeFar: 0.62
   debugCameraTransitions: 0
   debugFramesAfterTransition: 8
   debugCameraEveryLateUpdate: 0

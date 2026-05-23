@@ -27,6 +27,9 @@ public partial class ActorCameraControl
         public float currentAnchorYaw;
         public float currentFollowDistance = 8f;
 
+        // Current lateral offset from the combat center.
+        public float currentSideAmount;
+
         public void CreateAnchor(Transform parent)
         {
             if (anchor != null) return;

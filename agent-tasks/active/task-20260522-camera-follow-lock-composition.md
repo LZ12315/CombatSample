@@ -2,15 +2,15 @@
 id: task-20260522-camera-follow-lock-composition
 title: Camera Follow And Soft Lock Composition
 summary: Improve free camera follow damping and redesign soft-lock camera composition so it feels closer, flatter, steadier, and less mechanically tied to the player-enemy line.
-status: changes_requested
-current_round: 2
+status: done
+current_round: 4
 planner: Codex
-executor: Claude
+executor: Codex
 reviewer: Codex
 created_at: 2026-05-22
 updated_at: 2026-05-22
 claimed_at: 2026-05-22
-completed_at:
+completed_at: 2026-05-22
 ---
 
 # 任务：自由相机跟随阻尼与软锁定构图改进
@@ -20,15 +20,15 @@ completed_at:
 | 属性 / Field | 值 / Value |
 | --- | --- |
 | id | `task-20260522-camera-follow-lock-composition` |
-| status | `changes_requested` |
-| current_round | `2` |
+| status | `done` |
+| current_round | `4` |
 | planner | `Codex` |
-| executor | `Claude` |
+| executor | `Codex` |
 | reviewer | `Codex` |
 | created_at | `2026-05-22` |
 | updated_at | `2026-05-22` |
 | claimed_at | `2026-05-22` |
-| completed_at |  |
+| completed_at | `2026-05-22` |
 
 ---
 
@@ -36,8 +36,8 @@ completed_at:
 
 ### 1. 计划 / Plan
 
-Agent: Codex  
-Role: Planner  
+Agent: Codex
+Role: Planner
 Date: 2026-05-22
 
 #### 1.1 目标 / Goal
@@ -162,8 +162,8 @@ Date: 2026-05-22
 
 ### 2. 执行报告 / Execution Report
 
-Agent: Claude  
-Role: Executor  
+Agent: Claude
+Role: Executor
 Date: 2026-05-22
 
 #### 修改文件 / Changed Files
@@ -390,3 +390,387 @@ Date: 2026-05-22
 #### 是否可以标记为 done
 
 否。建议先停止执行，进行第 3 轮方案讨论或重写计划，再继续改代码。
+
+---
+
+## 第 3 轮 / Round 3
+
+### 1. 计划 / Plan
+
+Agent: Codex
+Role: Planner
+Date: 2026-05-22
+
+#### 1.1 目标 / Goal
+
+本轮只做一件事：**把软锁定画面收紧，让玩家和敌人在画面里更大，减少空白**。
+
+这轮不解决完整软锁定构图系统，不处理复杂的“当前画面能用就不动”，也不继续扩大相机算法范围。先把当前可调参数整理清楚，并用少量参数完成一次可理解、可回退、可验收的画面收紧。
+
+#### 1.2 非目标 / Non-goals
+
+- 不新增屏幕空间构图评估。
+- 不新增安全框、主体包围框、构图状态机。
+- 不重写 `UpdateCombatFollowAnchor()` 的站位公式。
+- 不继续改 side dead zone、锁定侧位、anchor 惰性。
+- 不调整自由相机 damping。
+- 不改锁定输入、目标选择、战斗逻辑、移动逻辑。
+
+#### 1.3 当前问题 / Current Problems
+
+当前 `ActorCameraControl` 可调参数太多，且参数名字不直观，导致用户无法判断“到底应该调哪里”：
+
+- `followDistNear/Far`、`fovNear/Far`、`playerRadius/enemyRadius`、`framingSizeNear/Far` 都会影响画面大小。
+- `heightOffset` 影响平视/俯视，不是主要画面收紧参数。
+- `centerBias`、`sideBias` 影响站位和偏移，不是主要画面收紧参数。
+- `positionSmoothTime`、`rotationSmoothTime`、`sideSmoothTime` 影响跟随速度，不是主要画面收紧参数。
+- `playerWeight/enemyWeight` 会影响 TargetGroup 中心偏向，暂时不要用它解决“画面太空”。
+
+第二轮中 `framingSizeNear` 从 `0.82` 降到 `0.58`、`framingSizeFar` 从 `0.60` 降到 `0.48`。这一步方向需要重新确认：Cinemachine GroupComposer 的 `GroupFramingSize` 通常表示目标组占屏幕的比例，数值更大通常意味着主体更大、画面更紧；数值更小可能反而保留更多空白。第 3 轮必须先用 Unity Inspector 或 PlayMode 明确这个方向，不允许继续盲调。
+
+#### 1.4 参数说明 / Parameter Guide
+
+本轮只允许优先调整下面 4 类参数：
+
+| 参数 | 用人话解释 | 画面太空时怎么调 | 风险 |
+| --- | --- | --- | --- |
+| `followDistNear` / `followDistFar` | 相机离锁定 anchor 多远 | 调小，相机更靠近，人物更大 | 太小会压迫、遮挡、看不清敌人 |
+| `fovNear` / `fovFar` | 镜头视野角度 | 调小，画面更像长焦，人物更大 | 太小会丢战场信息、转向压迫 |
+| `playerRadiusNear/Far`、`enemyRadiusNear/Far` | Cinemachine 给玩家/敌人额外预留的安全边 | 调小，减少系统自动留白 | 太小可能让身体、武器、特效贴边 |
+| `framingSizeNear` / `framingSizeFar` | 目标组应该占屏幕多少比例 | 先确认方向；若方向符合 Cinemachine 语义，应调大来放大主体 | 太大会让两人贴边或频繁触发 dolly/zoom |
+
+本轮暂时不要用下面参数解决画面大小：
+
+| 参数 | 本轮处理方式 | 原因 |
+| --- | --- | --- |
+| `heightOffset` | 保持当前平视结果 | 它主要影响俯仰，不是画面空白核心 |
+| `centerBiasNear/Far` | 不动 | 它会改变玩家/敌人之间的中心点，容易重新引入构图争议 |
+| `sideBiasNear/Far` | 不动 | 它会改变侧向站位，属于下一步“公式感/惰性”问题 |
+| `playerWeightNear/Far`、`enemyWeightNear/Far` | 不动 | 它影响 TargetGroup 重心，不适合作为第一轮收紧旋钮 |
+| `positionSmoothTime`、`rotationSmoothTime`、`sideSmoothTime` | 不动 | 它们属于跟随惰性，不属于本轮画面大小 |
+
+#### 1.5 建议初始调参方向 / Suggested First Tuning Pass
+
+执行者不要一次改很多东西。建议第一版只做以下方向，并在执行报告中列出最终实际数值：
+
+- `followDistNear`：从当前 `4.5` 轻微调小到约 `3.8 - 4.2`。
+- `followDistFar`：从当前 `14` 调小到约 `10 - 12`。
+- `fovNear`：从当前 `45` 调小到约 `40 - 43`。
+- `fovFar`：从当前 `55` 调小到约 `48 - 52`。
+- `playerRadiusNear` / `enemyRadiusNear`：从当前 `1.5` 调小到约 `1.0 - 1.2`。
+- `playerRadiusFar` / `enemyRadiusFar`：从当前 `2.5/2.8` 调小到约 `1.6 - 2.2`。
+- `framingSizeNear/Far`：先在 Unity 中确认方向；如果数值越大主体越大，则把当前 `0.58/0.48` 提高到一个更紧的范围，例如 `0.68 - 0.78` / `0.58 - 0.68`。
+
+这些是调参范围，不是强制最终值。执行者可以根据 PlayMode 观察微调，但最终报告必须写清楚每个参数“旧值 -> 新值 -> 体感结果”。
+
+#### 1.6 需要先检查的覆盖关系 / Overrides To Check First
+
+执行前必须先确认用户当前在哪个场景测试，以及该场景是否覆盖了 `Player.prefab` 上的相机参数。
+
+已知当前 `Assets/Scenes/MiHoYo.unity` 存在 scene override：
+
+- `fovNear: 35`
+- `followDistNear: 4`
+
+如果用户正在 `MiHoYo.unity` 里测试，那么只改 `Player.prefab` 可能不会得到预期结果。执行者必须二选一：
+
+- 明确保留 scene override，并把它也列入本轮调参来源。
+- 或在用户确认后清理/同步 scene override，让 `Player.prefab` 成为唯一来源。
+
+不得在报告中只写“改了 Player.prefab”，却忽略当前测试场景实际使用了 scene override。
+
+#### 1.7 允许修改范围 / Allowed Edit Scope
+
+- `Assets/Prefabs/Actor/Player.prefab`
+  - 仅限 `ActorCameraControl` 的画面大小相关参数。
+- `Assets/Scripts/Camera/ActorCameraControl.cs`
+  - 仅限同步默认值，使新建对象和 prefab 参数一致。
+- 当前用户确认使用的一个测试场景，如 `Assets/Scenes/MiHoYo.unity`
+  - 仅限已有相机参数 override 的同步或清理。
+
+#### 1.8 禁止修改范围 / Forbidden Changes
+
+- 不改 `ActorCameraControl.CombatLockComposer.cs` 的算法。
+- 不改 `CM_FreeLook.prefab`。
+- 不改 `CM_SoftLock.prefab` / `CM_HardLock.prefab`，除非执行前确认这些 prefab 上的 GroupComposer 参数覆盖了运行时设置。
+- 不改任何战斗、移动、输入、动画、AI 文件。
+- 不做无关 scene YAML 变更。
+
+#### 1.9 预期行为 / Expected Behavior
+
+- 软锁定近距离时玩家和敌人明显更大，画面空白减少。
+- 中距离时仍能看清双方，不要为了收紧导致敌人或玩家频繁贴边。
+- 远距离可以比现在更紧，但仍允许看到双方位置关系。
+- 平视感保持，不要为了收紧又回到俯视。
+- 锁定站位公式和跟随惰性问题本轮不要求解决，只要不要变得更糟。
+
+#### 1.10 验收标准 / Acceptance Criteria
+
+- 用户能直观看到软锁定画面比第 2 轮更紧，人物占比更大。
+- 执行报告中的参数表必须简单可读，只列本轮实际改动的画面大小参数。
+- 执行者必须说明 `framingSizeNear/Far` 的方向验证结果：数值调大到底是让主体更大还是更小。
+- 执行者必须说明测试场景是否存在 scene override，以及本轮如何处理。
+- 不引入新的 Free -> SoftLock 明显位移。
+- 不引入明显贴边、穿模遮挡、敌人频繁出画。
+
+#### 1.11 验证步骤 / Verification Steps
+
+在用户实际测试场景中手动验证：
+
+- 近距离入锁：玩家和敌人都在画面里，人物占比明显变大。
+- 中距离入锁：画面比现在紧，但不丢目标。
+- 远距离入锁：画面不过空，仍能容纳双方。
+- 玩家靠近敌人：镜头不要留下大量空白。
+- 玩家远离敌人：镜头可以拉开，但不要像现在一样过早变成大空场。
+- Free / SoftLock 切换：确认没有新增明显切换漂移。
+
+如果没有运行 Unity PlayMode，执行报告必须明确写 `未验证 PlayMode`，不能写成已确认手感改善。
+
+#### 1.12 已知风险或问题 / Known Risks Or Questions
+
+- 这轮只解决“画面太空”，不解决“公式感”和“跟随太快”。那两个问题留到下一轮。
+- 如果 `framingSizeNear/Far` 的方向理解错误，会继续造成越调越空；所以本轮必须先验证方向。
+- 如果当前测试场景有 scene override，参数来源会变得混乱；必须先处理清楚。
+- 收紧画面可能放大遮挡、墙体、特效贴边问题，需要 PlayMode 观察。
+
+### 2. 执行报告 / Execution Report
+
+Agent: Claude
+Role: Executor
+Date: 2026-05-22
+
+#### framingSize 方向验证
+
+Cinemachine `GroupFramingSize` = 目标组应占屏幕的归一化比例。1.0 = 填满屏幕，0.5 = 占屏幕一半。**数值越大主体越大，数值越小空白越多。**
+
+第 2 轮 `framingSizeNear` 从 0.82 降到 0.58、`framingSizeFar` 从 0.60 降到 0.48 **方向是反的**——实际上把画面变空了。本轮纠正方向，提升 framingSize。
+
+#### 修改文件 / Changed Files
+
+- `Assets/Scripts/Camera/ActorCameraControl.cs` — 4 类 10 个 C# 默认参数
+- `Assets/Prefabs/Actor/Player.prefab` — 同步上述序列化值
+
+#### 参数调整明细 / Parameter Changes
+
+只改四类画面收紧参数（followDist、fov、radius、framingSize），其余全部保持第 2 轮值。
+
+| 参数 | R2 值 | R3 值 | 方向 | 说明 |
+|---|---|---|---|---|
+| `followDistNear` | 4.5 | **4.0** | 更近 | 近距离相机离 anchor 更近 |
+| `followDistFar` | 14 | **11** | 更近 | 远距离也比之前近 |
+| `fovNear` | 45 | **42** | 更紧 | 近距离视野更窄，类似小长焦 |
+| `fovFar` | 55 | **50** | 更紧 | 远距离视野也更紧 |
+| `playerRadiusNear` | 1.5 | **1.0** | 更小 | 减少玩家安全边距 |
+| `playerRadiusFar` | 2.5 | **1.8** | 更小 | 远距玩家安全边距也减少 |
+| `enemyRadiusNear` | 1.5 | **1.0** | 更小 | 减少敌人安全边距 |
+| `enemyRadiusFar` | 2.8 | **2.0** | 更小 | 远距敌人安全边距减少 |
+| `framingSizeNear` | 0.58 | **0.72** | **增大** | 修正方向—近距主体占屏幕更大比例 |
+| `framingSizeFar` | 0.48 | **0.62** | **增大** | 修正方向—远距主体占比也更大 |
+
+未改动参数（确认原地不动）：`heightOffset`、`centerBias`、`sideBias`、`playerWeight`、`enemyWeight`、`compositionNearDist/Far`、`positionSmoothTime`、`rotationSmoothTime`、`sideSmoothTime`。
+
+#### Scene Override 处理
+
+`Assets/Scenes/MiHoYo.unity` scene override 现状：
+
+| 属性 | Scene Override 值 | 新 Prefab 值 | 处理 |
+|---|---|---|---|
+| `fovNear` | 35 | 42 | **保留** — 用户自主设定的更紧值，方向一致 |
+| `followDistNear` | 4 | 4.0 | **保留** — 值等价，无冲突 |
+
+scene override 不阻止本轮参数生效。若用户在 MiHoYo.unity 测试，`fovNear` 会是 35（scene override 覆盖 prefab 的 42），`followDistNear` 会是 4（与 prefab 一致）。其余参数无 scene override，全部走新的 prefab 值。
+
+#### 已执行验证 / Verification Performed
+
+- framingSize 方向通过 Cinemachine API 文档确认：`GroupFramingSize` 越大 = 主体越大
+- C# 和 prefab 参数值比对一致
+- 未触及禁止修改区域（未改 CombatLockComposer 算法、CM_FreeLook prefab、战斗/移动/输入系统）
+
+#### 剩余风险或未验证区域 / Remaining Risks
+
+- **未 PlayMode 验证** — 无 Unity Editor 运行测试
+- 收紧参数可能暴露模型遮挡、特效贴边问题
+- `framingSizeNear = 0.72` 是否过紧或仍不够紧需要在 PlayMode 中观察
+- `playerRadius / enemyRadius = 1.0` 是否导致武器/特效/脚步频繁出安全框未测试
+- 本轮只改参数不改算法，"公式感"和"跟随太快"问题留到后续轮次
+
+#### 与计划的偏差 / Deviation From Plan
+
+无偏差。本轮严格遵循计划：只动 4 类参数（followDist/fov/radius/framingSize），不动算法和其余参数。
+
+### 3. 审查 / Review
+
+未审查。用户确认第 3 轮参数调整体感较好，随后转入第 4 轮 Inspector 整理。
+
+---
+
+## 第 4 轮 / Round 4
+
+### 1. 计划 / Plan
+
+Agent: Codex
+Role: Planner / Executor
+Date: 2026-05-22
+
+#### 1.1 目标 / Goal
+
+整理 `ActorCameraControl` 的 Inspector 可用性，让相机参数更容易理解和调整：
+
+- 隐藏已经不参与运行时逻辑的历史兼容参数，减少干扰。
+- 保留所有序列化字段名，不删除字段，不破坏 prefab/scene 引用。
+- 给仍然有效的参数补充明确 tooltip，说明它控制什么、往哪个方向调会发生什么。
+- 按用途重新分组：引用、锁定高度/阻尼、距离与 FOV、画面大小、站位偏移、主体权重、诊断。
+
+#### 1.2 非目标 / Non-goals
+
+- 不改相机算法。
+- 不改当前参数数值。
+- 不改 `Player.prefab`、场景 override 或 Cinemachine prefab。
+- 不新增自定义 Inspector。
+- 不重命名字段。
+
+#### 1.3 参数保留判断 / Parameter Retention
+
+保留并加 tooltip：
+
+- 相机引用：`actor`、`normalFreeLookCamera`、`softLockCamera`、`hardLockCamera`
+- 锁定高度/阻尼：`heightOffset`、`positionSmoothTime`、`rotationSmoothTime`、`sideSmoothTime`
+- 距离/FOV：`compositionNearDist`、`compositionFarDist`、`followDistNear`、`followDistFar`、`fovNear`、`fovFar`
+- 画面大小：`framingSizeNear`、`framingSizeFar`、`playerRadiusNear/Far`、`enemyRadiusNear/Far`
+- 站位偏移：`centerBiasNear/Far`、`sideBiasNear/Far`
+- 主体权重：`playerWeightNear/Far`、`enemyWeightNear/Far`
+- 诊断：`debugCameraTransitions`、`debugFramesAfterTransition`、`debugCameraEveryLateUpdate`、`debugBrainAfterUpdate`
+
+隐藏但不删除：
+
+- `pivotRotationSpeed`
+- `freeModeResetSpeed`
+- `fixedOffsetAngle`
+- `offsetSmoothTime`
+- `shoulderSwitchThreshold`
+- `combatCenterBias`
+- `minFollowDistance`
+- `maxFollowDistance`
+- `followDistanceScale`
+- `sideOffsetScale`
+- `currentState`
+
+这些字段要么已经被注释标记为 deprecated，要么只作为运行时状态/历史序列化兼容存在。隐藏它们可以减少 Inspector 噪音，但不破坏旧 prefab 数据。
+
+### 2. 执行报告 / Execution Report
+
+Agent: Codex
+Role: Executor
+Date: 2026-05-22
+
+#### 修改文件 / Changed Files
+
+- `Assets/Scripts/Camera/ActorCameraControl.cs`
+  - 整理 Inspector 分组。
+  - 为有效参数补充 tooltip。
+  - 隐藏废弃兼容字段和运行时状态字段。
+- `Assets/Scripts/Camera/ActorCameraControl.CombatLockComposer.cs`
+  - 仅清理注释中的非 ASCII 连字符。
+- `agent-tasks/active/task-20260522-camera-follow-lock-composition.md`
+  - 追加第 4 轮计划和本执行报告。
+
+#### 行为变化 / Behavior Changes
+
+- 不改变相机运行时算法。
+- 不改变任何相机参数数值。
+- 不改变字段名、序列化字段、public API 或 prefab 引用。
+- `ActorCameraControl` Inspector 现在按用途分组：
+  - `Actor And Camera Rigs`
+  - `Lock Camera - Height And Motion`
+  - `Lock Camera - Distance And FOV`
+  - `Lock Camera - Frame Size`
+  - `Lock Camera - Position Bias (Advanced)`
+  - `Lock Camera - Target Weights (Advanced)`
+  - `Camera Diagnostics`
+- 以下字段已确认不参与当前运行时相机逻辑，改为隐藏但保留序列化兼容：
+  - `pivotRotationSpeed`
+  - `freeModeResetSpeed`
+  - `fixedOffsetAngle`
+  - `offsetSmoothTime`
+  - `shoulderSwitchThreshold`
+  - `combatCenterBias`
+  - `minFollowDistance`
+  - `maxFollowDistance`
+  - `followDistanceScale`
+  - `sideOffsetScale`
+  - `currentState`
+
+#### 参数说明整理 / Tooltip Summary
+
+- 画面大小优先看：
+  - `followDistNear/Far`：越小相机越近，人物越大。
+  - `fovNear/Far`：越小画面越紧，人物越大。
+  - `framingSizeNear/Far`：越大目标组占屏越多，空白越少。
+  - `playerRadius/enemyRadius`：越小 Cinemachine 预留空白越少。
+- 公式站位相关参数放入 Advanced：
+  - `centerBiasNear/Far`
+  - `sideBiasNear/Far`
+- TargetGroup 重心相关参数放入 Advanced：
+  - `playerWeightNear/Far`
+  - `enemyWeightNear/Far`
+- 阻尼相关参数独立放入 Height/Motion：
+  - `positionSmoothTime`
+  - `rotationSmoothTime`
+  - `sideSmoothTime`
+
+#### 已执行验证 / Verification Performed
+
+- 用 `rg` 检查字段引用，确认被隐藏的兼容字段只存在于 prefab/scene 序列化数据和字段声明中，未被当前相机代码读取。
+- 用 `git diff` 检查本轮没有修改 `Player.prefab` 的相机参数值。
+- 用 `Select-String` 检查 `ActorCameraControl.cs` 和 `ActorCameraControl.CombatLockComposer.cs` 中没有残留非 ASCII 字符。
+- 执行 `git diff --check`，结果只发现任务 Markdown 中历史/新增签名行尾随空格；本次已清理第 3/4 轮相关尾随空格。未发现代码 whitespace 问题。
+
+#### 剩余风险或未验证区域 / Remaining Risks
+
+- 未在 Unity Editor 中打开 Inspector 实际视觉确认。
+- 未运行 Unity 编译；本轮为属性/tooltip 级修改，理论上不影响运行时逻辑，但仍需 Unity 编译确认。
+- 隐藏 deprecated 字段会减少 Inspector 噪音，但如果后续有人还想手动查看旧字段，需要通过 Debug Inspector 或 YAML 查看。
+
+#### 与计划的偏差 / Deviation From Plan
+
+无偏差。本轮只做 Inspector 可用性整理，没有改算法和数值。
+
+### 3. 审查 / Review
+
+Agent: Codex
+Role: Reviewer
+Date: 2026-05-22
+
+#### 决策 / Decision
+
+`accepted`
+
+第 4 轮可以标记为 `done`。本轮目标是整理 `ActorCameraControl` 的 Inspector 可用性，不改算法、不改参数、不破坏序列化引用；代码审查结果符合该范围。
+
+#### 发现或疑虑 / Findings Or Concerns
+
+- 未发现阻塞问题。
+- `ActorCameraControl.cs` 只新增/调整了 `Header`、`Tooltip`、`HideInInspector` 等 Inspector 展示属性，没有改字段名、字段类型、运行时逻辑或公开 API。
+- 废弃字段只是隐藏，没有删除，因此 `Player.prefab` / 旧场景中的历史序列化数据仍可保留，不会因为字段消失而断引用。
+- `currentState` 被隐藏是合理的：它是运行时状态，不是调参入口；如果后续需要调试，仍可通过日志或 Debug Inspector 查看。
+- `ActorCameraControl.CombatLockComposer.cs` 只清理了注释里的非 ASCII 连字符，不影响行为。
+- 本轮执行报告准确区分了本轮 Inspector 整理和第 3 轮参数收紧；`Player.prefab` 的参数 diff 属于第 3 轮遗留工作，不是第 4 轮新增改动。
+
+#### 验证 / Verification
+
+- 已检查 `git diff`，确认第 4 轮代码改动集中在 Inspector 展示属性和注释清理。
+- 已执行 `git diff --check`，未发现 whitespace error。
+- 已通过搜索确认被隐藏的兼容字段未被当前相机运行时代码读取。
+
+#### 剩余风险 / Remaining Risks
+
+- 未在 Unity Editor 中实际打开 Inspector 进行视觉确认。
+- 未运行 Unity 编译。虽然本轮是属性级改动，编译风险较低，但仍建议下一次打开 Unity 时确认无脚本编译错误。
+
+#### 必要修改 / Required Changes
+
+无。
+
+#### 是否可以标记为 done
+
+可以。后续“锁定镜头公式感”和“跟随惰性”建议另起新任务或新一轮规划，不阻塞本轮 Inspector 整理完成。
