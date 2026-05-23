@@ -60,14 +60,6 @@ public partial class ActorCameraControl : MonoBehaviour
     [Range(0.5f, 2.5f)]
     [SerializeField] private float lockTargetPadding = 1.2f;
 
-    [Header("Lock Camera - Soft Lock Lateral Inertia")]
-    [Tooltip("软锁定左右惰性死区（世界空间米）。玩家在死区内横向移动时相机保持侧向位置不追；超过死区后相机开始匀速追赶。")]
-    [Range(0.2f, 2.5f)]
-    [SerializeField] private float softLockSideDeadZone = 0.8f;
-    [Tooltip("软锁定侧向追赶速度（米/秒）。玩家超出左右死区后相机以此速度向公式位置追赶。")]
-    [Range(1f, 10f)]
-    [SerializeField] private float softLockSideCatchUpSpeed = 3.5f;
-
     [SerializeField, HideInInspector] private float sideSmoothTime = 0.8f;
 
     [SerializeField, HideInInspector] private float lockCenterBias = 0.45f;
@@ -80,6 +72,8 @@ public partial class ActorCameraControl : MonoBehaviour
     [SerializeField, HideInInspector] private float lockEnemyWeight = 0.95f;
 
 #pragma warning disable CS0414 // Legacy near/far camera fields kept for Unity serialized compatibility.
+    [SerializeField, HideInInspector] private float softLockSideDeadZone = 0.8f;
+    [SerializeField, HideInInspector] private float softLockSideCatchUpSpeed = 3.5f;
     [SerializeField, HideInInspector] private float compositionNearDist = 3f;
     [SerializeField, HideInInspector] private float compositionFarDist = 18f;
     [SerializeField, HideInInspector] private float followDistNear = 4.0f;
@@ -118,12 +112,6 @@ public partial class ActorCameraControl : MonoBehaviour
 
     [SerializeField, HideInInspector] private Enums.PlayerCameraState currentState;
     private Dictionary<Enums.PlayerCameraState, ICinemachineCamera> _stateToCameraMap;
-
-    private enum LockCameraUpdateMode
-    {
-        Formula,
-        LiveSoftLock
-    }
 
     private LockCameraRigRuntime _softRuntime;
     private LockCameraRigRuntime _hardRuntime;
@@ -277,36 +265,33 @@ public partial class ActorCameraControl : MonoBehaviour
             LockCameraRigRuntime activeRt = GetActiveRuntime();
             if (activeRt != null)
             {
-                LockCameraUpdateMode mode = currentState == Enums.PlayerCameraState.SoftLock
-                    ? LockCameraUpdateMode.LiveSoftLock
-                    : LockCameraUpdateMode.Formula;
-                _composer.UpdateCombatFollowAnchor(activeRt, enemyTarget, mode: mode);
+                _composer.UpdateCombatFollowAnchor(activeRt, enemyTarget);
                 _composer.RefreshTargetGroup(activeRt, enemyTarget, currentState);
                 _rigRouter.ApplyCameraBindingForRuntime(activeRt);
                 activeRt.targetGroup?.DoUpdate();
             }
         }
 
-        // --- Background pre-warm: SoftLock runtime (no inertia) ---
+        // --- Background pre-warm: SoftLock runtime ---
         if (currentState != Enums.PlayerCameraState.SoftLock && hasEnemy)
         {
             bool isLive = brain != null && brain.IsLive(softLockCamera);
             if (!isLive)
             {
-                _composer.UpdateCombatFollowAnchor(_softRuntime, enemyTarget, mode: LockCameraUpdateMode.Formula);
+                _composer.UpdateCombatFollowAnchor(_softRuntime, enemyTarget);
                 _composer.RefreshTargetGroup(_softRuntime, enemyTarget, currentState);
                 _rigRouter.ApplyCameraBindingForRuntime(_softRuntime);
                 _softRuntime.targetGroup?.DoUpdate();
             }
         }
 
-        // --- Background pre-warm: HardLock runtime (no inertia) ---
+        // --- Background pre-warm: HardLock runtime ---
         if (currentState != Enums.PlayerCameraState.HardLock && hasEnemy)
         {
             bool isLive = brain != null && brain.IsLive(hardLockCamera);
             if (!isLive)
             {
-                _composer.UpdateCombatFollowAnchor(_hardRuntime, enemyTarget, mode: LockCameraUpdateMode.Formula);
+                _composer.UpdateCombatFollowAnchor(_hardRuntime, enemyTarget);
                 _composer.RefreshTargetGroup(_hardRuntime, enemyTarget, currentState);
                 _rigRouter.ApplyCameraBindingForRuntime(_hardRuntime);
                 _hardRuntime.targetGroup?.DoUpdate();
@@ -363,10 +348,7 @@ public partial class ActorCameraControl : MonoBehaviour
             LockCameraRigRuntime incoming = GetActiveRuntime();
             if (incoming != null)
             {
-                LockCameraUpdateMode mode = newState == Enums.PlayerCameraState.SoftLock
-                    ? LockCameraUpdateMode.LiveSoftLock
-                    : LockCameraUpdateMode.Formula;
-                _composer.UpdateCombatFollowAnchor(incoming, enemyTarget, instant: true, mode: mode);
+                _composer.UpdateCombatFollowAnchor(incoming, enemyTarget, instant: true);
                 _composer.RefreshTargetGroup(incoming, enemyTarget, currentState);
                 _rigRouter.ApplyCameraBindingForRuntime(incoming);
                 incoming.targetGroup?.DoUpdate();

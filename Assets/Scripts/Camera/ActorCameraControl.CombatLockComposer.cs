@@ -24,7 +24,7 @@ public partial class ActorCameraControl
         /// </summary>
         public void UpdateCombatFollowAnchor(
             LockCameraRigRuntime rt, Transform enemyTarget,
-            bool instant = false, LockCameraUpdateMode mode = LockCameraUpdateMode.Formula)
+            bool instant = false)
         {
             if (rt == null || rt.anchor == null || enemyTarget == null || _o.actor == null) return;
 
@@ -32,7 +32,7 @@ public partial class ActorCameraControl
             float rawSide = ReadCameraSide(frame);
             UpdateShoulderSide(rt, rawSide, instant);
 
-            float sideAmount = ResolveSideAmount(rt, frame, instant, mode);
+            float sideAmount = ResolveSideAmount(rt, frame);
             ApplyAnchorPose(rt, frame, sideAmount, instant);
             ApplyCinemachineSettings(rt);
         }
@@ -115,35 +115,10 @@ public partial class ActorCameraControl
             }
         }
 
-        private float ResolveSideAmount(
-            LockCameraRigRuntime rt, CombatFrame frame,
-            bool instant, LockCameraUpdateMode mode)
+        private float ResolveSideAmount(LockCameraRigRuntime rt, CombatFrame frame)
         {
             float sideSign = rt.smoothedSide >= 0f ? 1f : -1f;
-            float formulaSideAmount = Mathf.Min(frame.Distance * _o.lockSideBias, frame.Distance * 0.5f) * sideSign;
-
-            if (mode != LockCameraUpdateMode.LiveSoftLock)
-            {
-                rt.currentSideAmount = formulaSideAmount;
-                return rt.currentSideAmount;
-            }
-
-            if (instant)
-            {
-                rt.currentSideAmount = formulaSideAmount;
-                return rt.currentSideAmount;
-            }
-
-            float sideGap = formulaSideAmount - rt.currentSideAmount;
-            if (Mathf.Abs(sideGap) > _o.softLockSideDeadZone)
-            {
-                float sideTarget = formulaSideAmount
-                    - Mathf.Sign(sideGap) * _o.softLockSideDeadZone;
-                float maxStep = _o.softLockSideCatchUpSpeed * Time.deltaTime;
-                rt.currentSideAmount = Mathf.MoveTowards(rt.currentSideAmount, sideTarget, maxStep);
-            }
-
-            return rt.currentSideAmount;
+            return Mathf.Min(frame.Distance * _o.lockSideBias, frame.Distance * 0.5f) * sideSign;
         }
 
         private void ApplyAnchorPose(
