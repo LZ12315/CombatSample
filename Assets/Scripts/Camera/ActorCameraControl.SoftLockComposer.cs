@@ -33,7 +33,15 @@ public partial class ActorCameraControl
     [SerializeField] private float softLockTargetPadding = 1.2f;
 
     private SoftLockComposer _softLockComposer;
-    private SoftLockComposer SoftComposer => _softLockComposer ??= new SoftLockComposer(this);
+    private SoftLockComposer SoftComposer
+    {
+        get
+        {
+            if (_softLockComposer == null)
+                _softLockComposer = new SoftLockComposer(this);
+            return _softLockComposer;
+        }
+    }
 
     private sealed class SoftLockComposer
     {
