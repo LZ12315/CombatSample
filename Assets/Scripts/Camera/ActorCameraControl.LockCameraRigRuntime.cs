@@ -42,7 +42,7 @@ public partial class ActorCameraControl
         public float dbgSectorDelta;
         public bool dbgSectorInside;
         public float dbgSectorTargetYaw;
-        public string dbgYawSource;        // InstantFormula/InsideHold/OutsideBoundary/NoCameraFallback
+        public string dbgYawSource;        // InstantFormula/InsideHold/SoftEdge/OutsideBoundary/NoCameraFallback
         public float dbgYawBefore;
         public float dbgYawAfter;
         public float dbgFormulaYaw;
@@ -53,6 +53,20 @@ public partial class ActorCameraControl
         public Vector3 dbgBoundaryCamPos;
         public float dbgBoundaryRadius;
         public bool dbgIsActiveRuntime;
+        // Soft-edge / damped-return state
+        public float prevAbsSectorDelta = -1f; // -1 = uninitialized
+        public float currentYawReturnSpeed;
+        public float yawReturnSpeedVelocity;
+        // Damped-return diagnostic
+        public float dbgAbsSectorDelta;    // snapshot of absDelta for this frame
+        public float dbgPrevAbsSectorDelta; // snapshot of prevAbsDelta BEFORE this frame's update
+        public float dbgCorrectionWeight;
+        public float dbgHalfAngle;
+        public float dbgInnerHoldHalfAngle;
+        public string dbgSectorZone;       // hold/soft/outside/NoCamera
+        public string dbgTrend;            // init/outward/inward/stable
+        public float dbgTargetReturnSpeed;
+        public float dbgYawAppliedDelta;
 
         public void CreateAnchor(Transform parent)
         {

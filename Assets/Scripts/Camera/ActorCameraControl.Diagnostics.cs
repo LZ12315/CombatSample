@@ -138,10 +138,16 @@ public partial class ActorCameraControl
                    $"dir={FormatVector(rt.dbgCombatDir)} dist={rt.dbgCombatDist:F2} " +
                    $"rawSide={rt.dbgRawSide:F2} sideAmount={rt.dbgSideAmount:F2} " +
                    $"desAnchor={FormatVector(rt.dbgDesiredAnchorPos)} tgPos={FormatVector(rt.dbgTargetGroupPos)}\n" +
-                   $"  yawGate src={rt.dbgYawSource} before={rt.dbgYawBefore:F1}° after={rt.dbgYawAfter:F1}° " +
-                   $"formula={rt.dbgFormulaYaw:F1}° boundary={rt.dbgBoundaryYaw:F1}°\n" +
-                   $"  sectorΔ={rt.dbgSectorDelta:F1}° inside={rt.dbgSectorInside} " +
-                   $"e2p={rt.dbgEnemyToPlayerYaw:F1}° e2cam={rt.dbgEnemyToCameraYaw:F1}° " +
+                   $"  yawGate src={rt.dbgYawSource} zone={rt.dbgSectorZone} trend={rt.dbgTrend} " +
+                   $"before={rt.dbgYawBefore:F1}° after={rt.dbgYawAfter:F1}° " +
+                   $"appliedΔ={rt.dbgYawAppliedDelta:F3}°\n" +
+                   $"  formula={rt.dbgFormulaYaw:F1}° boundary={rt.dbgBoundaryYaw:F1}° " +
+                   $"sectorΔ={rt.dbgSectorDelta:F1}° absΔ={rt.dbgAbsSectorDelta:F1}° " +
+                   $"prevAbsΔ={rt.dbgPrevAbsSectorDelta:F1}° inside={rt.dbgSectorInside}\n" +
+                   $"  halfAngle(outer)={rt.dbgHalfAngle:F0}° innerHold={rt.dbgInnerHoldHalfAngle:F0}° " +
+                   $"corrWeight={rt.dbgCorrectionWeight:F2} " +
+                   $"tgtSpd={rt.dbgTargetReturnSpeed:F1} curSpd={rt.currentYawReturnSpeed:F1}\n" +
+                   $"  e2p={rt.dbgEnemyToPlayerYaw:F1}° e2cam={rt.dbgEnemyToCameraYaw:F1}° " +
                    $"bndDir={rt.dbgBoundaryDirYaw:F1}° bndRadius={rt.dbgBoundaryRadius:F2} " +
                    $"bndCamPos={FormatVector(rt.dbgBoundaryCamPos)}";
         }

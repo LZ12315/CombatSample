@@ -75,6 +75,7 @@ public partial class ActorCameraControl : MonoBehaviour
     [SerializeField, HideInInspector] private float softLockSideDeadZone = 0.8f;
     [SerializeField, HideInInspector] private float softLockSideCatchUpSpeed = 3.5f;
     [SerializeField, HideInInspector] private float lockYawSectorHalfAngle = 30f;
+    [SerializeField, HideInInspector] private float lockYawSectorInnerOffset = 8f;
     [SerializeField, HideInInspector] private float lockYawSectorReturnSpeed = 90f;
     [SerializeField, HideInInspector] private float compositionNearDist = 3f;
     [SerializeField, HideInInspector] private float compositionFarDist = 18f;
@@ -300,6 +301,8 @@ public partial class ActorCameraControl : MonoBehaviour
         centerDir.Normalize();
 
         float halfAngle = Mathf.Max(0f, lockYawSectorHalfAngle);
+        float innerOffset = Mathf.Clamp(lockYawSectorInnerOffset, 0f, halfAngle);
+        float innerHoldHalfAngle = halfAngle - innerOffset;
         float radius = Mathf.Max(rt.currentFollowDistance, 1.5f);
         Vector3 cameraDir = centerDir;
         bool hasCamera = mainCam != null;
@@ -320,14 +323,36 @@ public partial class ActorCameraControl : MonoBehaviour
         float sectorDelta = hasCamera
             ? Vector3.SignedAngle(centerDir, cameraDir, Vector3.up)
             : 0f;
-        bool inside = Mathf.Abs(sectorDelta) <= halfAngle;
+        float absDelta = Mathf.Abs(sectorDelta);
+
+        // Zone classification
+        string zone;
+        Color sectorColor;
+        if (!hasCamera)
+        {
+            zone = "NoCamera";
+            sectorColor = new Color(0.5f, 0.5f, 0.5f, 0.8f);
+        }
+        else if (absDelta <= innerHoldHalfAngle)
+        {
+            zone = "hold";
+            sectorColor = new Color(0.25f, 1f, 0.35f, 0.8f);
+        }
+        else if (absDelta <= halfAngle)
+        {
+            zone = "soft";
+            sectorColor = new Color(1f, 0.85f, 0.2f, 0.8f);
+        }
+        else
+        {
+            zone = "outside";
+            sectorColor = new Color(1f, 0.25f, 0.2f, 0.8f);
+        }
 
         Vector3 leftDir = Quaternion.Euler(0f, -halfAngle, 0f) * centerDir;
         Vector3 rightDir = Quaternion.Euler(0f, halfAngle, 0f) * centerDir;
-        Color sectorColor = inside
-            ? new Color(0.25f, 1f, 0.35f, 0.8f)
-            : new Color(1f, 0.25f, 0.2f, 0.8f);
 
+        // Outer sector boundary
         Gizmos.color = new Color(1f, 0.9f, 0.1f, 0.75f);
         Gizmos.DrawWireSphere(origin, 0.14f);
         Gizmos.DrawLine(origin, origin + centerDir * radius);
@@ -337,22 +362,44 @@ public partial class ActorCameraControl : MonoBehaviour
         Gizmos.DrawLine(origin, origin + rightDir * radius);
         DrawYawSectorArc(origin, centerDir, halfAngle, radius);
 
+        // Inner hold boundary
+        if (innerHoldHalfAngle > 0.01f)
+        {
+            Gizmos.color = new Color(0.25f, 1f, 0.35f, 0.45f);
+            DrawYawSectorArc(origin, centerDir, innerHoldHalfAngle, radius);
+        }
+
+        // Camera direction line
         Gizmos.color = sectorColor;
         Gizmos.DrawLine(origin, origin + cameraDir * radius);
 
-        if (!inside)
+        // Outer boundary reference
+        float boundarySign = Mathf.Sign(sectorDelta);
+        if (Mathf.Abs(boundarySign) < 0.001f) boundarySign = 1f;
+        Vector3 outerBoundaryDir = Quaternion.Euler(0f, boundarySign * halfAngle, 0f) * centerDir;
+
+        if (zone == "soft")
         {
-            Vector3 boundaryDir = Quaternion.Euler(
-                0f, Mathf.Sign(sectorDelta) * halfAngle, 0f) * centerDir;
-            Gizmos.DrawWireSphere(origin + boundaryDir * radius, 0.12f);
+            // Outer boundary reference (dim)
+            Gizmos.color = new Color(1f, 0.5f, 0.3f, 0.35f);
+            Gizmos.DrawLine(origin, origin + outerBoundaryDir * radius * 0.7f);
+        }
+
+        if (zone == "outside")
+        {
+            // Correction target marker on outer boundary
+            Gizmos.color = new Color(1f, 0.25f, 0.2f, 0.7f);
+            Gizmos.DrawWireSphere(origin + outerBoundaryDir * radius, 0.12f);
         }
 
 #if UNITY_EDITOR
         UnityEditor.Handles.color = sectorColor;
-        string state = inside ? "inside" : "outside";
-        UnityEditor.Handles.Label(
-            origin + Vector3.up * 0.25f,
-            $"YawSector {state} delta={sectorDelta:F1} half={halfAngle:F0} targetYaw={rt.dbgSectorTargetYaw:F1}");
+        string trend = rt.dbgTrend ?? "?";
+        float weight = rt.dbgCorrectionWeight;
+        string label = $"YawSector zone={zone} trend={trend} weight={weight:F2} " +
+                       $"tgtSpd={rt.dbgTargetReturnSpeed:F0} curSpd={rt.currentYawReturnSpeed:F0}\n" +
+                       $"  delta={sectorDelta:F1} half={halfAngle:F0} innerHold={innerHoldHalfAngle:F0} targetYaw={rt.dbgSectorTargetYaw:F1}";
+        UnityEditor.Handles.Label(origin + Vector3.up * 0.25f, label);
 #endif
     }
 
@@ -415,6 +462,7 @@ public partial class ActorCameraControl : MonoBehaviour
             if (activeRt != null)
             {
                 activeRt.dbgIsActiveRuntime = true;
+                _composer.ResetYawGateOnTargetChange(activeRt, enemyTarget);
                 _composer.UpdateCombatFollowAnchor(activeRt, enemyTarget);
                 _composer.RefreshTargetGroup(activeRt, enemyTarget, currentState);
                 _rigRouter.ApplyCameraBindingForRuntime(activeRt);
@@ -429,6 +477,7 @@ public partial class ActorCameraControl : MonoBehaviour
             if (!isLive)
             {
                 _softRuntime.dbgIsActiveRuntime = false;
+                _composer.ResetYawGateOnTargetChange(_softRuntime, enemyTarget);
                 _composer.UpdateCombatFollowAnchor(_softRuntime, enemyTarget);
                 _composer.RefreshTargetGroup(_softRuntime, enemyTarget, currentState);
                 _rigRouter.ApplyCameraBindingForRuntime(_softRuntime);
@@ -443,6 +492,7 @@ public partial class ActorCameraControl : MonoBehaviour
             if (!isLive)
             {
                 _hardRuntime.dbgIsActiveRuntime = false;
+                _composer.ResetYawGateOnTargetChange(_hardRuntime, enemyTarget);
                 _composer.UpdateCombatFollowAnchor(_hardRuntime, enemyTarget);
                 _composer.RefreshTargetGroup(_hardRuntime, enemyTarget, currentState);
                 _rigRouter.ApplyCameraBindingForRuntime(_hardRuntime);

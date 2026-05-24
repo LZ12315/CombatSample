@@ -22,6 +22,21 @@ public partial class ActorCameraControl
         /// Updates the lock camera in clear layers: combat frame, side amount,
         /// anchor pose, then Cinemachine settings.
         /// </summary>
+        /// <summary>
+        /// Call before UpdateCombatFollowAnchor when the lock target may have changed.
+        /// Resets per-runtime yaw-gate trend and speed state so the new target starts clean.
+        /// </summary>
+        public void ResetYawGateOnTargetChange(LockCameraRigRuntime rt, Transform newTarget)
+        {
+            if (rt == null) return;
+            if (rt.trackedLockTarget != newTarget)
+            {
+                rt.prevAbsSectorDelta = -1f;
+                rt.currentYawReturnSpeed = 0f;
+                rt.yawReturnSpeedVelocity = 0f;
+            }
+        }
+
         public void UpdateCombatFollowAnchor(
             LockCameraRigRuntime rt, Transform enemyTarget,
             bool instant = false)
@@ -180,6 +195,13 @@ public partial class ActorCameraControl
                 rt.currentAnchorYaw = formulaYaw;
                 rt.anchorYawVelocity = 0f;
                 rt.dbgYawSource = "InstantFormula";
+                // Reset damped-return state.
+                rt.currentYawReturnSpeed = 0f;
+                rt.yawReturnSpeedVelocity = 0f;
+                rt.prevAbsSectorDelta = -1f;
+                rt.dbgTrend = "init";
+                rt.dbgTargetReturnSpeed = 0f;
+                rt.dbgYawAppliedDelta = 0f;
             }
             else
             {
@@ -191,6 +213,11 @@ public partial class ActorCameraControl
             rt.anchor.rotation = Quaternion.Euler(0f, rt.currentAnchorYaw, 0f);
         }
 
+        // Damped-return speed smoothing time (seconds).
+        private const float ReturnSpeedSmoothTime = 0.25f;
+        // Minimum abs-delta change (degrees) to classify as outward/inward.
+        private const float TrendEpsilon = 0.1f;
+
         private float ResolveSectorGatedYaw(
             LockCameraRigRuntime rt, CombatFrame frame, float formulaYaw)
         {
@@ -201,6 +228,19 @@ public partial class ActorCameraControl
                 rt.dbgSectorTargetYaw = formulaYaw;
                 rt.dbgYawSource = "NoCameraFallback";
                 rt.dbgBoundaryYaw = formulaYaw;
+                rt.dbgCorrectionWeight = 0f;
+                rt.dbgHalfAngle = 0f;
+                rt.dbgInnerHoldHalfAngle = 0f;
+                rt.dbgSectorZone = "NoCamera";
+                rt.dbgBoundaryDirYaw = 0f;
+                rt.dbgBoundaryCamPos = Vector3.zero;
+                rt.dbgBoundaryRadius = 0f;
+                rt.dbgTrend = "init";
+                rt.dbgTargetReturnSpeed = 0f;
+                rt.dbgYawAppliedDelta = 0f;
+                rt.currentYawReturnSpeed = 0f;
+                rt.yawReturnSpeedVelocity = 0f;
+                rt.prevAbsSectorDelta = -1f;
                 return formulaYaw;
             }
 
@@ -213,24 +253,134 @@ public partial class ActorCameraControl
 
             float sectorDelta = Vector3.SignedAngle(eToPlayer, eToCam, Vector3.up);
             float halfAngle = _o.lockYawSectorHalfAngle;
+            float absDelta = Mathf.Abs(sectorDelta);
 
-            // --- diag: raw inputs ---
+            // --- detect trend ---
+            float prevAbsDelta = rt.prevAbsSectorDelta;
+            string trend;
+            if (prevAbsDelta < -0.5f)
+            {
+                trend = "init";
+            }
+            else if (absDelta > prevAbsDelta + TrendEpsilon)
+            {
+                trend = "outward";
+            }
+            else if (absDelta < prevAbsDelta - TrendEpsilon)
+            {
+                trend = "inward";
+            }
+            else
+            {
+                trend = "stable";
+            }
+
+            rt.dbgAbsSectorDelta = absDelta;
+            rt.dbgPrevAbsSectorDelta = rt.prevAbsSectorDelta; // snapshot BEFORE mutation
+            rt.prevAbsSectorDelta = absDelta;
+            rt.dbgTrend = trend;
+
+            // --- soft edge parameters ---
+            float safeInnerOffset = Mathf.Clamp(_o.lockYawSectorInnerOffset, 0f, halfAngle);
+            float innerHoldHalfAngle = halfAngle - safeInnerOffset;
+
+            // --- raw input diagnostics ---
             rt.dbgSectorDelta = sectorDelta;
-            rt.dbgSectorInside = Mathf.Abs(sectorDelta) <= halfAngle;
+            rt.dbgSectorInside = absDelta <= halfAngle;
             rt.dbgEnemyToPlayerYaw = Mathf.Atan2(eToPlayer.x, eToPlayer.z) * Mathf.Rad2Deg;
             rt.dbgEnemyToCameraYaw = Mathf.Atan2(eToCam.x, eToCam.z) * Mathf.Rad2Deg;
-            rt.dbgSectorTargetYaw = formulaYaw;
-            rt.dbgBoundaryYaw = formulaYaw;
+            rt.dbgHalfAngle = halfAngle;
+            rt.dbgInnerHoldHalfAngle = innerHoldHalfAngle;
 
-            if (rt.dbgSectorInside)
+            // --- resolve zone and static correction weight ---
+            float correctionWeight;
+            string yawSource;
+            string sectorZone;
+
+            if (absDelta <= innerHoldHalfAngle)
             {
-                rt.dbgYawSource = "InsideHold";
+                correctionWeight = 0f;
+                yawSource = "InsideHold";
+                sectorZone = "hold";
+            }
+            else if (absDelta <= halfAngle)
+            {
+                float t = (absDelta - innerHoldHalfAngle) / Mathf.Max(safeInnerOffset, 0.001f);
+                correctionWeight = Mathf.SmoothStep(0f, 1f, t);
+                yawSource = "SoftEdge";
+                sectorZone = "soft";
+            }
+            else
+            {
+                correctionWeight = 1f;
+                yawSource = "OutsideBoundary";
+                sectorZone = "outside";
+            }
+
+            rt.dbgCorrectionWeight = correctionWeight;
+            rt.dbgSectorZone = sectorZone;
+
+            // --- resolve target return speed ---
+            float maxSpeed = _o.lockYawSectorReturnSpeed;
+            float targetReturnSpeed;
+            bool shouldCorrect;
+
+            if (correctionWeight <= 0f)
+            {
+                targetReturnSpeed = 0f;
+                shouldCorrect = false;
+            }
+            else if (trend == "inward")
+            {
+                // Player is moving back toward sector center — stop correcting.
+                targetReturnSpeed = 0f;
+                shouldCorrect = false;
+            }
+            else
+            {
+                // Outward, stable, or init: apply weighted speed.
+                targetReturnSpeed = correctionWeight * maxSpeed;
+                shouldCorrect = true;
+            }
+
+            // --- dampen return speed (always, for debug continuity) ---
+            rt.currentYawReturnSpeed = Mathf.SmoothDamp(
+                rt.currentYawReturnSpeed, targetReturnSpeed,
+                ref rt.yawReturnSpeedVelocity, ReturnSpeedSmoothTime);
+
+            rt.dbgTargetReturnSpeed = targetReturnSpeed;
+
+            if (!shouldCorrect)
+            {
+                // Don't apply yaw correction even if residual speed exists.
+                // Speed damping continues for debug, but MoveTowardsAngle is skipped.
+                rt.dbgYawSource = yawSource;
+                rt.dbgSectorTargetYaw = formulaYaw;
+                rt.dbgBoundaryYaw = formulaYaw;
+                rt.dbgBoundaryDirYaw = 0f;
+                rt.dbgBoundaryCamPos = Vector3.zero;
+                rt.dbgBoundaryRadius = 0f;
+                rt.dbgYawAppliedDelta = 0f;
                 return rt.currentAnchorYaw;
             }
 
-            // Outside sector - rotate toward the nearest reachable boundary point.
-            Vector3 boundaryDir = Quaternion.Euler(0f,
-                Mathf.Sign(sectorDelta) * halfAngle, 0f) * eToPlayer;
+            float speedStep = rt.currentYawReturnSpeed * Time.deltaTime;
+            if (speedStep <= 0.0001f)
+            {
+                rt.dbgYawSource = yawSource;
+                rt.dbgSectorTargetYaw = formulaYaw;
+                rt.dbgBoundaryYaw = formulaYaw;
+                rt.dbgBoundaryDirYaw = 0f;
+                rt.dbgBoundaryCamPos = Vector3.zero;
+                rt.dbgBoundaryRadius = 0f;
+                rt.dbgYawAppliedDelta = 0f;
+                return rt.currentAnchorYaw;
+            }
+
+            // --- compute boundary yaw on outer sector edge ---
+            float boundarySign = Mathf.Sign(sectorDelta);
+            float boundaryAngle = boundarySign * halfAngle;
+            Vector3 boundaryDir = Quaternion.Euler(0f, boundaryAngle, 0f) * eToPlayer;
 
             Vector3 anchorXZ = new Vector3(rt.anchor.position.x, 0f, rt.anchor.position.z);
             float followDistance = Mathf.Max(rt.currentFollowDistance, 0.01f);
@@ -256,16 +406,19 @@ public partial class ActorCameraControl
                 ? Mathf.Atan2(-toCam.normalized.x, -toCam.normalized.z) * Mathf.Rad2Deg
                 : rt.currentAnchorYaw;
 
-            // --- diag: outside-boundary outputs ---
-            rt.dbgYawSource = "OutsideBoundary";
+            float yawBefore = rt.currentAnchorYaw;
+            float yawAfter = Mathf.MoveTowardsAngle(yawBefore, boundaryYaw, speedStep);
+
+            // --- output diagnostics ---
+            rt.dbgYawSource = yawSource;
             rt.dbgSectorTargetYaw = boundaryYaw;
             rt.dbgBoundaryYaw = boundaryYaw;
             rt.dbgBoundaryDirYaw = Mathf.Atan2(boundaryDir.x, boundaryDir.z) * Mathf.Rad2Deg;
             rt.dbgBoundaryCamPos = boundaryCamPos;
             rt.dbgBoundaryRadius = boundaryRadius;
+            rt.dbgYawAppliedDelta = Mathf.DeltaAngle(yawBefore, yawAfter);
 
-            return Mathf.MoveTowardsAngle(rt.currentAnchorYaw, boundaryYaw,
-                _o.lockYawSectorReturnSpeed * Time.deltaTime);
+            return yawAfter;
         }
 
         private static float ResolveBoundaryRadiusOnFollowCircle(
@@ -351,6 +504,8 @@ public partial class ActorCameraControl
 
             if (needsRebuild)
             {
+                bool targetChanged = rt.trackedLockTarget != lockTarget;
+
                 _o._diagnostics.LogCameraEvent($"RefreshTargetGroup rebuild lockMode={lockMode} targetCount={targetCount} lockTarget={ActorCameraControl.FormatObjectName(lockTarget)}");
 
                 if (lockMode)
@@ -373,6 +528,15 @@ public partial class ActorCameraControl
                 rt.trackedLockTarget = lockTarget;
                 rt.targetGroupDirty = false;
                 targets = rt.targetGroup.m_Targets;
+
+                // Reset yaw-gate damped-return state when the lock target changes
+                // so trend detection and residual speed don't carry over.
+                if (targetChanged)
+                {
+                    rt.prevAbsSectorDelta = -1f;
+                    rt.currentYawReturnSpeed = 0f;
+                    rt.yawReturnSpeedVelocity = 0f;
+                }
             }
 
             if (lockMode && targets != null && targets.Length == 2)
