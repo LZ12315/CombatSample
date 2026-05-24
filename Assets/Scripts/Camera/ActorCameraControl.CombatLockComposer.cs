@@ -43,6 +43,13 @@ public partial class ActorCameraControl
         {
             if (rt == null || rt.anchor == null || enemyTarget == null || _o.actor == null) return;
 
+            if (rt == _o._softRuntime)
+            {
+                bool updateStickySide = instant || _o.currentState == Enums.PlayerCameraState.SoftLock;
+                _o.SoftComposer.Refresh(rt, enemyTarget, instant, updateStickySide);
+                return;
+            }
+
             CombatFrame frame = BuildCombatFrame(enemyTarget);
             float rawSide = ReadCameraSide(frame);
             UpdateShoulderSide(rt, rawSide, instant);
@@ -489,6 +496,13 @@ public partial class ActorCameraControl
         public void RefreshTargetGroup(LockCameraRigRuntime rt, Transform enemyTarget, Enums.PlayerCameraState state)
         {
             if (rt == null || rt.targetGroup == null) return;
+
+            if (rt == _o._softRuntime)
+            {
+                // SoftLockComposer owns the SoftLock target group. This method is
+                // still called by the high-level flow for compatibility.
+                return;
+            }
 
             bool lockMode = enemyTarget != null;
             Transform lockTarget = lockMode ? enemyTarget : null;
