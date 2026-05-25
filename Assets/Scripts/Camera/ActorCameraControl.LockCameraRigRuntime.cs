@@ -43,11 +43,10 @@ public partial class ActorCameraControl
         public Vector3 dbgDesiredAnchorPos;
         public Vector3 dbgTargetGroupPos;
         public string dbgLabel;
-        // Yaw gate diagnostic
         public float dbgSectorDelta;
         public bool dbgSectorInside;
         public float dbgSectorTargetYaw;
-        public string dbgYawSource;        // InstantFormula/InsideHold/SoftEdge/OutsideBoundary/NoCameraFallback
+        public string dbgYawSource;
         public float dbgYawBefore;
         public float dbgYawAfter;
         public float dbgFormulaYaw;
@@ -58,18 +57,16 @@ public partial class ActorCameraControl
         public Vector3 dbgBoundaryCamPos;
         public float dbgBoundaryRadius;
         public bool dbgIsActiveRuntime;
-        // Soft-edge / damped-return state
-        public float prevAbsSectorDelta = -1f; // -1 = uninitialized
+        public float prevAbsSectorDelta = -1f;
         public float currentYawReturnSpeed;
         public float yawReturnSpeedVelocity;
-        // Damped-return diagnostic
-        public float dbgAbsSectorDelta;    // snapshot of absDelta for this frame
-        public float dbgPrevAbsSectorDelta; // snapshot of prevAbsDelta BEFORE this frame's update
+        public float dbgAbsSectorDelta;
+        public float dbgPrevAbsSectorDelta;
         public float dbgCorrectionWeight;
         public float dbgHalfAngle;
         public float dbgInnerHoldHalfAngle;
-        public string dbgSectorZone;       // hold/soft/outside/NoCamera
-        public string dbgTrend;            // init/outward/inward/stable
+        public string dbgSectorZone;
+        public string dbgTrend;
         public float dbgTargetReturnSpeed;
         public float dbgYawAppliedDelta;
 
@@ -84,8 +81,11 @@ public partial class ActorCameraControl
 
         public void CreateSoftLockBasicRuntime(Transform parent)
         {
+            DestroyAnchorOnly();
             CreateSoftLockViewProxies(parent);
             CreateTargetGroup(parent, "Runtime_SoftLockTargetGroup");
+            if (targetGroup != null)
+                targetGroup.gameObject.name = "Runtime_SoftLockTargetGroup";
         }
 
         public void CreateSoftLockViewProxies(Transform parent)
@@ -121,6 +121,14 @@ public partial class ActorCameraControl
             targetGroupDirty = true;
         }
 
+        private void DestroyAnchorOnly()
+        {
+            if (anchor == null) return;
+            if (Application.isPlaying) Object.Destroy(anchor.gameObject);
+            else Object.DestroyImmediate(anchor.gameObject);
+            anchor = null;
+        }
+
         public void DestroyRuntime()
         {
             if (targetGroup != null)
@@ -141,12 +149,7 @@ public partial class ActorCameraControl
                 else Object.DestroyImmediate(playerViewProxy.gameObject);
                 playerViewProxy = null;
             }
-            if (anchor != null)
-            {
-                if (Application.isPlaying) Object.Destroy(anchor.gameObject);
-                else Object.DestroyImmediate(anchor.gameObject);
-                anchor = null;
-            }
+            DestroyAnchorOnly();
             trackedLockTarget = null;
         }
     }
