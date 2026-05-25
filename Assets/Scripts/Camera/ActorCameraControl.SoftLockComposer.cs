@@ -7,17 +7,19 @@ public partial class ActorCameraControl
     [Tooltip("软锁定战斗中心偏向敌人的比例。值越低越贴近玩家；值越高越像双目标构图。")]
     [Range(0f, 0.5f)]
     [SerializeField] private float softLockCenterBias = 0.3f;
-    [Tooltip("软锁定斜视侧向偏移。值越大，玩家与敌人越不容易在画面中重叠。")]
-    [SerializeField] private float softLockSideOffset = 1.5f;
-    [Tooltip("玩家越过该侧向阈值后，软锁定相机才切换斜视侧。")]
+    [Tooltip("软锁定的额外斜视偏移。0 表示不主动偏左/右，只通过横向滞后自然形成斜视。")]
+    [SerializeField] private float softLockSideOffset = 0f;
+    [Tooltip("启用额外斜视偏移时，玩家越过该侧向阈值后才切换偏移侧。")]
     [SerializeField] private float softLockSideSwitchThreshold = 0.6f;
+    [Tooltip("软锁定横向跟随死区。玩家在该范围内横移时，anchor 不主动追；超过后只追到死区边缘。")]
+    [SerializeField] private float softLockLateralDeadZone = 0.9f;
 
     [Header("Soft Lock - Damping")]
     [Tooltip("软锁定 anchor 位置阻尼。值越大，相机跟随越慢、画面越稳。")]
     [SerializeField] private float softLockAnchorSmoothTime = 0.35f;
     [Tooltip("软锁定 yaw 阻尼。值越大，相机转向越慢、越稳定。")]
     [SerializeField] private float softLockYawSmoothTime = 0.35f;
-    [Tooltip("软锁定左右斜视侧切换的平滑时间。")]
+    [Tooltip("软锁定额外斜视侧切换的平滑时间。")]
     [SerializeField] private float softLockSideSmoothTime = 0.45f;
 
     [Header("Soft Lock - Lens")]
@@ -70,8 +72,10 @@ public partial class ActorCameraControl
             float rawSide = ReadCameraSide(frame);
             float sideValue = ResolveStickySide(rt, rawSide, instant, updateStickySide);
 
-            Vector3 desiredAnchorPos = ResolveAnchorPosition(frame, sideValue);
-            float desiredYaw = ResolveAnchorYaw(frame, sideValue);
+            rt.currentFollowDistance = Mathf.Max(0.01f, _o.softLockFollowDistance);
+
+            Vector3 desiredAnchorPos = ResolveAnchorPosition(rt, frame, sideValue, instant);
+            float desiredYaw = ResolveAnchorYaw(frame, desiredAnchorPos, rt.currentFollowDistance);
 
             if (instant)
             {
@@ -95,7 +99,6 @@ public partial class ActorCameraControl
                     Mathf.Max(0.001f, _o.softLockYawSmoothTime));
             }
 
-            rt.currentFollowDistance = Mathf.Max(0.01f, _o.softLockFollowDistance);
             rt.anchor.rotation = Quaternion.Euler(0f, rt.currentAnchorYaw, 0f);
 
             CaptureDiagnostics(rt, frame, rawSide, sideValue, desiredAnchorPos, desiredYaw);
@@ -214,23 +217,59 @@ public partial class ActorCameraControl
             return 1f;
         }
 
-        private Vector3 ResolveAnchorPosition(SoftLockFrame frame, float sideValue)
+        private Vector3 ResolveAnchorPosition(
+            LockCameraRigRuntime rt,
+            SoftLockFrame frame,
+            float sideValue,
+            bool instant)
         {
-            float sideOffset = Mathf.Max(0f, _o.softLockSideOffset) * sideValue;
-            return frame.Center + frame.CombatRight * sideOffset;
+            float explicitSideOffset = Mathf.Max(0f, _o.softLockSideOffset) * sideValue;
+            Vector3 baseTarget = frame.Center + frame.CombatRight * explicitSideOffset;
+
+            if (instant)
+                return baseTarget;
+
+            float deadZone = Mathf.Max(0f, _o.softLockLateralDeadZone);
+            if (deadZone <= 0.001f)
+                return baseTarget;
+
+            Vector3 anchorToTarget = rt.anchor.position - baseTarget;
+            float lateralOffset = Vector3.Dot(anchorToTarget, frame.CombatRight);
+            Vector3 lateralTargetCorrection = Vector3.zero;
+
+            if (Mathf.Abs(lateralOffset) > deadZone)
+            {
+                float targetLateralOffset = Mathf.Sign(lateralOffset) * deadZone;
+                lateralTargetCorrection = frame.CombatRight * targetLateralOffset;
+            }
+            else
+            {
+                lateralTargetCorrection = frame.CombatRight * lateralOffset;
+            }
+
+            // Forward/depth and height continue to follow the combat frame, while lateral
+            // motion is dead-zoned. This creates the delayed side transition seen in
+            // character-action soft lock cameras.
+            return baseTarget + lateralTargetCorrection;
         }
 
-        private float ResolveAnchorYaw(SoftLockFrame frame, float sideValue)
+        private float ResolveAnchorYaw(
+            SoftLockFrame frame,
+            Vector3 desiredAnchorPos,
+            float followDistance)
         {
-            Vector3 cameraOffsetDir = -frame.CombatDir + frame.CombatRight * sideValue;
-            cameraOffsetDir.y = 0f;
-            if (cameraOffsetDir.sqrMagnitude <= 0.0001f)
-                cameraOffsetDir = -frame.CombatDir;
-            cameraOffsetDir.Normalize();
+            // Default to a rear camera: behind the player on the player->enemy axis.
+            // Any oblique angle now comes from the anchor's actual lateral lag, not from
+            // a hard-coded yaw side bias. Therefore softLockSideOffset=0 really means
+            // no forced斜视角.
+            Vector3 estimatedCameraPos = desiredAnchorPos - frame.CombatDir * Mathf.Max(0.01f, followDistance);
+            Vector3 anchorForward = frame.Center - estimatedCameraPos;
+            anchorForward.y = 0f;
 
-            // The virtual camera sits at FollowOffset (0, 0, -distance),
-            // so anchor forward points from camera toward the combat frame.
-            Vector3 anchorForward = -cameraOffsetDir;
+            if (anchorForward.sqrMagnitude <= 0.0001f)
+                anchorForward = frame.CombatDir;
+
+            anchorForward.Normalize();
             return Mathf.Atan2(anchorForward.x, anchorForward.z) * Mathf.Rad2Deg;
         }
 
@@ -339,9 +378,9 @@ public partial class ActorCameraControl
             rt.dbgYawBefore = rt.currentAnchorYaw;
             rt.dbgYawAfter = rt.currentAnchorYaw;
             rt.dbgFormulaYaw = desiredYaw;
-            rt.dbgYawSource = "SoftLockPose";
+            rt.dbgYawSource = "SoftLockRearLag";
             rt.dbgSectorZone = "SoftLock";
-            rt.dbgTrend = "sticky-side";
+            rt.dbgTrend = "lateral-deadzone";
             rt.dbgCorrectionWeight = Mathf.Abs(sideValue);
             rt.dbgTargetReturnSpeed = 0f;
             rt.dbgYawAppliedDelta = 0f;
