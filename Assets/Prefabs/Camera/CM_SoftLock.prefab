@@ -155,10 +155,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_BindingMode: 1
-  m_FollowOffset: {x: 0, y: 1.25, z: -6}
-  m_XDamping: 1.2
-  m_YDamping: 1.4
-  m_ZDamping: 1
+  m_FollowOffset: {x: 0, y: 0.95, z: -6}
+  m_XDamping: 1.25
+  m_YDamping: 1.35
+  m_ZDamping: 1.05
   m_AngularDampingMode: 0
   m_PitchDamping: 0
   m_YawDamping: 0
@@ -183,7 +183,7 @@ MonoBehaviour:
   m_HorizontalDamping: 1.15
   m_VerticalDamping: 1.3
   m_ScreenX: 0.5
-  m_ScreenY: 0.58
+  m_ScreenY: 0.55
   m_DeadZoneWidth: 0.16
   m_DeadZoneHeight: 0.12
   m_SoftZoneWidth: 0.82
@@ -191,7 +191,7 @@ MonoBehaviour:
   m_BiasX: 0
   m_BiasY: 0
   m_CenterOnActivate: 0
-  m_GroupFramingSize: 0.72
+  m_GroupFramingSize: 0.7
   m_FramingMode: 2
   m_FrameDamping: 2
   m_AdjustmentMode: 1
