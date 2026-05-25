@@ -126,11 +126,10 @@ public partial class ActorCameraControl
 
             if (rt == _o._softRuntime)
             {
-                // SoftLock uses the target group as the observed/framing object for both Body and Aim.
-                // Player/Enemy/Aim/Reveal proxies encode composition intent through weights.
-                Transform group = rt.targetGroup != null ? rt.targetGroup.transform : null;
-                vcam.Follow = group;
-                vcam.LookAt = group;
+                // SoftLock Phase 0: stable third-person body follows the player proxy;
+                // GroupComposer looks at player+enemy target group.
+                vcam.Follow = rt.playerViewProxy;
+                vcam.LookAt = rt.targetGroup != null ? rt.targetGroup.transform : null;
                 return;
             }
 
