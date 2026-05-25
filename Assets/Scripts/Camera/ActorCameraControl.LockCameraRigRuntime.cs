@@ -7,16 +7,15 @@ public partial class ActorCameraControl
     // Nested: LockCameraRigRuntime
     // ==================================================================
     // Per-lock-camera runtime objects and smoothed state.
-    // Manages its own anchor, TargetGroup, and dirty tracking.
+    // HardLock still uses anchor + target group. SoftLock Phase 0 uses only
+    // player/enemy view proxies + target group.
     // ==================================================================
 
     private sealed class LockCameraRigRuntime
     {
         public Transform anchor;
-        public Transform aimProxy;
         public Transform playerViewProxy;
         public Transform enemyViewProxy;
-        public Transform revealProxy;
         public CinemachineTargetGroup targetGroup;
 
         public bool targetGroupDirty = true;
@@ -27,10 +26,8 @@ public partial class ActorCameraControl
         public float smoothedSide;
         public float sideSmoothVelocity;
         public Vector3 anchorPositionVelocity = Vector3.zero;
-        public Vector3 aimProxyVelocity = Vector3.zero;
         public Vector3 playerViewProxyVelocity = Vector3.zero;
         public Vector3 enemyViewProxyVelocity = Vector3.zero;
-        public Vector3 revealProxyVelocity = Vector3.zero;
         public float anchorYawVelocity;
         public float currentAnchorYaw;
         public float currentFollowDistance = 8f;
@@ -85,10 +82,10 @@ public partial class ActorCameraControl
             anchor.rotation = Quaternion.identity;
         }
 
-        public void CreateAimProxy(Transform parent)
+        public void CreateSoftLockBasicRuntime(Transform parent)
         {
-            if (aimProxy != null) return;
-            aimProxy = CreateProxy(parent, "Runtime_LockAimProxy");
+            CreateSoftLockViewProxies(parent);
+            CreateTargetGroup(parent, "Runtime_SoftLockTargetGroup");
         }
 
         public void CreateSoftLockViewProxies(Transform parent)
@@ -97,8 +94,6 @@ public partial class ActorCameraControl
                 playerViewProxy = CreateProxy(parent, "Runtime_SoftLockPlayerViewProxy");
             if (enemyViewProxy == null)
                 enemyViewProxy = CreateProxy(parent, "Runtime_SoftLockEnemyViewProxy");
-            if (revealProxy == null)
-                revealProxy = CreateProxy(parent, "Runtime_SoftLockRevealProxy");
         }
 
         private static Transform CreateProxy(Transform parent, string name)
@@ -112,8 +107,13 @@ public partial class ActorCameraControl
 
         public void CreateTargetGroup(Transform parent)
         {
+            CreateTargetGroup(parent, "Runtime_LockTargetGroup");
+        }
+
+        private void CreateTargetGroup(Transform parent, string name)
+        {
             if (targetGroup != null) return;
-            var go = new GameObject("Runtime_LockTargetGroup");
+            var go = new GameObject(name);
             targetGroup = go.AddComponent<CinemachineTargetGroup>();
             targetGroup.m_PositionMode = CinemachineTargetGroup.PositionMode.GroupCenter;
             targetGroup.m_RotationMode = CinemachineTargetGroup.RotationMode.Manual;
@@ -129,12 +129,6 @@ public partial class ActorCameraControl
                 else Object.DestroyImmediate(targetGroup.gameObject);
                 targetGroup = null;
             }
-            if (revealProxy != null)
-            {
-                if (Application.isPlaying) Object.Destroy(revealProxy.gameObject);
-                else Object.DestroyImmediate(revealProxy.gameObject);
-                revealProxy = null;
-            }
             if (enemyViewProxy != null)
             {
                 if (Application.isPlaying) Object.Destroy(enemyViewProxy.gameObject);
@@ -146,12 +140,6 @@ public partial class ActorCameraControl
                 if (Application.isPlaying) Object.Destroy(playerViewProxy.gameObject);
                 else Object.DestroyImmediate(playerViewProxy.gameObject);
                 playerViewProxy = null;
-            }
-            if (aimProxy != null)
-            {
-                if (Application.isPlaying) Object.Destroy(aimProxy.gameObject);
-                else Object.DestroyImmediate(aimProxy.gameObject);
-                aimProxy = null;
             }
             if (anchor != null)
             {
