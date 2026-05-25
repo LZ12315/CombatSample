@@ -4,20 +4,14 @@ using Cinemachine;
 public partial class ActorCameraControl
 {
     [Header("Soft Lock - Basic")]
-    [Tooltip("玩家观察代理高度。Phase 0 只用它保证玩家完整可见。")]
-    [SerializeField] private float softLockPlayerViewHeight = 1.05f;
-    [Tooltip("敌人观察代理高度。Phase 0 只用它保证敌人进入基础构图。")]
-    [SerializeField] private float softLockEnemyViewHeight = 1.0f;
     [Tooltip("玩家在 SoftLock TargetGroup 中的权重。玩家应保持主体。")]
     [SerializeField] private float softLockPlayerWeight = 1.2f;
     [Tooltip("敌人在 SoftLock TargetGroup 中的权重。Phase 0 固定，不做动态权重。")]
-    [SerializeField] private float softLockEnemyWeight = 0.8f;
+    [SerializeField] private float softLockEnemyWeight = 0.85f;
     [Tooltip("玩家目标半径。影响 GroupComposer 对玩家占屏空间的估计。")]
-    [SerializeField] private float softLockPlayerRadius = 0.7f;
+    [SerializeField] private float softLockPlayerRadius = 0.9f;
     [Tooltip("敌人目标半径。")]
-    [SerializeField] private float softLockEnemyRadius = 0.7f;
-    [Tooltip("Player/Enemy 观察代理平滑时间。Phase 0 保持很小，避免引入复杂滞后。")]
-    [SerializeField] private float softLockProxySmoothTime = 0.08f;
+    [SerializeField] private float softLockEnemyRadius = 0.9f;
 
     private SoftLockComposer _softLockComposer;
     private SoftLockComposer SoftComposer
@@ -50,57 +44,46 @@ public partial class ActorCameraControl
             bool instant,
             bool updateStickySide)
         {
-            if (rt == null || rt.targetGroup == null || enemyTarget == null || _o.actor == null)
+            if (rt == null || enemyTarget == null || _o.actor == null)
                 return;
 
             rt.CreateSoftLockBasicRuntime(_o.transform);
-            if (rt.playerViewProxy == null || rt.enemyViewProxy == null || rt.targetGroup == null)
+            if (rt.targetGroup == null)
                 return;
 
-            Vector3 playerTarget = ResolvePlayerViewPosition();
-            Vector3 enemyTargetPos = ResolveEnemyViewPosition(enemyTarget);
+            Transform playerCameraTarget = ResolveCameraTarget(_o.actor, _o.transform);
+            Transform enemyCameraTarget = ResolveCameraTarget(enemyTarget);
 
-            MoveProxy(rt.playerViewProxy, playerTarget, ref rt.playerViewProxyVelocity, instant);
-            MoveProxy(rt.enemyViewProxy, enemyTargetPos, ref rt.enemyViewProxyVelocity, instant);
-
-            RefreshTargetGroup(rt, enemyTarget);
-            CaptureDiagnostics(rt, enemyTarget, playerTarget, enemyTargetPos);
+            RefreshTargetGroup(rt, enemyTarget, playerCameraTarget, enemyCameraTarget);
+            CaptureDiagnostics(rt, enemyTarget, playerCameraTarget, enemyCameraTarget);
         }
 
-        private Vector3 ResolvePlayerViewPosition()
+        private static Transform ResolveCameraTarget(Actor actor, Transform fallback)
         {
-            Vector3 p = _o.transform.position;
-            p.y += _o.softLockPlayerViewHeight;
-            return p;
+            if (actor != null && actor.CameraTarget != null)
+                return actor.CameraTarget;
+            return fallback;
         }
 
-        private Vector3 ResolveEnemyViewPosition(Transform enemyTarget)
+        private static Transform ResolveCameraTarget(Transform target)
         {
-            Vector3 p = enemyTarget.position;
-            p.y += _o.softLockEnemyViewHeight;
-            return p;
+            if (target == null) return null;
+
+            Actor actor = target.GetComponentInParent<Actor>();
+            if (actor != null && actor.CameraTarget != null)
+                return actor.CameraTarget;
+
+            return target;
         }
 
-        private void MoveProxy(Transform proxy, Vector3 target, ref Vector3 velocity, bool instant)
+        private void RefreshTargetGroup(
+            LockCameraRigRuntime rt,
+            Transform enemyTarget,
+            Transform playerCameraTarget,
+            Transform enemyCameraTarget)
         {
-            if (proxy == null) return;
-            if (instant)
-            {
-                proxy.position = target;
-                velocity = Vector3.zero;
+            if (rt.targetGroup == null || playerCameraTarget == null || enemyCameraTarget == null)
                 return;
-            }
-
-            proxy.position = Vector3.SmoothDamp(
-                proxy.position,
-                target,
-                ref velocity,
-                Mathf.Max(0.001f, _o.softLockProxySmoothTime));
-        }
-
-        private void RefreshTargetGroup(LockCameraRigRuntime rt, Transform enemyTarget)
-        {
-            if (rt.targetGroup == null) return;
 
             CinemachineTargetGroup.Target[] targets = rt.targetGroup.m_Targets;
             bool needsRebuild = rt.targetGroupDirty
@@ -108,15 +91,15 @@ public partial class ActorCameraControl
                 || rt.trackedLockTarget != enemyTarget
                 || targets == null
                 || targets.Length != 2
-                || targets[0].target != rt.playerViewProxy
-                || targets[1].target != rt.enemyViewProxy;
+                || targets[0].target != playerCameraTarget
+                || targets[1].target != enemyCameraTarget;
 
             if (needsRebuild)
             {
                 rt.targetGroup.m_Targets = new[]
                 {
-                    new CinemachineTargetGroup.Target { target = rt.playerViewProxy },
-                    new CinemachineTargetGroup.Target { target = rt.enemyViewProxy }
+                    new CinemachineTargetGroup.Target { target = playerCameraTarget },
+                    new CinemachineTargetGroup.Target { target = enemyCameraTarget }
                 };
 
                 rt.trackedState = Enums.PlayerCameraState.SoftLock;
@@ -137,11 +120,13 @@ public partial class ActorCameraControl
         private static void CaptureDiagnostics(
             LockCameraRigRuntime rt,
             Transform enemyTarget,
-            Vector3 playerTarget,
-            Vector3 enemyTargetPos)
+            Transform playerCameraTarget,
+            Transform enemyCameraTarget)
         {
-            Vector3 center = (playerTarget + enemyTargetPos) * 0.5f;
-            Vector3 dir = enemyTarget != null ? enemyTarget.position - playerTarget : Vector3.forward;
+            Vector3 playerPos = playerCameraTarget != null ? playerCameraTarget.position : Vector3.zero;
+            Vector3 enemyPos = enemyCameraTarget != null ? enemyCameraTarget.position : Vector3.zero;
+            Vector3 center = (playerPos + enemyPos) * 0.5f;
+            Vector3 dir = enemyTarget != null ? enemyPos - playerPos : Vector3.forward;
             dir.y = 0f;
             float dist = dir.magnitude;
             if (dist > 0.001f) dir /= dist;
@@ -153,8 +138,8 @@ public partial class ActorCameraControl
             rt.dbgCombatDist = dist;
             rt.dbgRawSide = 0f;
             rt.dbgSideAmount = 0f;
-            rt.dbgDesiredAnchorPos = playerTarget;
-            rt.dbgYawSource = "Transposer+GroupComposer";
+            rt.dbgDesiredAnchorPos = playerPos;
+            rt.dbgYawSource = "ActorCameraTarget+GroupComposer";
             rt.dbgSectorZone = "Phase0";
             rt.dbgTrend = "basic";
             rt.dbgCorrectionWeight = 0f;
