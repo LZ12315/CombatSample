@@ -14,6 +14,9 @@ public partial class ActorCameraControl
     {
         public Transform anchor;
         public Transform aimProxy;
+        public Transform playerViewProxy;
+        public Transform enemyViewProxy;
+        public Transform revealProxy;
         public CinemachineTargetGroup targetGroup;
 
         public bool targetGroupDirty = true;
@@ -25,6 +28,9 @@ public partial class ActorCameraControl
         public float sideSmoothVelocity;
         public Vector3 anchorPositionVelocity = Vector3.zero;
         public Vector3 aimProxyVelocity = Vector3.zero;
+        public Vector3 playerViewProxyVelocity = Vector3.zero;
+        public Vector3 enemyViewProxyVelocity = Vector3.zero;
+        public Vector3 revealProxyVelocity = Vector3.zero;
         public float anchorYawVelocity;
         public float currentAnchorYaw;
         public float currentFollowDistance = 8f;
@@ -82,10 +88,26 @@ public partial class ActorCameraControl
         public void CreateAimProxy(Transform parent)
         {
             if (aimProxy != null) return;
-            var go = new GameObject("Runtime_LockAimProxy");
-            aimProxy = go.transform;
-            aimProxy.position = parent.position;
-            aimProxy.rotation = Quaternion.identity;
+            aimProxy = CreateProxy(parent, "Runtime_LockAimProxy");
+        }
+
+        public void CreateSoftLockViewProxies(Transform parent)
+        {
+            if (playerViewProxy == null)
+                playerViewProxy = CreateProxy(parent, "Runtime_SoftLockPlayerViewProxy");
+            if (enemyViewProxy == null)
+                enemyViewProxy = CreateProxy(parent, "Runtime_SoftLockEnemyViewProxy");
+            if (revealProxy == null)
+                revealProxy = CreateProxy(parent, "Runtime_SoftLockRevealProxy");
+        }
+
+        private static Transform CreateProxy(Transform parent, string name)
+        {
+            var go = new GameObject(name);
+            Transform proxy = go.transform;
+            proxy.position = parent.position;
+            proxy.rotation = Quaternion.identity;
+            return proxy;
         }
 
         public void CreateTargetGroup(Transform parent)
@@ -106,6 +128,24 @@ public partial class ActorCameraControl
                 if (Application.isPlaying) Object.Destroy(targetGroup.gameObject);
                 else Object.DestroyImmediate(targetGroup.gameObject);
                 targetGroup = null;
+            }
+            if (revealProxy != null)
+            {
+                if (Application.isPlaying) Object.Destroy(revealProxy.gameObject);
+                else Object.DestroyImmediate(revealProxy.gameObject);
+                revealProxy = null;
+            }
+            if (enemyViewProxy != null)
+            {
+                if (Application.isPlaying) Object.Destroy(enemyViewProxy.gameObject);
+                else Object.DestroyImmediate(enemyViewProxy.gameObject);
+                enemyViewProxy = null;
+            }
+            if (playerViewProxy != null)
+            {
+                if (Application.isPlaying) Object.Destroy(playerViewProxy.gameObject);
+                else Object.DestroyImmediate(playerViewProxy.gameObject);
+                playerViewProxy = null;
             }
             if (aimProxy != null)
             {
