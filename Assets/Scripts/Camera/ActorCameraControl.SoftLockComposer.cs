@@ -5,17 +5,17 @@ public partial class ActorCameraControl
 {
     [Header("Soft Lock - Basic")]
     [Tooltip("玩家观察代理高度。Phase 0 只用它保证玩家完整可见。")]
-    [SerializeField] private float softLockPlayerViewHeight = 1.05f;
+    [SerializeField] private float softLockPlayerViewHeight = 0.8f;
     [Tooltip("敌人观察代理高度。Phase 0 只用它保证敌人进入基础构图。")]
     [SerializeField] private float softLockEnemyViewHeight = 1.0f;
     [Tooltip("玩家在 SoftLock TargetGroup 中的权重。玩家应保持主体。")]
-    [SerializeField] private float softLockPlayerWeight = 1.2f;
+    [SerializeField] private float softLockPlayerWeight = 1.15f;
     [Tooltip("敌人在 SoftLock TargetGroup 中的权重。Phase 0 固定，不做动态权重。")]
-    [SerializeField] private float softLockEnemyWeight = 0.8f;
+    [SerializeField] private float softLockEnemyWeight = 1.05f;
     [Tooltip("玩家目标半径。影响 GroupComposer 对玩家占屏空间的估计。")]
-    [SerializeField] private float softLockPlayerRadius = 0.7f;
+    [SerializeField] private float softLockPlayerRadius = 1.1f;
     [Tooltip("敌人目标半径。")]
-    [SerializeField] private float softLockEnemyRadius = 0.7f;
+    [SerializeField] private float softLockEnemyRadius = 1.0f;
     [Tooltip("Player/Enemy 观察代理平滑时间。Phase 0 保持很小，避免引入复杂滞后。")]
     [SerializeField] private float softLockProxySmoothTime = 0.08f;
 
