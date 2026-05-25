@@ -3,15 +3,12 @@ using Cinemachine;
 
 public partial class ActorCameraControl
 {
-    private const float SoftLockEnemyHighCompression = 0.15f;
-    private const float SoftLockEnemyFramingSmoothTime = 0.08f;
-
     [Header("Soft Lock - Basic")]
     [SerializeField] private float softLockPlayerWeight = 1.15f;
     [SerializeField] private float softLockEnemyWeight = 1.05f;
     [SerializeField] private float softLockPlayerRadius = 1.1f;
     [SerializeField] private float softLockEnemyRadius = 1.0f;
-    [SerializeField] private float softLockEnemyMaxVerticalInfluence = 1.8f;
+    [SerializeField] private float softLockFollowFrameYawSmoothTime = 0.22f;
 
     private SoftLockComposer _softLockComposer;
     private SoftLockComposer SoftComposer
@@ -39,17 +36,17 @@ public partial class ActorCameraControl
                 return;
 
             rt.CreateSoftLockBasicRuntime(_o.transform);
-            if (rt.targetGroup == null || rt.enemyFramingTarget == null)
+            if (rt.targetGroup == null || rt.followFrame == null)
                 return;
 
             Transform playerTarget = ResolveCameraTarget(_o.actor, _o.transform);
-            Transform enemyRawTarget = ResolveCameraTarget(enemyTarget);
-            if (playerTarget == null || enemyRawTarget == null)
+            Transform enemyTargetPoint = ResolveCameraTarget(enemyTarget);
+            if (playerTarget == null || enemyTargetPoint == null)
                 return;
 
-            UpdateEnemyFramingTarget(rt, playerTarget.position, enemyRawTarget.position, instant);
-            RefreshTargetGroup(rt, enemyTarget, playerTarget, rt.enemyFramingTarget);
-            CaptureDiagnostics(rt, enemyTarget, playerTarget, enemyRawTarget, rt.enemyFramingTarget);
+            UpdateFollowFrame(rt, playerTarget.position, enemyTargetPoint.position, instant);
+            RefreshTargetGroup(rt, enemyTarget, playerTarget, enemyTargetPoint);
+            CaptureDiagnostics(rt, enemyTarget, playerTarget, enemyTargetPoint);
         }
 
         private static Transform ResolveCameraTarget(Actor actor, Transform fallback)
@@ -70,41 +67,40 @@ public partial class ActorCameraControl
             return target;
         }
 
-        private void UpdateEnemyFramingTarget(LockCameraRigRuntime rt, Vector3 playerPos, Vector3 enemyRawPos, bool instant)
+        private void UpdateFollowFrame(LockCameraRigRuntime rt, Vector3 playerPos, Vector3 enemyPos, bool instant)
         {
-            Vector3 desired = ResolveEnemyFramingPosition(playerPos, enemyRawPos);
+            Vector3 dir = enemyPos - playerPos;
+            dir.y = 0f;
 
-            if (instant)
+            if (dir.sqrMagnitude > 0.0001f)
             {
-                rt.enemyFramingTarget.position = desired;
-                rt.enemyFramingTargetVelocity = Vector3.zero;
-                return;
+                float desiredYaw = Quaternion.LookRotation(dir.normalized, Vector3.up).eulerAngles.y;
+                if (instant)
+                {
+                    rt.followFrameYaw = desiredYaw;
+                    rt.followFrameYawVelocity = 0f;
+                }
+                else
+                {
+                    rt.followFrameYaw = Mathf.SmoothDampAngle(
+                        rt.followFrameYaw,
+                        desiredYaw,
+                        ref rt.followFrameYawVelocity,
+                        Mathf.Max(0.001f, _o.softLockFollowFrameYawSmoothTime));
+                }
             }
 
-            rt.enemyFramingTarget.position = Vector3.SmoothDamp(
-                rt.enemyFramingTarget.position,
-                desired,
-                ref rt.enemyFramingTargetVelocity,
-                SoftLockEnemyFramingSmoothTime);
+            rt.followFrame.position = playerPos;
+            rt.followFrame.rotation = Quaternion.Euler(0f, rt.followFrameYaw, 0f);
         }
 
-        private Vector3 ResolveEnemyFramingPosition(Vector3 playerPos, Vector3 enemyRawPos)
+        private void RefreshTargetGroup(
+            LockCameraRigRuntime rt,
+            Transform enemyTarget,
+            Transform playerTarget,
+            Transform enemyTargetPoint)
         {
-            float maxY = playerPos.y + Mathf.Max(0f, _o.softLockEnemyMaxVerticalInfluence);
-            float y = enemyRawPos.y;
-
-            if (y > maxY)
-            {
-                float excess = y - maxY;
-                y = maxY + excess * SoftLockEnemyHighCompression;
-            }
-
-            return new Vector3(enemyRawPos.x, y, enemyRawPos.z);
-        }
-
-        private void RefreshTargetGroup(LockCameraRigRuntime rt, Transform enemyTarget, Transform playerTarget, Transform enemyFramingTarget)
-        {
-            if (rt.targetGroup == null || playerTarget == null || enemyFramingTarget == null)
+            if (rt.targetGroup == null || playerTarget == null || enemyTargetPoint == null)
                 return;
 
             CinemachineTargetGroup.Target[] targets = rt.targetGroup.m_Targets;
@@ -114,14 +110,14 @@ public partial class ActorCameraControl
                 || targets == null
                 || targets.Length != 2
                 || targets[0].target != playerTarget
-                || targets[1].target != enemyFramingTarget;
+                || targets[1].target != enemyTargetPoint;
 
             if (needsRebuild)
             {
                 rt.targetGroup.m_Targets = new[]
                 {
                     new CinemachineTargetGroup.Target { target = playerTarget },
-                    new CinemachineTargetGroup.Target { target = enemyFramingTarget }
+                    new CinemachineTargetGroup.Target { target = enemyTargetPoint }
                 };
 
                 rt.trackedState = Enums.PlayerCameraState.SoftLock;
@@ -143,28 +139,31 @@ public partial class ActorCameraControl
             rt.targetGroup.m_Targets = targets;
         }
 
-        private static void CaptureDiagnostics(LockCameraRigRuntime rt, Transform enemyTarget, Transform playerTarget, Transform enemyRawTarget, Transform enemyFramingTarget)
+        private static void CaptureDiagnostics(
+            LockCameraRigRuntime rt,
+            Transform enemyTarget,
+            Transform playerTarget,
+            Transform enemyTargetPoint)
         {
             Vector3 playerPos = playerTarget != null ? playerTarget.position : Vector3.zero;
-            Vector3 enemyRawPos = enemyRawTarget != null ? enemyRawTarget.position : Vector3.zero;
-            Vector3 enemyFramingPos = enemyFramingTarget != null ? enemyFramingTarget.position : enemyRawPos;
-            Vector3 center = (playerPos + enemyFramingPos) * 0.5f;
-            Vector3 dir = enemyTarget != null ? enemyFramingPos - playerPos : Vector3.forward;
+            Vector3 enemyPos = enemyTargetPoint != null ? enemyTargetPoint.position : Vector3.zero;
+            Vector3 center = (playerPos + enemyPos) * 0.5f;
+            Vector3 dir = enemyTarget != null ? enemyPos - playerPos : Vector3.forward;
             dir.y = 0f;
             float dist = dir.magnitude;
             if (dist > 0.001f) dir /= dist;
             else dir = Vector3.forward;
 
-            rt.dbgLabel = "SoftLockFramingTarget";
+            rt.dbgLabel = "SoftLock3rdPersonFollow";
             rt.dbgCombatCenter = center;
             rt.dbgCombatDir = dir;
             rt.dbgCombatDist = dist;
-            rt.dbgRawSide = enemyRawPos.y - enemyFramingPos.y;
+            rt.dbgRawSide = 0f;
             rt.dbgSideAmount = 0f;
             rt.dbgDesiredAnchorPos = playerPos;
             rt.dbgTargetGroupPos = center;
-            rt.dbgYawSource = "ActorCameraTarget+EnemyFramingTarget";
-            rt.dbgSectorZone = "Phase0VerticalLimited";
+            rt.dbgYawSource = "SoftLockFollowFrame";
+            rt.dbgSectorZone = "3rdPersonFollow";
             rt.dbgTrend = "basic";
             rt.dbgCorrectionWeight = 0f;
             rt.dbgTargetReturnSpeed = 0f;
