@@ -13,6 +13,7 @@ public partial class ActorCameraControl
     private sealed class LockCameraRigRuntime
     {
         public Transform anchor;
+        public Transform aimProxy;
         public CinemachineTargetGroup targetGroup;
 
         public bool targetGroupDirty = true;
@@ -23,6 +24,7 @@ public partial class ActorCameraControl
         public float smoothedSide;
         public float sideSmoothVelocity;
         public Vector3 anchorPositionVelocity = Vector3.zero;
+        public Vector3 aimProxyVelocity = Vector3.zero;
         public float anchorYawVelocity;
         public float currentAnchorYaw;
         public float currentFollowDistance = 8f;
@@ -77,6 +79,15 @@ public partial class ActorCameraControl
             anchor.rotation = Quaternion.identity;
         }
 
+        public void CreateAimProxy(Transform parent)
+        {
+            if (aimProxy != null) return;
+            var go = new GameObject("Runtime_LockAimProxy");
+            aimProxy = go.transform;
+            aimProxy.position = parent.position;
+            aimProxy.rotation = Quaternion.identity;
+        }
+
         public void CreateTargetGroup(Transform parent)
         {
             if (targetGroup != null) return;
@@ -95,6 +106,12 @@ public partial class ActorCameraControl
                 if (Application.isPlaying) Object.Destroy(targetGroup.gameObject);
                 else Object.DestroyImmediate(targetGroup.gameObject);
                 targetGroup = null;
+            }
+            if (aimProxy != null)
+            {
+                if (Application.isPlaying) Object.Destroy(aimProxy.gameObject);
+                else Object.DestroyImmediate(aimProxy.gameObject);
+                aimProxy = null;
             }
             if (anchor != null)
             {
