@@ -7,27 +7,23 @@ public partial class ActorCameraControl
     // Nested: LockCameraRigRuntime
     // ==================================================================
     // Per-lock-camera runtime objects and smoothed state.
-    // HardLock still uses anchor + target group. SoftLock Phase 0 uses only
-    // player/enemy view proxies + target group.
+    // HardLock uses anchor + target group. SoftLock Phase 0 uses only a
+    // target group that references Actor.CameraTarget transforms directly.
     // ==================================================================
 
     private sealed class LockCameraRigRuntime
     {
         public Transform anchor;
-        public Transform playerViewProxy;
-        public Transform enemyViewProxy;
         public CinemachineTargetGroup targetGroup;
 
         public bool targetGroupDirty = true;
         public Transform trackedLockTarget;
         public Enums.PlayerCameraState trackedState;
 
-        // Smoothed values
+        // Smoothed values used by hard lock.
         public float smoothedSide;
         public float sideSmoothVelocity;
         public Vector3 anchorPositionVelocity = Vector3.zero;
-        public Vector3 playerViewProxyVelocity = Vector3.zero;
-        public Vector3 enemyViewProxyVelocity = Vector3.zero;
         public float anchorYawVelocity;
         public float currentAnchorYaw;
         public float currentFollowDistance = 8f;
@@ -82,27 +78,9 @@ public partial class ActorCameraControl
         public void CreateSoftLockBasicRuntime(Transform parent)
         {
             DestroyAnchorOnly();
-            CreateSoftLockViewProxies(parent);
             CreateTargetGroup(parent, "Runtime_SoftLockTargetGroup");
             if (targetGroup != null)
                 targetGroup.gameObject.name = "Runtime_SoftLockTargetGroup";
-        }
-
-        public void CreateSoftLockViewProxies(Transform parent)
-        {
-            if (playerViewProxy == null)
-                playerViewProxy = CreateProxy(parent, "Runtime_SoftLockPlayerViewProxy");
-            if (enemyViewProxy == null)
-                enemyViewProxy = CreateProxy(parent, "Runtime_SoftLockEnemyViewProxy");
-        }
-
-        private static Transform CreateProxy(Transform parent, string name)
-        {
-            var go = new GameObject(name);
-            Transform proxy = go.transform;
-            proxy.position = parent.position;
-            proxy.rotation = Quaternion.identity;
-            return proxy;
         }
 
         public void CreateTargetGroup(Transform parent)
@@ -136,18 +114,6 @@ public partial class ActorCameraControl
                 if (Application.isPlaying) Object.Destroy(targetGroup.gameObject);
                 else Object.DestroyImmediate(targetGroup.gameObject);
                 targetGroup = null;
-            }
-            if (enemyViewProxy != null)
-            {
-                if (Application.isPlaying) Object.Destroy(enemyViewProxy.gameObject);
-                else Object.DestroyImmediate(enemyViewProxy.gameObject);
-                enemyViewProxy = null;
-            }
-            if (playerViewProxy != null)
-            {
-                if (Application.isPlaying) Object.Destroy(playerViewProxy.gameObject);
-                else Object.DestroyImmediate(playerViewProxy.gameObject);
-                playerViewProxy = null;
             }
             DestroyAnchorOnly();
             trackedLockTarget = null;
