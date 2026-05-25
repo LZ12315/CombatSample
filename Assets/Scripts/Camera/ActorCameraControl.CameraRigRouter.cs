@@ -126,9 +126,9 @@ public partial class ActorCameraControl
 
             if (rt == _o._softRuntime)
             {
-                // SoftLock Phase 0: stable third-person body follows the player proxy;
-                // GroupComposer looks at player+enemy target group.
-                vcam.Follow = rt.playerViewProxy;
+                // SoftLock Phase 0: Body follows the actor camera target;
+                // GroupComposer looks at actor+enemy camera targets.
+                vcam.Follow = _o.actor != null ? _o.actor.CameraTarget : _o.transform;
                 vcam.LookAt = rt.targetGroup != null ? rt.targetGroup.transform : null;
                 return;
             }
