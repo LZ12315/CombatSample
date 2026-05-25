@@ -6,16 +6,22 @@ public partial class ActorCameraControl
     [Header("Soft Lock - Cinemachine Proxy")]
     [Tooltip("FollowProxy 偏向敌人的比例。值越低越跟玩家；值越高越像双目标镜头。")]
     [Range(0f, 0.5f)]
-    [SerializeField] private float softLockFollowEnemyBias = 0.18f;
+    [SerializeField] private float softLockFollowEnemyBias = 0.12f;
     [Tooltip("AimProxy 偏向敌人的比例。用于保证敌人可见，但不应过高，否则会变硬锁。")]
     [Range(0f, 0.65f)]
-    [SerializeField] private float softLockAimEnemyBias = 0.34f;
+    [SerializeField] private float softLockAimEnemyBias = 0.22f;
+    [Tooltip("FollowProxy 高度。相机实际高度还会叠加 Transposer 的本地 Y 偏移。")]
+    [SerializeField] private float softLockFollowHeightOffset = 0.85f;
+    [Tooltip("Transposer FollowOffset 的本地 Y 偏移。提高相机机位，形成轻微俯视。")]
+    [SerializeField] private float softLockCameraLocalHeightOffset = 1.25f;
     [Tooltip("FollowProxy 水平平滑时间。值越大，镜头站位越稳、越不着急追。")]
     [SerializeField] private float softLockFollowSmoothTime = 0.45f;
+    [Tooltip("FollowProxy 朝向玩家→敌人方向的平滑时间。只影响相机站位，不直接接管最终 Aim。")]
+    [SerializeField] private float softLockFollowYawSmoothTime = 0.55f;
     [Tooltip("AimProxy 平滑时间。值越大，镜头朝向越稳。")]
     [SerializeField] private float softLockAimSmoothTime = 0.22f;
     [Tooltip("AimProxy 额外高度偏移，通常让镜头看向玩家胸口附近。")]
-    [SerializeField] private float softLockAimHeightOffset = 0.95f;
+    [SerializeField] private float softLockAimHeightOffset = 1.05f;
 
     [Header("Soft Lock - Lens")]
     [Tooltip("软锁定固定跟随距离。动态 FOV/距离会在后续阶段处理。")]
@@ -49,9 +55,9 @@ public partial class ActorCameraControl
     [Tooltip("AimProxy 在屏幕中的目标 X。")]
     [Range(0f, 1f)]
     [SerializeField] private float softLockComposerScreenX = 0.5f;
-    [Tooltip("AimProxy 在屏幕中的目标 Y。略高于中心可看到更多地面和角色。")]
+    [Tooltip("AimProxy 在屏幕中的目标 Y。提高后会让画面看到更多地面。")]
     [Range(0f, 1f)]
-    [SerializeField] private float softLockComposerScreenY = 0.55f;
+    [SerializeField] private float softLockComposerScreenY = 0.58f;
 
     private SoftLockComposer _softLockComposer;
     private SoftLockComposer SoftComposer
@@ -93,13 +99,17 @@ public partial class ActorCameraControl
             SoftLockFrame frame = BuildFrame(enemyTarget);
             Vector3 followTarget = ResolveFollowProxyPosition(frame);
             Vector3 aimTarget = ResolveAimProxyPosition(frame);
+            float desiredFollowYaw = ResolveFollowYaw(frame);
 
             if (instant)
             {
                 rt.anchor.position = followTarget;
                 rt.aimProxy.position = aimTarget;
+                rt.currentAnchorYaw = desiredFollowYaw;
+                rt.anchor.rotation = Quaternion.Euler(0f, rt.currentAnchorYaw, 0f);
                 rt.anchorPositionVelocity = Vector3.zero;
                 rt.aimProxyVelocity = Vector3.zero;
+                rt.anchorYawVelocity = 0f;
             }
             else
             {
@@ -114,6 +124,13 @@ public partial class ActorCameraControl
                     aimTarget,
                     ref rt.aimProxyVelocity,
                     Mathf.Max(0.001f, _o.softLockAimSmoothTime));
+
+                rt.currentAnchorYaw = Mathf.SmoothDampAngle(
+                    rt.currentAnchorYaw,
+                    desiredFollowYaw,
+                    ref rt.anchorYawVelocity,
+                    Mathf.Max(0.001f, _o.softLockFollowYawSmoothTime));
+                rt.anchor.rotation = Quaternion.Euler(0f, rt.currentAnchorYaw, 0f);
             }
 
             rt.currentFollowDistance = Mathf.Max(0.01f, _o.softLockFollowDistance);
@@ -178,7 +195,7 @@ public partial class ActorCameraControl
                 Mathf.Clamp01(_o.softLockFollowEnemyBias));
 
             Vector3 follow = followXZ;
-            follow.y = frame.PlayerPos.y + _o.heightOffset;
+            follow.y = frame.PlayerPos.y + _o.softLockFollowHeightOffset;
             return follow;
         }
 
@@ -192,6 +209,16 @@ public partial class ActorCameraControl
             Vector3 aim = aimXZ;
             aim.y = frame.PlayerPos.y + _o.softLockAimHeightOffset;
             return aim;
+        }
+
+        private static float ResolveFollowYaw(SoftLockFrame frame)
+        {
+            Vector3 forward = frame.CombatDir;
+            forward.y = 0f;
+            if (forward.sqrMagnitude <= 0.0001f)
+                forward = Vector3.forward;
+            forward.Normalize();
+            return Mathf.Atan2(forward.x, forward.z) * Mathf.Rad2Deg;
         }
 
         private void RefreshTargetGroup(LockCameraRigRuntime rt, Transform enemyTarget)
@@ -250,7 +277,10 @@ public partial class ActorCameraControl
             if (transposer != null)
             {
                 transposer.m_BindingMode = CinemachineTransposer.BindingMode.LockToTargetWithWorldUp;
-                transposer.m_FollowOffset = new Vector3(0f, 0f, -rt.currentFollowDistance);
+                transposer.m_FollowOffset = new Vector3(
+                    0f,
+                    _o.softLockCameraLocalHeightOffset,
+                    -rt.currentFollowDistance);
                 transposer.m_XDamping = 1.2f;
                 transposer.m_YDamping = 1.4f;
                 transposer.m_ZDamping = 1.0f;
