@@ -87,10 +87,10 @@ public partial class ActorCameraControl
     [SerializeField] private float softLockBodyZDamping = 1.05f;
 
     [Header("Soft Lock - Aim Profile")]
-    [Tooltip("AimProxy 在屏幕中的目标 X。")]
+    [Tooltip("TargetGroup 中心在屏幕中的目标 X。")]
     [Range(0f, 1f)]
     [SerializeField] private float softLockComposerScreenX = 0.5f;
-    [Tooltip("AimProxy 在屏幕中的目标 Y。")]
+    [Tooltip("TargetGroup 中心在屏幕中的目标 Y。")]
     [Range(0f, 1f)]
     [SerializeField] private float softLockComposerScreenY = 0.55f;
     [Tooltip("Composer 屏幕水平死区。目标在死区内时，Cinemachine 不主动修正旋转。")]
@@ -124,9 +124,6 @@ public partial class ActorCameraControl
     private sealed class SoftLockComposer
     {
         private readonly ActorCameraControl _o;
-
-        private float _lastRevealWeight;
-        private float _lastEnemyWeight;
 
         public SoftLockComposer(ActorCameraControl owner)
         {
@@ -163,9 +160,6 @@ public partial class ActorCameraControl
             MoveProxy(rt.enemyViewProxy, enemyViewTarget, ref rt.enemyViewProxyVelocity, _o.softLockEnemyProxySmoothTime, instant);
             MoveProxy(rt.aimProxy, aimTarget, ref rt.aimProxyVelocity, _o.softLockProxySmoothTime, instant);
             MoveProxy(rt.revealProxy, revealTarget, ref rt.revealProxyVelocity, _o.softLockProxySmoothTime, instant);
-
-            _lastRevealWeight = revealWeight;
-            _lastEnemyWeight = enemyWeight;
 
             rt.currentFollowDistance = Mathf.Max(0.01f, _o.softLockFollowDistance);
 
@@ -389,6 +383,7 @@ public partial class ActorCameraControl
             if (vcam == null) return;
 
             EnsureFramingTransposer(vcam);
+            EnsureComposer(vcam);
 
             var framingTransposer = vcam.GetCinemachineComponent<CinemachineFramingTransposer>();
             if (framingTransposer != null)
@@ -429,24 +424,6 @@ public partial class ActorCameraControl
                 composer.m_CenterOnActivate = false;
             }
 
-            var groupComposer = vcam.GetCinemachineComponent<CinemachineGroupComposer>();
-            if (groupComposer != null)
-            {
-                groupComposer.m_ScreenX = _o.softLockComposerScreenX;
-                groupComposer.m_ScreenY = _o.softLockComposerScreenY;
-                groupComposer.m_DeadZoneWidth = _o.softLockComposerDeadZoneWidth;
-                groupComposer.m_DeadZoneHeight = _o.softLockComposerDeadZoneHeight;
-                groupComposer.m_SoftZoneWidth = _o.softLockComposerSoftZoneWidth;
-                groupComposer.m_SoftZoneHeight = _o.softLockComposerSoftZoneHeight;
-                groupComposer.m_HorizontalDamping = _o.softLockComposerHorizontalDamping;
-                groupComposer.m_VerticalDamping = _o.softLockComposerVerticalDamping;
-                groupComposer.m_CenterOnActivate = false;
-                groupComposer.m_GroupFramingSize = _o.softLockFramingSize;
-                groupComposer.m_AdjustmentMode = CinemachineGroupComposer.AdjustmentMode.DollyOnly;
-                groupComposer.m_FramingMode = CinemachineGroupComposer.FramingMode.HorizontalAndVertical;
-                groupComposer.m_MaximumFOV = Mathf.Max(_o.softLockFov, 60f);
-            }
-
             var lens = vcam.m_Lens;
             lens.FieldOfView = _o.softLockFov;
             vcam.m_Lens = lens;
@@ -462,6 +439,17 @@ public partial class ActorCameraControl
                 vcam.DestroyCinemachineComponent<CinemachineTransposer>();
 
             vcam.AddCinemachineComponent<CinemachineFramingTransposer>();
+        }
+
+        private static void EnsureComposer(CinemachineVirtualCamera vcam)
+        {
+            if (vcam == null) return;
+
+            if (vcam.GetCinemachineComponent<CinemachineGroupComposer>() != null)
+                vcam.DestroyCinemachineComponent<CinemachineGroupComposer>();
+
+            if (vcam.GetCinemachineComponent<CinemachineComposer>() == null)
+                vcam.AddCinemachineComponent<CinemachineComposer>();
         }
 
         private static void CaptureDiagnostics(
