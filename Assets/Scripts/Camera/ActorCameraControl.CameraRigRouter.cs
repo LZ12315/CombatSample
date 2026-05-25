@@ -123,6 +123,14 @@ public partial class ActorCameraControl
             if (rt == null) return;
             CinemachineVirtualCamera vcam = rt == _o._softRuntime ? _o.softLockCamera : _o.hardLockCamera;
             if (vcam == null) return;
+
+            if (rt == _o._softRuntime)
+            {
+                vcam.Follow = rt.anchor;
+                vcam.LookAt = rt.aimProxy != null ? rt.aimProxy : rt.anchor;
+                return;
+            }
+
             vcam.LookAt = rt.targetGroup != null ? rt.targetGroup.transform : null;
             vcam.Follow = rt.anchor;
         }
