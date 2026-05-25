@@ -126,10 +126,11 @@ public partial class ActorCameraControl
 
             if (rt == _o._softRuntime)
             {
-                // SoftLock uses the target group as the observed/framing object.
-                // The group is not a camera anchor; Cinemachine Body decides where the real camera should move.
-                vcam.Follow = rt.targetGroup != null ? rt.targetGroup.transform : null;
-                vcam.LookAt = rt.aimProxy != null ? rt.aimProxy : (rt.targetGroup != null ? rt.targetGroup.transform : null);
+                // SoftLock uses the target group as the observed/framing object for both Body and Aim.
+                // Player/Enemy/Aim/Reveal proxies encode composition intent through weights.
+                Transform group = rt.targetGroup != null ? rt.targetGroup.transform : null;
+                vcam.Follow = group;
+                vcam.LookAt = group;
                 return;
             }
 
