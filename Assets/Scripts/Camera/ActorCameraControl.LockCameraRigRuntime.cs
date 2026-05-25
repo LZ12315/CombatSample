@@ -7,14 +7,16 @@ public partial class ActorCameraControl
     // Nested: LockCameraRigRuntime
     // ==================================================================
     // Per-lock-camera runtime objects and smoothed state.
-    // HardLock uses anchor + target group. SoftLock Phase 0 uses only a
-    // target group that references Actor.CameraTarget transforms directly.
+    // HardLock uses anchor + target group. SoftLock uses a target group plus
+    // one enemy framing target that limits vertical enemy influence.
     // ==================================================================
 
     private sealed class LockCameraRigRuntime
     {
         public Transform anchor;
         public CinemachineTargetGroup targetGroup;
+        public Transform enemyFramingTarget;
+        public Vector3 enemyFramingTargetVelocity;
 
         public bool targetGroupDirty = true;
         public Transform trackedLockTarget;
@@ -80,7 +82,21 @@ public partial class ActorCameraControl
             DestroyAnchorOnly();
             CreateTargetGroup(parent, "Runtime_SoftLockTargetGroup");
             if (targetGroup != null)
+            {
                 targetGroup.gameObject.name = "Runtime_SoftLockTargetGroup";
+                targetGroup.m_PositionMode = CinemachineTargetGroup.PositionMode.GroupAverage;
+                targetGroup.m_RotationMode = CinemachineTargetGroup.RotationMode.Manual;
+                targetGroup.m_UpdateMethod = CinemachineTargetGroup.UpdateMethod.LateUpdate;
+            }
+
+            if (enemyFramingTarget == null)
+            {
+                var go = new GameObject("Runtime_SoftLockEnemyFramingTarget");
+                enemyFramingTarget = go.transform;
+                enemyFramingTarget.position = parent.position;
+                enemyFramingTarget.rotation = Quaternion.identity;
+                enemyFramingTargetVelocity = Vector3.zero;
+            }
         }
 
         public void CreateTargetGroup(Transform parent)
@@ -115,6 +131,15 @@ public partial class ActorCameraControl
                 else Object.DestroyImmediate(targetGroup.gameObject);
                 targetGroup = null;
             }
+
+            if (enemyFramingTarget != null)
+            {
+                if (Application.isPlaying) Object.Destroy(enemyFramingTarget.gameObject);
+                else Object.DestroyImmediate(enemyFramingTarget.gameObject);
+                enemyFramingTarget = null;
+                enemyFramingTargetVelocity = Vector3.zero;
+            }
+
             DestroyAnchorOnly();
             trackedLockTarget = null;
         }
