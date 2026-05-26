@@ -6,8 +6,9 @@ public partial class ActorCameraControl
     // ==================================================================
     // Nested: CombatLockComposer
     // ==================================================================
-    // Phase 0 split:
-    // - SoftLock is owned by SoftLockComposer and does not use a camera anchor.
+    // Routes lock camera composition.
+    // - SoftLock is owned by SoftLockComposer and feeds Cinemachine with
+    //   runtime follow/framing targets.
     // - HardLock keeps a simple anchor + TargetGroup path.
     // ==================================================================
 
@@ -16,17 +17,6 @@ public partial class ActorCameraControl
         private readonly ActorCameraControl _o;
 
         public CombatLockComposer(ActorCameraControl owner) { _o = owner; }
-
-        public void ResetYawGateOnTargetChange(LockCameraRigRuntime rt, Transform newTarget)
-        {
-            if (rt == null) return;
-            if (rt.trackedLockTarget != newTarget)
-            {
-                rt.prevAbsSectorDelta = -1f;
-                rt.currentYawReturnSpeed = 0f;
-                rt.yawReturnSpeedVelocity = 0f;
-            }
-        }
 
         public void UpdateCombatFollowAnchor(
             LockCameraRigRuntime rt, Transform enemyTarget,
@@ -122,15 +112,10 @@ public partial class ActorCameraControl
             rt.dbgCombatCenter = frame.Center;
             rt.dbgCombatDir = frame.CombatDir;
             rt.dbgCombatDist = frame.Distance;
-            rt.dbgRawSide = 0f;
-            rt.dbgSideAmount = 0f;
             rt.dbgDesiredAnchorPos = desiredAnchorPos;
-            rt.dbgYawSource = "HardLockBasicYaw";
-            rt.dbgSectorZone = "basic";
-            rt.dbgTrend = "basic";
-            rt.dbgCorrectionWeight = 0f;
-            rt.dbgTargetReturnSpeed = 0f;
-            rt.dbgYawAppliedDelta = 0f;
+            rt.dbgTargetGroupPos = frame.Center;
+            rt.dbgBodyTarget = "Runtime_LockAnchor";
+            rt.dbgTrend = "hard-lock-anchor";
         }
 
         private float ResolveFollowDistance(CombatFrame frame)
