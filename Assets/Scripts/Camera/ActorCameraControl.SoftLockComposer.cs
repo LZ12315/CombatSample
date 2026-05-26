@@ -9,13 +9,6 @@ public partial class ActorCameraControl
     [SerializeField] private float softLockPlayerRadius = 1.1f;
     [SerializeField] private float softLockEnemyRadius = 1.0f;
 
-    [Header("Soft Lock - Vertical Framing")]
-    [SerializeField] private float softLockPlayerMaxVerticalInfluence = 1.8f;
-    [SerializeField] private float softLockEnemyMaxVerticalInfluence = 1.8f;
-
-    private const float SoftLockPlayerHighCompression = 0.35f;
-    private const float SoftLockEnemyHighCompression = 0.15f;
-
     private SoftLockComposer _softLockComposer;
     private SoftLockComposer SoftComposer
     {
@@ -56,30 +49,18 @@ public partial class ActorCameraControl
             Vector3 playerRawPos = playerRawTarget.position;
             Vector3 enemyRawPos = enemyRawTarget.position;
 
-            float baseY = Mathf.Min(playerRawPos.y, enemyRawPos.y);
-            Vector3 playerFramingPos = ResolveControlledFramingPosition(
-                playerRawPos,
-                baseY,
-                Mathf.Max(0f, _o.softLockPlayerMaxVerticalInfluence),
-                SoftLockPlayerHighCompression);
-            Vector3 enemyFramingPos = ResolveControlledFramingPosition(
-                enemyRawPos,
-                baseY,
-                Mathf.Max(0f, _o.softLockEnemyMaxVerticalInfluence),
-                SoftLockEnemyHighCompression);
-
-            rt.softLockPlayerFramingTarget.position = playerFramingPos;
+            rt.softLockPlayerFramingTarget.position = playerRawPos;
             rt.softLockPlayerFramingTarget.rotation = Quaternion.identity;
-            rt.softLockEnemyFramingTarget.position = enemyFramingPos;
+            rt.softLockEnemyFramingTarget.position = enemyRawPos;
             rt.softLockEnemyFramingTarget.rotation = Quaternion.identity;
 
-            float controlledGroupY = ResolveControlledGroupY(playerFramingPos.y, enemyFramingPos.y);
+            float controlledGroupY = ResolveControlledGroupY(playerRawPos.y, enemyRawPos.y);
             Vector3 followPos = new Vector3(playerRawPos.x, controlledGroupY, playerRawPos.z);
             rt.softLockFollowTarget.position = followPos;
             rt.softLockFollowTarget.rotation = Quaternion.identity;
 
             RefreshTargetGroup(rt, enemyTarget);
-            CaptureDiagnostics(rt, enemyTarget, playerRawPos, enemyRawPos, playerFramingPos, enemyFramingPos, followPos);
+            CaptureDiagnostics(rt, enemyTarget, playerRawPos, enemyRawPos, followPos);
         }
 
         private static Transform ResolveCameraTarget(Actor actor, Transform fallback)
@@ -98,23 +79,6 @@ public partial class ActorCameraControl
                 return actor.CameraTarget;
 
             return target;
-        }
-
-        private static Vector3 ResolveControlledFramingPosition(
-            Vector3 rawPos,
-            float baseY,
-            float maxVerticalInfluence,
-            float highCompression)
-        {
-            float y = rawPos.y;
-            float maxY = baseY + maxVerticalInfluence;
-            if (y > maxY)
-            {
-                float excess = y - maxY;
-                y = maxY + excess * Mathf.Clamp01(highCompression);
-            }
-
-            return new Vector3(rawPos.x, y, rawPos.z);
         }
 
         private float ResolveControlledGroupY(float playerY, float enemyY)
@@ -176,18 +140,16 @@ public partial class ActorCameraControl
             Transform enemyTarget,
             Vector3 playerRawPos,
             Vector3 enemyRawPos,
-            Vector3 playerFramingPos,
-            Vector3 enemyFramingPos,
             Vector3 followPos)
         {
-            Vector3 center = (playerFramingPos + enemyFramingPos) * 0.5f;
+            Vector3 center = (playerRawPos + enemyRawPos) * 0.5f;
             Vector3 dir = enemyRawPos - playerRawPos;
             dir.y = 0f;
             float dist = dir.magnitude;
             if (dist > 0.001f) dir /= dist;
             else dir = Vector3.forward;
 
-            rt.dbgLabel = "SoftLockControlledFraming";
+            rt.dbgLabel = "SoftLockGroupYFollow";
             rt.dbgCombatCenter = center;
             rt.dbgCombatDir = dir;
             rt.dbgCombatDist = dist;
@@ -196,8 +158,8 @@ public partial class ActorCameraControl
             rt.dbgDesiredAnchorPos = followPos;
             rt.dbgTargetGroupPos = center;
             rt.dbgYawSource = "SoftLockFollowTarget";
-            rt.dbgSectorZone = "ControlledFraming";
-            rt.dbgTrend = "vertical-group-follow";
+            rt.dbgSectorZone = "GroupYFollow";
+            rt.dbgTrend = "group-y-follow";
             rt.dbgCorrectionWeight = 0f;
             rt.dbgTargetReturnSpeed = 0f;
             rt.dbgYawAppliedDelta = 0f;
