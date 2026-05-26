@@ -126,9 +126,9 @@ public partial class ActorCameraControl
 
             if (rt == _o._softRuntime)
             {
-                // SoftLock Phase 0: Body follows the actor camera target;
-                // GroupComposer looks at actor+enemy camera targets.
-                vcam.Follow = _o.actor != null ? _o.actor.CameraTarget : _o.transform;
+                // SoftLock: Body follows a controlled runtime target; Aim uses the
+                // controlled player/enemy framing target group.
+                vcam.Follow = rt.softLockFollowTarget != null ? rt.softLockFollowTarget : (_o.actor != null ? _o.actor.CameraTarget : _o.transform);
                 vcam.LookAt = rt.targetGroup != null ? rt.targetGroup.transform : null;
                 return;
             }
