@@ -19,11 +19,6 @@ public partial class ActorCameraControl
 
         public CameraDiagnostics(ActorCameraControl owner) { _o = owner; }
 
-        /// <summary>
-        /// Returns true when any debug path that reads dbg* snapshot fields
-        /// is active. CombatLockComposer uses this to skip diagnostic writes
-        /// when debug is fully off.
-        /// </summary>
         public bool ShouldCaptureDiagnostics =>
             _o.debugLockCameraGizmos
             || _o.debugBrainAfterUpdate
@@ -78,8 +73,8 @@ public partial class ActorCameraControl
                 ? $"{FormatVector(mainCam.transform.position)} yaw={FormatYaw(mainCam.transform.rotation)}"
                 : "null";
 
-            string softAnchorInfo = _o._softRuntime?.anchor != null
-                ? $"{FormatVector(_o._softRuntime.anchor.position)} yaw={FormatYaw(_o._softRuntime.anchor.rotation)}"
+            string softFollowInfo = _o._softRuntime?.softLockFollowTarget != null
+                ? FormatVector(_o._softRuntime.softLockFollowTarget.position)
                 : "null";
             string hardAnchorInfo = _o._hardRuntime?.anchor != null
                 ? $"{FormatVector(_o._hardRuntime.anchor.position)} yaw={FormatYaw(_o._hardRuntime.anchor.rotation)}"
@@ -94,8 +89,8 @@ public partial class ActorCameraControl
                 $"  state current={_o.currentState} resolved={_o.ResolvePresentationState()} lock={_o.FormatLockMode()} combatTarget={ActorCameraControl.FormatObjectName(_o.GetCombatTarget())}\n" +
                 $"  main={mainInfo} brain={FormatBrain(brain)}\n" +
                 $"  player={FormatVector(_o.transform.position)} enemy={enemyInfo} distances={FormatDistances(enemyTarget, mainCam)}\n" +
-                $"  softAnchor={softAnchorInfo} softFollowDist={_o._softRuntime?.currentFollowDistance ?? 0f:F2} softSmoothedSide={_o._softRuntime?.smoothedSide ?? 0f:F2} softTG={FormatTargetGroupFor(_o._softRuntime)}\n" +
-                $"  hardAnchor={hardAnchorInfo} hardFollowDist={_o._hardRuntime?.currentFollowDistance ?? 0f:F2} hardSmoothedSide={_o._hardRuntime?.smoothedSide ?? 0f:F2} hardTG={FormatTargetGroupFor(_o._hardRuntime)}\n" +
+                $"  softFollowTarget={softFollowInfo} softTG={FormatTargetGroupFor(_o._softRuntime)}\n" +
+                $"  hardAnchor={hardAnchorInfo} hardFollowDist={_o._hardRuntime?.currentFollowDistance ?? 0f:F2} hardTG={FormatTargetGroupFor(_o._hardRuntime)}\n" +
                 $"  lockDiag soft={FormatLockDiagnosticsFor(_o._softRuntime)}\n" +
                 $"  lockDiag hard={FormatLockDiagnosticsFor(_o._hardRuntime)}\n" +
                 $"  free={FormatCamera(_o.normalFreeLookCamera, brain)}\n" +
@@ -134,22 +129,11 @@ public partial class ActorCameraControl
             if (rt == null) return "null";
             string label = string.IsNullOrEmpty(rt.dbgLabel) ? "uninitialized" : rt.dbgLabel;
             string activeTag = rt.dbgIsActiveRuntime ? "active" : "prewarm";
+            string bodyTarget = string.IsNullOrEmpty(rt.dbgBodyTarget) ? "n/a" : rt.dbgBodyTarget;
             return $"[{label}:{activeTag}] center={FormatVector(rt.dbgCombatCenter)} " +
                    $"dir={FormatVector(rt.dbgCombatDir)} dist={rt.dbgCombatDist:F2} " +
-                   $"rawSide={rt.dbgRawSide:F2} sideAmount={rt.dbgSideAmount:F2} " +
-                   $"desAnchor={FormatVector(rt.dbgDesiredAnchorPos)} tgPos={FormatVector(rt.dbgTargetGroupPos)}\n" +
-                   $"  yawGate src={rt.dbgYawSource} zone={rt.dbgSectorZone} trend={rt.dbgTrend} " +
-                   $"before={rt.dbgYawBefore:F1}° after={rt.dbgYawAfter:F1}° " +
-                   $"appliedΔ={rt.dbgYawAppliedDelta:F3}°\n" +
-                   $"  formula={rt.dbgFormulaYaw:F1}° boundary={rt.dbgBoundaryYaw:F1}° " +
-                   $"sectorΔ={rt.dbgSectorDelta:F1}° absΔ={rt.dbgAbsSectorDelta:F1}° " +
-                   $"prevAbsΔ={rt.dbgPrevAbsSectorDelta:F1}° inside={rt.dbgSectorInside}\n" +
-                   $"  halfAngle(outer)={rt.dbgHalfAngle:F0}° innerHold={rt.dbgInnerHoldHalfAngle:F0}° " +
-                   $"corrWeight={rt.dbgCorrectionWeight:F2} " +
-                   $"tgtSpd={rt.dbgTargetReturnSpeed:F1} curSpd={rt.currentYawReturnSpeed:F1}\n" +
-                   $"  e2p={rt.dbgEnemyToPlayerYaw:F1}° e2cam={rt.dbgEnemyToCameraYaw:F1}° " +
-                   $"bndDir={rt.dbgBoundaryDirYaw:F1}° bndRadius={rt.dbgBoundaryRadius:F2} " +
-                   $"bndCamPos={FormatVector(rt.dbgBoundaryCamPos)}";
+                   $"bodyTarget={bodyTarget} desired={FormatVector(rt.dbgDesiredAnchorPos)} " +
+                   $"tgPos={FormatVector(rt.dbgTargetGroupPos)} trend={rt.dbgTrend}";
         }
 
         private static string FormatTargetGroupTargetsFor(LockCameraRigRuntime rt)
