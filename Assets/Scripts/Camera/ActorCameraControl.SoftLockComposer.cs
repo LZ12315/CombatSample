@@ -3,12 +3,6 @@ using Cinemachine;
 
 public partial class ActorCameraControl
 {
-    [Header("Soft Lock - Basic")]
-    [SerializeField] private float softLockPlayerWeight = 1.15f;
-    [SerializeField] private float softLockEnemyWeight = 1.05f;
-    [SerializeField] private float softLockPlayerRadius = 1.1f;
-    [SerializeField] private float softLockEnemyRadius = 1.0f;
-
     private SoftLockComposer _softLockComposer;
     private SoftLockComposer SoftComposer
     {
