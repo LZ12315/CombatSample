@@ -19,18 +19,7 @@ public partial class ActorCameraControl
 
         public CameraDiagnostics(ActorCameraControl owner) { _o = owner; }
 
-        public bool ShouldCaptureDiagnostics =>
-            _o.debugLockCameraGizmos
-            || _o.debugBrainAfterUpdate
-            || ShouldLogCameraDebug();
-
-        // -- Brain callback ---------------------------------------------
-
-        public void OnCinemachineBrainUpdated(CinemachineBrain brain)
-        {
-            if (!_o.debugBrainAfterUpdate) return;
-            LogCameraSnapshot("Brain.AfterUpdate", _o.GetCombatTarget(), brain, force: true);
-        }
+        public bool ShouldCaptureDiagnostics => ShouldLogCameraDebug();
 
         // -- Debug window -----------------------------------------------
 
