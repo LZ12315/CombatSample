@@ -54,13 +54,13 @@ public partial class ActorCameraControl
             rt.softLockEnemyFramingTarget.position = enemyRawPos;
             rt.softLockEnemyFramingTarget.rotation = Quaternion.identity;
 
-            float controlledGroupY = ResolveControlledGroupY(playerRawPos.y, enemyRawPos.y);
-            Vector3 followPos = new Vector3(playerRawPos.x, controlledGroupY, playerRawPos.z);
+            float groupY = ResolveGroupY(playerRawPos.y, enemyRawPos.y);
+            Vector3 followPos = new Vector3(playerRawPos.x, groupY, playerRawPos.z);
             rt.softLockFollowTarget.position = followPos;
             rt.softLockFollowTarget.rotation = Quaternion.identity;
 
             RefreshTargetGroup(rt, enemyTarget);
-            CaptureDiagnostics(rt, enemyTarget, playerRawPos, enemyRawPos, followPos);
+            CaptureDiagnostics(rt, playerRawPos, enemyRawPos, followPos);
         }
 
         private static Transform ResolveCameraTarget(Actor actor, Transform fallback)
@@ -81,7 +81,7 @@ public partial class ActorCameraControl
             return target;
         }
 
-        private float ResolveControlledGroupY(float playerY, float enemyY)
+        private float ResolveGroupY(float playerY, float enemyY)
         {
             float playerWeight = Mathf.Max(0f, _o.softLockPlayerWeight);
             float enemyWeight = Mathf.Max(0f, _o.softLockEnemyWeight);
@@ -137,7 +137,6 @@ public partial class ActorCameraControl
 
         private static void CaptureDiagnostics(
             LockCameraRigRuntime rt,
-            Transform enemyTarget,
             Vector3 playerRawPos,
             Vector3 enemyRawPos,
             Vector3 followPos)
@@ -153,16 +152,10 @@ public partial class ActorCameraControl
             rt.dbgCombatCenter = center;
             rt.dbgCombatDir = dir;
             rt.dbgCombatDist = dist;
-            rt.dbgRawSide = 0f;
-            rt.dbgSideAmount = 0f;
             rt.dbgDesiredAnchorPos = followPos;
             rt.dbgTargetGroupPos = center;
-            rt.dbgYawSource = "SoftLockFollowTarget";
-            rt.dbgSectorZone = "GroupYFollow";
-            rt.dbgTrend = "group-y-follow";
-            rt.dbgCorrectionWeight = 0f;
-            rt.dbgTargetReturnSpeed = 0f;
-            rt.dbgYawAppliedDelta = 0f;
+            rt.dbgBodyTarget = "Runtime_SoftLockFollowTarget";
+            rt.dbgTrend = "soft-lock-group-y";
         }
     }
 }
