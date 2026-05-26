@@ -24,6 +24,12 @@ public partial class ActorCameraControl : MonoBehaviour
     [Tooltip("硬锁定时使用的虚拟相机。")]
     public CinemachineVirtualCamera hardLockCamera;
 
+    [Header("Soft Lock - Basic")]
+    [SerializeField] private float softLockPlayerWeight = 1.15f;
+    [SerializeField] private float softLockEnemyWeight = 1.05f;
+    [SerializeField] private float softLockPlayerRadius = 1.1f;
+    [SerializeField] private float softLockEnemyRadius = 1.0f;
+
     [Header("Hard Lock - Anchor Stability")]
     [Tooltip("硬锁定相机焦点的高度偏移。值越低镜头越平；值越高越俯视。")]
     [SerializeField] private float heightOffset = 0.6f;
@@ -55,10 +61,6 @@ public partial class ActorCameraControl : MonoBehaviour
     [SerializeField] private int debugFramesAfterTransition = 8;
     [Tooltip("每帧 LateUpdate 输出相机快照。日志量极大，仅在调试时开启。")]
     [SerializeField] private bool debugCameraEveryLateUpdate = false;
-    [Tooltip("每次相机更新后输出 Cinemachine Brain 日志。日志量极大，仅在调试时开启。")]
-    [SerializeField] private bool debugBrainAfterUpdate = false;
-    [Tooltip("在 Scene 视图中绘制锁定相机的运行时目标、TargetGroup 和主相机位置。")]
-    [SerializeField] private bool debugLockCameraGizmos = false;
 
     // ==================================================================
     // Runtime State
@@ -154,12 +156,6 @@ public partial class ActorCameraControl : MonoBehaviour
         _rigRouter.ConfigureLockCameraTransitions();
     }
 
-    private void OnEnable()
-    {
-        CinemachineCore.CameraUpdatedEvent.RemoveListener(_diagnostics.OnCinemachineBrainUpdated);
-        CinemachineCore.CameraUpdatedEvent.AddListener(_diagnostics.OnCinemachineBrainUpdated);
-    }
-
     private void Start()
     {
         actor = actor != null ? actor : GetComponentInParent<Actor>();
@@ -175,81 +171,6 @@ public partial class ActorCameraControl : MonoBehaviour
     private void LateUpdate()
     {
         RefreshCameraRuntime();
-    }
-
-    private void OnDrawGizmos()
-    {
-        if (!debugLockCameraGizmos) return;
-
-        Transform enemy = GetCombatTarget();
-        if (enemy == null || actor == null) return;
-
-        LockCameraRigRuntime rt = GetActiveRuntime();
-        if (rt == null) return;
-
-        Vector3 playerPos = transform.position;
-        Vector3 enemyPos = enemy.position;
-        bool isSoft = rt == _softRuntime;
-        Color theme = isSoft ? new Color(0.2f, 0.7f, 1f) : new Color(1f, 0.35f, 0.7f);
-        Camera mainCam = Camera.main;
-
-        Gizmos.color = Color.yellow;
-        Gizmos.DrawLine(playerPos, enemyPos);
-        Gizmos.DrawWireSphere(playerPos, 0.1f);
-        Gizmos.DrawWireSphere(enemyPos, 0.1f);
-
-        Vector3 center = rt.dbgCombatCenter;
-        Gizmos.color = Color.yellow;
-        Gizmos.DrawWireSphere(center, 0.1f);
-        Gizmos.DrawLine(playerPos, center);
-
-        Vector3 desired = rt.dbgDesiredAnchorPos;
-        Gizmos.color = theme * 0.5f;
-        Gizmos.DrawWireSphere(desired, 0.12f);
-        Gizmos.DrawLine(center, desired);
-
-        Transform bodyTarget = isSoft ? rt.softLockFollowTarget : rt.anchor;
-        if (bodyTarget != null)
-        {
-            Gizmos.color = theme;
-            Gizmos.DrawSphere(bodyTarget.position, 0.08f);
-            Gizmos.DrawRay(bodyTarget.position, bodyTarget.forward * 0.5f);
-            Gizmos.color = Color.gray;
-            Gizmos.DrawLine(desired, bodyTarget.position);
-        }
-
-        if (rt.targetGroup != null)
-        {
-            Gizmos.color = Color.green;
-            Gizmos.DrawWireSphere(rt.targetGroup.transform.position, 0.15f);
-        }
-
-        if (isSoft)
-        {
-            if (rt.softLockPlayerFramingTarget != null)
-            {
-                Gizmos.color = new Color(0.2f, 1f, 0.8f);
-                Gizmos.DrawWireSphere(rt.softLockPlayerFramingTarget.position, 0.1f);
-            }
-            if (rt.softLockEnemyFramingTarget != null)
-            {
-                Gizmos.color = new Color(1f, 0.8f, 0.2f);
-                Gizmos.DrawWireSphere(rt.softLockEnemyFramingTarget.position, 0.1f);
-            }
-        }
-
-        if (mainCam != null)
-        {
-            Gizmos.color = Color.white;
-            Gizmos.DrawWireSphere(mainCam.transform.position, 0.08f);
-            if (bodyTarget != null)
-                Gizmos.DrawLine(bodyTarget.position, mainCam.transform.position);
-        }
-    }
-
-    private void OnDisable()
-    {
-        CinemachineCore.CameraUpdatedEvent.RemoveListener(_diagnostics.OnCinemachineBrainUpdated);
     }
 
     private void OnDestroy()
