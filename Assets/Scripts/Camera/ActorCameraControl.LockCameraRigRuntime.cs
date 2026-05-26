@@ -8,7 +8,7 @@ public partial class ActorCameraControl
     // ==================================================================
     // Per-lock-camera runtime objects and smoothed state.
     // HardLock uses anchor + target group. SoftLock uses a stable follow
-    // target plus controlled framing targets for Cinemachine input.
+    // target plus player/enemy framing targets for Cinemachine input.
     // ==================================================================
 
     private sealed class LockCameraRigRuntime
@@ -23,51 +23,22 @@ public partial class ActorCameraControl
         public Transform trackedLockTarget;
         public Enums.PlayerCameraState trackedState;
 
-        // Smoothed values used by hard lock.
-        public float smoothedSide;
-        public float sideSmoothVelocity;
+        // Smoothed values used by HardLock.
         public Vector3 anchorPositionVelocity = Vector3.zero;
         public float anchorYawVelocity;
         public float currentAnchorYaw;
         public float currentFollowDistance = 8f;
 
-        // Diagnostic snapshot — captures the last frame's raw inputs and
-        // resolved outputs so the diagnostics layer can log them without
-        // reaching back into CombatLockComposer internals.
+        // Diagnostic snapshot.
         public Vector3 dbgCombatCenter;
         public Vector3 dbgCombatDir;
         public float dbgCombatDist;
-        public float dbgRawSide;
-        public float dbgSideAmount;
         public Vector3 dbgDesiredAnchorPos;
         public Vector3 dbgTargetGroupPos;
         public string dbgLabel;
-        public float dbgSectorDelta;
-        public bool dbgSectorInside;
-        public float dbgSectorTargetYaw;
-        public string dbgYawSource;
-        public float dbgYawBefore;
-        public float dbgYawAfter;
-        public float dbgFormulaYaw;
-        public float dbgBoundaryYaw;
-        public float dbgEnemyToPlayerYaw;
-        public float dbgEnemyToCameraYaw;
-        public float dbgBoundaryDirYaw;
-        public Vector3 dbgBoundaryCamPos;
-        public float dbgBoundaryRadius;
         public bool dbgIsActiveRuntime;
-        public float prevAbsSectorDelta = -1f;
-        public float currentYawReturnSpeed;
-        public float yawReturnSpeedVelocity;
-        public float dbgAbsSectorDelta;
-        public float dbgPrevAbsSectorDelta;
-        public float dbgCorrectionWeight;
-        public float dbgHalfAngle;
-        public float dbgInnerHoldHalfAngle;
-        public string dbgSectorZone;
+        public string dbgBodyTarget;
         public string dbgTrend;
-        public float dbgTargetReturnSpeed;
-        public float dbgYawAppliedDelta;
 
         public void CreateAnchor(Transform parent)
         {
