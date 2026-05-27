@@ -22,9 +22,9 @@ MonoBehaviour:
       TagId: 0
     window:
       startAnchor: 0
-      startFrame: 22
-      endAnchor: 2
-      endFrame: 0
+      startFrame: 18
+      endAnchor: 0
+      endFrame: 50
   _selfTags:
   - TagId: -2107794142
   _legacySelfTag:
