@@ -153,8 +153,8 @@ public class ActorLogicInput : MonoBehaviour
 
     private Vector3 ResolveWorldMoveDirection(Vector2 move)
     {
-        if (TryResolveLockMoveDirection(move, out Vector3 lockMoveDir))
-            return lockMoveDir;
+        if (TryResolveHardLockMoveDirection(move, out Vector3 hardLockMoveDir))
+            return hardLockMoveDir;
 
         if (cameraControl != null)
             return cameraControl.ToWorldMoveDirection(move);
@@ -163,11 +163,11 @@ public class ActorLogicInput : MonoBehaviour
         return fallback.sqrMagnitude > 0.0001f ? fallback.normalized : Vector3.zero;
     }
 
-    private bool TryResolveLockMoveDirection(Vector2 move, out Vector3 worldDir)
+    private bool TryResolveHardLockMoveDirection(Vector2 move, out Vector3 worldDir)
     {
         worldDir = Vector3.zero;
 
-        if (actor?.combater == null || !actor.combater.IsLocked)
+        if (actor?.combater == null || actor.combater.LockMode != Enums.LockMode.HardLock)
             return false;
 
         Transform target = actor.combater.CombatTarget != null
