@@ -34,6 +34,7 @@ MonoBehaviour:
   _allowReenterWhilePlaying: 0
   _entryConditions:
   - rid: 2842927523881811972
+  - rid: 8665091234364653570
   _exitConditions: []
   references:
     version: 2
@@ -44,3 +45,13 @@ MonoBehaviour:
         invertResult: 0
         overrideAll: 0
         acceptedStates: 2
+    - rid: 8665091234364653570
+      type: {class: VelocityCondition, ns: , asm: Assembly-CSharp}
+      data:
+        invertResult: 0
+        overrideAll: 0
+        axis: 0
+        comparison: 1
+        threshold: 0
+        min: 0
+        max: 0

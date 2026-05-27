@@ -13,12 +13,12 @@ MonoBehaviour:
   m_Name: Hit_Bound_Down
   m_EditorClassIdentifier: 
   _Transition:
-    rid: 2842927185642651652
+    rid: 8665091234364653569
   references:
     version: 2
     RefIds:
-    - rid: 2842927185642651652
-      type: {class: LinearMixerTransition, ns: Animancer, asm: Kybernetik.Animancer}
+    - rid: 8665091234364653569
+      type: {class: ClipTransition, ns: Animancer, asm: Kybernetik.Animancer}
       data:
         _FadeDuration: 0.25
         _Speed: 1
@@ -26,14 +26,5 @@ MonoBehaviour:
           _NormalizedTimes: []
           _Callbacks: []
           _Names: []
-        _Animations:
-        - {fileID: 7400000, guid: d2cb08a4114c45e98634ace387c3b272, type: 3}
-        - {fileID: 7400000, guid: 612b43c520f2437393e62ac0df8427b1, type: 3}
-        _Speeds: []
-        _SynchronizeChildren: 
-        _Thresholds:
-        - 0
-        - 1
-        _DefaultParameter: 0
-        _ExtrapolateSpeed: 1
-        _ParameterName: {fileID: 0}
+        _Clip: {fileID: 7400000, guid: d2cb08a4114c45e98634ace387c3b272, type: 3}
+        _NormalizedStartTime: NaN
