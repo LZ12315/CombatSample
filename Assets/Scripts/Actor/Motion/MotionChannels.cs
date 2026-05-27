@@ -54,6 +54,12 @@ public sealed class MotionChannels
     public bool HasHorizontalVelocityOwner => _horizontalVelocityOwner.IsValid;
     public bool HasVerticalVelocityOwner => _verticalVelocityOwner.IsValid;
 
+    public Vector3 DebugHorizontalImpulse => _horizontalImpulseVelocity;
+    public float DebugVerticalImpulse => _verticalImpulseVelocity;
+    public float DebugGravityAccumulator => _gravityAccumulator;
+    public Vector3 DebugOwnerHorizontalVelocity => _horizontalVelocity;
+    public float DebugOwnerVerticalVelocity => _verticalVelocity;
+
     #endregion
 
     #region === Velocity Owner 控制 ===

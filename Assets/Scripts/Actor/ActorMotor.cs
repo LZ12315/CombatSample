@@ -221,6 +221,14 @@ public class ActorMotor : MonoBehaviour, ICharacterController
 
     public int JumpCount => MotionRuntime.JumpCount;
 
+    // Public debug access for Editor
+    public LocomotionRuntime DebugLocomotion => _locomotion;
+    public FacingRuntime DebugFacing => _facing;
+    public MotionChannels DebugChannels => MotionRuntime.Channels;
+    public float DebugBaseSpeed => _locomotionBaseSpeed;
+    public float DebugAirControlFactor => _airControlFactor;
+    public float DebugRotateSpeed => rotateSpeed;
+
     public bool CanJump()
     {
         return MotionRuntime.CanJump(_maxJumpCount);

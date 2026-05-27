@@ -10,37 +10,46 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d4a14c808be2c4f4a8f1b6d45ebd172f, type: 3}
-  m_Name: Hit_Air_Grounded
+  m_Name: Hit_Air_Straining_Loop
   m_EditorClassIdentifier: 
-  _timelineAsset: {fileID: 11400000, guid: 7acb1f9f509062164b7e6849deba8600, type: 2}
-  _priorityLayer: 1
+  _timelineAsset: {fileID: 11400000, guid: 7bc4706197a1c544199d58b6b60e6b6f, type: 2}
+  _priorityLayer: 3
   _priorityValue: 0
-  _cancelRules: []
+  _cancelRules:
+  - targetKind: 0
+    specificTarget: {fileID: 11400000, guid: d0180c1c7b8a3be4499b7306ae09ed53, type: 2}
+    targetTag:
+      TagId: 0
+    window:
+      startAnchor: 1
+      startFrame: 0
+      endAnchor: 2
+      endFrame: 0
   _selfTags: []
   _legacySelfTag:
     TagId: 0
   _triggerMode: 0
   _eventTriggerTag:
-    TagId: 0
+    TagId: 1065683385
   _startContextMode: 0
   _motionConfig:
     rootMotionMode: 1
     suppressLocomotion: 1
     facingOnStart: 0
-    gravityScale: -1
-    horizontalMomentumInheritance: 0
-    verticalMomentumInheritance: 0
-  isLoop: 0
+    gravityScale: 10
+    horizontalMomentumInheritance: 1
+    verticalMomentumInheritance: 1
+  isLoop: 1
   _allowReenterWhilePlaying: 0
   _entryConditions:
-  - rid: 2842927523881811972
+  - rid: 8665091234364653572
   _exitConditions: []
   references:
     version: 2
     RefIds:
-    - rid: 2842927523881811972
+    - rid: 8665091234364653572
       type: {class: GroundStateCondition, ns: , asm: Assembly-CSharp}
       data:
         invertResult: 0
         overrideAll: 0
-        acceptedStates: 2
+        acceptedStates: 4

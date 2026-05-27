@@ -6,7 +6,6 @@ Block.Move
 Block.Attack
 Block.Dodge
 Hit.Hard
-Hit.Down
 Action.Skill
 Action.Move
 Action.Dodge
@@ -19,3 +18,5 @@ Hit.Air.Light
 Hit.Air.Medium
 Hit.Air.Hard
 Hit.Air.ReHit
+Hit.Down.Air
+Hit.Down.Ground
