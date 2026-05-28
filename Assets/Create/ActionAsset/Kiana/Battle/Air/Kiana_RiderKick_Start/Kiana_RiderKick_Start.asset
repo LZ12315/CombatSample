@@ -76,7 +76,7 @@ MonoBehaviour:
       type: {class: JoystickInputCheck, ns: , asm: Assembly-CSharp}
       data:
         requiredDirections: 16
-        requiredVigors: 8
+        requiredVigors: 12
     - rid: 8665091256741265422
       type: {class: GroundStateCondition, ns: , asm: Assembly-CSharp}
       data:

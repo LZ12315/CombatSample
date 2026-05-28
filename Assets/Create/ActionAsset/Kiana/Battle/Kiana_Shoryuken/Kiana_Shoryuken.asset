@@ -13,10 +13,11 @@ MonoBehaviour:
   m_Name: Kiana_Shoryuken
   m_EditorClassIdentifier: 
   _timelineAsset: {fileID: 11400000, guid: fbea229c239b11f468a0d6356fa12b27, type: 2}
-  _priorityLayer: 1
+  _priorityLayer: 2
   _priorityValue: 0
   _cancelRules: []
-  _selfTags: []
+  _selfTags:
+  - TagId: -2107794142
   _legacySelfTag:
     TagId: 0
   _triggerMode: 0
@@ -24,7 +25,7 @@ MonoBehaviour:
     TagId: 0
   _startContextMode: 0
   _motionConfig:
-    rootMotionMode: 0
+    rootMotionMode: 1
     suppressLocomotion: 1
     facingOnStart: 2
     gravityScale: -1
@@ -32,8 +33,35 @@ MonoBehaviour:
     verticalMomentumInheritance: 0
   isLoop: 0
   _allowReenterWhilePlaying: 0
-  _entryConditions: []
+  _entryConditions:
+  - rid: 8665091256741265425
+  - rid: 8665091256741265426
   _exitConditions: []
   references:
     version: 2
-    RefIds: []
+    RefIds:
+    - rid: 8665091256741265425
+      type: {class: GroundStateCondition, ns: , asm: Assembly-CSharp}
+      data:
+        invertResult: 0
+        overrideAll: 0
+        acceptedStates: 1
+    - rid: 8665091256741265426
+      type: {class: InputSequenceCondition, ns: , asm: Assembly-CSharp}
+      data:
+        invertResult: 0
+        overrideAll: 0
+        maxInputInterval: 0.25
+        inputSequence:
+        - rid: 8665091256741265427
+        - rid: 8665091256741265428
+    - rid: 8665091256741265427
+      type: {class: JoystickInputCheck, ns: , asm: Assembly-CSharp}
+      data:
+        requiredDirections: 4
+        requiredVigors: 12
+    - rid: 8665091256741265428
+      type: {class: ButtonInputCheck, ns: , asm: Assembly-CSharp}
+      data:
+        requiredButtons: 8
+        requiredState: 6
