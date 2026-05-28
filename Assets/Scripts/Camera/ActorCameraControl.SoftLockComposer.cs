@@ -49,7 +49,8 @@ public partial class ActorCameraControl
             rt.softLockEnemyFramingTarget.rotation = Quaternion.identity;
 
             float groupY = ResolveGroupY(playerRawPos.y, enemyRawPos.y);
-            Vector3 followPos = new Vector3(playerRawPos.x, groupY, playerRawPos.z);
+            float followY = Mathf.Max(playerRawPos.y, groupY);
+            Vector3 followPos = new Vector3(playerRawPos.x, followY, playerRawPos.z);
             rt.softLockFollowTarget.position = followPos;
             rt.softLockFollowTarget.rotation = Quaternion.identity;
 
@@ -142,14 +143,14 @@ public partial class ActorCameraControl
             if (dist > 0.001f) dir /= dist;
             else dir = Vector3.forward;
 
-            rt.dbgLabel = "SoftLockGroupYFollow";
+            rt.dbgLabel = "SoftLockUpwardGroupYFollow";
             rt.dbgCombatCenter = center;
             rt.dbgCombatDir = dir;
             rt.dbgCombatDist = dist;
             rt.dbgDesiredAnchorPos = followPos;
             rt.dbgTargetGroupPos = center;
             rt.dbgBodyTarget = "Runtime_SoftLockFollowTarget";
-            rt.dbgTrend = "soft-lock-group-y";
+            rt.dbgTrend = "soft-lock-upward-group-y";
         }
     }
 }
