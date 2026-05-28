@@ -529,7 +529,7 @@ MonoBehaviour:
       m_Bits: 64
     _baseDamage: 10
     hitEventTag:
-      TagId: 1905593194
+      TagId: 1151343024
   effects:
   - rid: 8665091029470281728
   - rid: 8665091029470281729

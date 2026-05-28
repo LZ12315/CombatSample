@@ -14,8 +14,6 @@ State.Physics.Grounded
 State.Combat.Stun
 State.Physics.Airbone
 Hit.Air.Light
-Hit.Air.Medium
 Hit.Air.Hard
-Hit.Air.ReHit
-Hit.Down.Air
-Hit.Down.Ground
+Hit.Down
+Hit.Air.Relaunch

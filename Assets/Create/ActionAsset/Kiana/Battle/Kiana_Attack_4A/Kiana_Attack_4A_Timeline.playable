@@ -27,7 +27,7 @@ MonoBehaviour:
       m_Bits: 64
     _baseDamage: 10
     hitEventTag:
-      TagId: 645108757
+      TagId: 1889277012
   effects:
   - rid: 8665091029470281728
   - rid: 8665091029470281729
@@ -87,7 +87,7 @@ MonoBehaviour:
       m_Bits: 64
     _baseDamage: 10
     hitEventTag:
-      TagId: 645108757
+      TagId: 1889277012
   effects:
   - rid: 8665091029470281728
   - rid: 8665091029470281729
