@@ -50,8 +50,8 @@ public class EffectControlBehaviour : ActionBehaviourBase
     protected override void OnClipStart(Playable playable)
     {
         _resolvedParent = null;
-        if (actor != null && actor.animancer != null)
-            _resolvedParent = parentReference.Resolve(actor.animancer.Animator);
+        if (actor != null)
+            _resolvedParent = parentReference.Resolve(actor);
 
         if (particlePrefab == null) return;
 

@@ -213,14 +213,14 @@ MonoBehaviour:
   m_Name: ActionHitBoxClip(Clone)(Clone)(Clone)(Clone)(Clone)(Clone)(Clone)(Clone)(Clone)(Clone)
   m_EditorClassIdentifier: 
   boneReference:
-    mode: 0
+    mode: 2
     humanBone: 7
-    bonePath: 
+    bonePath: ModelRoot
   hitboxConfig:
-    center: {x: 0.23, y: 0.24, z: 0.26}
+    center: {x: 0, y: 0.15, z: 0}
     rotation: {x: 0, y: 0, z: 0, w: 1}
-    height: 0.82
-    radius: 0.6
+    height: 0.6
+    radius: 1
   dataConfig:
     targetLayers:
       serializedVersion: 2
@@ -390,12 +390,12 @@ MonoBehaviour:
   particlePrefab: {fileID: 8615893209108999040, guid: 9bd1d006dcd61d1c0a669a6613d8b68d,
     type: 3}
   parentReference:
-    mode: 0
+    mode: 2
     humanBone: 0
-    bonePath: 
+    bonePath: ModelRoot
   updateTransform: 1
-  localPosition: {x: -0.01, y: 0.3, z: 0}
-  localRotation: {x: 0, y: 21.89, z: 91.49}
+  localPosition: {x: 0, y: 0.3, z: 0}
+  localRotation: {x: 0, y: 0, z: 0}
   localScale: {x: 1, y: 1, z: 1}
   playOnActive: 1
   destroyOnFinish: 1

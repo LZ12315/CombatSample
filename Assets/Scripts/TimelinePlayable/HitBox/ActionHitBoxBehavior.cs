@@ -18,8 +18,8 @@ public class ActionHitBoxBehavior : ActionBehaviourBase
     protected override void OnClipStart(Playable playable)
     {
         _resolvedBone = null;
-        if (actor != null && actor.animancer != null)
-            _resolvedBone = boneReference.Resolve(actor.animancer.Animator);
+        if (actor != null)
+            _resolvedBone = boneReference.Resolve(actor);
         CreateHitbox();
     }
 

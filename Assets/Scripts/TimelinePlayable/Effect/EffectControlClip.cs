@@ -11,7 +11,7 @@ public class EffectControlClip : PlayableAsset, ITimelineClipAsset
     public GameObject particlePrefab;
 
     [Header("Transform")]
-    [Tooltip("父节点：HumanBone 或相对 Animator 的路径")]
+    [Tooltip("Parent reference: HumanBone, Animator-relative Path, or Actor-relative Path.")]
     public BoneReference parentReference;
     [Tooltip("Keep updating this transform after spawn.")]
     public bool updateTransform = true;
