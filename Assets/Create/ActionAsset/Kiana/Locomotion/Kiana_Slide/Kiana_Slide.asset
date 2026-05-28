@@ -45,7 +45,7 @@ MonoBehaviour:
   _motionConfig:
     rootMotionMode: 0
     suppressLocomotion: 1
-    facingOnStart: 0
+    facingOnStart: 1
     gravityScale: -1
     horizontalMomentumInheritance: 1
     verticalMomentumInheritance: 0

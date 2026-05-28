@@ -22,9 +22,36 @@ MonoBehaviour:
       TagId: 0
     window:
       startAnchor: 0
-      startFrame: 30
+      startFrame: 33
       endAnchor: 2
       endFrame: 60
+  - targetKind: 1
+    specificTarget: {fileID: 0}
+    targetTag:
+      TagId: -2107794142
+    window:
+      startAnchor: 0
+      startFrame: 33
+      endAnchor: 2
+      endFrame: 0
+  - targetKind: 1
+    specificTarget: {fileID: 0}
+    targetTag:
+      TagId: -101696782
+    window:
+      startAnchor: 0
+      startFrame: 50
+      endAnchor: 2
+      endFrame: 0
+  - targetKind: 1
+    specificTarget: {fileID: 0}
+    targetTag:
+      TagId: 1712799085
+    window:
+      startAnchor: 0
+      startFrame: 50
+      endAnchor: 2
+      endFrame: 0
   - targetKind: 1
     specificTarget: {fileID: 0}
     targetTag:
@@ -33,7 +60,7 @@ MonoBehaviour:
       startAnchor: 0
       startFrame: 80
       endAnchor: 2
-      endFrame: 120
+      endFrame: 0
   _selfTags:
   - TagId: -2107794142
   _legacySelfTag:

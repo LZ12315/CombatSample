@@ -19,12 +19,39 @@ MonoBehaviour:
   - targetKind: 1
     specificTarget: {fileID: 0}
     targetTag:
+      TagId: -2107794142
+    window:
+      startAnchor: 0
+      startFrame: 70
+      endAnchor: 2
+      endFrame: 0
+  - targetKind: 1
+    specificTarget: {fileID: 0}
+    targetTag:
       TagId: -229303555
     window:
       startAnchor: 0
       startFrame: 80
       endAnchor: 2
-      endFrame: 120
+      endFrame: 0
+  - targetKind: 1
+    specificTarget: {fileID: 0}
+    targetTag:
+      TagId: -101696782
+    window:
+      startAnchor: 0
+      startFrame: 60
+      endAnchor: 2
+      endFrame: 0
+  - targetKind: 1
+    specificTarget: {fileID: 0}
+    targetTag:
+      TagId: 1712799085
+    window:
+      startAnchor: 0
+      startFrame: 60
+      endAnchor: 2
+      endFrame: 0
   _selfTags:
   - TagId: -2107794142
   _legacySelfTag:
