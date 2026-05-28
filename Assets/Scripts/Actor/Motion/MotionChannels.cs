@@ -120,12 +120,13 @@ public sealed class MotionChannels
         return _verticalVelocityOwner;
     }
 
-    public void SetVerticalVelocity(MotionOwner owner, float velocity)
+    public bool SetVerticalVelocity(MotionOwner owner, float velocity)
     {
         if (!IsCurrent(owner, _verticalVelocityOwner))
-            return;
+            return false;
 
         _verticalVelocity = velocity;
+        return true;
     }
 
     public void EndVerticalVelocity(MotionOwner owner)

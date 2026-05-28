@@ -257,7 +257,14 @@ public sealed class ActorMotionRuntime
 
     public void SetVerticalVelocity(MotionOwner owner, float verticalSpeed)
     {
-        _channels.SetVerticalVelocity(owner, verticalSpeed);
+        if (!_channels.SetVerticalVelocity(owner, verticalSpeed))
+            return;
+
+        if (verticalSpeed > 0.001f &&
+            _grounding.State is ActorGroundState.Grounded or ActorGroundState.JustLanded)
+        {
+            _pendingForceUnground = true;
+        }
     }
 
     public void EndVerticalVelocity(MotionOwner owner)
