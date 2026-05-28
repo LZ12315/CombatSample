@@ -39,16 +39,21 @@ public class ActionImpulseClipInspector : Editor
 
         if (IsLocalHorizontalMode())
             DrawLocalHorizontalDirection();
+        else if (IsCombatTarget3DMode())
+            EditorGUILayout.HelpBox(
+                "Uses the 3D direction from this actor to its CombatTarget. " +
+                "Horizontal and Vertical Speed are treated as positive magnitudes; the target direction determines signs.",
+                MessageType.Info);
 
         EditorGUILayout.Space(4);
 
         EditorGUILayout.LabelField("Initial Speed", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(
             _horizontalForce,
-            new GUIContent("Horizontal Speed", "Horizontal initial speed (m/s) along the resolved direction."));
+            new GUIContent("Horizontal Speed", GetHorizontalSpeedTooltip()));
         EditorGUILayout.PropertyField(
             _verticalForce,
-            new GUIContent("Vertical Speed", "Vertical initial speed (m/s), positive = up."));
+            new GUIContent("Vertical Speed", GetVerticalSpeedTooltip()));
 
         EditorGUILayout.Space(4);
 
@@ -60,7 +65,12 @@ public class ActionImpulseClipInspector : Editor
 
     private bool IsLocalHorizontalMode()
     {
-        return _directionMode.intValue == (int)MotionDirectionMode.LocalHorizontal;
+        return _directionMode.intValue == (int)ImpulseDirectionMode.LocalHorizontal;
+    }
+
+    private bool IsCombatTarget3DMode()
+    {
+        return _directionMode.intValue == (int)ImpulseDirectionMode.ToCombatTarget3D;
     }
 
     private void DrawLocalHorizontalDirection()
@@ -78,5 +88,19 @@ public class ActionImpulseClipInspector : Editor
         if (EditorGUI.EndChangeCheck() || Mathf.Abs(direction.y) > 0.0001f)
             _localHorizontalDirection.vector3Value = new Vector3(right, 0f, forward);
         EditorGUI.indentLevel--;
+    }
+
+    private string GetHorizontalSpeedTooltip()
+    {
+        return IsCombatTarget3DMode()
+            ? "Horizontal speed magnitude (m/s) along the planar direction to CombatTarget."
+            : "Horizontal initial speed (m/s) along the resolved direction.";
+    }
+
+    private string GetVerticalSpeedTooltip()
+    {
+        return IsCombatTarget3DMode()
+            ? "Vertical speed magnitude (m/s) along the 3D direction to CombatTarget."
+            : "Vertical initial speed (m/s), positive = up.";
     }
 }

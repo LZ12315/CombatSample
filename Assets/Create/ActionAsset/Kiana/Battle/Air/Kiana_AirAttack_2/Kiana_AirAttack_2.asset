@@ -34,6 +34,15 @@ MonoBehaviour:
       startFrame: 36
       endAnchor: 2
       endFrame: 45
+  - targetKind: 1
+    specificTarget: {fileID: 0}
+    targetTag:
+      TagId: -2107794142
+    window:
+      startAnchor: 0
+      startFrame: 22
+      endAnchor: 2
+      endFrame: 0
   _selfTags:
   - TagId: -2107794142
   _legacySelfTag:

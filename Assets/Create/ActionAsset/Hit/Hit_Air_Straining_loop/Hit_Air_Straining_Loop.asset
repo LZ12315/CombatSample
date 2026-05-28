@@ -36,7 +36,7 @@ MonoBehaviour:
     rootMotionMode: 1
     suppressLocomotion: 1
     facingOnStart: 0
-    gravityScale: 10
+    gravityScale: -1
     horizontalMomentumInheritance: 1
     verticalMomentumInheritance: 1
   isLoop: 1

@@ -2,6 +2,18 @@ using System;
 using UnityEngine;
 using UnityEngine.Serialization;
 
+public enum ImpulseDirectionMode
+{
+    /// <summary>Use ActionEventContext.Direction captured when the action starts.</summary>
+    FromContext = 0,
+
+    /// <summary>Use an actor-local horizontal vector. X = right, Z = forward.</summary>
+    LocalHorizontal = 4,
+
+    /// <summary>Use the 3D direction from this actor to its current CombatTarget.</summary>
+    ToCombatTarget3D = 5,
+}
+
 /// <summary>
 /// Impulse clips inject initial velocity once when the clip starts.
 /// Horizontal velocity decays through ActorMotor drag; vertical velocity is
@@ -10,8 +22,8 @@ using UnityEngine.Serialization;
 [Serializable]
 public class ImpulseConfig
 {
-    [Tooltip("Horizontal direction source for this impulse.")]
-    public MotionDirectionMode directionMode = MotionDirectionMode.FromContext;
+    [Tooltip("Direction source for this impulse.")]
+    public ImpulseDirectionMode directionMode = ImpulseDirectionMode.FromContext;
 
     [FormerlySerializedAs("fixedLocalDirection")]
     [Tooltip("Actor-local horizontal direction. X = right, Z = forward. Y is ignored.")]
