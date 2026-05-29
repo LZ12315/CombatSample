@@ -54,6 +54,10 @@ public class ActorMotor : MonoBehaviour, ICharacterController
     private readonly LocomotionRuntime _locomotion = new();
     private readonly FacingRuntime _facing = new();
 
+    /// <summary>基础移动时间缩放。外部临时效果不直接写入 MotionRuntime，而是通过 modifier 叠加。</summary>
+    private float _baseMovementTimeScale = 1f;
+    private readonly SpeedModifierStack _movementTimeScaleModifiers = new();
+
     public KinematicCharacterMotor Motor { get; private set; }
     public ActorMotionRuntime MotionRuntime { get; } = new();
     public CapsuleCollider Capsule { get; private set; }
@@ -188,12 +192,59 @@ public class ActorMotor : MonoBehaviour, ICharacterController
         MotionRuntime.SetGravityScale(scale);
     }
 
+    /// <summary>
+    /// 设置基础移动时间缩放。临时 SpeedVFX / HitStop 不应直接调用此方法。
+    /// </summary>
     public void SetMovementTimeScale(float scale)
     {
-        MotionRuntime.SetMovementTimeScale(scale);
+        _baseMovementTimeScale = SanitizeMovementTimeScale(scale);
+        RefreshMovementTimeScale();
+    }
+
+    public SpeedModifierToken AddMovementTimeScaleModifier(
+        float scale,
+        SpeedModifierBlendMode blendMode = SpeedModifierBlendMode.Min,
+        string debugName = null)
+    {
+        SpeedModifierToken token = _movementTimeScaleModifiers.Add(scale, blendMode, debugName);
+        RefreshMovementTimeScale();
+        return token;
+    }
+
+    public bool UpdateMovementTimeScaleModifier(
+        SpeedModifierToken token,
+        float scale,
+        SpeedModifierBlendMode blendMode = SpeedModifierBlendMode.Min,
+        string debugName = null)
+    {
+        bool updated = _movementTimeScaleModifiers.Update(token, scale, blendMode, debugName);
+        if (updated)
+            RefreshMovementTimeScale();
+
+        return updated;
+    }
+
+    public bool RemoveMovementTimeScaleModifier(SpeedModifierToken token)
+    {
+        bool removed = _movementTimeScaleModifiers.Remove(token);
+        if (removed)
+            RefreshMovementTimeScale();
+
+        return removed;
+    }
+
+    public void ClearMovementTimeScaleModifiers()
+    {
+        if (_movementTimeScaleModifiers.Count == 0)
+            return;
+
+        _movementTimeScaleModifiers.Clear();
+        RefreshMovementTimeScale();
     }
 
     public float MovementTimeScale => MotionRuntime.MovementTimeScale;
+    public float BaseMovementTimeScale => _baseMovementTimeScale;
+    public float ExternalMovementTimeScale => _movementTimeScaleModifiers.Value;
 
     public Vector3 CurrentVelocity => MotionRuntime.CurrentVelocity;
     public Vector3 RequestedVelocity => _requestedVelocity;
@@ -260,6 +311,7 @@ public class ActorMotor : MonoBehaviour, ICharacterController
             actor.actorMotor = this;
 
         _facing.Initialize(transform.rotation);
+        RefreshMovementTimeScale();
     }
 
     private void OnEnable()
@@ -270,6 +322,7 @@ public class ActorMotor : MonoBehaviour, ICharacterController
     private void OnDisable()
     {
         ActorCollisionResolver.Unregister(this);
+        ClearMovementTimeScaleModifiers();
     }
 
     private void Update()
@@ -443,6 +496,26 @@ public class ActorMotor : MonoBehaviour, ICharacterController
         _requestedVelocity = Vector3.zero;
         _kccPaused = true;
     }
+
+    private void RefreshMovementTimeScale()
+    {
+        MotionRuntime.SetMovementTimeScale(_baseMovementTimeScale * _movementTimeScaleModifiers.Value);
+    }
+
+    private static float SanitizeMovementTimeScale(float scale)
+    {
+        if (float.IsNaN(scale) || float.IsInfinity(scale))
+            return 1f;
+
+        return Mathf.Max(0f, scale);
+    }
+
+#if UNITY_EDITOR
+    public string GetMovementTimeScaleModifierDebugText()
+    {
+        return _movementTimeScaleModifiers.GetDebugText();
+    }
+#endif
 
     #endregion
 }
