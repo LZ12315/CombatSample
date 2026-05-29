@@ -10,12 +10,21 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d4a14c808be2c4f4a8f1b6d45ebd172f, type: 3}
-  m_Name: Hit_BoundedGround
+  m_Name: Hit_Bounded_Up
   m_EditorClassIdentifier: 
   _timelineAsset: {fileID: 11400000, guid: df4261f4a6c4202428ce928e81cc7770, type: 2}
   _priorityLayer: 3
   _priorityValue: 0
-  _cancelRules: []
+  _cancelRules:
+  - targetKind: 0
+    specificTarget: {fileID: 11400000, guid: 2c128fbdcd694dc46a5680f180870cc3, type: 2}
+    targetTag:
+      TagId: 0
+    window:
+      startAnchor: 0
+      startFrame: 56
+      endAnchor: 2
+      endFrame: 0
   _selfTags: []
   _legacySelfTag:
     TagId: 0
@@ -43,4 +52,4 @@ MonoBehaviour:
       data:
         invertResult: 0
         overrideAll: 0
-        acceptedStates: 2
+        acceptedStates: 3

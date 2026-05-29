@@ -10,21 +10,12 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d4a14c808be2c4f4a8f1b6d45ebd172f, type: 3}
-  m_Name: Hit_Air_Grounded
+  m_Name: Hit_GetUp
   m_EditorClassIdentifier: 
-  _timelineAsset: {fileID: 11400000, guid: 7acb1f9f509062164b7e6849deba8600, type: 2}
+  _timelineAsset: {fileID: 11400000, guid: 55efb3b2d9b127245a18196744d573bb, type: 2}
   _priorityLayer: 1
   _priorityValue: 0
-  _cancelRules:
-  - targetKind: 0
-    specificTarget: {fileID: 11400000, guid: 2c128fbdcd694dc46a5680f180870cc3, type: 2}
-    targetTag:
-      TagId: 0
-    window:
-      startAnchor: 0
-      startFrame: 48
-      endAnchor: 2
-      endFrame: 0
+  _cancelRules: []
   _selfTags: []
   _legacySelfTag:
     TagId: 0
@@ -33,7 +24,7 @@ MonoBehaviour:
     TagId: 0
   _startContextMode: 0
   _motionConfig:
-    rootMotionMode: 1
+    rootMotionMode: 0
     suppressLocomotion: 1
     facingOnStart: 0
     gravityScale: -1
@@ -42,14 +33,14 @@ MonoBehaviour:
   isLoop: 0
   _allowReenterWhilePlaying: 0
   _entryConditions:
-  - rid: 2842927523881811972
+  - rid: 8665091268476928000
   _exitConditions: []
   references:
     version: 2
     RefIds:
-    - rid: 2842927523881811972
+    - rid: 8665091268476928000
       type: {class: GroundStateCondition, ns: , asm: Assembly-CSharp}
       data:
         invertResult: 0
         overrideAll: 0
-        acceptedStates: 2
+        acceptedStates: 1
