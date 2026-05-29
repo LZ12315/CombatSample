@@ -198,12 +198,17 @@ public class ActionSpeedEffect : ImpactEffect
         _targetMovementToken = SpeedModifierToken.Invalid;
     }
 
+
+
     private static ActorMotor MotorFrom(ActionPlayer player)
     {
         if (player == null)
             return null;
 
         var actor = player.GetComponentInParent<Actor>();
-        return actor != null ? actor.actorMotor : null;
+        if (actor != null && actor.actorMotor != null)
+            return actor.actorMotor;
+
+        return player.GetComponentInParent<ActorMotor>();
     }
 }
