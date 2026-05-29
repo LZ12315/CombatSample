@@ -6,9 +6,6 @@ TagManager:
   tags:
   - Grabbable
   - HitBox
-  - Ground
-  - Floor
-  - Obstacle
   layers:
   - Default
   - TransparentFX
