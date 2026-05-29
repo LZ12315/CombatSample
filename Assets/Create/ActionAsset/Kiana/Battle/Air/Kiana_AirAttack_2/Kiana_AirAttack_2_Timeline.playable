@@ -123,6 +123,7 @@ MonoBehaviour:
   effects:
   - rid: 8665091029470281728
   - rid: 8665091029470281729
+  - rid: 8665091268476928031
   references:
     version: 2
     RefIds:
@@ -152,6 +153,14 @@ MonoBehaviour:
         duration: 0.15
         speedScale: 0.05
         affectBothParties: 1
+    - rid: 8665091268476928031
+      type: {class: HitSoundEffectConfig, ns: , asm: Assembly-CSharp}
+      data:
+        enabled: 1
+        clips:
+        - {fileID: 8300000, guid: e82879725b40ce444bca27d19a75f42c, type: 3}
+        volume: 0.8
+        pitchVariation: 0.1
 --- !u!114 &-7286323387432895016
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -350,7 +359,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   config:
     directionMode: 2
-    fixedLocalDirection: {x: 0, y: 0, z: 1}
+    localHorizontalDirection: {x: 0, y: 0, z: 1}
     useHorizontalVelocity: 0
     horizontalSpeed: 0
     useVerticalVelocity: 1

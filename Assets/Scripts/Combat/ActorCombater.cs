@@ -1,9 +1,11 @@
+using System;
 using System.Collections.Generic;
+using DeiveEx.TagTree;
 using UnityEngine;
 
 public interface IDamageable
 {
-    void TakeDamage(AttackHitData attackData);
+    HitResolveResult TakeDamage(AttackHitData attackData);
 }
 
 /// <summary>
@@ -15,6 +17,9 @@ public interface IDamageable
 /// </remarks>
 public class ActorCombater : MonoBehaviour, IDamageable
 {
+    private const string DefaultSuperArmorTagName = "State.Combat.SuperArmor";
+    private const string DefaultInvincibilityTagName = "State.Combat.Invincibility";
+
     #region === Inspector ===
 
     [Header("References")]
@@ -27,6 +32,13 @@ public class ActorCombater : MonoBehaviour, IDamageable
     [Header("Health")]
     [SerializeField, Min(1f), Tooltip("Maximum health assigned on Awake.")]
     private float _maxHealth = 100f;
+
+    [Header("Hit Reaction")]
+    [SerializeField, Tooltip("When this actor has this tag, damage is still applied but hit-event reactions are suppressed. Falls back to State.Combat.SuperArmor when unassigned.")]
+    private TagReference superArmorTag;
+
+    [SerializeField, Tooltip("When this actor has this tag, incoming hits apply no damage and trigger no hit-event reaction. Falls back to State.Combat.Invincibility when unassigned.")]
+    private TagReference invincibilityTag;
 
     [Header("Targeting")]
     [SerializeField, Min(0f), Tooltip("Radius used to find a soft auto target while not locked.")]
@@ -57,6 +69,12 @@ public class ActorCombater : MonoBehaviour, IDamageable
     public GameObject CombatTarget => combatTarget;
     public Enums.LockMode LockMode => lockMode;
     public bool IsLocked => lockMode != Enums.LockMode.None;
+    public float CurrentHealth => _currentHealth;
+    public float MaxHealth => _maxHealth;
+    public float HealthNormalized => _maxHealth > 0f ? Mathf.Clamp01(_currentHealth / _maxHealth) : 0f;
+    public bool IsDead => _currentHealth <= 0f;
+
+    public event Action<ActorCombater, float, float> HealthChanged;
 
     private float _currentHealth;
 
@@ -68,6 +86,7 @@ public class ActorCombater : MonoBehaviour, IDamageable
             _actor = GetComponent<Actor>();
         if (_asm == null)
             _asm = GetComponent<ActionStateManager>();
+        _maxHealth = Mathf.Max(1f, _maxHealth);
         _currentHealth = _maxHealth;
     }
 
@@ -263,11 +282,21 @@ public class ActorCombater : MonoBehaviour, IDamageable
 
     #region === Damage / Hit Events ===
 
-    public void TakeDamage(AttackHitData attackData)
+    public HitResolveResult TakeDamage(AttackHitData attackData)
     {
-        _currentHealth -= attackData.Damage;
+        if (HasInvincibility())
+        {
+            if (_debugLog)
+                Debug.Log($"[Hit Reaction] {name} is invincible. Damage and hit reaction suppressed.");
+            return HitResolveResult.Invincible();
+        }
 
-        ApplyHitEventTag(attackData);
+        float previousHealth = _currentHealth;
+        _currentHealth = Mathf.Clamp(_currentHealth - attackData.Damage, 0f, _maxHealth);
+        if (!Mathf.Approximately(previousHealth, _currentHealth))
+            NotifyHealthChanged();
+
+        bool hitReactionApplied = ApplyHitEventTag(attackData);
 
         if (_debugLog)
         {
@@ -281,6 +310,10 @@ public class ActorCombater : MonoBehaviour, IDamageable
         {
             Die(attackData);
         }
+
+        return HasSuperArmor()
+            ? HitResolveResult.SuperArmor()
+            : HitResolveResult.Normal(hitReactionApplied);
     }
 
     private void Die(AttackHitData attackData)
@@ -290,10 +323,22 @@ public class ActorCombater : MonoBehaviour, IDamageable
         gameObject.SetActive(false);
     }
 
-    private void ApplyHitEventTag(AttackHitData attackData)
+    private void NotifyHealthChanged()
+    {
+        HealthChanged?.Invoke(this, _currentHealth, _maxHealth);
+    }
+
+    private bool ApplyHitEventTag(AttackHitData attackData)
     {
         if (attackData.HitEventTag == null)
-            return;
+            return false;
+
+        if (HasSuperArmor())
+        {
+            if (_debugLog)
+                Debug.Log($"[Hit Reaction] {name} has super armor. Damage applied, hit reaction suppressed.");
+            return false;
+        }
 
         if (_asm != null)
         {
@@ -308,7 +353,43 @@ public class ActorCombater : MonoBehaviour, IDamageable
                 Magnitude  = attackData.Damage
             };
             _asm.SendEvent(attackData.HitEventTag, context);
+            return true;
         }
+
+        return false;
+    }
+
+    private bool HasSuperArmor()
+    {
+        Tag tag = ResolveSuperArmorTag();
+        return HasActorTag(tag);
+    }
+
+    private bool HasInvincibility()
+    {
+        Tag tag = ResolveInvincibilityTag();
+        return HasActorTag(tag);
+    }
+
+    private bool HasActorTag(Tag tag)
+    {
+        if (_actor == null || tag == null)
+            return false;
+
+        return _actor.HasTag(tag, ActorTagContainerType.Transient, ActorTagMatchMode.Exact) ||
+               _actor.HasTag(tag, ActorTagContainerType.Persistent, ActorTagMatchMode.Exact);
+    }
+
+    private Tag ResolveSuperArmorTag()
+    {
+        Tag tag = superArmorTag != null ? superArmorTag.GetTag() : null;
+        return tag ?? Tag.GetTagFromFullName(DefaultSuperArmorTagName);
+    }
+
+    private Tag ResolveInvincibilityTag()
+    {
+        Tag tag = invincibilityTag != null ? invincibilityTag.GetTag() : null;
+        return tag ?? Tag.GetTagFromFullName(DefaultInvincibilityTagName);
     }
 
     #endregion

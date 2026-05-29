@@ -24,7 +24,7 @@ MonoBehaviour:
       startAnchor: 0
       startFrame: 35
       endAnchor: 2
-      endFrame: 120
+      endFrame: 0
   - targetKind: 0
     specificTarget: {fileID: 11400000, guid: 2a2a5db946b511d408939f1625a604ff, type: 2}
     targetTag:

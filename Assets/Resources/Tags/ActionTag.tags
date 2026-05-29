@@ -17,3 +17,5 @@ Hit.Air.Light
 Hit.Air.Hard
 Hit.Down
 Hit.Air.Relaunch
+State.Combat.SuperArmor
+State.Combat.Invincibility

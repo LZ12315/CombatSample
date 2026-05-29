@@ -31,6 +31,7 @@ MonoBehaviour:
   effects:
   - rid: 8665091029470281728
   - rid: 8665091029470281729
+  - rid: 8665091268476928033
   references:
     version: 2
     RefIds:
@@ -60,6 +61,14 @@ MonoBehaviour:
         duration: 0.15
         speedScale: 0.05
         affectBothParties: 1
+    - rid: 8665091268476928033
+      type: {class: HitSoundEffectConfig, ns: , asm: Assembly-CSharp}
+      data:
+        enabled: 1
+        clips:
+        - {fileID: 8300000, guid: b883c27c88428884fb3a10dcc42b8b47, type: 3}
+        volume: 0.8
+        pitchVariation: 0.1
 --- !u!114 &-3096369610338082919
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -91,6 +100,7 @@ MonoBehaviour:
   effects:
   - rid: 8665091029470281728
   - rid: 8665091029470281729
+  - rid: 8665091268476928032
   references:
     version: 2
     RefIds:
@@ -120,6 +130,14 @@ MonoBehaviour:
         duration: 0.15
         speedScale: 0.05
         affectBothParties: 1
+    - rid: 8665091268476928032
+      type: {class: HitSoundEffectConfig, ns: , asm: Assembly-CSharp}
+      data:
+        enabled: 1
+        clips:
+        - {fileID: 8300000, guid: b883c27c88428884fb3a10dcc42b8b47, type: 3}
+        volume: 0.8
+        pitchVariation: 0.1
 --- !u!114 &-486321078394582172
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -588,6 +606,7 @@ MonoBehaviour:
   effects:
   - rid: 8665091029470281728
   - rid: 8665091029470281729
+  - rid: 8665091268476928034
   references:
     version: 2
     RefIds:
@@ -617,6 +636,14 @@ MonoBehaviour:
         duration: 0.15
         speedScale: 0.05
         affectBothParties: 1
+    - rid: 8665091268476928034
+      type: {class: HitSoundEffectConfig, ns: , asm: Assembly-CSharp}
+      data:
+        enabled: 1
+        clips:
+        - {fileID: 8300000, guid: 58a5d36d6b134014ea5623d9802082e2, type: 3}
+        volume: 1
+        pitchVariation: 0.1
 --- !u!114 &8207537307399237283
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -631,7 +658,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   config:
     directionMode: 2
-    fixedLocalDirection: {x: 0, y: 0, z: 1}
+    localHorizontalDirection: {x: 0, y: 0, z: 1}
     useHorizontalVelocity: 0
     horizontalSpeed: 0
     useVerticalVelocity: 1

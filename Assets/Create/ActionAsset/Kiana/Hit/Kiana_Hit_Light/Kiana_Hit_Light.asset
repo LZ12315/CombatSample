@@ -15,7 +15,25 @@ MonoBehaviour:
   _timelineAsset: {fileID: 11400000, guid: 821b17379295c7249a5f08b539fc634a, type: 2}
   _priorityLayer: 3
   _priorityValue: 0
-  _cancelRules: []
+  _cancelRules:
+  - targetKind: 1
+    specificTarget: {fileID: 0}
+    targetTag:
+      TagId: -101696782
+    window:
+      startAnchor: 0
+      startFrame: 40
+      endAnchor: 2
+      endFrame: 0
+  - targetKind: 1
+    specificTarget: {fileID: 0}
+    targetTag:
+      TagId: 1712799085
+    window:
+      startAnchor: 0
+      startFrame: 40
+      endAnchor: 2
+      endFrame: 0
   _selfTags: []
   _legacySelfTag:
     TagId: 0
