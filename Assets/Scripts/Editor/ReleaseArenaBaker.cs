@@ -11,7 +11,7 @@ using UnityEngine.SceneManagement;
 /// </summary>
 public static class ReleaseArenaBaker
 {
-    private const string DefaultScenePath = "Assets/Scenes/SampleScene.unity";
+    private const string DefaultScenePath = "Assets/Scenes/MiHoYo_Release.unity";
     private const string EnvironmentRootName = "BossArena_RuinedSanctum_Environment";
 
     private const string GroundTag = "Ground";
