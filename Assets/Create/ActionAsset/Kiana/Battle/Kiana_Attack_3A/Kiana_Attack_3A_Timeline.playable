@@ -274,7 +274,7 @@ MonoBehaviour:
         enabled: 1
         clips:
         - {fileID: 8300000, guid: e82879725b40ce444bca27d19a75f42c, type: 3}
-        volume: 0.8
+        volume: 1
         pitchVariation: 0.1
 --- !u!114 &4850237615113978847
 MonoBehaviour:
