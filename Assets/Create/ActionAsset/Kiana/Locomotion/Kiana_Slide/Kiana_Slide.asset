@@ -73,6 +73,7 @@ MonoBehaviour:
   _entryConditions:
   - rid: 5174319792825040896
   - rid: 4877214280882585603
+  - rid: 8665091274283941888
   _exitConditions: []
   references:
     version: 2
@@ -96,3 +97,9 @@ MonoBehaviour:
       data:
         requiredButtons: 2
         requiredState: 2
+    - rid: 8665091274283941888
+      type: {class: LocomotionIntentCondition, ns: , asm: Assembly-CSharp}
+      data:
+        invertResult: 0
+        overrideAll: 0
+        threshold: 0.01

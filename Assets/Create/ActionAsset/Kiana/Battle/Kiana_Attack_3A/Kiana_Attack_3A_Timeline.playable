@@ -232,7 +232,7 @@ MonoBehaviour:
     targetLayers:
       serializedVersion: 2
       m_Bits: 64
-    _baseDamage: 10
+    _baseDamage: 5
     hitEventTag:
       TagId: 645108757
   effects:

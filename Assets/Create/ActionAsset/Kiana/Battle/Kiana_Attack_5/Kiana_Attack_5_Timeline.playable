@@ -154,7 +154,7 @@ MonoBehaviour:
     targetLayers:
       serializedVersion: 2
       m_Bits: 64
-    _baseDamage: 10
+    _baseDamage: 25
     hitEventTag:
       TagId: -1300321786
   effects:

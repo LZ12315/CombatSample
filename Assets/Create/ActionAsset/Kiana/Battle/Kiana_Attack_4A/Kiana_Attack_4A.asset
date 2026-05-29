@@ -31,7 +31,7 @@ MonoBehaviour:
       TagId: -2107794142
     window:
       startAnchor: 0
-      startFrame: 45
+      startFrame: 80
       endAnchor: 2
       endFrame: 0
   - targetKind: 1
@@ -42,7 +42,7 @@ MonoBehaviour:
       startAnchor: 0
       startFrame: 80
       endAnchor: 2
-      endFrame: 120
+      endFrame: 0
   - targetKind: 1
     specificTarget: {fileID: 0}
     targetTag:

@@ -6,8 +6,8 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/Scenes/MiHoYo_Test.unity
-    guid: 0fc1f8181c7573242a538b2de1513527
+    path: Assets/Scenes/MiHoYo_Release.unity
+    guid: 88ed50a2f68ab4c4aa903d0721c84738
   m_configObjects:
     com.unity.input.settings: {fileID: 11400000, guid: 51a905f79c85aa74590f847228703992,
       type: 2}
