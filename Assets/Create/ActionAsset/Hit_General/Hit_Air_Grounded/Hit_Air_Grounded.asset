@@ -22,7 +22,7 @@ MonoBehaviour:
       TagId: 0
     window:
       startAnchor: 0
-      startFrame: 48
+      startFrame: 45
       endAnchor: 2
       endFrame: 0
   _selfTags: []

@@ -22,7 +22,16 @@ MonoBehaviour:
       TagId: 0
     window:
       startAnchor: 0
-      startFrame: 2
+      startFrame: 3
+      endAnchor: 2
+      endFrame: 0
+  - targetKind: 0
+    specificTarget: {fileID: 11400000, guid: d0180c1c7b8a3be4499b7306ae09ed53, type: 2}
+    targetTag:
+      TagId: 0
+    window:
+      startAnchor: 0
+      startFrame: 3
       endAnchor: 2
       endFrame: 0
   _selfTags: []
