@@ -6,8 +6,10 @@ public partial class ActorCameraControl
     // ==================================================================
     // Nested: CombatLockComposer
     // ==================================================================
-    // Owns combat anchor math, TargetGroup weights/radii,
-    // Transposer/GroupComposer/FramingTransposer config, and lock FOV.
+    // Routes lock camera composition.
+    // - SoftLock is owned by SoftLockComposer and feeds Cinemachine with
+    //   runtime follow/framing targets.
+    // - HardLock keeps a simple anchor + TargetGroup path.
     // ==================================================================
 
     private class CombatLockComposer
@@ -16,100 +18,111 @@ public partial class ActorCameraControl
 
         public CombatLockComposer(ActorCameraControl owner) { _o = owner; }
 
-        // -- Composition interpolation ----------------------------------
-
-        private float ComputeCompositionT(float combatDist)
+        public void UpdateCombatFollowAnchor(
+            LockCameraRigRuntime rt, Transform enemyTarget,
+            bool instant = false)
         {
-            return Mathf.InverseLerp(_o.compositionNearDist, _o.compositionFarDist, combatDist);
+            if (rt == null || enemyTarget == null || _o.actor == null) return;
+
+            if (rt == _o._softRuntime)
+            {
+                _o.SoftComposer.Refresh(rt, enemyTarget, instant, updateStickySide: false);
+                return;
+            }
+
+            if (rt.anchor == null) return;
+
+            CombatFrame frame = BuildCombatFrame(enemyTarget);
+            ApplyAnchorPose(rt, frame, instant);
+            ConfigureTransposerForCombat(rt);
+            ConfigureGroupComposerForCombat(rt);
+            ApplyLockCameraFov(rt);
         }
 
-        // -- Combat follow anchor ---------------------------------------
-
-        public void UpdateCombatFollowAnchor(LockCameraRigRuntime rt, Transform enemyTarget, bool instant = false)
+        private struct CombatFrame
         {
-            if (rt == null || rt.anchor == null || enemyTarget == null || _o.actor == null) return;
+            public Vector3 PlayerPos;
+            public Vector3 EnemyPos;
+            public Vector3 CombatDir;
+            public Vector3 Center;
+            public float Distance;
+        }
 
+        private CombatFrame BuildCombatFrame(Transform enemyTarget)
+        {
             Vector3 playerPos = _o.transform.position;
             Vector3 enemyPos = enemyTarget.position;
+            Vector3 playerXZ = new Vector3(playerPos.x, 0f, playerPos.z);
+            Vector3 enemyXZ = new Vector3(enemyPos.x, 0f, enemyPos.z);
+            Vector3 toEnemy = enemyXZ - playerXZ;
+            float distance = toEnemy.magnitude;
+            Vector3 combatDir = distance > 0.01f ? toEnemy / distance : Vector3.forward;
 
-            Vector3 playerPosXZ = new Vector3(playerPos.x, 0f, playerPos.z);
-            Vector3 enemyPosXZ = new Vector3(enemyPos.x, 0f, enemyPos.z);
-            Vector3 combatDir = (enemyPosXZ - playerPosXZ).normalized;
-            float combatDist = Vector3.Distance(playerPosXZ, enemyPosXZ);
+            Vector3 center = Vector3.Lerp(playerPos, enemyPos, _o.lockCenterBias);
+            center.y = (playerPos.y + enemyPos.y) * 0.5f + _o.heightOffset;
 
-            if (combatDist < 0.01f)
+            return new CombatFrame
             {
-                Camera cam = Camera.main;
-                combatDir = cam != null ? cam.transform.forward : Vector3.forward;
-                combatDir.y = 0f;
-                combatDir.Normalize();
-            }
+                PlayerPos = playerPos,
+                EnemyPos = enemyPos,
+                CombatDir = combatDir,
+                Center = center,
+                Distance = distance
+            };
+        }
 
-            Vector3 right = Vector3.Cross(Vector3.up, combatDir).normalized;
-
-            Camera mainCam = Camera.main;
-            float rawSide = 0f;
-            if (mainCam != null)
-            {
-                Vector3 playerToCam = mainCam.transform.position - playerPos;
-                playerToCam.y = 0f;
-                if (playerToCam.sqrMagnitude > 0.001f)
-                    rawSide = Vector3.Dot(right, playerToCam.normalized);
-            }
+        private void ApplyAnchorPose(LockCameraRigRuntime rt, CombatFrame frame, bool instant)
+        {
+            Vector3 desiredAnchorPos = frame.Center;
 
             if (instant)
             {
-                rt.smoothedSide = rawSide;
-                rt.sideSmoothVelocity = 0f;
+                rt.anchor.position = desiredAnchorPos;
                 rt.anchorPositionVelocity = Vector3.zero;
+            }
+            else
+            {
+                rt.anchor.position = Vector3.SmoothDamp(
+                    rt.anchor.position,
+                    desiredAnchorPos,
+                    ref rt.anchorPositionVelocity,
+                    Mathf.Max(0.001f, _o.positionSmoothTime));
+            }
+
+            rt.currentFollowDistance = ResolveFollowDistance(frame);
+
+            float desiredYaw = Mathf.Atan2(frame.CombatDir.x, frame.CombatDir.z) * Mathf.Rad2Deg;
+            if (instant)
+            {
+                rt.currentAnchorYaw = desiredYaw;
                 rt.anchorYawVelocity = 0f;
             }
             else
             {
-                rt.smoothedSide = Mathf.SmoothDamp(rt.smoothedSide, rawSide, ref rt.sideSmoothVelocity, _o.sideSmoothTime);
+                rt.currentAnchorYaw = Mathf.SmoothDampAngle(
+                    rt.currentAnchorYaw,
+                    desiredYaw,
+                    ref rt.anchorYawVelocity,
+                    Mathf.Max(0.001f, _o.rotationSmoothTime));
             }
 
-            float sideSign = rt.smoothedSide >= 0f ? 1f : -1f;
+            rt.anchor.rotation = Quaternion.Euler(0f, rt.currentAnchorYaw, 0f);
 
-            float t = ComputeCompositionT(combatDist);
-            float centerBias = Mathf.Lerp(_o.centerBiasNear, _o.centerBiasFar, t);
-            float forwardBias = combatDist * centerBias;
-            Vector3 combatCenter = playerPosXZ + combatDir * forwardBias;
-            combatCenter.y = (playerPos.y + enemyPos.y) * 0.5f + _o.heightOffset;
+            rt.dbgLabel = "HardLockBasic";
+            rt.dbgCombatCenter = frame.Center;
+            rt.dbgCombatDir = frame.CombatDir;
+            rt.dbgCombatDist = frame.Distance;
+            rt.dbgDesiredAnchorPos = desiredAnchorPos;
+            rt.dbgTargetGroupPos = frame.Center;
+            rt.dbgBodyTarget = "Runtime_LockAnchor";
+            rt.dbgTrend = "hard-lock-anchor";
+        }
 
-            float sideScale = Mathf.Lerp(_o.sideBiasNear, _o.sideBiasFar, t);
-            float sideAmount = Mathf.Min(combatDist * sideScale, combatDist * 0.5f) * sideSign;
-            Vector3 desiredAnchorPos = combatCenter + right * sideAmount;
-            desiredAnchorPos.y = combatCenter.y;
-
-            if (instant)
-                rt.anchor.position = desiredAnchorPos;
-            else
-                rt.anchor.position = Vector3.SmoothDamp(
-                    rt.anchor.position, desiredAnchorPos,
-                    ref rt.anchorPositionVelocity, _o.positionSmoothTime);
-
-            rt.currentFollowDistance = Mathf.Lerp(_o.followDistNear, _o.followDistFar, t);
-
-            Vector3 desiredCamPos = combatCenter
-                - combatDir * (rt.currentFollowDistance * 0.6f)
-                + right * (sideSign * rt.currentFollowDistance * 0.5f);
-            desiredCamPos.y = combatCenter.y + _o.heightOffset * 0.3f;
-
-            Vector3 toCamera = desiredCamPos - rt.anchor.position;
-            if (toCamera.sqrMagnitude > 0.001f)
-            {
-                Vector3 anchorForward = -toCamera.normalized;
-                float targetYaw = Mathf.Atan2(anchorForward.x, anchorForward.z) * Mathf.Rad2Deg;
-                rt.currentAnchorYaw = instant
-                    ? targetYaw
-                    : Mathf.SmoothDampAngle(rt.currentAnchorYaw, targetYaw, ref rt.anchorYawVelocity, _o.rotationSmoothTime);
-                rt.anchor.rotation = Quaternion.Euler(0f, rt.currentAnchorYaw, 0f);
-            }
-
-            ConfigureTransposerForCombat(rt);
-            ConfigureGroupComposerForCombat(rt, combatDist);
-            ApplyLockCameraFov(rt, combatDist);
+        private float ResolveFollowDistance(CombatFrame frame)
+        {
+            return Mathf.Min(
+                _o.lockBaseFollowDistance + frame.Distance * _o.lockDistancePerCombatMeter,
+                _o.lockMaxFollowDistance);
         }
 
         // -- TargetGroup ------------------------------------------------
@@ -117,6 +130,12 @@ public partial class ActorCameraControl
         public void RefreshTargetGroup(LockCameraRigRuntime rt, Transform enemyTarget, Enums.PlayerCameraState state)
         {
             if (rt == null || rt.targetGroup == null) return;
+
+            if (rt == _o._softRuntime)
+            {
+                // SoftLockComposer owns the SoftLock target group.
+                return;
+            }
 
             bool lockMode = enemyTarget != null;
             Transform lockTarget = lockMode ? enemyTarget : null;
@@ -132,21 +151,19 @@ public partial class ActorCameraControl
 
             if (needsRebuild)
             {
-                _o._diagnostics.LogCameraEvent($"RefreshTargetGroup rebuild lockMode={lockMode} targetCount={targetCount} lockTarget={ActorCameraControl.FormatObjectName(lockTarget)}");
-
                 if (lockMode)
                 {
                     rt.targetGroup.m_Targets = new[]
                     {
-                        new CinemachineTargetGroup.Target { target = _o.transform, weight = _o.playerWeightNear, radius = _o.playerRadiusNear },
-                        new CinemachineTargetGroup.Target { target = lockTarget, weight = _o.enemyWeightNear, radius = _o.enemyRadiusNear }
+                        new CinemachineTargetGroup.Target { target = _o.transform, weight = _o.lockPlayerWeight, radius = _o.lockTargetPadding },
+                        new CinemachineTargetGroup.Target { target = lockTarget, weight = _o.lockEnemyWeight, radius = _o.lockTargetPadding }
                     };
                 }
                 else
                 {
                     rt.targetGroup.m_Targets = new[]
                     {
-                        new CinemachineTargetGroup.Target { target = _o.transform, weight = _o.playerWeightNear, radius = _o.playerRadiusNear }
+                        new CinemachineTargetGroup.Target { target = _o.transform, weight = _o.lockPlayerWeight, radius = _o.lockTargetPadding }
                     };
                 }
 
@@ -156,26 +173,21 @@ public partial class ActorCameraControl
                 targets = rt.targetGroup.m_Targets;
             }
 
-            // Per-frame: update weights/radii to match combat distance.
-            // Player weight is always >= enemy weight to keep the player as primary subject.
             if (lockMode && targets != null && targets.Length == 2)
             {
-                float dist = Vector3.Distance(_o.transform.position, lockTarget.position);
-                float t = ComputeCompositionT(dist);
-
-                targets[0].weight = Mathf.Lerp(_o.playerWeightNear, _o.playerWeightFar, t);
-                targets[0].radius = Mathf.Lerp(_o.playerRadiusNear, _o.playerRadiusFar, t);
-                targets[1].weight = Mathf.Lerp(_o.enemyWeightNear, _o.enemyWeightFar, t);
-                targets[1].radius = Mathf.Lerp(_o.enemyRadiusNear, _o.enemyRadiusFar, t);
+                targets[0].weight = _o.lockPlayerWeight;
+                targets[0].radius = _o.lockTargetPadding;
+                targets[1].weight = _o.lockEnemyWeight;
+                targets[1].radius = _o.lockTargetPadding;
             }
             else if (!lockMode && targets != null && targets.Length >= 1)
             {
-                targets[0].weight = _o.playerWeightNear;
-                targets[0].radius = _o.playerRadiusNear;
+                targets[0].weight = _o.lockPlayerWeight;
+                targets[0].radius = _o.lockTargetPadding;
             }
         }
 
-        // -- Transposer / Composer --------------------------------------
+        // -- Cinemachine helpers -----------------------------------------
 
         private void ConfigureTransposerForCombat(LockCameraRigRuntime rt)
         {
@@ -188,48 +200,29 @@ public partial class ActorCameraControl
             transposer.m_FollowOffset = new Vector3(0f, 0f, -rt.currentFollowDistance);
         }
 
-        private void ConfigureGroupComposerForCombat(LockCameraRigRuntime rt, float combatDist)
+        private void ConfigureGroupComposerForCombat(LockCameraRigRuntime rt)
         {
             if (rt == null) return;
             CinemachineVirtualCamera vcam = rt == _o._softRuntime ? _o.softLockCamera : _o.hardLockCamera;
             if (vcam == null) return;
 
-            float t = ComputeCompositionT(combatDist);
-            float framingSize = Mathf.Lerp(_o.framingSizeNear, _o.framingSizeFar, t);
-            float maxFov = Mathf.Max(_o.fovFar, 68f);
-
-            // CinemachineGroupComposer (Aim component)
             var groupComposer = vcam.GetCinemachineComponent<CinemachineGroupComposer>();
-            if (groupComposer != null)
-            {
-                groupComposer.m_GroupFramingSize = framingSize;
-                groupComposer.m_AdjustmentMode = CinemachineGroupComposer.AdjustmentMode.DollyThenZoom;
-                groupComposer.m_MaximumFOV = maxFov;
-                groupComposer.m_FramingMode = CinemachineGroupComposer.FramingMode.HorizontalAndVertical;
-                return;
-            }
+            if (groupComposer == null) return;
 
-            // CinemachineFramingTransposer (Body component)
-            var framingTransposer = vcam.GetCinemachineComponent<CinemachineFramingTransposer>();
-            if (framingTransposer != null)
-            {
-                framingTransposer.m_GroupFramingSize = framingSize;
-                framingTransposer.m_AdjustmentMode = CinemachineFramingTransposer.AdjustmentMode.DollyThenZoom;
-                framingTransposer.m_MaximumFOV = maxFov;
-            }
+            groupComposer.m_GroupFramingSize = _o.lockFramingSize;
+            groupComposer.m_AdjustmentMode = CinemachineGroupComposer.AdjustmentMode.DollyThenZoom;
+            groupComposer.m_MaximumFOV = Mathf.Max(_o.lockFov, 68f);
+            groupComposer.m_FramingMode = CinemachineGroupComposer.FramingMode.HorizontalAndVertical;
         }
 
-        private void ApplyLockCameraFov(LockCameraRigRuntime rt, float combatDist)
+        private void ApplyLockCameraFov(LockCameraRigRuntime rt)
         {
             if (rt == null) return;
             CinemachineVirtualCamera vcam = rt == _o._softRuntime ? _o.softLockCamera : _o.hardLockCamera;
             if (vcam == null) return;
 
-            float t = ComputeCompositionT(combatDist);
-            float targetFov = Mathf.Lerp(_o.fovNear, _o.fovFar, t);
-
             var lens = vcam.m_Lens;
-            lens.FieldOfView = targetFov;
+            lens.FieldOfView = _o.lockFov;
             vcam.m_Lens = lens;
         }
     }

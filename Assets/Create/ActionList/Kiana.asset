@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e484c16208db8333b7c6578a14e5a8e, type: 3}
+  m_Name: Kiana
+  m_EditorClassIdentifier: 
+  _globalActions:
+  - {fileID: 11400000, guid: 712d8138f9fe5794fa20b04a100b1a34, type: 2}
+  - {fileID: 11400000, guid: 7c5ca198895cfad4491af35083d23dbf, type: 2}
+  - {fileID: 11400000, guid: fb7792fca5d16524fbfc3cce6512d352, type: 2}
+  - {fileID: 11400000, guid: 521efc826aa605646a75f9570ebdc2f0, type: 2}
+  - {fileID: 11400000, guid: 2a2a5db946b511d408939f1625a604ff, type: 2}
+  - {fileID: 11400000, guid: fa5e5e67f621b5e42a4860cc69b3a521, type: 2}
+  - {fileID: 11400000, guid: 3bf0c63c53bee8d47a597ed5a3ce93f9, type: 2}
+  - {fileID: 11400000, guid: 52ce7cf92ee7a014fb11c030422a3b04, type: 2}
+  - {fileID: 11400000, guid: 23f2cde3ad8b38f46a16f38ef4e001f7, type: 2}
+  - {fileID: 11400000, guid: 0691ac2392167de4cbabe86ee64a7673, type: 2}
+  - {fileID: 11400000, guid: 43279c6485946ff4b975886be12ee409, type: 2}
+  - {fileID: 11400000, guid: 37e2c7002cdfc374c83f0f2f18e94f77, type: 2}

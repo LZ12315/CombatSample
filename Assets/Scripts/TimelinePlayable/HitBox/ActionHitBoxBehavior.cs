@@ -18,8 +18,8 @@ public class ActionHitBoxBehavior : ActionBehaviourBase
     protected override void OnClipStart(Playable playable)
     {
         _resolvedBone = null;
-        if (actor != null && actor.animancer != null)
-            _resolvedBone = boneReference.Resolve(actor.animancer.Animator);
+        if (actor != null)
+            _resolvedBone = boneReference.Resolve(actor);
         CreateHitbox();
     }
 
@@ -36,7 +36,8 @@ public class ActionHitBoxBehavior : ActionBehaviourBase
         if (hitboxObject != null || _resolvedBone == null) return;
 
         hitboxObject = new GameObject("HitBox");
-        hitboxObject.hideFlags = HideFlags.HideInHierarchy;
+        hitboxObject.hideFlags = HideFlags.HideInHierarchy | HideFlags.DontSaveInEditor | HideFlags.DontSaveInBuild;
+        ApplyHitboxTransform();
 
         // Rigidbody 必须存在，否则 Trigger 事件不会触发（Unity 物理规则）
         var rb = hitboxObject.AddComponent<Rigidbody>();
@@ -44,7 +45,9 @@ public class ActionHitBoxBehavior : ActionBehaviourBase
 
         // Add Collider
         collider = hitboxObject.AddComponent<CapsuleCollider>();
+        collider.enabled = false;
         collider.isTrigger = true;
+        ApplyColliderShape();
 
         // 运行时才挂载 AttackHandler（编辑器预览时只做碰撞体可视化）
         if (!IsEditorPreview && actor != null && actor.combater != null)
@@ -60,20 +63,34 @@ public class ActionHitBoxBehavior : ActionBehaviourBase
         // Add Updater
         var updater = hitboxObject.AddComponent<HitBoxUpdater>();
         updater.Init(this);
+
+        if (Application.isPlaying)
+            Physics.SyncTransforms();
+
+        collider.enabled = true;
     }
 
     public void UpdateHitbox()
     {
         if (hitboxObject == null || _resolvedBone == null) return;
 
-        hitboxObject.transform.position = _resolvedBone.TransformPoint(hitboxConfig.center);
-        hitboxObject.transform.rotation = _resolvedBone.rotation * hitboxConfig.rotation;
+        ApplyHitboxTransform();
 
         if (collider == null) return;
 
+        ApplyColliderShape();
+    }
+
+    private void ApplyHitboxTransform()
+    {
+        hitboxObject.transform.position = _resolvedBone.TransformPoint(hitboxConfig.center);
+        hitboxObject.transform.rotation = _resolvedBone.rotation * hitboxConfig.rotation;
+    }
+
+    private void ApplyColliderShape()
+    {
         collider.height = hitboxConfig.height;
         collider.radius = hitboxConfig.radius;
-
         collider.direction = 1;
     }
 

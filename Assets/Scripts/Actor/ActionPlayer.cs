@@ -1,19 +1,17 @@
+using System;
 using UnityEngine;
 using UnityEngine.Playables;
-using System;
 
 /// <summary>
 /// 角色动作播放器 - 管理 Timeline 动画的播放、速度与生命周期。
 /// 
-/// <para><b>速度控制设计（混合方案）：</b></para>
-    /// <para>1. <b>_expectedSpeed（权威期望值）</b>：外部系统（如 <see cref="ActionSpeedEffect"/>）通过 <see cref="SetSpeed(double)"/> 设置的期望播放速度。</para>
-/// <para>2. <b>防御性同步</b>：每帧检查 Director 的实际速度是否与期望值一致，若不一致则自动纠正。</para>
-/// <para>3. <b>自动继承</b>：切换新动作时，新 Director 会自动以 _expectedSpeed 启动，无需外部重新设置。</para>
+/// <para><b>速度控制设计：</b></para>
+/// <para>1. <b>_baseSpeed</b>：当前 Action 自己的基础播放速度。</para>
+/// <para>2. <b>_externalSpeedModifiers</b>：SpeedVFX / HitStop / Buff 等外部临时倍率。</para>
+/// <para>3. <b>PlaybackSpeed</b>：最终速度 = base speed × external modifiers。</para>
 /// <para>
-/// 这种设计的优势：
-/// - Effect 只需设置一次速度，无需每帧更新
-/// - 动作切换时无缝继承速度（如 HitStop 期间切换受击动画）
-/// - 防御性同步防止外部系统意外修改速度导致不一致
+/// 外部临时效果不得直接覆盖基础速度，应通过 AddExternalSpeedModifier / RemoveExternalSpeedModifier
+/// 申请和释放 token。这样多个 SpeedVFX 重叠时不会互相把旧快照恢复错。
 /// </para>
 /// </summary>
 [RequireComponent(typeof(PlayableDirector))]
@@ -22,24 +20,30 @@ public class ActionPlayer : MonoBehaviour
     [SerializeField] private Actor _actor;
 
     private PlayableDirector _director;
-    
+
     /// <summary>
-    /// 期望播放速度（权威值）。外部系统通过 SetSpeed() 修改，Director 实际速度会跟随此值。
-    /// 默认 1.0（正常速度），0.0-1.0 用于 HitStop/HitStick 效果。
+    /// 当前 Action 自己的基础播放速度。临时慢速效果不应写入这里。
     /// </summary>
-    private double _expectedSpeed = 1.0;
-    
+    private double _baseSpeed = 1.0;
+
+    private readonly SpeedModifierStack _externalSpeedModifiers = new();
+
     /// <summary>
-    /// 公开读取当前期望速度。注意：Director 实际速度可能短暂不一致（切换动作瞬间），
-    /// 但会在下一帧 Update 中被纠正。
+    /// 当前最终播放速度。Director 实际速度会被防御性同步到这个值。
     /// </summary>
-    public double PlaybackSpeed => _expectedSpeed;
+    public double PlaybackSpeed => _baseSpeed * _externalSpeedModifiers.Value;
+
+    /// <summary>
+    /// 当前 Action 基础速度，不含外部临时修正。
+    /// </summary>
+    public double BaseSpeed => _baseSpeed;
+
+    /// <summary>
+    /// 外部临时速度倍率。
+    /// </summary>
+    public float ExternalSpeedScale => _externalSpeedModifiers.Value;
 
     public ActionInstance CurrentAction { get; private set; }
-
-
-
-
 
     /// <summary>
     /// 当前动作已播放到第几帧（从 0 开始），每帧 Update 中由 <c>Floor(_director.time * CurrentFrameRate)</c> 计算。
@@ -93,6 +97,7 @@ public class ActionPlayer : MonoBehaviour
     private void OnDisable()
     {
         _director.stopped -= HandleDirectorStopped;
+        ClearExternalSpeedModifiers();
     }
 
     /// <summary>停止当前动作：先停 Timeline 触发 Clip 清理，再执行 Action 退出与状态恢复。</summary>
@@ -143,13 +148,11 @@ public class ActionPlayer : MonoBehaviour
         CurrentFrameRate = Mathf.Max(1, Mathf.RoundToInt((float)ts.editorSettings.frameRate));
         TotalFrames = Mathf.FloorToInt((float)(ts.duration * CurrentFrameRate));
         CurrentFrame = 0;
-        // 注意：不在这里重置 _expectedSpeed。
-        // 新 Director 启动后默认速度为 1.0，但会在 Update 中被立即同步为 _expectedSpeed。
-        // 这确保 HitStop 期间切换动作能无缝继承当前速度。
+        // 不在这里清外部速度修正。SpeedVFX / HitStop 可能需要跨 Action 继续生效。
         _director.Play();
         _director.Evaluate();
-        // 立即同步一次期望速度到新 Director（防御性）
-        SyncExpectedSpeedToDirector();
+        // 新 Director 默认速度为 1，立即同步最终速度。
+        SyncPlaybackSpeedToDirector();
         return true;
     }
 
@@ -166,45 +169,95 @@ public class ActionPlayer : MonoBehaviour
     }
 
     /// <summary>
-    /// 设置期望播放速度。外部系统（如 <see cref="ActionSpeedEffect"/>）调用此方法来控制动作速度。
-    /// 速度会立即应用到当前 Director，并在后续每帧通过防御性同步保持一致。
+    /// 设置当前 Action 的基础播放速度。临时慢速效果不应调用此方法。
     /// </summary>
-    /// <param name="speed">期望速度，0.0=完全冻结，1.0=正常速度</param>
     public void SetSpeed(double speed)
     {
-        _expectedSpeed = speed;
-        // 立即同步到当前 Director
-        SyncExpectedSpeedToDirector();
+        SetBaseSpeed(speed);
     }
 
     /// <summary>
-    /// 防御性同步：将 _expectedSpeed 同步到 PlayableDirector 的实际速度。
-    /// 此方法是核心机制，用于处理：
-    /// 1. 动作切换时新 Director 自动继承当前期望速度
-    /// 2. 外部系统意外修改 Director 速度后的自动纠正
-    /// 3. 确保 Effect 设置一次速度后，整个持续期间速度恒定
+    /// 设置当前 Action 的基础播放速度。最终速度仍会叠加外部修正。
     /// </summary>
-    private void SyncExpectedSpeedToDirector()
+    public void SetBaseSpeed(double speed)
     {
-        if (!_director.playableGraph.IsValid()) return;
+        _baseSpeed = SanitizeSpeed(speed);
+        SyncPlaybackSpeedToDirector();
+    }
+
+    /// <summary>
+    /// 添加一个外部临时速度修正，返回的 token 必须在效果结束/中断时释放。
+    /// </summary>
+    public SpeedModifierToken AddExternalSpeedModifier(
+        float scale,
+        SpeedModifierBlendMode blendMode = SpeedModifierBlendMode.Min,
+        string debugName = null)
+    {
+        SpeedModifierToken token = _externalSpeedModifiers.Add(scale, blendMode, debugName);
+        SyncPlaybackSpeedToDirector();
+        return token;
+    }
+
+    public bool UpdateExternalSpeedModifier(
+        SpeedModifierToken token,
+        float scale,
+        SpeedModifierBlendMode blendMode = SpeedModifierBlendMode.Min,
+        string debugName = null)
+    {
+        bool updated = _externalSpeedModifiers.Update(token, scale, blendMode, debugName);
+        if (updated)
+            SyncPlaybackSpeedToDirector();
+
+        return updated;
+    }
+
+    public bool RemoveExternalSpeedModifier(SpeedModifierToken token)
+    {
+        bool removed = _externalSpeedModifiers.Remove(token);
+        if (removed)
+            SyncPlaybackSpeedToDirector();
+
+        return removed;
+    }
+
+    public void ClearExternalSpeedModifiers()
+    {
+        if (_externalSpeedModifiers.Count == 0)
+            return;
+
+        _externalSpeedModifiers.Clear();
+        SyncPlaybackSpeedToDirector();
+    }
+
+    /// <summary>
+    /// 防御性同步：将最终 PlaybackSpeed 同步到 PlayableDirector 的实际速度。
+    /// </summary>
+    private void SyncPlaybackSpeedToDirector()
+    {
+        if (_director == null || !_director.playableGraph.IsValid())
+            return;
+
+        if (_director.playableGraph.GetRootPlayableCount() == 0)
+            return;
 
         var rootPlayable = _director.playableGraph.GetRootPlayable(0);
+        double expectedSpeed = PlaybackSpeed;
         double actualSpeed = rootPlayable.GetSpeed();
-        
-        // 如果实际速度与期望值不一致（考虑浮点误差），进行纠正
-        if (Math.Abs(actualSpeed - _expectedSpeed) > 0.001)
+
+        // 如果实际速度与期望值不一致（考虑浮点误差），进行纠正。
+        if (Math.Abs(actualSpeed - expectedSpeed) > 0.001)
         {
-            rootPlayable.SetSpeed(_expectedSpeed);
+            rootPlayable.SetSpeed(expectedSpeed);
         }
     }
 
     private void Update()
     {
-        // 防御性同步：确保 Director 实际速度与期望值一致
-        // 这处理了动作切换、外部干扰等边界情况
+        // 防御性同步：确保 Director 实际速度与最终 PlaybackSpeed 一致。
+        // 这处理了动作切换、外部干扰等边界情况。
         if (CurrentAction != null)
         {
-            SyncExpectedSpeedToDirector();
+            SyncPlaybackSpeedToDirector();
         }
 
         if (CurrentAction != null && _director.state == PlayState.Playing)
@@ -215,8 +268,6 @@ public class ActionPlayer : MonoBehaviour
             // 计算当前帧号（HitStop 时 _director.time 冻结 → 帧号自动冻结，符合预期）
             CurrentFrame = Mathf.FloorToInt((float)(_director.time * CurrentFrameRate));
         }
-
-
     }
 
     private void HandleDirectorStopped(PlayableDirector director)
@@ -239,13 +290,12 @@ public class ActionPlayer : MonoBehaviour
                 _director.time = 0;
                 CurrentFrame = 0;
                 _director.Play();
+                SyncPlaybackSpeedToDirector();
                 return;
             }
 
             FinalizeCurrentAction(finished, clearTimeline: true);
-            // 注意：不在这里重置 _expectedSpeed。
-            // 速度控制现在由外部 Effect（如 ActionSpeedEffect）全权管理。
-            // 动作结束时不自动恢复速度，确保 HitStop 等效果能持续到 Effect 主动恢复。
+            // 不在动作结束时清外部速度修正。外部 Effect 持有 token，必须由它自己释放。
             OnActionFinished?.Invoke(finished);
             return;
         }
@@ -273,4 +323,19 @@ public class ActionPlayer : MonoBehaviour
         CurrentFrameRate = 0;
         TotalFrames = 0;
     }
+
+    private static double SanitizeSpeed(double speed)
+    {
+        if (double.IsNaN(speed) || double.IsInfinity(speed))
+            return 1.0;
+
+        return Math.Max(0.0, speed);
+    }
+
+#if UNITY_EDITOR
+    public string GetExternalSpeedModifierDebugText()
+    {
+        return _externalSpeedModifiers.GetDebugText();
+    }
+#endif
 }

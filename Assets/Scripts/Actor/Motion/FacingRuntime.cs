@@ -15,6 +15,10 @@ public sealed class FacingRuntime
 
     public Quaternion PendingRotation => _pendingRotation;
 
+    public bool HasFacingOverride => _hasFacingOverride;
+    public float TargetRotationYaw => _targetRotation.eulerAngles.y;
+    public Vector3 OverrideDirection => _overrideFacingDirection;
+
     public void Initialize(Quaternion initialRotation)
     {
         _targetRotation = initialRotation;

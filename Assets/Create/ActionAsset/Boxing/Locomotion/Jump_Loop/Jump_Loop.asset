@@ -21,10 +21,10 @@ MonoBehaviour:
     targetTag:
       TagId: 0
     window:
-      startAnchor: 0
+      startAnchor: 1
       startFrame: 0
       endAnchor: 2
-      endFrame: 48
+      endFrame: 0
   - targetKind: 2
     specificTarget: {fileID: 0}
     targetTag:

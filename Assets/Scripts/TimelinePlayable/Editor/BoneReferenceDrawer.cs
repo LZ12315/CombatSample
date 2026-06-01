@@ -19,10 +19,17 @@ public class BoneReferenceDrawer : PropertyDrawer
         EditorGUI.PropertyField(r0, mode, new GUIContent(label.text, label.tooltip));
 
         var r1 = new Rect(position.x, r0.yMax + spacing, position.width, line);
-        if (mode.enumValueIndex == (int)BoneReference.Mode.HumanBone)
+        if (mode.intValue == (int)BoneReference.Mode.HumanBone)
+        {
             EditorGUI.PropertyField(r1, humanBone, new GUIContent("Human Bone"));
+        }
         else
-            EditorGUI.PropertyField(r1, bonePath, new GUIContent("Bone Path"));
+        {
+            string pathLabel = mode.intValue == (int)BoneReference.Mode.ActorPath
+                ? "Actor Path"
+                : "Bone Path";
+            EditorGUI.PropertyField(r1, bonePath, new GUIContent(pathLabel));
+        }
 
         EditorGUI.EndProperty();
     }

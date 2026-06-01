@@ -13,6 +13,11 @@ public class Actor : MonoBehaviour
     public AnimancerComponent animancer;
     public ActorCombater combater;
 
+    [Header("Camera")]
+    [Tooltip("相机观察该 Actor 时使用的目标点。玩家通常指向 CameraPivot；敌人可指向胸口/锁定点。未配置时回退到 Actor Transform。")]
+    [SerializeField] private Transform cameraTarget;
+    public Transform CameraTarget => cameraTarget != null ? cameraTarget : transform;
+
     #endregion
 
     #region === 标签容器 ===
@@ -28,6 +33,9 @@ public class Actor : MonoBehaviour
     private void Awake()
     {
         actorMotor = actorMotor != null ? actorMotor : GetComponent<ActorMotor>();
+
+        if (cameraTarget == null)
+            cameraTarget = transform.Find("CameraPivot");
 
         persistentTags = gameObject.GetTagContainer();
         transientTags = new TagContainer();

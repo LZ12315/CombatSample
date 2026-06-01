@@ -1,0 +1,70 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d4a14c808be2c4f4a8f1b6d45ebd172f, type: 3}
+  m_Name: Kiana_AirAttack_3A
+  m_EditorClassIdentifier: 
+  _timelineAsset: {fileID: 11400000, guid: 1e1fec42bdc4f244db7d1c0572cf2745, type: 2}
+  _priorityLayer: 1
+  _priorityValue: 0
+  _cancelRules:
+  - targetKind: 1
+    specificTarget: {fileID: 0}
+    targetTag:
+      TagId: -2107794142
+    window:
+      startAnchor: 0
+      startFrame: 100
+      endAnchor: 2
+      endFrame: 0
+  _selfTags:
+  - TagId: -2107794142
+  _legacySelfTag:
+    TagId: 0
+  _triggerMode: 0
+  _eventTriggerTag:
+    TagId: 0
+  _startContextMode: 0
+  _motionConfig:
+    rootMotionMode: 1
+    suppressLocomotion: 1
+    facingOnStart: 2
+    gravityScale: -1
+    horizontalMomentumInheritance: 0
+    verticalMomentumInheritance: 0
+  isLoop: 0
+  _allowReenterWhilePlaying: 0
+  _entryConditions:
+  - rid: 4877214280882585600
+  - rid: 4877214280882585602
+  _exitConditions: []
+  references:
+    version: 2
+    RefIds:
+    - rid: 4877214280882585600
+      type: {class: InputSequenceCondition, ns: , asm: Assembly-CSharp}
+      data:
+        invertResult: 0
+        overrideAll: 0
+        maxInputInterval: 0.25
+        inputSequence:
+        - rid: 4877214280882585601
+    - rid: 4877214280882585601
+      type: {class: ButtonInputCheck, ns: , asm: Assembly-CSharp}
+      data:
+        requiredButtons: 8
+        requiredState: 2
+    - rid: 4877214280882585602
+      type: {class: GroundStateCondition, ns: , asm: Assembly-CSharp}
+      data:
+        invertResult: 0
+        overrideAll: 0
+        acceptedStates: 4

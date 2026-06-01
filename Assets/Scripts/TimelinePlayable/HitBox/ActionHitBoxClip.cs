@@ -15,7 +15,7 @@ public class ActionHitBoxConfig
 
 public class ActionHitBoxClip : PlayableAsset, ITimelineClipAsset
 {
-    [Tooltip("骨骼或挂点（HumanBone / 相对 Animator 的路径）")]
+    [Tooltip("Attachment reference: HumanBone, Animator-relative Path, or Actor-relative Path.")]
     public BoneReference boneReference;
 
     public ActionHitBoxConfig hitboxConfig = new ActionHitBoxConfig();

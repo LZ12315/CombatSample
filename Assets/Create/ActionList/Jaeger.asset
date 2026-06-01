@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e484c16208db8333b7c6578a14e5a8e, type: 3}
+  m_Name: Jaeger
+  m_EditorClassIdentifier: 
+  _globalActions:
+  - {fileID: 11400000, guid: 2f15aa6f4d451f642af4dc8b8bd6db01, type: 2}
+  - {fileID: 11400000, guid: 3d226d8e8ddd46144a380fbf858ff67a, type: 2}
+  - {fileID: 11400000, guid: 22c7354ecebf0c787980d8cefaf07e1a, type: 2}
+  - {fileID: 11400000, guid: f9840ef760a6e3248a26b8b19bc24e31, type: 2}
+  - {fileID: 11400000, guid: f8bc2c39ca88c2f05a08a28766f03e37, type: 2}
+  - {fileID: 11400000, guid: b2197e9aa3a419daa8efd91ddf2509b0, type: 2}
+  - {fileID: 11400000, guid: 6a9f057b0e316d24eaad26db3e79f82f, type: 2}
+  - {fileID: 11400000, guid: 9f16a04cbbbc45d4e83e08b7c34eb9df, type: 2}
+  - {fileID: 11400000, guid: 615f42dec7a13e744a32c0f6b00821a8, type: 2}
+  - {fileID: 11400000, guid: af62dc325e6368e418799f073a80d931, type: 2}
+  - {fileID: 11400000, guid: c5a1c26fe36c8f243b8af5066b469c69, type: 2}

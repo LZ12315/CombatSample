@@ -40,6 +40,13 @@ public class ActorMotor : MonoBehaviour, ICharacterController
     [SerializeField, Tooltip("碰撞过滤层。只有这些层上的 Collider 会参与角色碰撞。~0 = 全部。")]
     private LayerMask _collisionMask = ~0;
 
+    [Header("Actor 互推")]
+    [SerializeField, Range(0.1f, 100f), Tooltip("互推质量。值越大越难被挤动，值越小越容易被推开。默认 1。")]
+    private float _actorPushMass = 1f;
+
+    [SerializeField, Tooltip("是否可以参与 Actor 互推分离。关闭后该 Actor 不会被水平推开，但也不会让另一方穿模。")]
+    private bool _canBeActorPushed = true;
+
     #endregion
 
     #region === 运行时对象 ===
@@ -47,8 +54,31 @@ public class ActorMotor : MonoBehaviour, ICharacterController
     private readonly LocomotionRuntime _locomotion = new();
     private readonly FacingRuntime _facing = new();
 
+    /// <summary>基础移动时间缩放。外部临时效果不直接写入 MotionRuntime，而是通过 modifier 叠加。</summary>
+    private float _baseMovementTimeScale = 1f;
+    private readonly SpeedModifierStack _movementTimeScaleModifiers = new();
+
     public KinematicCharacterMotor Motor { get; private set; }
     public ActorMotionRuntime MotionRuntime { get; } = new();
+    public CapsuleCollider Capsule { get; private set; }
+
+    // Actor collision properties
+    public float ActorPushMass => _actorPushMass;
+    public bool CanBeActorPushed => _canBeActorPushed;
+
+    #endregion
+
+    #region === Actor 识别 ===
+
+    /// <summary>
+    /// Returns the ActorMotor on the collider's root GameObject, or null if none.
+    /// Uses GetComponentInParent to handle colliders on child GameObjects (e.g. hitboxes).
+    /// </summary>
+    public static ActorMotor GetActorMotor(Collider collider)
+    {
+        if (collider == null) return null;
+        return collider.GetComponentInParent<ActorMotor>();
+    }
 
     #endregion
 
@@ -162,12 +192,59 @@ public class ActorMotor : MonoBehaviour, ICharacterController
         MotionRuntime.SetGravityScale(scale);
     }
 
+    /// <summary>
+    /// 设置基础移动时间缩放。临时 SpeedVFX / HitStop 不应直接调用此方法。
+    /// </summary>
     public void SetMovementTimeScale(float scale)
     {
-        MotionRuntime.SetMovementTimeScale(scale);
+        _baseMovementTimeScale = SanitizeMovementTimeScale(scale);
+        RefreshMovementTimeScale();
+    }
+
+    public SpeedModifierToken AddMovementTimeScaleModifier(
+        float scale,
+        SpeedModifierBlendMode blendMode = SpeedModifierBlendMode.Min,
+        string debugName = null)
+    {
+        SpeedModifierToken token = _movementTimeScaleModifiers.Add(scale, blendMode, debugName);
+        RefreshMovementTimeScale();
+        return token;
+    }
+
+    public bool UpdateMovementTimeScaleModifier(
+        SpeedModifierToken token,
+        float scale,
+        SpeedModifierBlendMode blendMode = SpeedModifierBlendMode.Min,
+        string debugName = null)
+    {
+        bool updated = _movementTimeScaleModifiers.Update(token, scale, blendMode, debugName);
+        if (updated)
+            RefreshMovementTimeScale();
+
+        return updated;
+    }
+
+    public bool RemoveMovementTimeScaleModifier(SpeedModifierToken token)
+    {
+        bool removed = _movementTimeScaleModifiers.Remove(token);
+        if (removed)
+            RefreshMovementTimeScale();
+
+        return removed;
+    }
+
+    public void ClearMovementTimeScaleModifiers()
+    {
+        if (_movementTimeScaleModifiers.Count == 0)
+            return;
+
+        _movementTimeScaleModifiers.Clear();
+        RefreshMovementTimeScale();
     }
 
     public float MovementTimeScale => MotionRuntime.MovementTimeScale;
+    public float BaseMovementTimeScale => _baseMovementTimeScale;
+    public float ExternalMovementTimeScale => _movementTimeScaleModifiers.Value;
 
     public Vector3 CurrentVelocity => MotionRuntime.CurrentVelocity;
     public Vector3 RequestedVelocity => _requestedVelocity;
@@ -195,6 +272,14 @@ public class ActorMotor : MonoBehaviour, ICharacterController
 
     public int JumpCount => MotionRuntime.JumpCount;
 
+    // Public debug access for Editor
+    public LocomotionRuntime DebugLocomotion => _locomotion;
+    public FacingRuntime DebugFacing => _facing;
+    public MotionChannels DebugChannels => MotionRuntime.Channels;
+    public float DebugBaseSpeed => _locomotionBaseSpeed;
+    public float DebugAirControlFactor => _airControlFactor;
+    public float DebugRotateSpeed => rotateSpeed;
+
     public bool CanJump()
     {
         return MotionRuntime.CanJump(_maxJumpCount);
@@ -214,6 +299,7 @@ public class ActorMotor : MonoBehaviour, ICharacterController
         actor = actor != null ? actor : GetComponent<Actor>();
 
         Motor = GetComponent<KinematicCharacterMotor>();
+        Capsule = GetComponent<CapsuleCollider>();
         if (Motor == null)
         {
             Debug.LogError($"[ActorMotor] Missing KinematicCharacterMotor on '{name}'.", this);
@@ -225,6 +311,18 @@ public class ActorMotor : MonoBehaviour, ICharacterController
             actor.actorMotor = this;
 
         _facing.Initialize(transform.rotation);
+        RefreshMovementTimeScale();
+    }
+
+    private void OnEnable()
+    {
+        ActorCollisionResolver.Register(this);
+    }
+
+    private void OnDisable()
+    {
+        ActorCollisionResolver.Unregister(this);
+        ClearMovementTimeScaleModifiers();
     }
 
     private void Update()
@@ -332,6 +430,13 @@ public class ActorMotor : MonoBehaviour, ICharacterController
 
     public bool IsColliderValidForCollisions(Collider coll)
     {
+        // Filter out other KCC-driven actors so they don't block each other
+        // as if they were solid walls. Actor-actor separation is handled by
+        // ActorCollisionResolver after all motors tick.
+        ActorMotor otherMotor = GetActorMotor(coll);
+        if (otherMotor != null && otherMotor != this)
+            return false;
+
         return (_collisionMask & (1 << coll.gameObject.layer)) != 0;
     }
 
@@ -347,7 +452,18 @@ public class ActorMotor : MonoBehaviour, ICharacterController
 
     public void ProcessHitStabilityReport(Collider hitCollider, Vector3 hitNormal, Vector3 hitPoint,
         Vector3 atCharacterPosition, Quaternion atCharacterRotation,
-        ref HitStabilityReport hitStabilityReport) { }
+        ref HitStabilityReport hitStabilityReport)
+    {
+        // Actor-on-actor: prevent treating another actor as stable ground or valid step.
+        // This stops characters from standing on each other's heads.
+        ActorMotor otherMotor = GetActorMotor(hitCollider);
+        if (otherMotor != null && otherMotor != this)
+        {
+            hitStabilityReport.IsStable = false;
+            hitStabilityReport.ValidStepDetected = false;
+            hitStabilityReport.LedgeDetected = false;
+        }
+    }
 
     public void OnDiscreteCollisionDetected(Collider hitCollider) { }
 
@@ -380,6 +496,26 @@ public class ActorMotor : MonoBehaviour, ICharacterController
         _requestedVelocity = Vector3.zero;
         _kccPaused = true;
     }
+
+    private void RefreshMovementTimeScale()
+    {
+        MotionRuntime.SetMovementTimeScale(_baseMovementTimeScale * _movementTimeScaleModifiers.Value);
+    }
+
+    private static float SanitizeMovementTimeScale(float scale)
+    {
+        if (float.IsNaN(scale) || float.IsInfinity(scale))
+            return 1f;
+
+        return Mathf.Max(0f, scale);
+    }
+
+#if UNITY_EDITOR
+    public string GetMovementTimeScaleModifierDebugText()
+    {
+        return _movementTimeScaleModifiers.GetDebugText();
+    }
+#endif
 
     #endregion
 }

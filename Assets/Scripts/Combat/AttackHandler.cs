@@ -43,12 +43,14 @@ public class AttackHandler : MonoBehaviour
                     hitEventTag: ResolveHitEventTag()
                 );
 
-                if(damageable != null)
-                    damageable.TakeDamage(hitData);
+                HitResolveResult hitResult = damageable.TakeDamage(hitData);
 
-                InvokeHitStartEvent(hitData);
+                if (hitResult.ImpactAllowed)
+                {
+                    InvokeHitStartEvent(hitData);
+                    attackedObjects.Add(other);
+                }
 
-                attackedObjects.Add(other);
             }
         }
     }

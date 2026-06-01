@@ -19,13 +19,7 @@ public partial class ActorCameraControl
 
         public CameraDiagnostics(ActorCameraControl owner) { _o = owner; }
 
-        // -- Brain callback ---------------------------------------------
-
-        public void OnCinemachineBrainUpdated(CinemachineBrain brain)
-        {
-            if (!_o.debugBrainAfterUpdate) return;
-            LogCameraSnapshot("Brain.AfterUpdate", _o.GetCombatTarget(), brain);
-        }
+        public bool ShouldCaptureDiagnostics => ShouldLogCameraDebug();
 
         // -- Debug window -----------------------------------------------
 
@@ -55,9 +49,11 @@ public partial class ActorCameraControl
 
         // -- Snapshot ---------------------------------------------------
 
-        public void LogCameraSnapshot(string phase, Transform enemyTarget, CinemachineBrain brainOverride = null)
+        public void LogCameraSnapshot(
+            string phase, Transform enemyTarget,
+            CinemachineBrain brainOverride = null, bool force = false)
         {
-            if (!ShouldLogCameraDebug()) return;
+            if (!force && !ShouldLogCameraDebug()) return;
 
             Camera mainCam = Camera.main;
             CinemachineBrain brain = brainOverride ?? (mainCam != null ? mainCam.GetComponent<CinemachineBrain>() : null);
@@ -66,8 +62,8 @@ public partial class ActorCameraControl
                 ? $"{FormatVector(mainCam.transform.position)} yaw={FormatYaw(mainCam.transform.rotation)}"
                 : "null";
 
-            string softAnchorInfo = _o._softRuntime?.anchor != null
-                ? $"{FormatVector(_o._softRuntime.anchor.position)} yaw={FormatYaw(_o._softRuntime.anchor.rotation)}"
+            string softFollowInfo = _o._softRuntime?.softLockFollowTarget != null
+                ? FormatVector(_o._softRuntime.softLockFollowTarget.position)
                 : "null";
             string hardAnchorInfo = _o._hardRuntime?.anchor != null
                 ? $"{FormatVector(_o._hardRuntime.anchor.position)} yaw={FormatYaw(_o._hardRuntime.anchor.rotation)}"
@@ -82,8 +78,10 @@ public partial class ActorCameraControl
                 $"  state current={_o.currentState} resolved={_o.ResolvePresentationState()} lock={_o.FormatLockMode()} combatTarget={ActorCameraControl.FormatObjectName(_o.GetCombatTarget())}\n" +
                 $"  main={mainInfo} brain={FormatBrain(brain)}\n" +
                 $"  player={FormatVector(_o.transform.position)} enemy={enemyInfo} distances={FormatDistances(enemyTarget, mainCam)}\n" +
-                $"  softAnchor={softAnchorInfo} softFollowDist={_o._softRuntime?.currentFollowDistance ?? 0f:F2} softSmoothedSide={_o._softRuntime?.smoothedSide ?? 0f:F2} softTG={FormatTargetGroupFor(_o._softRuntime)}\n" +
-                $"  hardAnchor={hardAnchorInfo} hardFollowDist={_o._hardRuntime?.currentFollowDistance ?? 0f:F2} hardSmoothedSide={_o._hardRuntime?.smoothedSide ?? 0f:F2} hardTG={FormatTargetGroupFor(_o._hardRuntime)}\n" +
+                $"  softFollowTarget={softFollowInfo} softTG={FormatTargetGroupFor(_o._softRuntime)}\n" +
+                $"  hardAnchor={hardAnchorInfo} hardFollowDist={_o._hardRuntime?.currentFollowDistance ?? 0f:F2} hardTG={FormatTargetGroupFor(_o._hardRuntime)}\n" +
+                $"  lockDiag soft={FormatLockDiagnosticsFor(_o._softRuntime)}\n" +
+                $"  lockDiag hard={FormatLockDiagnosticsFor(_o._hardRuntime)}\n" +
                 $"  free={FormatCamera(_o.normalFreeLookCamera, brain)}\n" +
                 $"  soft={FormatCamera(_o.softLockCamera, brain)}\n" +
                 $"  hard={FormatCamera(_o.hardLockCamera, brain)}",
@@ -113,6 +111,18 @@ public partial class ActorCameraControl
         {
             if (rt?.targetGroup == null) return "null";
             return $"pos={FormatVector(rt.targetGroup.transform.position)} targets={FormatTargetGroupTargetsFor(rt)}";
+        }
+
+        private static string FormatLockDiagnosticsFor(LockCameraRigRuntime rt)
+        {
+            if (rt == null) return "null";
+            string label = string.IsNullOrEmpty(rt.dbgLabel) ? "uninitialized" : rt.dbgLabel;
+            string activeTag = rt.dbgIsActiveRuntime ? "active" : "prewarm";
+            string bodyTarget = string.IsNullOrEmpty(rt.dbgBodyTarget) ? "n/a" : rt.dbgBodyTarget;
+            return $"[{label}:{activeTag}] center={FormatVector(rt.dbgCombatCenter)} " +
+                   $"dir={FormatVector(rt.dbgCombatDir)} dist={rt.dbgCombatDist:F2} " +
+                   $"bodyTarget={bodyTarget} desired={FormatVector(rt.dbgDesiredAnchorPos)} " +
+                   $"tgPos={FormatVector(rt.dbgTargetGroupPos)} trend={rt.dbgTrend}";
         }
 
         private static string FormatTargetGroupTargetsFor(LockCameraRigRuntime rt)

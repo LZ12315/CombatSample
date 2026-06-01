@@ -25,6 +25,35 @@ public struct AttackHitData
     }
 }
 
+public readonly struct HitResolveResult
+{
+    public bool DamageApplied { get; }
+    public bool HitReactionApplied { get; }
+    public bool ImpactAllowed { get; }
+
+    private HitResolveResult(bool damageApplied, bool hitReactionApplied, bool impactAllowed)
+    {
+        DamageApplied = damageApplied;
+        HitReactionApplied = hitReactionApplied;
+        ImpactAllowed = impactAllowed;
+    }
+
+    public static HitResolveResult Normal(bool hitReactionApplied)
+    {
+        return new HitResolveResult(true, hitReactionApplied, true);
+    }
+
+    public static HitResolveResult SuperArmor()
+    {
+        return new HitResolveResult(true, false, true);
+    }
+
+    public static HitResolveResult Invincible()
+    {
+        return new HitResolveResult(false, false, false);
+    }
+}
+
 [Serializable]
 public class AttackDataConfig
 {

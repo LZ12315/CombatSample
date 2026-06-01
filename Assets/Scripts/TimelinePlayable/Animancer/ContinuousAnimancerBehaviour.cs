@@ -113,6 +113,7 @@ public class ContinuousAnimancerBehaviour : ActionBehaviourBase
     /// <summary>
     /// LocomotionIntent 模式：从移动意图计算 Mixer 参数。
     /// 以 FacingDirection 为参考系（锁定时稳定），将移动方向投影到本地空间。
+    /// 2D Mixer 使用移动方向和输入强度；1D Mixer 直接使用输入强度 MoveStrength。
     /// </summary>
     private void UpdateMixerFromLocomotionIntent()
     {

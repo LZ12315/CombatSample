@@ -123,6 +123,16 @@ public partial class ActorCameraControl
             if (rt == null) return;
             CinemachineVirtualCamera vcam = rt == _o._softRuntime ? _o.softLockCamera : _o.hardLockCamera;
             if (vcam == null) return;
+
+            if (rt == _o._softRuntime)
+            {
+                // SoftLock: Body follows a controlled runtime target; Aim uses the
+                // controlled player/enemy framing target group.
+                vcam.Follow = rt.softLockFollowTarget != null ? rt.softLockFollowTarget : (_o.actor != null ? _o.actor.CameraTarget : _o.transform);
+                vcam.LookAt = rt.targetGroup != null ? rt.targetGroup.transform : null;
+                return;
+            }
+
             vcam.LookAt = rt.targetGroup != null ? rt.targetGroup.transform : null;
             vcam.Follow = rt.anchor;
         }

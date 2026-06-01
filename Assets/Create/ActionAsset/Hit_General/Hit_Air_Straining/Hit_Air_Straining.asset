@@ -1,0 +1,64 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d4a14c808be2c4f4a8f1b6d45ebd172f, type: 3}
+  m_Name: Hit_Air_Straining
+  m_EditorClassIdentifier: 
+  _timelineAsset: {fileID: 11400000, guid: 8f1d8161da1eed54eab3aae537054817, type: 2}
+  _priorityLayer: 3
+  _priorityValue: 0
+  _cancelRules:
+  - targetKind: 0
+    specificTarget: {fileID: 11400000, guid: 847bd0222859a3e4fb176cdb1f12752c, type: 2}
+    targetTag:
+      TagId: 0
+    window:
+      startAnchor: 0
+      startFrame: 3
+      endAnchor: 2
+      endFrame: 0
+  - targetKind: 0
+    specificTarget: {fileID: 11400000, guid: d0180c1c7b8a3be4499b7306ae09ed53, type: 2}
+    targetTag:
+      TagId: 0
+    window:
+      startAnchor: 0
+      startFrame: 3
+      endAnchor: 2
+      endFrame: 0
+  _selfTags: []
+  _legacySelfTag:
+    TagId: 0
+  _triggerMode: 1
+  _eventTriggerTag:
+    TagId: 1065683385
+  _startContextMode: 0
+  _motionConfig:
+    rootMotionMode: 1
+    suppressLocomotion: 1
+    facingOnStart: 0
+    gravityScale: -1
+    horizontalMomentumInheritance: 0
+    verticalMomentumInheritance: 0
+  isLoop: 0
+  _allowReenterWhilePlaying: 0
+  _entryConditions:
+  - rid: 8665091234364653572
+  _exitConditions: []
+  references:
+    version: 2
+    RefIds:
+    - rid: 8665091234364653572
+      type: {class: GroundStateCondition, ns: , asm: Assembly-CSharp}
+      data:
+        invertResult: 0
+        overrideAll: 0
+        acceptedStates: 4

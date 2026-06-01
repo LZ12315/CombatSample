@@ -6,8 +6,6 @@ Block.Move
 Block.Attack
 Block.Dodge
 Hit.Hard
-Hit.Down
-Action.Skill
 Action.Move
 Action.Dodge
 Action.Jump
@@ -16,5 +14,8 @@ State.Physics.Grounded
 State.Combat.Stun
 State.Physics.Airbone
 Hit.Air.Light
-Hit.Air.Medium
 Hit.Air.Hard
+Hit.Down
+Hit.Air.Relaunch
+State.Combat.SuperArmor
+State.Combat.Invincibility

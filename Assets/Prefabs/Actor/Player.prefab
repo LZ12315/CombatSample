@@ -58,30 +58,30 @@ MonoBehaviour:
   maxFollowDistance: 12
   followDistanceScale: 1
   sideOffsetScale: 0.6
-  heightOffset: 1.5
-  positionSmoothTime: 0.3
-  rotationSmoothTime: 0.2
-  sideSmoothTime: 0.5
-  compositionNearDist: 5
-  compositionFarDist: 22
-  followDistNear: 8
-  followDistFar: 22
-  fovNear: 50
-  fovFar: 65
-  centerBiasNear: 0.38
-  centerBiasFar: 0.55
-  sideBiasNear: 0.28
-  sideBiasFar: 0.42
-  playerWeightNear: 1.2
-  playerWeightFar: 1.3
+  heightOffset: 0.6
+  positionSmoothTime: 0.35
+  rotationSmoothTime: 0.3
+  sideSmoothTime: 0.8
+  compositionNearDist: 3
+  compositionFarDist: 18
+  followDistNear: 4.0
+  followDistFar: 11
+  fovNear: 42
+  fovFar: 50
+  centerBiasNear: 0.42
+  centerBiasFar: 0.5
+  sideBiasNear: 0.15
+  sideBiasFar: 0.3
+  playerWeightNear: 1.3
+  playerWeightFar: 1.2
   enemyWeightNear: 1
   enemyWeightFar: 0.9
-  playerRadiusNear: 2
-  playerRadiusFar: 3.5
-  enemyRadiusNear: 2
-  enemyRadiusFar: 4
-  framingSizeNear: 0.82
-  framingSizeFar: 0.6
+  playerRadiusNear: 1.0
+  playerRadiusFar: 1.8
+  enemyRadiusNear: 1.0
+  enemyRadiusFar: 2.0
+  framingSizeNear: 0.72
+  framingSizeFar: 0.62
   debugCameraTransitions: 0
   debugFramesAfterTransition: 8
   debugCameraEveryLateUpdate: 0
@@ -169,6 +169,16 @@ PrefabInstance:
         type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 760913534941012436, guid: 9b0b1c79130bc9d4ba7067988ae1edfd,
+        type: 3}
+      propertyPath: _actorPushMass
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 760913534941012436, guid: 9b0b1c79130bc9d4ba7067988ae1edfd,
+        type: 3}
+      propertyPath: _canBeActorPushed
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

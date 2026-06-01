@@ -130,19 +130,7 @@ public class ActorLogicInput : MonoBehaviour
             return;
         }
 
-        Vector3 worldDir;
-        if (cameraControl != null)
-        {
-            worldDir = cameraControl.ToWorldMoveDirection(move);
-        }
-        else
-        {
-            worldDir = new Vector3(move.x, 0f, move.y);
-            if (worldDir.sqrMagnitude > 0.0001f)
-                worldDir.Normalize();
-            else
-                worldDir = Vector3.zero;
-        }
+        Vector3 worldDir = ResolveWorldMoveDirection(move);
 
         if (worldDir.sqrMagnitude < 0.0001f)
         {
@@ -161,6 +149,46 @@ public class ActorLogicInput : MonoBehaviour
         };
 
         actor.actorMotor.SetLocomotionIntent(intent);
+    }
+
+    private Vector3 ResolveWorldMoveDirection(Vector2 move)
+    {
+        if (TryResolveHardLockMoveDirection(move, out Vector3 hardLockMoveDir))
+            return hardLockMoveDir;
+
+        if (cameraControl != null)
+            return cameraControl.ToWorldMoveDirection(move);
+
+        Vector3 fallback = new Vector3(move.x, 0f, move.y);
+        return fallback.sqrMagnitude > 0.0001f ? fallback.normalized : Vector3.zero;
+    }
+
+    private bool TryResolveHardLockMoveDirection(Vector2 move, out Vector3 worldDir)
+    {
+        worldDir = Vector3.zero;
+
+        if (actor?.combater == null || actor.combater.LockMode != Enums.LockMode.HardLock)
+            return false;
+
+        Transform target = actor.combater.CombatTarget != null
+            ? actor.combater.CombatTarget.transform
+            : null;
+        if (target == null)
+            return false;
+
+        Vector3 toTarget = target.position - actor.transform.position;
+        toTarget.y = 0f;
+        if (toTarget.sqrMagnitude <= 0.0001f)
+            return false;
+
+        toTarget.Normalize();
+        Vector3 tangentRight = Vector3.Cross(Vector3.up, toTarget);
+        if (tangentRight.sqrMagnitude <= 0.0001f)
+            return false;
+
+        tangentRight.Normalize();
+        worldDir = toTarget * move.y + tangentRight * move.x;
+        return worldDir.sqrMagnitude > 0.0001f;
     }
 
     #endregion

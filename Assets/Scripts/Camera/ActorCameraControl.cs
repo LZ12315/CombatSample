@@ -13,78 +13,60 @@ public partial class ActorCameraControl : MonoBehaviour
     /// Semantic: focused/presentation actor. Does NOT imply Actor owns Camera.
     /// CameraControl is an external observer that focuses on an Actor.
     /// </summary>
+    [Header("Actor And Camera Rigs")]
+    [Tooltip("相机关注的 Actor，通常为玩家角色。软锁定/硬锁定的目标来源。")]
     public Actor actor;
 
-    [Header("Cameras")]
+    [Tooltip("自由移动时使用的相机（FreeLook）。")]
     public CinemachineFreeLook normalFreeLookCamera;
+    [Tooltip("软锁定时使用的虚拟相机。")]
     public CinemachineVirtualCamera softLockCamera;
+    [Tooltip("硬锁定时使用的虚拟相机。")]
     public CinemachineVirtualCamera hardLockCamera;
 
-    [Header("Pivot")]
-    [Tooltip("Deprecated in Camera phase 1. Kept for serialized compatibility.")]
-    public float pivotRotationSpeed = 10f;
-    [Tooltip("Deprecated in Camera phase 1. Kept for serialized compatibility.")]
-    public float freeModeResetSpeed = 5f;
+    [Header("Soft Lock - Basic")]
+    [SerializeField] private float softLockPlayerWeight = 1.15f;
+    [SerializeField] private float softLockEnemyWeight = 1.05f;
+    [SerializeField] private float softLockPlayerRadius = 1.1f;
+    [SerializeField] private float softLockEnemyRadius = 1.0f;
 
-    [Header("Lock-on Offset")]
-    [Tooltip("Deprecated in Camera phase 1. Kept for serialized compatibility.")]
-    public float fixedOffsetAngle = 15f;
-    [Tooltip("Deprecated in Camera phase 1. Kept for serialized compatibility.")]
-    public float offsetSmoothTime = 0.2f;
-    [Tooltip("Deprecated in Camera phase 1. Kept for serialized compatibility.")]
-    public float shoulderSwitchThreshold = 0.1f;
+    [Header("Hard Lock - Anchor Stability")]
+    [Tooltip("硬锁定相机焦点的高度偏移。值越低镜头越平；值越高越俯视。")]
+    [SerializeField] private float heightOffset = 0.6f;
+    [Tooltip("硬锁定锚点位置的平滑时间。值越大跟随越迟缓；值越小越灵敏。")]
+    [SerializeField] private float positionSmoothTime = 0.35f;
+    [Tooltip("硬锁定锚点水平旋转（Yaw）的平滑时间。值越大旋转越慢；值越小旋转越快。")]
+    [SerializeField] private float rotationSmoothTime = 0.3f;
 
-    [Header("Combat Follow Anchor")]
-#pragma warning disable CS0414 // Deprecated serialized fields kept for Unity inspector compatibility.
-    [Tooltip("Deprecated. Kept for serialized compatibility. Use Distance-Driven Composition parameters instead.")]
-    [SerializeField] private float combatCenterBias = 0.4f;
-    [Tooltip("Deprecated. Kept for serialized compatibility. Use followDistNear / followDistFar instead.")]
-    [SerializeField] private float minFollowDistance = 4f;
-    [Tooltip("Deprecated. Kept for serialized compatibility. Use followDistNear / followDistFar instead.")]
-    [SerializeField] private float maxFollowDistance = 12f;
-    [Tooltip("Deprecated. Kept for serialized compatibility. Use followDistNear / followDistFar instead.")]
-    [SerializeField] private float followDistanceScale = 1.0f;
-    [Tooltip("Deprecated. Kept for serialized compatibility. Use sideBiasNear / sideBiasFar instead.")]
-    [SerializeField] private float sideOffsetScale = 0.6f;
-#pragma warning restore CS0414
-    [SerializeField] private float heightOffset = 1.5f;
-    [SerializeField] private float positionSmoothTime = 0.3f;
-    [SerializeField] private float rotationSmoothTime = 0.2f;
-    [SerializeField] private float sideSmoothTime = 0.5f;
+    [Header("Hard Lock - Information Framing")]
+    [Tooltip("硬锁定镜头的主要画面大小。值越大，玩家和敌人在屏幕中越大；过高可能裁切武器或特效。")]
+    [Range(0.45f, 0.9f)]
+    [SerializeField] private float lockFramingSize = 0.68f;
+    [Tooltip("目标组基础边距。值越小空白越少；过低可能让武器、特效或脚步贴边。")]
+    [Range(0.5f, 2.5f)]
+    [SerializeField] private float lockTargetPadding = 1.2f;
 
-    [Header("Distance-Driven Composition")]
-    [SerializeField] private float compositionNearDist = 5f;
-    [SerializeField] private float compositionFarDist = 22f;
-    [SerializeField] private float followDistNear = 8f;
-    [SerializeField] private float followDistFar = 22f;
-    [SerializeField] private float fovNear = 50f;
-    [SerializeField] private float fovFar = 65f;
-    [SerializeField] private float centerBiasNear = 0.38f;
-    [SerializeField] private float centerBiasFar = 0.55f;
-    [SerializeField] private float sideBiasNear = 0.28f;
-    [SerializeField] private float sideBiasFar = 0.42f;
-    [SerializeField] private float playerWeightNear = 1.2f;
-    [SerializeField] private float playerWeightFar = 1.3f;
-    [SerializeField] private float enemyWeightNear = 1.0f;
-    [SerializeField] private float enemyWeightFar = 0.9f;
-    [SerializeField] private float playerRadiusNear = 2f;
-    [SerializeField] private float playerRadiusFar = 3.5f;
-    [SerializeField] private float enemyRadiusNear = 2f;
-    [SerializeField] private float enemyRadiusFar = 4f;
-    [SerializeField] private float framingSizeNear = 0.82f;
-    [SerializeField] private float framingSizeFar = 0.60f;
+    [SerializeField, HideInInspector] private float lockCenterBias = 0.45f;
+    [SerializeField, HideInInspector] private float lockFov = 45f;
+    [SerializeField, HideInInspector] private float lockBaseFollowDistance = 3.0f;
+    [SerializeField, HideInInspector] private float lockDistancePerCombatMeter = 0.45f;
+    [SerializeField, HideInInspector] private float lockMaxFollowDistance = 11f;
+    [SerializeField, HideInInspector] private float lockPlayerWeight = 1.25f;
+    [SerializeField, HideInInspector] private float lockEnemyWeight = 0.95f;
 
     [Header("Camera Diagnostics")]
+    [Tooltip("记录相机状态切换及切换前后的快照日志。")]
     [SerializeField] private bool debugCameraTransitions = false;
+    [Tooltip("状态切换后额外输出 debug 快照的帧数。")]
     [SerializeField] private int debugFramesAfterTransition = 8;
+    [Tooltip("每帧 LateUpdate 输出相机快照。日志量极大，仅在调试时开启。")]
     [SerializeField] private bool debugCameraEveryLateUpdate = false;
-    [SerializeField] private bool debugBrainAfterUpdate = false;
 
     // ==================================================================
     // Runtime State
     // ==================================================================
 
-    [SerializeField] private Enums.PlayerCameraState currentState;
+    [SerializeField, HideInInspector] private Enums.PlayerCameraState currentState;
     private Dictionary<Enums.PlayerCameraState, ICinemachineCamera> _stateToCameraMap;
 
     private LockCameraRigRuntime _softRuntime;
@@ -174,12 +156,6 @@ public partial class ActorCameraControl : MonoBehaviour
         _rigRouter.ConfigureLockCameraTransitions();
     }
 
-    private void OnEnable()
-    {
-        CinemachineCore.CameraUpdatedEvent.RemoveListener(_diagnostics.OnCinemachineBrainUpdated);
-        CinemachineCore.CameraUpdatedEvent.AddListener(_diagnostics.OnCinemachineBrainUpdated);
-    }
-
     private void Start()
     {
         actor = actor != null ? actor : GetComponentInParent<Actor>();
@@ -195,11 +171,6 @@ public partial class ActorCameraControl : MonoBehaviour
     private void LateUpdate()
     {
         RefreshCameraRuntime();
-    }
-
-    private void OnDisable()
-    {
-        CinemachineCore.CameraUpdatedEvent.RemoveListener(_diagnostics.OnCinemachineBrainUpdated);
     }
 
     private void OnDestroy()
@@ -239,6 +210,7 @@ public partial class ActorCameraControl : MonoBehaviour
             LockCameraRigRuntime activeRt = GetActiveRuntime();
             if (activeRt != null)
             {
+                activeRt.dbgIsActiveRuntime = true;
                 _composer.UpdateCombatFollowAnchor(activeRt, enemyTarget);
                 _composer.RefreshTargetGroup(activeRt, enemyTarget, currentState);
                 _rigRouter.ApplyCameraBindingForRuntime(activeRt);
@@ -252,6 +224,7 @@ public partial class ActorCameraControl : MonoBehaviour
             bool isLive = brain != null && brain.IsLive(softLockCamera);
             if (!isLive)
             {
+                _softRuntime.dbgIsActiveRuntime = false;
                 _composer.UpdateCombatFollowAnchor(_softRuntime, enemyTarget);
                 _composer.RefreshTargetGroup(_softRuntime, enemyTarget, currentState);
                 _rigRouter.ApplyCameraBindingForRuntime(_softRuntime);
@@ -265,11 +238,21 @@ public partial class ActorCameraControl : MonoBehaviour
             bool isLive = brain != null && brain.IsLive(hardLockCamera);
             if (!isLive)
             {
+                _hardRuntime.dbgIsActiveRuntime = false;
                 _composer.UpdateCombatFollowAnchor(_hardRuntime, enemyTarget);
                 _composer.RefreshTargetGroup(_hardRuntime, enemyTarget, currentState);
                 _rigRouter.ApplyCameraBindingForRuntime(_hardRuntime);
                 _hardRuntime.targetGroup?.DoUpdate();
             }
+        }
+
+        // Refresh TargetGroup snapshot positions after DoUpdate for both runtimes.
+        if (_diagnostics.ShouldCaptureDiagnostics)
+        {
+            if (_softRuntime?.targetGroup != null)
+                _softRuntime.dbgTargetGroupPos = _softRuntime.targetGroup.transform.position;
+            if (_hardRuntime?.targetGroup != null)
+                _hardRuntime.dbgTargetGroupPos = _hardRuntime.targetGroup.transform.position;
         }
 
         _rigRouter.ApplyCameraPriorities(currentState);
@@ -319,7 +302,6 @@ public partial class ActorCameraControl : MonoBehaviour
                          && enemyTarget != null;
         if (enteringLock)
         {
-            // Snap incoming lock camera to target (avoid long blend arc).
             LockCameraRigRuntime incoming = GetActiveRuntime();
             if (incoming != null)
             {
@@ -414,7 +396,6 @@ public partial class ActorCameraControl : MonoBehaviour
     {
         return ToWorldMoveDirection(rawMove);
     }
-
 }
 
 public partial class Enums

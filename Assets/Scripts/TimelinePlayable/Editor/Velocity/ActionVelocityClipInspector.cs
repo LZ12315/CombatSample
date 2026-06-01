@@ -1,19 +1,12 @@
 using UnityEditor;
 using UnityEngine;
 
-/// <summary>
-/// 自定义 Inspector：把 VelocityConfig 的字段平铺绘制（不嵌套 foldout），
-/// 按语义分组（Direction / Speed / Curve / Debug），并根据 directionMode
-/// 条件显示 fixedLocalDirection（只在 Fixed 模式下显示）。
-/// 
-/// 与 ActionImpulseClipInspector 保持风格一致，方便策划在两种 Clip 之间切换时有一致体验。
-/// </summary>
 [CustomEditor(typeof(ActionVelocityClip))]
 public class ActionVelocityClipInspector : Editor
 {
     private SerializedProperty _config;
     private SerializedProperty _directionMode;
-    private SerializedProperty _fixedLocalDirection;
+    private SerializedProperty _localHorizontalDirection;
     private SerializedProperty _useHorizontalVelocity;
     private SerializedProperty _horizontalSpeed;
     private SerializedProperty _useVerticalVelocity;
@@ -25,17 +18,18 @@ public class ActionVelocityClipInspector : Editor
     private void OnEnable()
     {
         _config = serializedObject.FindProperty("config");
-        if (_config == null) return;
+        if (_config == null)
+            return;
 
-        _directionMode       = _config.FindPropertyRelative("directionMode");
-        _fixedLocalDirection = _config.FindPropertyRelative("fixedLocalDirection");
+        _directionMode = _config.FindPropertyRelative("directionMode");
+        _localHorizontalDirection = _config.FindPropertyRelative("localHorizontalDirection");
         _useHorizontalVelocity = _config.FindPropertyRelative("useHorizontalVelocity");
-        _horizontalSpeed     = _config.FindPropertyRelative("horizontalSpeed");
+        _horizontalSpeed = _config.FindPropertyRelative("horizontalSpeed");
         _useVerticalVelocity = _config.FindPropertyRelative("useVerticalVelocity");
-        _verticalSpeed       = _config.FindPropertyRelative("verticalSpeed");
-        _horizontalCurve     = _config.FindPropertyRelative("horizontalCurve");
-        _verticalCurve       = _config.FindPropertyRelative("verticalCurve");
-        _debugLog            = _config.FindPropertyRelative("debugLog");
+        _verticalSpeed = _config.FindPropertyRelative("verticalSpeed");
+        _horizontalCurve = _config.FindPropertyRelative("horizontalCurve");
+        _verticalCurve = _config.FindPropertyRelative("verticalCurve");
+        _debugLog = _config.FindPropertyRelative("debugLog");
     }
 
     public override void OnInspectorGUI()
@@ -48,46 +42,65 @@ public class ActionVelocityClipInspector : Editor
 
         serializedObject.Update();
 
-        // ── Direction ──
         EditorGUILayout.LabelField("Direction", EditorStyles.boldLabel);
-        EditorGUILayout.PropertyField(_directionMode,
-            new GUIContent("Mode", "速度方向来源（与 ImpulseConfig 共用枚举）"));
+        EditorGUILayout.PropertyField(_directionMode, new GUIContent("Mode", "Horizontal direction source."));
 
-        if ((MotionDirectionMode)_directionMode.enumValueIndex == MotionDirectionMode.Fixed)
-        {
-            EditorGUI.indentLevel++;
-            EditorGUILayout.PropertyField(_fixedLocalDirection,
-                new GUIContent("Fixed Direction", "本地方向（相对角色朝向）"));
-            EditorGUI.indentLevel--;
-        }
+        if (IsLocalHorizontalMode())
+            DrawLocalHorizontalDirection();
 
         EditorGUILayout.Space(4);
 
-        // ── Speed ──
         EditorGUILayout.LabelField("Speed", EditorStyles.boldLabel);
-        EditorGUILayout.PropertyField(_useHorizontalVelocity,
-            new GUIContent("Use Horizontal", "开启后接管水平轴；即使速度为 0 也会覆盖水平程序速度"));
-        EditorGUILayout.PropertyField(_horizontalSpeed,
-            new GUIContent("Horizontal Speed", "水平速度 (m/s)，沿解析方向覆盖水平程序速度"));
-        EditorGUILayout.PropertyField(_useVerticalVelocity,
-            new GUIContent("Use Vertical", "开启后接管垂直轴；即使速度为 0 也会覆盖垂直程序速度"));
-        EditorGUILayout.PropertyField(_verticalSpeed,
-            new GUIContent("Vertical Speed", "垂直速度 (m/s)，正值向上，覆盖垂直程序速度"));
+        EditorGUILayout.PropertyField(
+            _useHorizontalVelocity,
+            new GUIContent("Use Horizontal", "Take ownership of horizontal velocity, even when speed is zero."));
+        EditorGUILayout.PropertyField(
+            _horizontalSpeed,
+            new GUIContent("Horizontal Speed", "Horizontal velocity (m/s) along the resolved direction."));
+        EditorGUILayout.PropertyField(
+            _useVerticalVelocity,
+            new GUIContent("Use Vertical", "Take ownership of vertical velocity, even when speed is zero."));
+        EditorGUILayout.PropertyField(
+            _verticalSpeed,
+            new GUIContent("Vertical Speed", "Vertical velocity (m/s), positive = up."));
 
         EditorGUILayout.Space(4);
 
-        // ── Curve ──
-        EditorGUILayout.LabelField("Curve (X: 0~1 归一化时间, Y: 速度乘子)", EditorStyles.boldLabel);
-        EditorGUILayout.PropertyField(_horizontalCurve,
-            new GUIContent("Horizontal Curve", "水平速度的 Clip 期间缩放曲线"));
-        EditorGUILayout.PropertyField(_verticalCurve,
-            new GUIContent("Vertical Curve", "垂直速度的 Clip 期间缩放曲线"));
+        EditorGUILayout.LabelField("Curve", EditorStyles.boldLabel);
+        EditorGUILayout.PropertyField(
+            _horizontalCurve,
+            new GUIContent("Horizontal Curve", "Horizontal speed multiplier over normalized clip time."));
+        EditorGUILayout.PropertyField(
+            _verticalCurve,
+            new GUIContent("Vertical Curve", "Vertical speed multiplier over normalized clip time."));
 
-        // ── Options ──
+        EditorGUILayout.Space(4);
+
         EditorGUILayout.LabelField("Options", EditorStyles.boldLabel);
-        EditorGUILayout.PropertyField(_debugLog,
-            new GUIContent("Debug Log", "打印调试信息到控制台"));
+        EditorGUILayout.PropertyField(_debugLog, new GUIContent("Debug Log", "Print debug info to console."));
 
         serializedObject.ApplyModifiedProperties();
+    }
+
+    private bool IsLocalHorizontalMode()
+    {
+        return _directionMode.intValue == (int)MotionDirectionMode.LocalHorizontal;
+    }
+
+    private void DrawLocalHorizontalDirection()
+    {
+        Vector3 direction = _localHorizontalDirection.vector3Value;
+
+        EditorGUI.indentLevel++;
+        EditorGUI.BeginChangeCheck();
+        float right = EditorGUILayout.FloatField(
+            new GUIContent("Right (X)", "Actor-local right component."),
+            direction.x);
+        float forward = EditorGUILayout.FloatField(
+            new GUIContent("Forward (Z)", "Actor-local forward component."),
+            direction.z);
+        if (EditorGUI.EndChangeCheck() || Mathf.Abs(direction.y) > 0.0001f)
+            _localHorizontalDirection.vector3Value = new Vector3(right, 0f, forward);
+        EditorGUI.indentLevel--;
     }
 }

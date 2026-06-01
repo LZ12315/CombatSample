@@ -61,6 +61,8 @@ public sealed class ActorMotionRuntime
 
     public int JumpCount => _grounding.JumpCount;
 
+    public MotionChannels Channels => _channels;
+
     /// <summary>
     /// 当前 RootMotion 策略允许 ActorMotor 应用的根旋转。
     /// External 模式下返回 identity，避免动画根旋转与外部旋转重复叠加。
@@ -255,7 +257,14 @@ public sealed class ActorMotionRuntime
 
     public void SetVerticalVelocity(MotionOwner owner, float verticalSpeed)
     {
-        _channels.SetVerticalVelocity(owner, verticalSpeed);
+        if (!_channels.SetVerticalVelocity(owner, verticalSpeed))
+            return;
+
+        if (verticalSpeed > 0.001f &&
+            _grounding.State is ActorGroundState.Grounded or ActorGroundState.JustLanded)
+        {
+            _pendingForceUnground = true;
+        }
     }
 
     public void EndVerticalVelocity(MotionOwner owner)

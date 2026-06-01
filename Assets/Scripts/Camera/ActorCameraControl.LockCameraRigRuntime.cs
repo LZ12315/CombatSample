@@ -7,25 +7,38 @@ public partial class ActorCameraControl
     // Nested: LockCameraRigRuntime
     // ==================================================================
     // Per-lock-camera runtime objects and smoothed state.
-    // Manages its own anchor, TargetGroup, and dirty tracking.
+    // HardLock uses anchor + target group. SoftLock uses a stable follow
+    // target plus player/enemy framing targets for Cinemachine input.
     // ==================================================================
 
     private sealed class LockCameraRigRuntime
     {
         public Transform anchor;
+        public Transform softLockFollowTarget;
+        public Transform softLockPlayerFramingTarget;
+        public Transform softLockEnemyFramingTarget;
         public CinemachineTargetGroup targetGroup;
 
         public bool targetGroupDirty = true;
         public Transform trackedLockTarget;
         public Enums.PlayerCameraState trackedState;
 
-        // Smoothed values
-        public float smoothedSide;
-        public float sideSmoothVelocity;
+        // Smoothed values used by HardLock.
         public Vector3 anchorPositionVelocity = Vector3.zero;
         public float anchorYawVelocity;
         public float currentAnchorYaw;
         public float currentFollowDistance = 8f;
+
+        // Diagnostic snapshot.
+        public Vector3 dbgCombatCenter;
+        public Vector3 dbgCombatDir;
+        public float dbgCombatDist;
+        public Vector3 dbgDesiredAnchorPos;
+        public Vector3 dbgTargetGroupPos;
+        public string dbgLabel;
+        public bool dbgIsActiveRuntime;
+        public string dbgBodyTarget;
+        public string dbgTrend;
 
         public void CreateAnchor(Transform parent)
         {
@@ -36,15 +49,78 @@ public partial class ActorCameraControl
             anchor.rotation = Quaternion.identity;
         }
 
+        public void CreateSoftLockBasicRuntime(Transform parent)
+        {
+            DestroyAnchorOnly();
+
+            softLockFollowTarget = CreateRuntimeTransform(
+                softLockFollowTarget,
+                "Runtime_SoftLockFollowTarget",
+                parent);
+            softLockPlayerFramingTarget = CreateRuntimeTransform(
+                softLockPlayerFramingTarget,
+                "Runtime_SoftLockPlayerFramingTarget",
+                parent);
+            softLockEnemyFramingTarget = CreateRuntimeTransform(
+                softLockEnemyFramingTarget,
+                "Runtime_SoftLockEnemyFramingTarget",
+                parent);
+
+            CreateTargetGroup(parent, "Runtime_SoftLockTargetGroup");
+            if (targetGroup != null)
+            {
+                targetGroup.gameObject.name = "Runtime_SoftLockTargetGroup";
+                targetGroup.m_PositionMode = CinemachineTargetGroup.PositionMode.GroupAverage;
+                targetGroup.m_RotationMode = CinemachineTargetGroup.RotationMode.Manual;
+                targetGroup.m_UpdateMethod = CinemachineTargetGroup.UpdateMethod.LateUpdate;
+            }
+        }
+
+        private static Transform CreateRuntimeTransform(Transform current, string name, Transform parent)
+        {
+            if (current != null)
+            {
+                current.gameObject.name = name;
+                return current;
+            }
+
+            var go = new GameObject(name);
+            Transform t = go.transform;
+            t.position = parent != null ? parent.position : Vector3.zero;
+            t.rotation = Quaternion.identity;
+            return t;
+        }
+
         public void CreateTargetGroup(Transform parent)
         {
+            CreateTargetGroup(parent, "Runtime_LockTargetGroup");
+        }
+
+        private void CreateTargetGroup(Transform parent, string name)
+        {
             if (targetGroup != null) return;
-            var go = new GameObject("Runtime_LockTargetGroup");
+            var go = new GameObject(name);
             targetGroup = go.AddComponent<CinemachineTargetGroup>();
             targetGroup.m_PositionMode = CinemachineTargetGroup.PositionMode.GroupCenter;
             targetGroup.m_RotationMode = CinemachineTargetGroup.RotationMode.Manual;
             targetGroup.m_UpdateMethod = CinemachineTargetGroup.UpdateMethod.LateUpdate;
             targetGroupDirty = true;
+        }
+
+        private void DestroyAnchorOnly()
+        {
+            if (anchor == null) return;
+            if (Application.isPlaying) Object.Destroy(anchor.gameObject);
+            else Object.DestroyImmediate(anchor.gameObject);
+            anchor = null;
+        }
+
+        private static void DestroyTransform(ref Transform t)
+        {
+            if (t == null) return;
+            if (Application.isPlaying) Object.Destroy(t.gameObject);
+            else Object.DestroyImmediate(t.gameObject);
+            t = null;
         }
 
         public void DestroyRuntime()
@@ -55,12 +131,12 @@ public partial class ActorCameraControl
                 else Object.DestroyImmediate(targetGroup.gameObject);
                 targetGroup = null;
             }
-            if (anchor != null)
-            {
-                if (Application.isPlaying) Object.Destroy(anchor.gameObject);
-                else Object.DestroyImmediate(anchor.gameObject);
-                anchor = null;
-            }
+
+            DestroyTransform(ref softLockFollowTarget);
+            DestroyTransform(ref softLockPlayerFramingTarget);
+            DestroyTransform(ref softLockEnemyFramingTarget);
+
+            DestroyAnchorOnly();
             trackedLockTarget = null;
         }
     }
