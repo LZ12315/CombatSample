@@ -4669,6 +4669,11 @@ PrefabInstance:
       propertyPath: cameraTarget
       value: 
       objectReference: {fileID: 1389880077}
+    - target: {fileID: 562087276151890924, guid: 7351e195eb0fa1445af9e9e72fcc017f,
+        type: 3}
+      propertyPath: _preInitializeSubGraphs
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 789307807320377576, guid: 7351e195eb0fa1445af9e9e72fcc017f,
         type: 3}
       propertyPath: m_PlayableAsset
@@ -4724,7 +4729,7 @@ PrefabInstance:
         Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]]"},"Invoke":{"_value":true,"_name":"Invoke","_id":"c0ca431e-9d6e-4f7c-a6f3-de93bca7283b","$type":"NodeCanvas.Framework.Variable`1[[System.Boolean,
         mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089]]"},"Variable":{"_value":{},"_name":"Variable","_id":"03f0072a-9517-45fc-b782-c09259b49c45","$type":"NodeCanvas.Framework.Variable`1[[NodeCanvas.Framework.VariableSeperator,
         ParadoxNotion, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]]"},"RetreatCD":{"_value":20.0,"_name":"RetreatCD","_id":"1e42e88a-5df5-49e4-bd80-0db8f458847c","$type":"NodeCanvas.Framework.Variable`1[[System.Single,
-        mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089]]"},"DashCD":{"_value":6.0,"_name":"DashCD","_id":"700066d9-6022-474e-ae29-b0df2e5ba7e8","$type":"NodeCanvas.Framework.Variable`1[[System.Single,
+        mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089]]"},"DashCD":{"_value":30.0,"_name":"DashCD","_id":"700066d9-6022-474e-ae29-b0df2e5ba7e8","$type":"NodeCanvas.Framework.Variable`1[[System.Single,
         mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089]]"}}}'
       objectReference: {fileID: 0}
     - target: {fileID: 6095726686050045593, guid: 7351e195eb0fa1445af9e9e72fcc017f,
@@ -4775,7 +4780,7 @@ PrefabInstance:
     - target: {fileID: 6095726686050045593, guid: 7351e195eb0fa1445af9e9e72fcc017f,
         type: 3}
       propertyPath: _serializedVariables.Array.data[5]._json
-      value: '{"_value":6.0,"_name":"DashCD","_id":"700066d9-6022-474e-ae29-b0df2e5ba7e8","$type":"NodeCanvas.Framework.Variable`1[[System.Single,
+      value: '{"_value":30.0,"_name":"DashCD","_id":"700066d9-6022-474e-ae29-b0df2e5ba7e8","$type":"NodeCanvas.Framework.Variable`1[[System.Single,
         mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089]]"}'
       objectReference: {fileID: 0}
     - target: {fileID: 6095726686050045593, guid: 7351e195eb0fa1445af9e9e72fcc017f,
@@ -23442,6 +23447,7 @@ SceneRoots:
   m_Roots:
   - {fileID: 748179667}
   - {fileID: 1301354485}
+  - {fileID: 1391421682}
   - {fileID: 1862124795}
   - {fileID: 161985227}
   - {fileID: 1940016713}
@@ -23461,5 +23467,4 @@ SceneRoots:
   - {fileID: 659034937}
   - {fileID: 1352716154}
   - {fileID: 1236427360}
-  - {fileID: 1391421682}
   - {fileID: 1760911593}

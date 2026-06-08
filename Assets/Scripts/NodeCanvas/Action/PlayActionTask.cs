@@ -19,10 +19,18 @@ namespace NodeCanvas.Tasks.Actions
             UntilStarted,
         }
 
+        public enum ResultMode
+        {
+            ByActionStarted,
+            AlwaysTrue,
+            AlwaysFalse,
+        }
+
         [Header("Settings")]
         public BBParameter<Actor> actor;
         public BBParameter<ActionAsset> actionToPlay;
         public RequestMode requestMode = RequestMode.EnterOnce;
+        public ResultMode resultMode = ResultMode.ByActionStarted;
         [Tooltip("仅 UntilStarted：超时仍未开始播放则失败。")]
         public float timeout = 0.3f;
 
@@ -45,7 +53,7 @@ namespace NodeCanvas.Tasks.Actions
 
             if (Time.time - _startTime >= timeout)
             {
-                EndAction(false);
+                EndWithResult(false);
                 return;
             }
 
@@ -65,7 +73,7 @@ namespace NodeCanvas.Tasks.Actions
             var actionValue = actionToPlay.value;
             if (actorValue == null || actorValue.actionManager == null || actionValue == null)
             {
-                EndAction(false);
+                EndWithResult(false);
                 return;
             }
 
@@ -82,12 +90,28 @@ namespace NodeCanvas.Tasks.Actions
 
             if (started)
             {
-                EndAction(true);
+                EndWithResult(true);
                 return;
             }
 
             if (requestMode == RequestMode.EnterOnce)
-                EndAction(false);
+                EndWithResult(false);
+        }
+
+        private void EndWithResult(bool actionStarted)
+        {
+            switch (resultMode)
+            {
+                case ResultMode.AlwaysTrue:
+                    EndAction(true);
+                    break;
+                case ResultMode.AlwaysFalse:
+                    EndAction(false);
+                    break;
+                default:
+                    EndAction(actionStarted);
+                    break;
+            }
         }
     }
 }
