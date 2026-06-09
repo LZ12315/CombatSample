@@ -1,34 +1,24 @@
-@AGENTS.md
-@agent-system/WORKSPACE_BOUNDARY.md
-@agent-system/README.md
-@agent-system/protocols/COLLABORATION_PROTOCOL.md
-@agent-system/protocols/TASK_PROTOCOL.md
-@agent-system/protocols/REVIEW_PROTOCOL.md
-@agent-system/protocols/ARCHIVE_PROTOCOL.md
-@agent-system/protocols/STATUS_GUIDE.md
-@agent-system/rules/PLANNER_RULES.md
-@agent-system/rules/EXECUTOR_RULES.md
-@agent-system/rules/REVIEWER_RULES.md
-@agent-system/rules/UNITY_RULES.md
-
 # Claude Project Entry
 
-This file is intentionally short. Claude Code discovers `CLAUDE.md` at the repository root, so it stays here as the stable entry point.
+This repository uses Backlog.md for AI task coordination.
 
-Follow the shared AI collaboration system in `agent-system/`.
+Start here:
+- If this device has a local Backlog MCP connection configured, use the `backlog` server.
+- Read the Backlog workflow guidance before planning or executing substantial work.
+- Use Backlog tasks in `backlog/tasks/` as the active work record.
 
-Use `agent-system/WORKSPACE_BOUNDARY.md` to keep work scoped to the current workspace. Do not carry facts, task IDs, or plans from another project into this one unless the user explicitly asks for cross-workspace work.
+Working rules:
+- The current repository is the project boundary.
+- Do not import task IDs, plans, or facts from another workspace unless the user explicitly asks for cross-workspace work.
+- Prefer updating an existing Backlog task over relying on chat-only handoff.
+- Stop at `Review` until the user or reviewer accepts the task.
+- Do not automatically move from one accepted task into another.
 
-When acting as:
-- Planner: follow `agent-system/rules/PLANNER_RULES.md`.
-- Executor: follow `agent-system/rules/EXECUTOR_RULES.md`.
-- Reviewer: follow `agent-system/rules/REVIEWER_RULES.md`.
+Unity guardrails:
+- Keep edits small and easy to review.
+- Avoid unrelated scene, prefab, `.meta`, `ProjectSettings`, and package changes.
+- Preserve inspector-facing names and references unless the task explicitly requires a migration.
+- Prefer focused tests; otherwise write concrete manual verification steps in the task.
 
-Task console helper:
-- Use `python Tool/agent_task.py list` to inspect active tasks.
-- Use `python Tool/agent_task.py next` before selecting an executable task unless the user names a task explicitly.
-- Use `python Tool/agent_task.py validate <task-file>` before or after editing a task file when checking metadata consistency.
-
-Do not treat Claude as always executor. The user instruction and task file determine the role.
-
-Do not automatically continue from one role to another. If asked to publish a task, stop after publishing. If asked to execute, stop after reporting. If asked to review, stop after reviewing.
+Legacy note:
+- `agent-system/` and `agent-tasks/` remain in the repo as historical records from the retired workflow.

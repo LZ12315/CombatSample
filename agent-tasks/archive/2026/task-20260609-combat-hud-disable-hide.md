@@ -2,15 +2,15 @@
 id: task-20260609-combat-hud-disable-hide
 title: Combat HUD Disable Hide
 summary: Fix CombatHudController lifecycle behavior so disabling or destroying the component immediately hides generated HUD views.
-status: review
+status: archived
 current_round: 1
 planner: Codex
 executor: Codex
-reviewer:
+reviewer: Claude
 created_at: 2026-06-09
 updated_at: 2026-06-09
 claimed_at: 2026-06-09
-completed_at:
+completed_at: 2026-06-09
 ---
 
 # 任务：Combat HUD 禁用时隐藏血条
@@ -20,15 +20,15 @@ completed_at:
 | 属性 / Field | 值 / Value |
 | --- | --- |
 | id | `task-20260609-combat-hud-disable-hide` |
-| status | `review` |
+| status | `archived` |
 | current_round | `1` |
 | planner | `Codex` |
 | executor | `Codex` |
-| reviewer |  |
+| reviewer | `Claude` |
 | created_at | `2026-06-09` |
 | updated_at | `2026-06-09` |
 | claimed_at | `2026-06-09` |
-| completed_at |  |
+| completed_at | `2026-06-09` |
 
 ---
 
@@ -146,4 +146,35 @@ C:\Program Files (x86)\Microsoft Visual Studio\Shared\NuGetPackages
 
 ### 3. 审查 / Review
 
-未审查。
+Agent: Claude
+Role: Reviewer
+Date: 2026-06-09
+
+#### 决策 / Decision
+
+`accepted`
+
+#### 代码审查 / Code Review
+
+已检查 [CombatHudController.cs](Assets/Scripts/UI/CombatHudController.cs) 的实际改动：
+
+- `HideViewsInstant()` (line 276-280)：使用 `?.` null-safe 调用 `SetVisible(false, true)`，在 view 未创建时不会抛异常。
+- `OnDisable()` (line 67-72)：先调用 `HideViewsInstant()` 隐藏所有 view，再解绑 player/enemy。顺序正确。
+- `OnDestroy()` (line 74-79)：同上。
+- `OnEnable()` (line 58-65)：保持不变，仅在 `_initialized` 为 true 时重新绑定。生命周期闭环正确。
+
+改动只涉及 1 个文件，没有动 scene/prefab/ProjectSettings，完全在允许范围内。
+
+#### 发现或疑虑 / Findings Or Concerns
+
+无阻止性问题。唯一的风险是**本地 NuGet 环境问题导致未做 C# 编译验证和 Unity PlayMode 验证**，但该限制已在执行报告中明确记录，属于环境问题而非代码问题。
+
+#### 建议 / Suggestions
+
+在 Unity Editor 中打开 `MiHoYo_Release.unity`，手动验证：
+1. PlayMode 下禁用 `CombatHudController` 组件 → HUD 血条立即消失
+2. 重新启用组件 → 血条恢复正常绑定
+
+#### 是否可以标记为 done
+
+可以。代码改动正确、最小、安全。

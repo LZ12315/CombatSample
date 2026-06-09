@@ -2,7 +2,7 @@
 id: task-20260609-release-code-hotspot-review
 title: Release Code Hotspot Review
 summary: Review release-merge code hotspots before continuing feature development, focusing on regressions, ownership boundaries, and cleanup risks.
-status: done
+status: archived
 current_round: 1
 planner: Codex
 executor: Codex
@@ -20,7 +20,7 @@ completed_at: 2026-06-09
 | 属性 / Field | 值 / Value |
 | --- | --- |
 | id | `task-20260609-release-code-hotspot-review` |
-| status | `done` |
+| status | `archived` |
 | current_round | `1` |
 | planner | `Codex` |
 | executor | `Codex` |

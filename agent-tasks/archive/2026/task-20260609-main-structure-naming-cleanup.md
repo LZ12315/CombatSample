@@ -2,11 +2,11 @@
 id: task-20260609-main-structure-naming-cleanup
 title: Main structure naming cleanup
 summary: Consolidate unclear project folders so main can serve as a cleaner base for future feature branches.
-status: review
+status: archived
 current_round: 1
 planner: Codex
 executor: Codex
-reviewer:
+reviewer: Claude
 created_at: 2026-06-09
 updated_at: 2026-06-09
 claimed_at: 2026-06-09
@@ -77,4 +77,39 @@ Validation:
 
 ### Review
 
-Pending owner review.
+Agent: Claude
+Role: Reviewer
+Date: 2026-06-09
+
+#### 决策 / Decision
+
+`accepted`
+
+（Owner 确认 `Assets/Create` 保留是自行改回的选择，最终状态是预期的。）
+
+#### 发现或疑虑 / Findings Or Concerns
+
+已逐项核实执行报告与实际文件系统/git 状态：
+
+**报告声称但实际不一致：**
+
+| 报告声称 | 实际状态 | 原因 |
+|---|---|---|
+| `Assets/Create` → `Assets/GameData` | 仍为 `Assets/Create` | 提交 `1144328` (项目结构整理2) 将目录又改回了 `Create` |
+| `Graph` → `NodeCanvasGraphs` | 实际为 `Assets/Create/Graphs/` | 提交 `d2b6e2e` 将 `NodeCanvasGraphs` 又改回了 `Graphs` |
+
+**报告与实际一致的部分：**
+- `Tool` → `Tools` ✓
+- `Document/plans` → `Docs/Plans` ✓
+- 拼写修复 (`Jarger`→`Jaeger`、`LightAttak`→`LightAttack`、`NormaLoco`→`NormalLoco`、`Locmotion`→`Locomotion`) ✓
+- `ActionAsset` → `ActionAssets` ✓（子目录在 `Assets/Create/ActionAssets/`）
+- 未修改 scene/prefab/ProjectSettings ✓（但用户自己后续在 `d2b6e2e` 中删除了 `MiHoYo_Test.unity` 和 `LocomotionModeAsset.cs`）
+
+**其他发现：**
+- 任务模板格式与 `agent-system/templates/TASK_TEMPLATE.md` 不一致，缺少中文分节标题和 `## 0. 任务属性` 表格
+- 当前任务文件无 `### 3. 审查 / Review` 分节，review 内容直接挂在 `### Review` 下面
+
+#### Owner 确认
+
+- `Assets/Create` → `Assets/GameData` 的撤回是 Owner 自行改回，保留 `Create` 为最终选择。
+- 其余清理（子目录重命名、拼写修复、`Tool`→`Tools`、`Docs/Plans`）均正确。
