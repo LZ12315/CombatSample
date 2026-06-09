@@ -2,13 +2,13 @@
 id: task-20260522-camera-follow-lock-composition
 title: Camera Follow And Soft Lock Composition
 summary: Improve free camera follow damping and redesign soft-lock camera composition so it feels closer, flatter, steadier, and less mechanically tied to the player-enemy line.
-status: done
+status: archived
 current_round: 4
 planner: Codex
 executor: Codex
 reviewer: Codex
 created_at: 2026-05-22
-updated_at: 2026-05-22
+updated_at: 2026-06-09
 claimed_at: 2026-05-22
 completed_at: 2026-05-22
 ---
@@ -20,13 +20,13 @@ completed_at: 2026-05-22
 | 属性 / Field | 值 / Value |
 | --- | --- |
 | id | `task-20260522-camera-follow-lock-composition` |
-| status | `done` |
+| status | `archived` |
 | current_round | `4` |
 | planner | `Codex` |
 | executor | `Codex` |
 | reviewer | `Codex` |
 | created_at | `2026-05-22` |
-| updated_at | `2026-05-22` |
+| updated_at | `2026-06-09` |
 | claimed_at | `2026-05-22` |
 | completed_at | `2026-05-22` |
 

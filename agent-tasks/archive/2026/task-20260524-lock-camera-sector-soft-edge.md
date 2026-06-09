@@ -2,13 +2,13 @@
 id: task-20260524-lock-camera-sector-soft-edge
 title: Lock Camera Sector Damped Return
 summary: Replace the hard sector yaw gate transition with a simpler damped boundary-return speed, including inward/outward trend detection so the camera stops correcting when the player naturally moves back toward the sector center.
-status: done
+status: archived
 current_round: 5
 planner: Codex
 executor: Claude
 reviewer: Codex
 created_at: 2026-05-24
-updated_at: 2026-05-25
+updated_at: 2026-06-09
 claimed_at: 2026-05-25
 completed_at: 2026-05-25
 ---
@@ -20,13 +20,13 @@ completed_at: 2026-05-25
 | 属性 / Field | 值 / Value |
 | --- | --- |
 | id | `task-20260524-lock-camera-sector-soft-edge` |
-| status | `done` |
+| status | `archived` |
 | current_round | `5` |
 | planner | `Codex` |
 | executor | `Claude` |
 | reviewer | `Codex` |
 | created_at | `2026-05-24` |
-| updated_at | `2026-05-25` |
+| updated_at | `2026-06-09` |
 | claimed_at | `2026-05-25` |
 | completed_at | `2026-05-25` |
 

@@ -2,13 +2,13 @@
 id: task-20260523-lock-camera-sector-yaw-gate
 title: Lock Camera Sector Yaw Gate
 summary: Implement the first small step of the enemy-centered sector idea: gate only lock-camera anchor yaw so the camera does not rotate while it remains inside an acceptable sector around the enemy-to-player direction.
-status: review
+status: archived
 current_round: 4
 planner: Codex
 executor: Claude
-reviewer:
+reviewer: Codex
 created_at: 2026-05-23
-updated_at: 2026-05-23
+updated_at: 2026-06-09
 claimed_at: 2026-05-23
 completed_at:
 ---
@@ -20,13 +20,13 @@ completed_at:
 | 属性 / Field | 值 / Value |
 | --- | --- |
 | id | `task-20260523-lock-camera-sector-yaw-gate` |
-| status | `review` |
+| status | `archived` |
 | current_round | `4` |
 | planner | `Codex` |
 | executor | `Claude` |
-| reviewer |  |
+| reviewer | `Codex` |
 | created_at | `2026-05-23` |
-| updated_at | `2026-05-23` |
+| updated_at | `2026-06-09` |
 | claimed_at | `2026-05-23` |
 | completed_at |  |
 
@@ -799,7 +799,7 @@ Date: 2026-05-23
 
 ### 3. 审查 / Review
 
-未审查。
+本段之后追加了 `### 4. Execution Follow-up / Boundary Radius Fix`，因此最终 cleanup review 追加在本轮末尾。
 
 ### 4. Execution Follow-up / Boundary Radius Fix
 
@@ -849,3 +849,37 @@ When the camera barely exits the sector, the boundary yaw should stay close to t
 #### Remaining Risk
 
 Unity PlayMode has not been verified yet. The next user check should look for whether `boundary` now stays near `formula/current yaw` on the first outside frame and whether `bndRadius` is comparable to the actual reachable camera orbit instead of being a small fixed fraction of follow distance.
+
+### 5. 审查 / Review - Cleanup Triage
+
+Agent: Codex
+Role: Reviewer
+Date: 2026-06-09
+
+#### 决策 / Decision
+
+`blocked`
+
+#### 发现或疑虑 / Findings Or Concerns
+
+- 当前 main 的相机代码已经不再包含本任务第 4 轮要验收的 sector yaw gate 实现。已用 `rg` 检查 `Assets/Scripts/Camera`，未找到 `ResolveSectorGatedYaw`、`lockYawSectorHalfAngle`、`lockYawSectorReturnSpeed`、`dbgYawSource` 或 boundary yaw 诊断字段。
+- 当前 `CombatLockComposer.ApplyAnchorPose(...)` 的硬锁定 yaw 已回到基于 `frame.CombatDir` 的直接 `SmoothDampAngle` 路径；软锁定则委托给 `ActorCameraControl.SoftLockComposer.cs`。这与本任务的 enemy-centered sector gate 设计不一致。
+- 本文件第 3 轮曾有 `approved`，但第 4 轮和后续 Boundary Radius Fix 又追加了未验收执行内容；按当前 main 代码无法把这些历史更改标记为完成事实。
+
+#### 必要修改 / Required Changes
+
+- 需要项目 owner 决定：如果仍需要 yaw sector gate，应基于当前相机架构重新开任务；如果当前 main 已不再采用该方案，应在 archive pass 中把本任务作为历史尝试归档。
+
+#### 是否可以标记为 done
+
+否。当前代码不满足第 4 轮验收标准，不能标记为 `done`。
+
+---
+
+## 归档说明 / Archive Note
+
+Agent: Codex
+Role: Archiver
+Date: 2026-06-09
+
+Owner 已确认本任务属于旧方向或错误方向的历史记录，归档保留，不再作为 active 开发或 review 入口。

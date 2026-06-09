@@ -9,3 +9,22 @@ Executors should scan this directory for tasks with:
 Do not execute archived tasks from here.
 
 Old task bodies may reflect earlier conventions. Use `agent-system/templates/TASK_TEMPLATE.md` and current `agent-system/protocols/` as the authoritative format for new tasks.
+
+## Current Cleanup Note - 2026-06-09
+
+The current `active/` directory contains no task markdown files after the 2026-06-09 cleanup/archive pass.
+
+When new work starts:
+- Create fresh task files from `agent-system/templates/TASK_TEMPLATE.md`.
+- Base camera tasks on the current `Assets/Scripts/Camera` architecture, not the archived sector/inertia experiments.
+
+Archive cleanup already performed on 2026-06-09:
+- Moved `task-20260522-camera-follow-lock-composition.md` to `agent-tasks/archive/2026/`.
+- Moved `task-20260524-lock-camera-sector-soft-edge.md` to `agent-tasks/archive/2026/`.
+- Removed the duplicate active copy of `task-20260515-actor-motor-timescale-motion-delta.md`; the more complete archived copy remains under `agent-tasks/archive/2026/`.
+- Archived `task-20260523-lock-camera-sector-gizmos.md` as an old/wrong-direction camera diagnostic record.
+- Archived `task-20260523-lock-camera-sector-yaw-gate.md` as an old/wrong-direction camera sector record.
+- Archived `task-20260523-lock-camera-stable-combat-focus.md` as an old/wrong-direction camera diagnostic record.
+- Archived `task-20260523-soft-lock-composition-inertia.md` as an old/wrong-direction soft-lock experiment record.
+
+See `Docs/Main_Cleanup_Baseline_2026-06-09.md` for the current cleanup baseline.

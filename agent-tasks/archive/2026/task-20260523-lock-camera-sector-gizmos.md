@@ -2,13 +2,13 @@
 id: task-20260523-lock-camera-sector-gizmos
 title: Lock Camera Sector Gizmos
 summary: Add Scene-view Gizmos for the enemy-centered yaw sector so the sector gate can be inspected before further tuning.
-status: review
+status: archived
 current_round: 1
 planner: Codex
 executor: Codex
-reviewer:
+reviewer: Codex
 created_at: 2026-05-23
-updated_at: 2026-05-23
+updated_at: 2026-06-09
 claimed_at: 2026-05-23
 completed_at:
 ---
@@ -20,13 +20,13 @@ completed_at:
 | 属性 / Field | 值 / Value |
 | --- | --- |
 | id | `task-20260523-lock-camera-sector-gizmos` |
-| status | `review` |
+| status | `archived` |
 | current_round | `1` |
 | planner | `Codex` |
 | executor | `Codex` |
-| reviewer |  |
+| reviewer | `Codex` |
 | created_at | `2026-05-23` |
-| updated_at | `2026-05-23` |
+| updated_at | `2026-06-09` |
 | claimed_at | `2026-05-23` |
 | completed_at |  |
 
@@ -111,4 +111,33 @@ Date: 2026-05-23
 
 ### 3. 审查 / Review
 
-未审查。
+Agent: Codex
+Role: Reviewer
+Date: 2026-06-09
+
+#### 决策 / Decision
+
+`blocked`
+
+#### 发现或疑虑 / Findings Or Concerns
+
+- 当前 main 的相机代码已经不再包含本任务要验收的 yaw sector Gizmo 实现。已用 `rg` 检查 `Assets/Scripts/Camera`，未找到 `debugLockCameraGizmos`、`OnDrawGizmos` 或 yaw sector 绘制 helper。
+- 当前实现已拆分为 `ActorCameraControl.SoftLockComposer.cs`、`CombatLockComposer.cs`、`Diagnostics.cs` 等文件；继续按本任务执行会把旧的 sector 诊断方案重新带回当前架构，风险高于收益。
+
+#### 必要修改 / Required Changes
+
+- 需要项目 owner 决定：如果仍需要 Scene-view 相机诊断，应基于当前相机架构重新建一个小任务；如果这只是旧 release 过程中的历史诊断，应在单独 archive pass 中归档。
+
+#### 是否可以标记为 done
+
+否。当前代码无法满足本任务的验收标准，因此不能标记为 `done`。
+
+---
+
+## 归档说明 / Archive Note
+
+Agent: Codex
+Role: Archiver
+Date: 2026-06-09
+
+Owner 已确认本任务属于旧方向或错误方向的历史记录，归档保留，不再作为 active 开发或 review 入口。

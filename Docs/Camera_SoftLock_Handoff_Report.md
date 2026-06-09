@@ -1,5 +1,7 @@
 # Camera_Test / MiHoYo SoftLock 相机交接报告
 
+> **Main cleanup note (2026-06-09):** 本文是 `Camera_Test` 分支历史交接记录。文中的 `Assets/Scenes/MiHoYo.unity` 是旧分支语境；当前 `main` 中可见的 MiHoYo 场景是 `Assets/Scenes/MiHoYo_Release.unity` 和 `Assets/Scenes/MiHoYo_Test.unity`。在用户确认新的标准验证场景前，请不要把本文的旧场景路径当作当前 main 的事实。
+
 > 目标读者：本地 Codex / 后续继续修 CameraControl 的开发者。  
 > 分支：`Camera_Test`  
 > 场景：`Assets/Scenes/MiHoYo.unity`  

@@ -8,9 +8,9 @@ planner: ChatGPT
 executor: Claude
 reviewer: Claude
 created_at: 2026-05-15
-updated_at: 2026-05-15
+updated_at: 2026-06-09
 claimed_at:
-completed_at:
+completed_at: 2026-05-20
 ---
 
 # 任务：修正 ActorMotor MovementTimeScale 的运动时间语义
@@ -20,13 +20,13 @@ completed_at:
 | 属性 / Field | 值 / Value |
 | --- | --- |
 | id | `task-20260515-actor-motor-timescale-motion-delta` |
-| status | `done` |
+| status | `archived` |
 | current_round | `1` |
 | planner | `ChatGPT` |
 | executor | `Claude` |
 | reviewer | `Claude` |
 | created_at | `2026-05-15` |
-| updated_at | `2026-05-20` |
+| updated_at | `2026-06-09` |
 | completed_at | `2026-05-20` |
 
 ---

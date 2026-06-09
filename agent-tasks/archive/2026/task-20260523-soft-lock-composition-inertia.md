@@ -2,13 +2,13 @@
 id: task-20260523-soft-lock-composition-inertia
 title: Soft Lock Lateral Threshold Inertia
 summary: Simplify the soft lock camera back to the tuned formula composition, then add a small player-relative left/right threshold so lateral follow has inertia without complex screen-space urgency.
-status: review
+status: archived
 current_round: 11
 planner: Codex
 executor: Codex
 reviewer: Codex
 created_at: 2026-05-23
-updated_at: 2026-05-23
+updated_at: 2026-06-09
 claimed_at: 2026-05-23
 completed_at:
 ---
@@ -20,13 +20,13 @@ completed_at:
 | 属性 / Field | 值 / Value |
 | --- | --- |
 | id | `task-20260523-soft-lock-composition-inertia` |
-| status | `review` |
+| status | `archived` |
 | current_round | `11` |
 | planner | `Codex` |
 | executor | `Codex` |
 | reviewer | `Codex` |
 | created_at | `2026-05-23` |
-| updated_at | `2026-05-23` |
+| updated_at | `2026-06-09` |
 | claimed_at | `2026-05-23` |
 | completed_at |  |
 
@@ -1785,4 +1785,34 @@ Date: 2026-05-23
 
 ### 3. 审查 / Review
 
-未审查。
+Agent: Codex
+Role: Reviewer
+Date: 2026-06-09
+
+#### 决策 / Decision
+
+`blocked`
+
+#### 发现或疑虑 / Findings Or Concerns
+
+- 当前 main 的软锁定实现已经不再包含第 11 轮要验收的一维 lateral inertia 模型。已用 `rg` 检查 `Assets/Scripts/Camera`，未找到 `effectiveSideAmount`、`softLockSideDeadZone`、`softLockSideCatchUpSpeed`、`deadZoneCenterPlayerPos` 或 `lastChaseDistance`。
+- 当前 `ActorCameraControl.SoftLockComposer.cs` 使用的是基础 SoftLock TargetGroup / follow target 方案，诊断标签为 `SoftLockUpwardGroupYFollow`，与本任务第 11 轮执行报告中的 `theoreticalCenter + right * effectiveSideAmount` 模型不一致。
+- 这不是一个可以通过小修补完成的普通 review 问题，而是任务记录与当前 main 架构已经脱钩。
+
+#### 必要修改 / Required Changes
+
+- 需要项目 owner 决定：如果仍要做“软锁定侧向惰性”，应基于当前 `SoftLockComposer` 重新规划新任务；如果当前基础 SoftLock 方案是 release 后认可的状态，则本任务应在 archive pass 中作为历史尝试归档。
+
+#### 是否可以标记为 done
+
+否。当前代码不满足第 11 轮验收标准，不能标记为 `done`。
+
+---
+
+## 归档说明 / Archive Note
+
+Agent: Codex
+Role: Archiver
+Date: 2026-06-09
+
+Owner 已确认本任务属于旧方向或错误方向的历史记录，归档保留，不再作为 active 开发或 review 入口。

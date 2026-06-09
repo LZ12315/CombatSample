@@ -2,13 +2,13 @@
 id: task-20260523-lock-camera-stable-combat-focus
 title: Lock Camera Combat Focus Diagnostics
 summary: Step 1 only: add focused diagnostics for lock camera Follow anchor, LookAt target, raw combat frame, and final camera movement so the root cause can be verified before changing behavior.
-status: review
+status: archived
 current_round: 4
 planner: Codex
 executor: Codex
-reviewer:
+reviewer: Codex
 created_at: 2026-05-23
-updated_at: 2026-05-23
+updated_at: 2026-06-09
 claimed_at: 2026-05-23
 completed_at:
 ---
@@ -20,13 +20,13 @@ completed_at:
 | 属性 / Field | 值 / Value |
 | --- | --- |
 | id | `task-20260523-lock-camera-stable-combat-focus` |
-| status | `review` |
+| status | `archived` |
 | current_round | `4` |
 | planner | `Codex` |
 | executor | `Codex` |
-| reviewer |  |
+| reviewer | `Codex` |
 | created_at | `2026-05-23` |
-| updated_at | `2026-05-23` |
+| updated_at | `2026-06-09` |
 | claimed_at | `2026-05-23` |
 | completed_at |  |
 
@@ -519,7 +519,27 @@ Date: 2026-05-23
 
 ### 3. 审查 / Review
 
-未审查。
+Agent: Codex
+Role: Reviewer
+Date: 2026-06-09
+
+#### 决策 / Decision
+
+`blocked`
+
+#### 发现或疑虑 / Findings Or Concerns
+
+- 当前 main 仍保留了 `CameraDiagnostics`、`ShouldCaptureDiagnostics` 和 `LogCameraSnapshot(...)` 等诊断入口，但已经不再是本任务第 4 轮描述的完整诊断形态：`debugLockCameraGizmos`、`debugBrainAfterUpdate`、Gizmo 轨迹和若干旧 dbg 字段在当前 `Assets/Scripts/Camera` 中不存在。
+- 当前任务正文还存在历史轮次顺序漂移：`current_round: 4` 后面又追加了一个 `第 3 轮 / Round 3`，继续把它当作可执行任务会给后续 agent 造成错误上下文。
+- 因为当前相机实现已经重组，不能把本任务直接验收为 main 的完成事实。
+
+#### 必要修改 / Required Changes
+
+- 需要项目 owner 决定：若还需要“锁定相机诊断增强”，应基于当前 `CameraDiagnostics` 重新开新任务；若只是 release 调试过程遗留记录，应在 archive pass 中归档。
+
+#### 是否可以标记为 done
+
+否。当前代码只保留了部分诊断能力，不能按本任务第 4 轮验收标准标记为 `done`。
 
 ---
 
@@ -571,4 +591,14 @@ public bool ShouldCaptureDiagnostics =>
 
 ### 3. 审查 / Review
 
-未审查。
+本轮不是 front matter 指向的当前轮次；cleanup review 已在 `current_round: 4` 的第 4 轮写入。Owner 已在 2026-06-09 决定将本任务作为旧方向历史记录归档。
+
+---
+
+## 归档说明 / Archive Note
+
+Agent: Codex
+Role: Archiver
+Date: 2026-06-09
+
+Owner 已确认本任务属于旧方向或错误方向的历史记录，归档保留，不再作为 active 开发或 review 入口。
