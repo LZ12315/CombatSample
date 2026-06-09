@@ -10,9 +10,13 @@ Do not execute archived tasks from here.
 
 Old task bodies may reflect earlier conventions. Use `agent-system/templates/TASK_TEMPLATE.md` and current `agent-system/protocols/` as the authoritative format for new tasks.
 
-## Current Cleanup Note - 2026-06-09
+## Current Task Note - 2026-06-09
 
-The current `active/` directory contains no task markdown files after the 2026-06-09 cleanup/archive pass.
+The old release/camera task backlog was archived during the 2026-06-09 cleanup pass.
+
+Current active task:
+
+- `task-20260609-release-code-hotspot-review.md` - release code hotspot review; currently waiting for review/owner decision after the first inspection pass.
 
 When new work starts:
 - Create fresh task files from `agent-system/templates/TASK_TEMPLATE.md`.
