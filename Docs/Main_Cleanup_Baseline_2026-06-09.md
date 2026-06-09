@@ -142,6 +142,13 @@ Assets/Scenes/MiHoYo_Release.unity
 
 Historical task files and `Docs/Camera_SoftLock_Handoff_Report.md` still refer to `Assets/Scenes/MiHoYo.unity`. Treat that path as old branch context unless the owner confirms otherwise.
 
+Scene ownership was clarified in `Docs/Scene_Ownership_Baseline_2026-06-09.md`:
+
+- `Assets/Scenes/MiHoYo_Release.unity` is the canonical release/build scene.
+- `Assets/Scenes/MiHoYo_Test.unity` is the canonical broad development validation scene.
+- `Assets/Scenes/Test/` contains targeted feature validation scenes.
+- `Assets/Scenes/SampleScene.unity` is a legacy/sample archive candidate, but should not be moved or deleted until references are checked in Unity.
+
 ## 7. Task Baseline
 
 Checked with:
@@ -182,12 +189,13 @@ Low risk. No Unity serialization changes.
 
 ### Phase 2 - Scene Ownership
 
-Medium risk. May touch scenes and build settings.
+Medium risk if it touches scenes or build settings. The 2026-06-09 pass only documented ownership and did not edit Unity scene files.
 
-- Choose the canonical development validation scene.
-- Choose the canonical release scene.
-- Decide whether `MiHoYo_Test` is a temporary experiment, a dev scene, or an archive candidate.
-- Update docs and build settings only after that decision.
+- Canonical release/build scene: `Assets/Scenes/MiHoYo_Release.unity`.
+- Canonical broad development validation scene: `Assets/Scenes/MiHoYo_Test.unity`.
+- Targeted validation scenes remain under `Assets/Scenes/Test/`.
+- `SampleScene.unity` is a legacy/sample archive candidate; do not move or delete it until references are checked in Unity.
+- BuildSettings already include only `Assets/Scenes/MiHoYo_Release.unity`, so no ProjectSettings change is needed in this pass.
 
 ### Phase 3 - Resource Classification
 
