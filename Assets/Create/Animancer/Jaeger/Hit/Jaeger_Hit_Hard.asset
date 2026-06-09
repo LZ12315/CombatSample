@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c5a8877f26e7a6a43aaf06fade1a064a, type: 3}
-  m_Name: Jarger_Run
+  m_Name: Jaeger_Hit_Hard
   m_EditorClassIdentifier: 
   _Transition:
     rid: 8665091256741265409
@@ -26,6 +26,6 @@ MonoBehaviour:
           _NormalizedTimes: []
           _Callbacks: []
           _Names: []
-        _Clip: {fileID: 1827226128182048838, guid: 5cc54bdba6821ac40b4924ff715304a7,
+        _Clip: {fileID: 1827226128182048838, guid: 39e85bbd36e3a2d46aa2ab0b0e5c78be,
           type: 3}
         _NormalizedStartTime: NaN

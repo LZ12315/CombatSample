@@ -4,7 +4,9 @@
 
 This document records the current `main` state after the release merge.
 
-This cleanup pass is limited to documentation and AI task-index cleanup. It does not move Unity assets, edit scenes, edit prefabs, change serialized references, or update `ProjectSettings`.
+This document records the cleanup baseline after the release merge and the 2026-06-09 structure naming pass.
+
+The structure pass moved authored game-data assets and repository support folders, preserving Unity `.meta` files. It did not move `Assets/Resources`, edit scenes, edit prefabs, change `ProjectSettings`, remove root `bin`, or change gameplay behavior.
 
 ## 2. Git Baseline
 
@@ -28,7 +30,11 @@ Do not run a blind pull or merge until the owner decides whether those remote no
 
 ### Unity Content
 
-- `Assets/Create/`: authored action assets, action lists, Animancer assets, and NodeCanvas graph assets.
+- `Assets/GameData/`: authored gameplay data.
+  - `ActionAssets/`: ActionAsset assets and their Timeline assets.
+  - `ActionLists/`: ActionAssetList assets.
+  - `Animancer/`: Animancer transition assets used by actions.
+  - `NodeCanvasGraphs/`: NodeCanvas graph assets.
 - `Assets/Prefabs/`: actor, camera, manager, object, environment, and VFX prefabs.
 - `Assets/Resources/`: most imported runtime/art content currently lives here.
 - `Assets/Scenes/`: release, test, sample, and feature validation scenes.
@@ -42,15 +48,14 @@ Do not run a blind pull or merge until the owner decides whether those remote no
 - `agent-system/`: current AI collaboration protocols and rules.
 - `agent-tasks/active/`: active or pending task records.
 - `agent-tasks/archive/`: accepted or archived task history.
-- `Docs/`: handoff reports and current project notes.
-- `Document/plans/`: older design and migration planning notes.
-- `Tool/`: local project utility scripts.
+- `Docs/`: handoff reports, current project notes, and `Docs/Plans/` design or migration planning notes.
+- `Tools/`: local project utility scripts.
 
 ### Generated Or Local Files
 
 Unity and IDE generated files such as `Library/`, `Logs/`, `obj/`, `.vs/`, `.csproj`, and `.sln` are ignored by `.gitignore` and should not be committed.
 
-The root-level `Bin/` directory exists on disk and appears to contain old assets, disabled graphs, and archived scripts. It did not appear in `git status --porcelain` during this pass, so it is treated as local workspace history until the owner explicitly asks to classify or remove it.
+The root-level `bin/` directory is intentionally kept tracked. It contains old resources, disabled graphs, and archived scripts that may be useful later, but it remains outside `Assets/` so it does not participate in Unity imports.
 
 ## 4. Release Merge Hotspots
 
@@ -66,7 +71,7 @@ High-level result:
 - `git diff --stat origin/main..HEAD` reports `1571 files changed`.
 - The no-rename grouping is dominated by `Assets/` path entries.
 - `Assets/Resources/` has the largest change set.
-- `Assets/Create/` has the second largest change set.
+- `Assets/Create/` had the second largest release-merge change set. It has since been renamed to `Assets/GameData/` in the structure cleanup pass.
 - `Assets/Scripts/`, `Assets/Prefabs/`, `Assets/Scenes/`, and `ProjectSettings/` also changed.
 
 No-rename path-entry grouping from the scan:
@@ -74,7 +79,7 @@ No-rename path-entry grouping from the scan:
 | Area | Path entries |
 | --- | ---: |
 | `Assets/Resources/` | 1183 |
-| `Assets/Create/` | 452 |
+| `Assets/Create/` before cleanup, now `Assets/GameData/` | 452 |
 | `Assets/Scripts/` | 48 |
 | `Assets/Prefabs/` | 28 |
 | `Assets/Scenes/` | 8 |
@@ -159,7 +164,7 @@ Get-ChildItem -Path agent-tasks/active -Filter 'task-*.md'
 rg -n "^status:" agent-tasks/archive/2026/task-20260523-*.md
 ```
 
-Current `agent-tasks/active/` contains no task markdown files after the 2026-06-09 cleanup/archive pass. Only `README.md` remains there.
+Current `agent-tasks/active/` contains the narrow task records for the release hotspot review, HUD lifecycle fix, and this structure naming cleanup.
 
 Old or wrong-direction camera records archived from active on 2026-06-09:
 
@@ -174,7 +179,7 @@ Archive cleanup performed on 2026-06-09:
 - `agent-tasks/active/task-20260524-lock-camera-sector-soft-edge.md` moved to `agent-tasks/archive/2026/` and was marked `status: archived`.
 - The duplicate active copy of `task-20260515-actor-motor-timescale-motion-delta.md` was removed after confirming the archive copy contains the accepted Claude review and completion metadata.
 - The four remaining camera `review` records were reviewed, marked `blocked`, then archived after the owner confirmed they represent old or wrong directions.
-- No task records remain in `agent-tasks/active/`.
+- New structure cleanup work should use current paths such as `Assets/GameData/`, `Docs/Plans/`, and `Tools/`.
 
 ## 8. Recommended Cleanup Order
 

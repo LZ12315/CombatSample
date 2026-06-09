@@ -10,14 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c5a8877f26e7a6a43aaf06fade1a064a, type: 3}
-  m_Name: Jarger_Idle
+  m_Name: Sword_LightAttack_2
   m_EditorClassIdentifier: 
   _Transition:
-    rid: 8665091256741265409
+    rid: 834184411378876416
   references:
     version: 2
     RefIds:
-    - rid: 8665091256741265409
+    - rid: 834184411378876416
       type: {class: ClipTransition, ns: Animancer, asm: Kybernetik.Animancer}
       data:
         _FadeDuration: 0.25
@@ -26,6 +26,5 @@ MonoBehaviour:
           _NormalizedTimes: []
           _Callbacks: []
           _Names: []
-        _Clip: {fileID: 1827226128182048838, guid: e12cdc4ce230fcf48bfffbaed1f3a7a2,
-          type: 3}
+        _Clip: {fileID: 7400000, guid: 4167f43df5c14bf18b5e6e104d504709, type: 3}
         _NormalizedStartTime: NaN
