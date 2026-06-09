@@ -58,11 +58,12 @@
     },
     "explorer.fileNesting.enabled": true,
     "explorer.fileNesting.patterns": {
-        "*.sln": "*.csproj"
+        "*.sln": "*.csproj",
+        "*.slnx": "*.csproj"
     },
     "dotnet.defaultSolution": "CombatSample.slnx",
     "dotnet.enableWorkspaceBasedDevelopment": false,
-    "dotnet.preferCSharpExtension": true,
+    "dotnet.preferCSharpExtension": false,
     "claudeCode.disableLoginPrompt": true,
     "workbench.editorAssociations": {
         "*.md": "vscode.markdown.preview.editor"
