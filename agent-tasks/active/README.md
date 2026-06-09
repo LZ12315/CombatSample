@@ -16,7 +16,8 @@ The old release/camera task backlog was archived during the 2026-06-09 cleanup p
 
 Current active task:
 
-- `task-20260609-release-code-hotspot-review.md` - release code hotspot review; currently waiting for review/owner decision after the first inspection pass.
+- `task-20260609-release-code-hotspot-review.md` - release code hotspot review; accepted by owner and kept active until a later archive pass.
+- `task-20260609-combat-hud-disable-hide.md` - narrow HUD lifecycle fix; currently waiting for review after implementation.
 
 When new work starts:
 - Create fresh task files from `agent-system/templates/TASK_TEMPLATE.md`.

@@ -66,12 +66,14 @@ public sealed class CombatHudController : MonoBehaviour
 
     private void OnDisable()
     {
+        HideViewsInstant();
         UnbindPlayer();
         UnbindEnemy();
     }
 
     private void OnDestroy()
     {
+        HideViewsInstant();
         UnbindPlayer();
         UnbindEnemy();
     }
@@ -269,6 +271,12 @@ public sealed class CombatHudController : MonoBehaviour
         if (_boundEnemy != null)
             _boundEnemy.HealthChanged -= OnEnemyHealthChanged;
         _boundEnemy = null;
+    }
+
+    private void HideViewsInstant()
+    {
+        _playerView?.SetVisible(false, true);
+        _enemyView?.SetVisible(false, true);
     }
 
     private void SyncBoundHealth()

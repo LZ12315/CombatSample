@@ -2,15 +2,15 @@
 id: task-20260609-release-code-hotspot-review
 title: Release Code Hotspot Review
 summary: Review release-merge code hotspots before continuing feature development, focusing on regressions, ownership boundaries, and cleanup risks.
-status: review
+status: done
 current_round: 1
 planner: Codex
 executor: Codex
-reviewer:
+reviewer: Owner
 created_at: 2026-06-09
 updated_at: 2026-06-09
 claimed_at: 2026-06-09
-completed_at:
+completed_at: 2026-06-09
 ---
 
 # 任务：Release 代码热点审查
@@ -20,15 +20,15 @@ completed_at:
 | 属性 / Field | 值 / Value |
 | --- | --- |
 | id | `task-20260609-release-code-hotspot-review` |
-| status | `review` |
+| status | `done` |
 | current_round | `1` |
 | planner | `Codex` |
 | executor | `Codex` |
-| reviewer |  |
+| reviewer | `Owner` |
 | created_at | `2026-06-09` |
 | updated_at | `2026-06-09` |
 | claimed_at | `2026-06-09` |
-| completed_at |  |
+| completed_at | `2026-06-09` |
 
 ---
 
@@ -225,4 +225,22 @@ C:\Program Files (x86)\Microsoft Visual Studio\Shared\NuGetPackages
 
 ### 3. 审查 / Review
 
-未审查。
+Agent: Owner
+Role: Reviewer
+Date: 2026-06-09
+
+#### 决策 / Decision
+
+`accepted`
+
+#### 发现或疑虑 / Findings Or Concerns
+
+Owner 接受本轮热点审查结论，并要求直接继续处理第一个明确修复点：`CombatHudController.OnDisable()` 禁用组件时 HUD 可能残留。
+
+#### 必要修改 / Required Changes
+
+- 新建小任务修复 `CombatHudController` 生命周期隐藏问题。
+
+#### 是否可以标记为 done
+
+可以。本审查任务已完成，后续修复另开任务跟踪。
