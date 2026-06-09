@@ -1,29 +1,32 @@
 # Agent Entry
 
-This file is intentionally short. Tooling discovers `AGENTS.md` at the repository root, so it stays here as the stable entry point.
+This repository now uses Backlog.md as the primary AI collaboration system.
 
-The durable AI collaboration system lives in:
-- `agent-system/`
+Primary workflow:
+- Use Backlog.md as the shared task system. If a local MCP connection is configured, use the `backlog` MCP server.
+- Read the shared workflow instructions from Backlog docs or the local Backlog task records.
+- Use `backlog/` task files as the source of truth for active work.
+- Keep completed Backlog tasks as the durable iteration record for later archive export.
 
-Task files live in:
-- `agent-tasks/active/`
-- `agent-tasks/archive/`
+Workspace boundary:
+- The current repository is the project boundary.
+- Do not treat chat history from another project as fact for this workspace.
+- If the user mentions another workspace, stop and ask which repository should be edited.
 
-Before planning, executing, reviewing, or archiving AI tasks, read:
-- `agent-system/WORKSPACE_BOUNDARY.md`
-- `agent-system/README.md`
-- `agent-system/protocols/COLLABORATION_PROTOCOL.md`
-- `agent-system/protocols/TASK_PROTOCOL.md`
-- `agent-system/protocols/REVIEW_PROTOCOL.md`
-- `agent-system/protocols/ARCHIVE_PROTOCOL.md`
-- `agent-system/protocols/STATUS_GUIDE.md`
-- The relevant role rule in `agent-system/rules/`
+Task handling:
+- Prefer existing Backlog tasks over ad hoc chat memory.
+- If no suitable task exists, create or update one in Backlog before substantial implementation.
+- Treat `Review` as the handoff state before `Done`.
+- Do not mark a task `Done` until the user or reviewer accepts the result.
+- Do not automatically start the next task after finishing one.
 
-Core rules:
-- The current workspace is the project boundary. Follow `agent-system/WORKSPACE_BOUNDARY.md`; do not use chat history from another project as fact for this workspace.
-- Any agent can act as planner, executor, or reviewer. The current task and user instruction decide the role.
-- Agents must not move themselves into another role. Publishing, executing, reviewing, and archiving are separate user-initiated actions.
-- Use task markdown files as the source of truth for cross-agent handoff.
-- Keep task rounds append-only: plan, execution report, and review are added round by round until done.
-- Do not overwrite another agent's historical plan, report, or review. Add a new round or append a dated note instead.
-- Keep Unity edits local and reviewable. Follow `agent-system/rules/UNITY_RULES.md`.
+Unity guardrails:
+- Keep Unity edits small, local, and reviewable.
+- Do not edit generated output such as `Library/`, `Temp/`, `obj/`, `.csproj`, or `.sln` files.
+- Do not make unrelated prefab, scene, `.meta`, `ProjectSettings`, or package changes.
+- Preserve serialized field names, public APIs, prefab references, and scene references unless the task explicitly requires changing them.
+- Prefer focused EditMode or PlayMode tests when practical. If they are not practical, record exact manual validation steps.
+
+Legacy note:
+- `agent-system/` and `agent-tasks/` are legacy records from the previous workflow.
+- Existing files under `agent-tasks/archive/` are historical raw material, not the source of truth for new work.
