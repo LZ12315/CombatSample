@@ -5,7 +5,8 @@
       "Read(//d/ApplicationLibrary/ClaudeCode/**)",
       "Bash(dotnet build:*)",
       "Skill(update-config)",
-      "Skill(update-config:*)"
+      "Skill(update-config:*)",
+      "mcp__backlog__task_list"
     ]
   }
 }
