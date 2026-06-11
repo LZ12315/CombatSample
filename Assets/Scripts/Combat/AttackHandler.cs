@@ -2,7 +2,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using DeiveEx.TagTree;
-using UnityEditor;
 using UnityEngine;
 
 [Serializable]
