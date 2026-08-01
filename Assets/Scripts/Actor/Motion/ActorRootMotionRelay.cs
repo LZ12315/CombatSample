@@ -47,6 +47,10 @@ public sealed class ActorRootMotionRelay : MonoBehaviour
             motor = GetComponentInParent<ActorMotor>();
         if (motor == null)
         {
+#if UNITY_EDITOR
+            if (UnityEditor.EditorUtility.IsPersistent(this))
+                return;
+#endif
             Debug.LogWarning(
                 $"[ActorRootMotionRelay] No ActorMotor assigned or found in parent of '{name}'. "
                 + "Assign the motor in the Inspector or place this relay on a child of the "
