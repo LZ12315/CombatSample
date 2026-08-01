@@ -1,5 +1,7 @@
 # ActorMotor Runtime 架构落地计划
 
+> **Archive status (2026-08-02):** 本计划已经完成并继续演进。计划中的 `ActorMovement` 兼容 facade 后来已被删除；序列化配置、locomotion 和 facing 现在由 `ActorMotor` 及其 runtime 持有。本文仅用于理解迁移历史，不应作为当前实施步骤。
+
 ## 设计原则
 
 - **KCC tick 状态归 ActorMotor 管**：凡是依赖 `PostGroundingUpdate / UpdateVelocity / AfterCharacterUpdate / OnMovementHit` 顺序的状态，都不再由 `ActorMovement` 拥有。

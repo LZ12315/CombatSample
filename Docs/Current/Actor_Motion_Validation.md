@@ -1,8 +1,12 @@
 # Actor Motion 行为基线验证清单
 
-本文档用于第二轮整理前固定行为基线。当前阶段不追求重命名或继续拆分代码，目标是确认 `ActorMotor -> ActorMotionRuntime -> MotionChannels/GroundingRuntime/RootMotionBuffer/VelocityReadout` 这条链路在关键场景下的预期行为。
+> Status: Current validation checklist  
+> Code structure verified: 2026-08-02  
+> The recorded PlayMode results below are historical results from 2026-05-05 and must be rerun before being treated as current.
 
-后续清理 `MotionChannels`、`GroundingRuntime` 或 facade 时，应先对照本文档，避免把“结构变清楚”变成“手感偷偷变了”。
+本文档用于固定 Actor Motion 行为基线。目标是确认 `ActorMotor -> ActorMotionRuntime -> MotionChannels/GroundingRuntime/RootMotionBuffer/VelocityReadout` 这条链路在关键场景下的预期行为。
+
+后续清理 `ActorMotor`、`MotionChannels` 或 `GroundingRuntime` 时，应先对照本文档，避免把结构调整变成未记录的手感变化。
 
 ## 总原则
 
@@ -17,16 +21,16 @@
 
 - `ActorMotor` 是 KCC 回调入口，负责把 KCC tick 驱动到 runtime。
 - `BeforeCharacterUpdate` 捕获本 tick 起点，并调用 `MotionRuntime.BeginMotorTick()`。
-- `UpdateVelocity` 在 `MovementTimeScale <= 0` 或 `deltaTime <= 0` 时走暂停分支，避免 RootMotion delta / `deltaTime` 除法出问题。
+- `UpdateVelocity` 在 `deltaTime <= 0` 时走暂停分支；`MovementTimeScale == 0` 则通过统一的速度出口倍率把请求速度归零。
 - `AfterCharacterUpdate` 用 KCC 最终位移计算 solved velocity，再交给 `VelocityReadout` 发布。
-- `_motorFrameStartWorldPosition`、`_pausedThisTick`、`_requestedVelocity` 仍归 `ActorMotor`，因为它们依赖 KCC 本 tick 的桥接上下文。
+- `_motorFrameStartWorldPosition`、`_kccPaused`、`_requestedVelocity` 归 `ActorMotor`，因为它们依赖 KCC 本 tick 的桥接上下文。
 
 ### ActorMotionRuntime
 
 - runtime 是纯 C# 状态根，管理 MotionChannels、GroundingRuntime、RootMotionBuffer、VelocityReadout。
 - `MovementTimeScale`、`GravityScale`、`RootMotionApplyMode` 是运行时策略状态。
-- `ActorMovement` 只保留 facade、序列化配置、locomotion intent、facing pipeline。
-- `ActorMovement` 的早期策略 setter 调用需要被 buffer，并在 `BindMotor` 后 replay。
+- `ActorMotor` 是唯一公开运动入口，并持有序列化配置。
+- locomotion intent 和 facing 分别由 `LocomotionRuntime`、`FacingRuntime` 管理；项目中已不存在 `ActorMovement` facade。
 
 ### MotionChannels
 
@@ -46,10 +50,10 @@
 ### RootMotionBuffer
 
 - Managed 模式下，pending root position 转成 KCC velocity，驱动物理位移。
-- External 模式下，不用 root position 驱动 KCC velocity。
-- root rotation 仍在 `ActorMotor.UpdateRotation` 中叠加。
-- Y dead-zone 的累计状态属于 RootMotionBuffer。
-- motor tick 结束后清空 pending root position / rotation。
+- External 模式下，不用 root position 驱动 KCC velocity，也不叠加 root rotation。
+- Managed 模式下，root rotation 在 `ActorMotor.UpdateRotation` 中叠加。
+- Animator delta 的跨 Update/KCC-tick 累积与 snapshot 状态属于 `RootMotionBuffer`。
+- `BeginMotorTick` 使用 snapshot 模式取得并清空累积缓冲，避免旧 delta 泄漏到下一 tick。
 
 ### VelocityReadout
 
@@ -57,13 +61,11 @@
 - 稳定接地时 readout 的 Y 目标为 0。
 - 垂直速度平滑用于动画/条件系统读数，不应该反向影响 KCC 物理解算。
 
-## 手动验证场景
-
-## 本轮验证结果
+## 历史验证结果（需要重跑）
 
 验证时间：2026-05-05
 
-结果汇总：
+以下结果只说明 2026-05-05 当时的版本曾通过，不代表 2026-08-02 当前代码已经重新验证：
 
 | 场景 | 结果 | 备注 |
 | --- | --- | --- |
@@ -145,7 +147,7 @@
 
 预期：
 - `ActorMotor.OnMovementHit` 判断 hit normal 指向下方后调用 `SignalCeilingHit()`。
-- 下一次 `StepVerticalImpulseDecay` 清掉正向垂直 impulse。
+- 下一次 `StepVerticalImpulse` 清掉正向垂直 impulse。
 - gravity accumulator 继续正常演化，不阻止后续下落。
 - 不触发落地事件。
 
@@ -162,7 +164,7 @@
 - `RootMotionBuffer` 累积 animator delta。
 - `ComposeKccVelocity` 使用 pending root position / `deltaTime` 生成 KCC velocity。
 - 接地时 root motion velocity 仍投影到稳定地面切线。
-- motor tick 结束后清空 pending root position / rotation。
+- `BeginMotorTick` 消费本 tick 的 root-motion snapshot；下一 tick 不应重复消费同一 delta。
 
 记录：
 - 当前结果：通过
@@ -176,11 +178,11 @@
 预期：
 - root position 不接管 KCC velocity。
 - locomotion / impulse / velocity owner 正常参与合成。
-- root rotation 的预期行为需要单独确认：如果当前设计仍叠加 rotation，应记录为明确行为。
+- root rotation 不由 ActorMotor 应用，避免与外部旋转处理重复叠加。
 
 记录：
 - 当前结果：通过
-- 备注：External 模式下物理位移表现正常。root rotation 是否应受 External 排除仍保留为后续设计讨论点。
+- 备注：旧版本只验证了物理位移；当前“External 不应用 position/rotation”的完整语义需要重跑。
 
 ### 8. HitStop / MovementTimeScale = 0
 
@@ -188,9 +190,9 @@
 - 触发攻击命中后的 HitStop，冻结攻击方或双方 movement time。
 
 预期：
-- `ActorMotor.UpdateVelocity` 走暂停分支，KCC 请求速度为 0。
-- 不发生 root motion delta / `deltaTime` 除法。
-- `ActorMovement.Update` 的 facing dt 使用 buffered/runtime `MovementTimeScale`。
+- `MovementTimeScale == 0` 时统一速度出口倍率为 0，KCC 请求速度为 0。
+- RootMotion 位移换算仍使用真实 KCC `deltaTime`，结果再乘时间倍率，不发生除零。
+- `ActorMotor.Update` 的 facing dt 使用 `MovementTimeScale`。
 - 恢复 time scale 后，速度、ground state、root motion buffer 不出现明显残留错位。
 
 记录：
@@ -211,18 +213,14 @@
 - 当前结果：通过
 - 备注：Action 切换后速度 owner 未出现泄漏。
 
-## 第二轮整理顺序
+## 下一次验证顺序
 
-1. 跑完上述场景，补充“当前结果”。
-2. 整理 `MotionChannels` 的命名、注释和 API 边界，尽量不改数学行为。
-3. 重跑 MotionChannels 相关场景：普通跳、二段跳、斜坡、撞天花板、Action 切换。
-4. 整理 `GroundingRuntime` 的 forced unground / suppress 命名，让事件语义更直白。
-5. 重跑 grounding 相关场景：普通跳、落地、forced unground 后 KCC stable -> unstable。
-6. 再讨论 `ActorMovement` facade 是否继续保留或逐步收窄。
+1. 在 `Assets/Scenes/Test/KCC_Migration_Test.unity` 重跑普通跳、二段跳、斜坡、落地和撞天花板。
+2. 在包含相应 ActionAsset 的战斗场景重跑 RootMotion Managed、RootMotion External、HitStop 和 Action 切换。
+3. 将上表结果改为当前日期，并记录使用的场景、角色和 ActionAsset。
+4. 若结果失败，先单独记录问题；不要在验证过程中顺手重构运动数学。
 
-## 待讨论问题
+## 仍需确认的设计问题
 
-- `RootMotionApplyMode.External` 下是否应该仍然叠加 root rotation，还是 position/rotation 都外部处理。
-- `MotionChannels.AddVerticalImpulse` 是否需要更明确的命名来表达 launch/slam 语义。
-- 是否需要公开 `ClearVerticalImpulse()`。当前倾向是不为了对称新增，除非出现明确 gameplay 需求。
-- `GroundingRuntime` 的 suppress 标记是否只改名，还是抽成显式 transition reason。
+- 是否需要公开 `ClearVerticalImpulse()`；当前没有明确 gameplay 调用需求。
+- `GroundingRuntime` 的 `_leftGroundEventAlreadyEmittedByForceUnground` 是否需要改成显式 transition reason。当前实现行为明确，重命名优先级较低。

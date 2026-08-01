@@ -1,5 +1,7 @@
 # KCC 接入第二阶段改造方案
 
+> **Archive status (2026-08-02):** 本计划已经实施，并被后续 ActorMotor runtime 重构继续推进。项目中已不存在 `ActorMovement`；请勿按本文中的文件列表、Windows 绝对路径或伪代码继续实施。当前运动结构见 `Docs/Current/Actor_Motion_Validation.md` 和实际 `Assets/Scripts/Actor/` 代码。
+
 ## 一句话结论
 现在这版 KCC 接入已经不是乱接，结构方向是对的。
 
