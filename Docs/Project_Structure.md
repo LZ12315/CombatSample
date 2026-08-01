@@ -9,9 +9,8 @@ This file describes the intended repository layout after the 2026-06-09 main cle
 - `ProjectSettings/`: Unity project settings.
 - `Docs/`: current project notes, handoff reports, and planning documents.
 - `Tools/`: local utility scripts for project inspection or maintenance.
-- `agent-system/`: AI collaboration rules and protocols.
-- `agent-tasks/`: active and archived AI task records.
-- `bin/`: tracked old resources and archived experiments kept outside Unity imports.
+- `Bin/`: tracked old resources and archived experiments kept outside Unity imports.
+- `AGENTS.md`: repository-level instructions for AI-assisted work.
 
 Unity and IDE generated folders such as `Library/`, `Temp/`, `Logs/`, `obj/`, `.vs/`, `.csproj`, and `.sln` are local/generated and should stay uncommitted.
 

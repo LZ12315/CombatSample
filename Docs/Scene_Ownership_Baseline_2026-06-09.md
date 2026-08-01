@@ -15,7 +15,7 @@ Get-ChildItem -LiteralPath Assets/Scenes -File -Recurse
 Get-Content -Encoding UTF8 ProjectSettings/EditorBuildSettings.asset
 Select-String -Path Assets/Scenes/**/*.unity.meta -Pattern "^guid:"
 Get-Content -Encoding UTF8 Assets/Scripts/Editor/ReleaseArenaBaker.cs
-rg -n "MiHoYo_Release|MiHoYo_Test|SampleScene|Camera_Test|Combat_Test|EnemyAI_Test|KCC_Migration_Test|Photo_Test|VFX_Test|Assets/Scenes/MiHoYo\.unity" Docs Document agent-tasks Assets
+rg -n "MiHoYo_Release|MiHoYo_Test|SampleScene|Camera_Test|Combat_Test|EnemyAI_Test|KCC_Migration_Test|Photo_Test|VFX_Test|Assets/Scenes/MiHoYo\.unity" Docs Assets
 ```
 
 Key evidence:

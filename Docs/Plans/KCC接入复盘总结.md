@@ -146,9 +146,9 @@ CurrentVelocity = Vector3.zero;
 
 角色停住，KCC 停住，动作系统读到的速度也停住。
 
-## 第六阶段：你用 Claude Code 实现计划，我们做 review
+## 第六阶段：你用 AI 编码工具实现计划，我们做 review
 
-你在 Claude Code 上按计划实现了第一版。
+你在 AI 编码工具上按计划实现了第一版。
 
 那一版已经解决了大部分核心问题：
 
