@@ -9,6 +9,10 @@
 - [Project Structure](Current/Project_Structure.md) — factual repository layout and scene entry points.
 - [Scene Ownership Baseline](Current/Scene_Ownership_Baseline_2026-08-02.md) — current release and targeted validation scenes.
 - [Actor Motion Validation](Current/Actor_Motion_Validation.md) — current behavior checklist; historical PlayMode results are explicitly marked and need rerunning.
+- [ActionSequence Editor Design Spec](Current/ActionSequence_Editor_Design_Spec.md) — active design language and acceptance rules for the fixed-frame ActionSequence editor.
+- [ActionSequence Editor Implementation Audit](Current/ActionSequence_Editor_Implementation_Audit_2026-08-02.md) — current gap analysis against the ActionSequence editor design spec.
+- [ActionSequence Editor V2 Architecture](Current/ActionSequence_Editor_V2_Architecture.md) — approved implementation architecture for rebuilding the editor on UI Toolkit; supersedes the prototype editor architecture.
+- [ActionSequence 编辑器 V2 架构（中文）](Current/ActionSequence_Editor_V2_Architecture_zh-CN.md) — V2 架构的完整中文版本。
 
 ## Proposals
 
