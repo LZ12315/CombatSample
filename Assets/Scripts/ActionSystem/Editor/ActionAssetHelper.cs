@@ -13,6 +13,12 @@ public class ActionAssetHelper
         var actionAsset = EditorUtility.InstanceIDToObject(instanceID) as ActionAsset;
         if (actionAsset == null) return false; 
 
+        if (actionAsset.UsesSequence)
+        {
+            ActionSequenceEditorWindow.Open(actionAsset);
+            return true;
+        }
+
         if (actionAsset.TimelineAsset == null)
         {
             Debug.LogWarning($"[ActionAssetHelper] {actionAsset.name} 没有关联的 TimelineAsset！");

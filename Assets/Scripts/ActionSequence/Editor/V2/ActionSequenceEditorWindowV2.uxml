@@ -1,0 +1,30 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements">
+    <ui:VisualElement name="asv2-root" class="asv2-root">
+        <ui:VisualElement name="toolbar-host" class="asv2-toolbar-host">
+            <uie:ObjectField name="target-field" label="Target" class="asv2-target-field" />
+            <ui:Button name="add-track-button" text="+ Track" class="asv2-toolbar-button" />
+            <ui:Button name="play-pause-button" text=">" class="asv2-toolbar-icon-button" />
+            <ui:Button name="stop-button" text="[]" class="asv2-toolbar-icon-button" />
+            <uie:IntegerField name="current-frame-field" class="asv2-current-frame-field" />
+            <ui:Label name="fps-label" class="asv2-toolbar-label" />
+            <ui:Label name="duration-label" class="asv2-toolbar-label" />
+            <ui:Slider name="zoom-slider" class="asv2-zoom-slider" />
+            <ui:Button name="fit-button" text="Fit" class="asv2-toolbar-button" />
+        </ui:VisualElement>
+        <ui:VisualElement name="timeline-host" class="asv2-timeline-host">
+            <ui:VisualElement name="timeline-body" class="asv2-timeline-body">
+                <ui:VisualElement name="track-header-column" class="asv2-track-header-column">
+                    <ui:VisualElement class="asv2-ruler-corner" />
+                    <ui:ScrollView name="header-scroll" class="asv2-header-scroll" />
+                </ui:VisualElement>
+                <ui:VisualElement name="ruler-host" class="asv2-ruler-host" />
+                <ui:ScrollView name="lane-scroll" class="asv2-lane-scroll" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="status-bar" class="asv2-status-bar">
+            <ui:Label name="status-target-label" class="asv2-status-label" />
+            <ui:Label name="status-validation-label" class="asv2-status-label asv2-status-validation" />
+            <ui:Button name="repair-ids-button" text="Repair IDs" class="asv2-status-button" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

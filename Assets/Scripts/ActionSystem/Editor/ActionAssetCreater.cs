@@ -10,6 +10,7 @@ public class ActionAssetCreater
         ActionAsset actionAsset = ScriptableObject.CreateInstance<ActionAsset>();
         AssetDatabase.CreateAsset(actionAsset, path);
 
+        actionAsset.SetPlaybackBackend(ActionPlaybackBackend.LegacyTimeline);
         CreateAndLinkTimeline(actionAsset, path);
 
         EditorUtility.SetDirty(actionAsset);
@@ -19,7 +20,22 @@ public class ActionAssetCreater
         return actionAsset;
     }
 
-private static void CreateAndLinkTimeline(ActionAsset actionAsset, string actionPath)
+    public static ActionAsset CreateSequenceActionAsset(string path)
+    {
+        ActionAsset actionAsset = ScriptableObject.CreateInstance<ActionAsset>();
+        actionAsset.SetPlaybackBackend(ActionPlaybackBackend.Sequence);
+        actionAsset.SequenceData.InitializeNewSequenceDefaults();
+        ActionSequenceEditorIdentity.UpgradeMissingIdsWithoutUndo(actionAsset);
+        AssetDatabase.CreateAsset(actionAsset, path);
+
+        EditorUtility.SetDirty(actionAsset);
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
+
+        return actionAsset;
+    }
+
+    private static void CreateAndLinkTimeline(ActionAsset actionAsset, string actionPath)
     {
         string directory = Path.GetDirectoryName(actionPath);
         string actionName = Path.GetFileNameWithoutExtension(actionPath);
@@ -56,10 +72,21 @@ private static void CreateAndLinkTimeline(ActionAsset actionAsset, string action
     [MenuItem("Assets/Create/ActionSystem/ActionAsset", priority = 0)]
     public static void CreateActionTimelineAsset()
     {
+        StartCreateActionAsset("New Action", false);
+    }
+
+    [MenuItem("Assets/Create/ActionSystem/ActionAsset Sequence", priority = 1)]
+    public static void CreateActionSequenceAsset()
+    {
+        StartCreateActionAsset("New Sequence Action", true);
+    }
+
+    private static void StartCreateActionAsset(string defaultName, bool sequenceBackend)
+    {
         ProjectWindowUtil.StartNameEditingIfProjectWindowExists(
             0,
-            ScriptableObject.CreateInstance<CreateActionAssetCallback>(),
-            "New Action", // 默认名字
+            CreateActionAssetCallback.Create(sequenceBackend),
+            defaultName,
             EditorGUIUtility.IconContent("ScriptableObject Icon").image as Texture2D,
             null
         );
@@ -67,6 +94,16 @@ private static void CreateAndLinkTimeline(ActionAsset actionAsset, string action
 
     private class CreateActionAssetCallback : UnityEditor.ProjectWindowCallback.EndNameEditAction
     {
+        [SerializeField]
+        private bool sequenceBackend;
+
+        public static CreateActionAssetCallback Create(bool sequenceBackend)
+        {
+            var callback = ScriptableObject.CreateInstance<CreateActionAssetCallback>();
+            callback.sequenceBackend = sequenceBackend;
+            return callback;
+        }
+
         public override void Action(int instanceId, string path, string resourceFile)
         {
             // ? 核心优化：拦截路径，自动创建专属文件夹
@@ -86,7 +123,9 @@ private static void CreateAndLinkTimeline(ActionAsset actionAsset, string action
             // 更新最终资产要保存的路径（放到刚建好的文件夹里）
             string finalAssetPath = Path.Combine(folderPath, $"{actionName}.asset").Replace("\\", "/");
 
-            var asset = CreateActionAsset(finalAssetPath);
+            var asset = sequenceBackend
+                ? CreateSequenceActionAsset(finalAssetPath)
+                : CreateActionAsset(finalAssetPath);
             if (asset != null)
             {
                 // 创建完毕后，高亮选中生成的 ActionAsset
