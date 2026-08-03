@@ -17,11 +17,23 @@ public enum ActionStartContextMode
     LocomotionIntent = 1,
 }
 
+public enum ActionPlaybackBackend
+{
+    LegacyTimeline = 0,
+    Sequence = 1,
+}
+
 public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
 {
     [Header("Core")]
     [SerializeField, Tooltip("Main Timeline asset")]
     private TimelineAsset _timelineAsset;
+
+    [SerializeField, Tooltip("Runtime carrier for this action. LegacyTimeline keeps the existing PlayableDirector path.")]
+    private ActionPlaybackBackend _playbackBackend = ActionPlaybackBackend.LegacyTimeline;
+
+    [SerializeField, Tooltip("Embedded fixed-frame action sequence data for the Sequence backend.")]
+    private ActionSequenceData _sequenceData = new ActionSequenceData();
 
     [Header("Priority")]
     [FormerlySerializedAs("_priority")]
@@ -76,6 +88,11 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
         set { if (_timelineAsset != value) _timelineAsset = value; }
     }
 
+    public ActionPlaybackBackend PlaybackBackend => _playbackBackend;
+    public ActionSequenceData SequenceData => _sequenceData;
+    public bool UsesTimeline => _playbackBackend == ActionPlaybackBackend.LegacyTimeline;
+    public bool UsesSequence => _playbackBackend == ActionPlaybackBackend.Sequence;
+
     public Enums.ActionPriority PriorityLayer => _priorityLayer;
     public int PriorityValue => _priorityValue;
     public IReadOnlyList<CancelRule> CancelRules => _cancelRules;
@@ -101,6 +118,16 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
     public void SetTimelineAsset(TimelineAsset timelineAsset)
     {
         _timelineAsset = timelineAsset;
+        MarkDirty();
+    }
+
+    public void SetPlaybackBackend(ActionPlaybackBackend playbackBackend)
+    {
+        if (_playbackBackend == playbackBackend)
+            return;
+
+        _playbackBackend = playbackBackend;
+        EnsureSequenceData();
         MarkDirty();
     }
 
@@ -256,13 +283,24 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
     private void OnEnable()
     {
         EnsureLists();
+        EnsureSequenceData();
     }
 
-    public void OnBeforeSerialize() { }
+    private void OnValidate()
+    {
+        EnsureLists();
+        EnsureSequenceData();
+    }
+
+    public void OnBeforeSerialize()
+    {
+        EnsureSequenceData();
+    }
 
     public void OnAfterDeserialize()
     {
         EnsureLists();
+        EnsureSequenceData();
         MigrateLegacySelfTag();
     }
 
@@ -276,6 +314,14 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
             _cancelRules = new List<CancelRule>();
         if (_selfTags == null)
             _selfTags = new List<TagReference>();
+    }
+
+    private void EnsureSequenceData()
+    {
+        if (_sequenceData == null)
+            _sequenceData = new ActionSequenceData();
+
+        _sequenceData.Normalize();
     }
 
     private void MigrateLegacySelfTag()
