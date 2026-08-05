@@ -8,6 +8,7 @@ internal sealed class ActionSequenceTrackHeaderRow : VisualElement
     private readonly Button collapseButton;
     private readonly Label nameLabel;
     private readonly Label typeLabel;
+    private readonly ActionSequenceIssueBadge issueBadge;
     private readonly Button addClipButton;
     private readonly Toggle muteToggle;
     private readonly Toggle lockToggle;
@@ -34,6 +35,9 @@ internal sealed class ActionSequenceTrackHeaderRow : VisualElement
         typeLabel = new Label();
         typeLabel.AddToClassList("asv2-track-type");
         labelContainer.Add(typeLabel);
+
+        issueBadge = new ActionSequenceIssueBadge();
+        Add(issueBadge);
 
         addClipButton = new Button { text = "+" };
         addClipButton.AddToClassList("asv2-track-icon-button");
@@ -83,7 +87,7 @@ internal sealed class ActionSequenceTrackHeaderRow : VisualElement
     public event Action<ActionSequenceTrackSnapshot, bool> CollapseChanged;
     public event Action<ActionSequenceTrackSnapshot, Vector2> ContextRequested;
 
-    public void Bind(ActionSequenceDisplayTrack track, bool selected)
+    public void Bind(ActionSequenceDisplayTrack track, bool selected, ActionSequenceValidationPresentation validation)
     {
         ActionSequenceTrackSnapshot snapshot = track.Snapshot;
         Snapshot = snapshot;
@@ -96,6 +100,7 @@ internal sealed class ActionSequenceTrackHeaderRow : VisualElement
         typeLabel.tooltip = string.IsNullOrEmpty(ActionSequenceViewUtility.GetFullTypeName(snapshot.Type))
             ? typeName
             : ActionSequenceViewUtility.GetFullTypeName(snapshot.Type);
+        issueBadge.Refresh(validation != null ? validation.GetTrackIssueState(snapshot) : default);
 
         SetClass("asv2-track-muted", snapshot.Muted);
         SetClass("asv2-track-locked", snapshot.Locked);

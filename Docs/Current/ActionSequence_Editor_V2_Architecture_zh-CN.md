@@ -1,6 +1,6 @@
 # ActionSequence 编辑器 V2 架构
 
-> 状态：已确认的架构基线；Stage 0、Stage 1 核心基础、Stage 2 只读 UI Toolkit 绘制基础、Stage 3 非拖拽编辑闭环与 Stage 4 Timing 交互已实现，等待完整 Unity EditMode 验证  
+> 状态：已确认的架构基线；Stage 0 至 Stage 5 Validation/Polish 基础已实现，等待完整 Unity EditMode 验证
 > 版本：1.0  
 > 日期：2026-08-03  
 > 目标版本：Unity 2022.3.62f3  
@@ -623,6 +623,8 @@ Assets/Scripts/ActionSequence/Editor/V2/
 - 增加 Missing Type/Error Placeholder。
 - 验证深浅主题、窄窗口、高 DPI 与 Domain Reload。
 - 分析 Repaint 与结构 Reconcile 性能。
+
+状态：基于 Validator 的展示层、行内 Issue Badge、Issues 面板、显式 Repair Command 路由，以及 Missing managed-reference 类型的保留显示已实现。当前 shell 无法启动 Unity Editor，因此完整 Unity EditMode 验证暂未完成。
 
 退出条件：不存在静默数据修改，也不存在依赖 Hover 的刷新。
 

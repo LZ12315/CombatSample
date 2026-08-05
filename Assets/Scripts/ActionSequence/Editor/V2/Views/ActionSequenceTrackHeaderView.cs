@@ -35,7 +35,7 @@ internal sealed class ActionSequenceTrackHeaderView : VisualElement
         Reconcile(tracks, null);
     }
 
-    public void Reconcile(IReadOnlyList<ActionSequenceDisplayTrack> tracks, ActionSequenceEditorState state)
+    public void Reconcile(IReadOnlyList<ActionSequenceDisplayTrack> tracks, ActionSequenceEditorState state, ActionSequenceValidationPresentation validation = null)
     {
         seenKeys.Clear();
         orderedRows.Clear();
@@ -56,7 +56,7 @@ internal sealed class ActionSequenceTrackHeaderView : VisualElement
                 rowsByKey.Add(track.RenderKey, row);
             }
 
-            row.Bind(track, state != null && state.IsTrackSelected(track.Snapshot));
+            row.Bind(track, state != null && state.IsTrackSelected(track.Snapshot), validation);
             orderedRows.Add(row);
         }
 

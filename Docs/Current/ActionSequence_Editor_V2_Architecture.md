@@ -1,6 +1,6 @@
 # ActionSequence Editor V2 Architecture
 
-> Status: Approved architecture baseline; Stage 0, Stage 1 core foundations, Stage 2 read-only UI Toolkit rendering, Stage 3 non-drag authoring, and Stage 4 timing interactions are implemented pending full Unity EditMode verification  
+> Status: Approved architecture baseline; Stage 0 through Stage 5 validation/polish foundations are implemented pending full Unity EditMode verification
 > Version: 1.0  
 > Date: 2026-08-03  
 > Target: Unity 2022.3.62f3  
@@ -623,6 +623,8 @@ Exit: pointer capture, Escape cancellation, snapping, lock protection, and Undo 
 - Add missing-type/error placeholders.
 - Verify dark/light theme, narrow window, high-DPI, and domain reload behavior.
 - Profile repaint and structural reconciliation.
+
+Status: implemented for validator-backed presentation, inline issue badges, the Issues panel, explicit repair command routing, and missing managed-reference type preservation/display. Full Unity EditMode verification is pending because the current shell cannot launch the Unity Editor.
 
 Exit: no silent authored-data mutation and no hover-dependent refresh.
 

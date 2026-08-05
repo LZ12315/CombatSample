@@ -43,7 +43,7 @@ internal sealed class ActionSequenceTrackLaneRow : VisualElement
             view.CancelGesture();
     }
 
-    public void Bind(ActionSequenceDisplayTrack track, ActionSequenceTimelineTransform transform, ActionSequenceEditorState state)
+    public void Bind(ActionSequenceDisplayTrack track, ActionSequenceTimelineTransform transform, ActionSequenceEditorState state, ActionSequenceValidationPresentation validation = null)
     {
         RenderKey = track.RenderKey;
         ActionSequenceTrackSnapshot snapshot = track.Snapshot;
@@ -54,7 +54,7 @@ internal sealed class ActionSequenceTrackLaneRow : VisualElement
         SetClass("asv2-track-lane-locked", snapshot.Locked);
         SetClass("asv2-track-lane-collapsed", snapshot.Collapsed);
 
-        ReconcileClips(track, transform, state);
+        ReconcileClips(track, transform, state, validation);
     }
 
     public void RefreshGeometry(ActionSequenceDisplayTrack track, ActionSequenceTimelineTransform transform)
@@ -73,7 +73,7 @@ internal sealed class ActionSequenceTrackLaneRow : VisualElement
         }
     }
 
-    private void ReconcileClips(ActionSequenceDisplayTrack track, ActionSequenceTimelineTransform transform, ActionSequenceEditorState state)
+    private void ReconcileClips(ActionSequenceDisplayTrack track, ActionSequenceTimelineTransform transform, ActionSequenceEditorState state, ActionSequenceValidationPresentation validation)
     {
         seenKeys.Clear();
         orderedClips.Clear();
@@ -95,7 +95,7 @@ internal sealed class ActionSequenceTrackLaneRow : VisualElement
                 clipsByKey.Add(clip.RenderKey, view);
             }
 
-            view.Bind(clip, track.Snapshot, state != null && state.IsClipSelected(clip.Snapshot), state);
+            view.Bind(clip, track.Snapshot, state != null && state.IsClipSelected(clip.Snapshot), state, validation);
             view.RefreshGeometry(clip, transform, state);
             ActionSequenceViewUtility.SetDisplay(view, !track.Snapshot.Collapsed);
             orderedClips.Add(view);

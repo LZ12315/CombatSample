@@ -157,7 +157,7 @@ public static class ActionSequenceValidator
 
             if (track.MissingType)
             {
-                result.Add(NewIssue(ActionSequenceEditorValidationSeverity.Error, ActionSequenceEditorValidationCode.MissingManagedReferenceType, "Track managed reference type is missing.", ActionSequenceEditorDocumentItemKind.Track, track.EditorId, track.TrackIndex, -1, -1, track.ManagedReferenceId));
+                result.Add(NewIssue(ActionSequenceEditorValidationSeverity.Error, ActionSequenceEditorValidationCode.MissingManagedReferenceType, BuildMissingTypeMessage("Track", track.MissingTypeInfo), ActionSequenceEditorDocumentItemKind.Track, track.EditorId, track.TrackIndex, -1, -1, track.ManagedReferenceId));
                 continue;
             }
 
@@ -209,7 +209,7 @@ public static class ActionSequenceValidator
 
         if (clip.MissingType)
         {
-            result.Add(NewIssue(ActionSequenceEditorValidationSeverity.Error, ActionSequenceEditorValidationCode.MissingManagedReferenceType, "Clip managed reference type is missing.", kind, clip.EditorId, clip.TrackIndex, clip.ClipIndex, clip.LegacyClipIndex, clip.ManagedReferenceId));
+            result.Add(NewIssue(ActionSequenceEditorValidationSeverity.Error, ActionSequenceEditorValidationCode.MissingManagedReferenceType, BuildMissingTypeMessage("Clip", clip.MissingTypeInfo), kind, clip.EditorId, clip.TrackIndex, clip.ClipIndex, clip.LegacyClipIndex, clip.ManagedReferenceId));
             return;
         }
 
@@ -323,6 +323,14 @@ public static class ActionSequenceValidator
             legacyClipIndex,
             managedReferenceId,
             repairCommandId);
+    }
+
+    private static string BuildMissingTypeMessage(string itemLabel, ActionSequenceMissingManagedReferenceInfo info)
+    {
+        string typeName = info.Tooltip;
+        return string.IsNullOrEmpty(typeName)
+            ? itemLabel + " managed reference type is missing."
+            : itemLabel + " managed reference type is missing: " + typeName;
     }
 }
 #endif

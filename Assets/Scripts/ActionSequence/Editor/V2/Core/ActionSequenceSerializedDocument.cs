@@ -57,6 +57,8 @@ public sealed class ActionSequenceSerializedDocument : IDisposable
     private readonly List<ActionSequenceClipSnapshot> legacyClips = new List<ActionSequenceClipSnapshot>();
     private readonly Dictionary<string, List<ActionSequenceEditorItemLocation>> idMap =
         new Dictionary<string, List<ActionSequenceEditorItemLocation>>(StringComparer.Ordinal);
+    private readonly Dictionary<long, ActionSequenceMissingManagedReferenceInfo> missingTypesByReferenceId =
+        new Dictionary<long, ActionSequenceMissingManagedReferenceInfo>();
     private string snapshotFingerprint;
 
     private ActionSequenceSerializedDocument(Object target, SerializedObject serializedObject, string rootPropertyPath)
@@ -225,6 +227,7 @@ public sealed class ActionSequenceSerializedDocument : IDisposable
         tracks.Clear();
         legacyClips.Clear();
         idMap.Clear();
+        RebuildMissingTypeMap();
 
         SerializedProperty root = GetRootProperty();
         if (root == null)
@@ -282,7 +285,8 @@ public sealed class ActionSequenceSerializedDocument : IDisposable
             ReadBool(trackProperty?.FindPropertyRelative("collapsed")),
             isNull,
             missingType,
-            ReadManagedReferenceId(trackProperty));
+            ReadManagedReferenceId(trackProperty),
+            GetMissingTypeInfo(trackProperty));
 
         SerializedProperty clipsProperty = trackProperty?.FindPropertyRelative("clips");
         if (clipsProperty != null && clipsProperty.isArray)
@@ -299,7 +303,7 @@ public sealed class ActionSequenceSerializedDocument : IDisposable
         return snapshot;
     }
 
-    private static ActionSequenceClipSnapshot BuildClipSnapshot(
+    private ActionSequenceClipSnapshot BuildClipSnapshot(
         SerializedProperty clipProperty,
         int trackIndex,
         int clipOrLegacyIndex,
@@ -329,7 +333,32 @@ public sealed class ActionSequenceSerializedDocument : IDisposable
             missingType,
             allowedByTrack,
             phaseMatchesTrack,
-            ReadManagedReferenceId(clipProperty));
+            ReadManagedReferenceId(clipProperty),
+            GetMissingTypeInfo(clipProperty));
+    }
+
+    private void RebuildMissingTypeMap()
+    {
+        missingTypesByReferenceId.Clear();
+        if (Target == null)
+            return;
+
+        foreach (object missingType in SerializationUtility.GetManagedReferencesWithMissingTypes(Target))
+        {
+            ActionSequenceMissingManagedReferenceInfo info = ActionSequenceMissingManagedReferenceInfo.FromUnityMissingType(missingType);
+            if (info.ManagedReferenceId != 0 && !missingTypesByReferenceId.ContainsKey(info.ManagedReferenceId))
+                missingTypesByReferenceId.Add(info.ManagedReferenceId, info);
+        }
+    }
+
+    private ActionSequenceMissingManagedReferenceInfo GetMissingTypeInfo(SerializedProperty property)
+    {
+        long referenceId = ReadManagedReferenceId(property);
+        if (referenceId != 0 && missingTypesByReferenceId.TryGetValue(referenceId, out ActionSequenceMissingManagedReferenceInfo info))
+            return info;
+
+        string fullTypeName = property != null ? property.managedReferenceFullTypename : null;
+        return ActionSequenceMissingManagedReferenceInfo.FromSerializedTypename(referenceId, fullTypeName);
     }
 
     private static bool TryGetRootPath(Object target, out string rootPath)
@@ -399,7 +428,7 @@ public sealed class ActionSequenceSerializedDocument : IDisposable
         {
             ActionSequenceTrackSnapshot track = tracks[i];
             builder.Append('T').Append(track.TrackIndex).Append(':');
-            AppendCommon(builder, track.EditorId, track.Type, track.Phase, track.DisplayName, track.IsNull, track.MissingType, track.ManagedReferenceId);
+            AppendCommon(builder, track.EditorId, track.Type, track.Phase, track.DisplayName, track.IsNull, track.MissingType, track.ManagedReferenceId, track.MissingTypeInfo);
             builder.Append(track.Muted).Append(':').Append(track.Locked).Append(':').Append(track.Collapsed).Append(':');
             builder.Append(track.Clips.Count).Append('|');
 
@@ -418,7 +447,7 @@ public sealed class ActionSequenceSerializedDocument : IDisposable
     private static void AppendClip(StringBuilder builder, ActionSequenceClipSnapshot clip)
     {
         builder.Append('C').Append(clip.TrackIndex).Append(':').Append(clip.ClipIndex).Append(':').Append(clip.LegacyClipIndex).Append(':');
-        AppendCommon(builder, clip.EditorId, clip.Type, clip.Phase, clip.DisplayName, clip.IsNull, clip.MissingType, clip.ManagedReferenceId);
+        AppendCommon(builder, clip.EditorId, clip.Type, clip.Phase, clip.DisplayName, clip.IsNull, clip.MissingType, clip.ManagedReferenceId, clip.MissingTypeInfo);
         builder.Append(clip.StartFrame).Append(':').Append(clip.EndFrame).Append(':');
         builder.Append(clip.IsLegacy).Append(':').Append(clip.AllowedByTrack).Append(':').Append(clip.PhaseMatchesTrack).Append('|');
     }
@@ -431,13 +460,105 @@ public sealed class ActionSequenceSerializedDocument : IDisposable
         string displayName,
         bool isNull,
         bool missingType,
-        long managedReferenceId)
+        long managedReferenceId,
+        ActionSequenceMissingManagedReferenceInfo missingTypeInfo)
     {
         builder.Append(editorId).Append(':');
         builder.Append(type != null ? type.AssemblyQualifiedName : string.Empty).Append(':');
         builder.Append((int)phase).Append(':');
         builder.Append(displayName).Append(':');
         builder.Append(isNull).Append(':').Append(missingType).Append(':').Append(managedReferenceId).Append(':');
+        if (missingTypeInfo.HasTypeName)
+            builder.Append(missingTypeInfo.AssemblyName).Append('/').Append(missingTypeInfo.NamespaceName).Append('/').Append(missingTypeInfo.ClassName);
+        builder.Append(':');
+    }
+}
+
+public readonly struct ActionSequenceMissingManagedReferenceInfo
+{
+    public ActionSequenceMissingManagedReferenceInfo(long managedReferenceId, string assemblyName, string namespaceName, string className)
+    {
+        ManagedReferenceId = managedReferenceId;
+        AssemblyName = assemblyName ?? string.Empty;
+        NamespaceName = namespaceName ?? string.Empty;
+        ClassName = className ?? string.Empty;
+    }
+
+    public long ManagedReferenceId { get; }
+    public string AssemblyName { get; }
+    public string NamespaceName { get; }
+    public string ClassName { get; }
+    public bool HasTypeName => !string.IsNullOrEmpty(ClassName) || !string.IsNullOrEmpty(AssemblyName) || !string.IsNullOrEmpty(NamespaceName);
+
+    public string DisplayName
+    {
+        get
+        {
+            if (!string.IsNullOrEmpty(NamespaceName) && !string.IsNullOrEmpty(ClassName))
+                return NamespaceName + "." + ClassName;
+            if (!string.IsNullOrEmpty(ClassName))
+                return ClassName;
+            return string.Empty;
+        }
+    }
+
+    public string Tooltip
+    {
+        get
+        {
+            string displayName = DisplayName;
+            if (string.IsNullOrEmpty(AssemblyName))
+                return displayName;
+            if (string.IsNullOrEmpty(displayName))
+                return AssemblyName;
+            return displayName + " (" + AssemblyName + ")";
+        }
+    }
+
+    public static ActionSequenceMissingManagedReferenceInfo FromUnityMissingType(object missingType)
+    {
+        if (missingType == null)
+            return default;
+
+        Type type = missingType.GetType();
+        long referenceId = ReadLongField(type, missingType, "referenceId");
+        string assemblyName = ReadStringField(type, missingType, "assemblyName");
+        string namespaceName = ReadStringField(type, missingType, "namespaceName");
+        string className = ReadStringField(type, missingType, "className");
+        return new ActionSequenceMissingManagedReferenceInfo(referenceId, assemblyName, namespaceName, className);
+    }
+
+    public static ActionSequenceMissingManagedReferenceInfo FromSerializedTypename(long referenceId, string fullTypename)
+    {
+        if (string.IsNullOrEmpty(fullTypename))
+            return default;
+
+        int separator = fullTypename.IndexOf(' ');
+        if (separator < 0)
+            return new ActionSequenceMissingManagedReferenceInfo(referenceId, string.Empty, string.Empty, fullTypename);
+
+        string assemblyName = fullTypename.Substring(0, separator);
+        string typeName = fullTypename.Substring(separator + 1);
+        int lastDot = typeName.LastIndexOf('.');
+        string namespaceName = lastDot > 0 ? typeName.Substring(0, lastDot) : string.Empty;
+        string className = lastDot > 0 ? typeName.Substring(lastDot + 1) : typeName;
+        return new ActionSequenceMissingManagedReferenceInfo(referenceId, assemblyName, namespaceName, className);
+    }
+
+    private static long ReadLongField(Type type, object instance, string fieldName)
+    {
+        var field = type.GetField(fieldName);
+        if (field == null)
+            return 0;
+
+        object value = field.GetValue(instance);
+        return value is long longValue ? longValue : 0;
+    }
+
+    private static string ReadStringField(Type type, object instance, string fieldName)
+    {
+        var field = type.GetField(fieldName);
+        return field != null ? field.GetValue(instance) as string : null;
     }
 }
 
@@ -470,7 +591,8 @@ public sealed class ActionSequenceTrackSnapshot
         bool collapsed,
         bool isNull,
         bool missingType,
-        long managedReferenceId)
+        long managedReferenceId,
+        ActionSequenceMissingManagedReferenceInfo missingTypeInfo)
     {
         TrackIndex = trackIndex;
         EditorId = editorId;
@@ -483,6 +605,7 @@ public sealed class ActionSequenceTrackSnapshot
         IsNull = isNull;
         MissingType = missingType;
         ManagedReferenceId = managedReferenceId;
+        MissingTypeInfo = missingTypeInfo;
     }
 
     public int TrackIndex { get; }
@@ -496,6 +619,7 @@ public sealed class ActionSequenceTrackSnapshot
     public bool IsNull { get; }
     public bool MissingType { get; }
     public long ManagedReferenceId { get; }
+    public ActionSequenceMissingManagedReferenceInfo MissingTypeInfo { get; }
     public IReadOnlyList<ActionSequenceClipSnapshot> Clips => clips;
 
     internal void AddClip(ActionSequenceClipSnapshot clip)
@@ -521,7 +645,8 @@ public sealed class ActionSequenceClipSnapshot
         bool missingType,
         bool allowedByTrack,
         bool phaseMatchesTrack,
-        long managedReferenceId)
+        long managedReferenceId,
+        ActionSequenceMissingManagedReferenceInfo missingTypeInfo)
     {
         TrackIndex = trackIndex;
         ClipIndex = clipIndex;
@@ -538,6 +663,7 @@ public sealed class ActionSequenceClipSnapshot
         AllowedByTrack = allowedByTrack;
         PhaseMatchesTrack = phaseMatchesTrack;
         ManagedReferenceId = managedReferenceId;
+        MissingTypeInfo = missingTypeInfo;
     }
 
     public int TrackIndex { get; }
@@ -555,5 +681,6 @@ public sealed class ActionSequenceClipSnapshot
     public bool AllowedByTrack { get; }
     public bool PhaseMatchesTrack { get; }
     public long ManagedReferenceId { get; }
+    public ActionSequenceMissingManagedReferenceInfo MissingTypeInfo { get; }
 }
 #endif

@@ -77,6 +77,8 @@ public sealed class ActionSequenceEditorWindowV2 : EditorWindow
         editorRoot.ViewportChanged += OnViewportChanged;
         editorRoot.FitRequested += OnFitRequested;
         editorRoot.RepairInvalidIdsRequested += OnRepairInvalidIdsRequested;
+        editorRoot.RepairCommandRequested += OnRepairCommandRequested;
+        editorRoot.ValidationIssueLocateRequested += OnValidationIssueLocateRequested;
         editorRoot.AddTrackRequested += OnAddTrackRequested;
         editorRoot.PlayPauseRequested += OnPlayPauseRequested;
         editorRoot.StopRequested += OnStopRequested;
@@ -148,6 +150,7 @@ public sealed class ActionSequenceEditorWindowV2 : EditorWindow
         var status = new VisualElement { name = "status-bar" };
         status.Add(new Label { name = "status-target-label" });
         status.Add(new Label { name = "status-validation-label" });
+        status.Add(new Button { name = "issues-button", text = "Issues" });
         status.Add(new Button { name = "repair-ids-button", text = "Repair IDs" });
         root.Add(status);
     }
@@ -201,11 +204,15 @@ public sealed class ActionSequenceEditorWindowV2 : EditorWindow
 
     private void RefreshWholeView()
     {
+        editorRoot?.Refresh(state, BuildValidationPresentation());
+    }
+
+    private ActionSequenceValidationPresentation BuildValidationPresentation()
+    {
         ActionSequenceEditorValidationResult validation = state.IsSupported
             ? ActionSequenceValidator.Validate(state.Document)
             : new ActionSequenceEditorValidationResult();
-        ActionSequenceEditorIdentityValidationResult identity = ActionSequenceEditorIdentity.Validate(_targetObject);
-        editorRoot?.Refresh(state, validation, identity);
+        return ActionSequenceValidationPresentation.Create(validation);
     }
 
     private void RefreshViewportOnly()
@@ -289,6 +296,62 @@ public sealed class ActionSequenceEditorWindowV2 : EditorWindow
             return;
 
         ExecuteCommand(() => ActionSequenceEditorCommands.RepairInvalidIds(_targetObject));
+    }
+
+    private void OnRepairCommandRequested(string commandId)
+    {
+        if (_targetObject == null || string.IsNullOrEmpty(commandId))
+            return;
+
+        switch (commandId)
+        {
+            case ActionSequenceValidator.RepairInvalidIdsCommandId:
+                ExecuteCommand(() => ActionSequenceEditorCommands.RepairInvalidIds(_targetObject));
+                break;
+            case ActionSequenceValidator.MigrateLegacyClipsCommandId:
+                ExecuteCommand(() => ActionSequenceEditorCommands.MigrateLegacyClips(_targetObject));
+                break;
+            case ActionSequenceValidator.RepairTrackPhaseOrderCommandId:
+                ExecuteCommand(() => ActionSequenceEditorCommands.RepairTrackPhaseOrder(_targetObject));
+                break;
+            default:
+                editorRoot?.SetStatusMessage("Unknown repair command: " + commandId);
+                break;
+        }
+    }
+
+    private void OnValidationIssueLocateRequested(ActionSequenceEditorValidationIssue issue)
+    {
+        if (issue == null || !state.IsSupported)
+            return;
+
+        switch (issue.ItemKind)
+        {
+            case ActionSequenceEditorDocumentItemKind.Track:
+                if (!string.IsNullOrEmpty(issue.EditorId))
+                    state.SelectTrack(issue.EditorId);
+                else if (issue.TrackIndex >= 0 && issue.TrackIndex < state.Document.Tracks.Count)
+                    state.SelectTrack(state.Document.Tracks[issue.TrackIndex].EditorId);
+                break;
+            case ActionSequenceEditorDocumentItemKind.Clip:
+                if (!string.IsNullOrEmpty(issue.EditorId))
+                    state.SelectClip(issue.EditorId);
+                else if (issue.TrackIndex >= 0 && issue.TrackIndex < state.Document.Tracks.Count)
+                {
+                    ActionSequenceTrackSnapshot track = state.Document.Tracks[issue.TrackIndex];
+                    if (issue.ClipIndex >= 0 && issue.ClipIndex < track.Clips.Count)
+                        state.SelectClip(track.Clips[issue.ClipIndex].EditorId);
+                }
+                break;
+            default:
+                state.SelectSequence();
+                break;
+        }
+
+        FrameSelection();
+        SaveSelectionState();
+        RefreshWholeView();
+        editorRoot?.SetStatusMessage(issue.Code + ": " + issue.Message);
     }
 
     private void OnAddTrackRequested(VisualElement anchor)

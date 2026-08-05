@@ -321,7 +321,7 @@ public static class ActionSequenceEditorCommands
         if (changed == 0)
             return Fail(ActionSequenceEditorCommandStatus.NoChange, "No invalid IDs found.");
 
-        var changeSet = new ActionSequenceEditorChangeSet(ActionSequenceEditorChangeFlags.Validation);
+        var changeSet = new ActionSequenceEditorChangeSet(ActionSequenceEditorChangeFlags.Structure | ActionSequenceEditorChangeFlags.Validation);
         Changed?.Invoke(target, changeSet);
         return new ActionSequenceEditorCommandResult(ActionSequenceEditorCommandStatus.Success, "Invalid IDs repaired.", document.Revision + 1, changeSet);
     }

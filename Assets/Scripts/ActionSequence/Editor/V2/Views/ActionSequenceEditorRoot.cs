@@ -26,6 +26,7 @@ internal sealed class ActionSequenceEditorRoot
     private readonly Label previewLabel;
     private readonly ActionSequenceToolbar toolbar;
     private readonly ActionSequenceStatusBar statusBar;
+    private readonly ActionSequenceValidationPanel validationPanel;
     private readonly PlayheadScrubManipulator scrubManipulator;
 
     private ActionSequenceEditorState state;
@@ -78,6 +79,7 @@ internal sealed class ActionSequenceEditorRoot
 
         toolbar = new ActionSequenceToolbar(toolbarHost);
         statusBar = new ActionSequenceStatusBar(root);
+        validationPanel = new ActionSequenceValidationPanel(root);
         toolbar.TargetChanged += target => TargetChanged?.Invoke(target);
         toolbar.AddTrackRequested += anchor => AddTrackRequested?.Invoke(anchor);
         toolbar.PlayPauseRequested += () => PlayPauseRequested?.Invoke();
@@ -85,7 +87,10 @@ internal sealed class ActionSequenceEditorRoot
         toolbar.CurrentFrameChanged += frame => CurrentFrameChanged?.Invoke(frame);
         toolbar.ZoomChanged += value => ZoomChanged?.Invoke(GetViewportAnchorX(), value);
         toolbar.FitRequested += () => FitRequested?.Invoke();
+        statusBar.IssuesRequested += () => validationPanel.Toggle();
         statusBar.RepairInvalidIdsRequested += () => RepairInvalidIdsRequested?.Invoke();
+        validationPanel.LocateRequested += issue => ValidationIssueLocateRequested?.Invoke(issue);
+        validationPanel.RepairRequested += commandId => RepairCommandRequested?.Invoke(commandId);
         headerView.TrackSelected += track => TrackSelected?.Invoke(track);
         headerView.AddClipRequested += track => AddClipRequested?.Invoke(track, 0, Vector2.zero);
         headerView.MuteChanged += (track, value) => TrackMuteChanged?.Invoke(track, value);
@@ -133,6 +138,8 @@ internal sealed class ActionSequenceEditorRoot
     public event Action<float, float> ViewportChanged;
     public event Action FitRequested;
     public event Action RepairInvalidIdsRequested;
+    public event Action<string> RepairCommandRequested;
+    public event Action<ActionSequenceEditorValidationIssue> ValidationIssueLocateRequested;
     public event Action<ActionSequenceEditorShortcut> ShortcutRequested;
 
     public ActionSequenceTrackHeaderView HeaderView => headerView;
@@ -143,11 +150,12 @@ internal sealed class ActionSequenceEditorRoot
         toolbar.SetTarget(target);
     }
 
-    public void Refresh(ActionSequenceEditorState newState, ActionSequenceEditorValidationResult validation, ActionSequenceEditorIdentityValidationResult identity)
+    public void Refresh(ActionSequenceEditorState newState, ActionSequenceValidationPresentation validation)
     {
         state = newState;
         toolbar.Refresh(state);
-        statusBar.Refresh(state, validation, identity);
+        statusBar.Refresh(state, validation);
+        validationPanel.Refresh(validation);
 
         bool supported = state != null && state.IsSupported;
         ActionSequenceViewUtility.SetDisplay(timelineHost, supported);
@@ -155,8 +163,8 @@ internal sealed class ActionSequenceEditorRoot
             return;
 
         ApplyHeaderWidth();
-        headerView.Reconcile(state.DisplayTracks, state);
-        laneView.Reconcile(state.DisplayTracks, state.Transform, state);
+        headerView.Reconcile(state.DisplayTracks, state, validation);
+        laneView.Reconcile(state.DisplayTracks, state.Transform, state, validation);
         rulerView.Refresh(state.Transform);
         gridView.Refresh(state);
         playheadView.Refresh(state);

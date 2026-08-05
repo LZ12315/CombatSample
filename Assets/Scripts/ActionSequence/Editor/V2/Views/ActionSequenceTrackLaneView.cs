@@ -43,7 +43,7 @@ internal sealed class ActionSequenceTrackLaneView : VisualElement
         Reconcile(tracks, transform, null);
     }
 
-    public void Reconcile(IReadOnlyList<ActionSequenceDisplayTrack> tracks, ActionSequenceTimelineTransform transform, ActionSequenceEditorState state)
+    public void Reconcile(IReadOnlyList<ActionSequenceDisplayTrack> tracks, ActionSequenceTimelineTransform transform, ActionSequenceEditorState state, ActionSequenceValidationPresentation validation = null)
     {
         seenKeys.Clear();
         orderedRows.Clear();
@@ -66,7 +66,7 @@ internal sealed class ActionSequenceTrackLaneView : VisualElement
                 rowsByKey.Add(track.RenderKey, row);
             }
 
-            row.Bind(track, transform, state);
+            row.Bind(track, transform, state, validation);
             orderedRows.Add(row);
         }
 

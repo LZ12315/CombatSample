@@ -17,7 +17,7 @@ internal static class ActionSequenceViewUtility
         if (track.IsNull)
             return "Null Track";
         if (track.MissingType)
-            return "Missing Track Type";
+            return !string.IsNullOrEmpty(track.MissingTypeInfo.DisplayName) ? track.MissingTypeInfo.DisplayName : "Missing Track Type";
         if (!string.IsNullOrWhiteSpace(track.DisplayName))
             return track.DisplayName;
 
@@ -29,7 +29,7 @@ internal static class ActionSequenceViewUtility
         if (track.IsNull)
             return "Null";
         if (track.MissingType)
-            return "Missing Type";
+            return !string.IsNullOrEmpty(track.MissingTypeInfo.DisplayName) ? "Missing: " + track.MissingTypeInfo.DisplayName : "Missing Type";
 
         return NicifyTypeName(track.Type, "Track", "ActionSequence");
     }
@@ -44,7 +44,7 @@ internal static class ActionSequenceViewUtility
         if (clip.IsNull)
             return "Null Clip";
         if (clip.MissingType)
-            return "Missing Clip Type";
+            return !string.IsNullOrEmpty(clip.MissingTypeInfo.DisplayName) ? clip.MissingTypeInfo.DisplayName : "Missing Clip Type";
         if (!string.IsNullOrWhiteSpace(clip.DisplayName))
             return clip.DisplayName;
 

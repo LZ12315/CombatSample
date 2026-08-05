@@ -1,11 +1,11 @@
 #if UNITY_EDITOR
-using System.Text;
 using UnityEngine.UIElements;
 
 internal sealed class ActionSequenceStatusBar
 {
     private readonly Label targetLabel;
     private readonly Label validationLabel;
+    private readonly Button issuesButton;
     private readonly Button repairButton;
     private string transientMessage;
 
@@ -13,19 +13,24 @@ internal sealed class ActionSequenceStatusBar
     {
         targetLabel = root.Q<Label>("status-target-label") ?? new Label();
         validationLabel = root.Q<Label>("status-validation-label") ?? new Label();
+        issuesButton = root.Q<Button>("issues-button") ?? new Button();
         repairButton = root.Q<Button>("repair-ids-button") ?? new Button();
+        issuesButton.text = "Issues";
+        issuesButton.clicked += () => IssuesRequested?.Invoke();
         repairButton.text = "Repair IDs";
         repairButton.clicked += () => RepairInvalidIdsRequested?.Invoke();
     }
 
+    public event System.Action IssuesRequested;
     public event System.Action RepairInvalidIdsRequested;
 
-    public void Refresh(ActionSequenceEditorState state, ActionSequenceEditorValidationResult validation, ActionSequenceEditorIdentityValidationResult identity)
+    public void Refresh(ActionSequenceEditorState state, ActionSequenceValidationPresentation validation)
     {
         if (state == null || state.Target == null)
         {
             targetLabel.text = "No target";
             validationLabel.text = string.Empty;
+            issuesButton.SetEnabled(false);
             repairButton.SetEnabled(false);
             return;
         }
@@ -34,13 +39,15 @@ internal sealed class ActionSequenceStatusBar
         {
             targetLabel.text = "Unsupported target";
             validationLabel.text = "Use a Sequence ActionAsset or ActionSequenceAsset.";
+            issuesButton.SetEnabled(false);
             repairButton.SetEnabled(false);
             return;
         }
 
         targetLabel.text = $"{state.DisplayTracks.Count} tracks, {CountClips(state)} clips, {state.Document.LegacyClips.Count} legacy";
-        validationLabel.text = string.IsNullOrEmpty(transientMessage) ? BuildValidationText(validation, identity) : transientMessage;
-        repairButton.SetEnabled(identity != null && identity.HasRepairableInvalidIds);
+        validationLabel.text = string.IsNullOrEmpty(transientMessage) ? BuildValidationText(validation) : transientMessage;
+        issuesButton.SetEnabled(validation != null && validation.HasIssues);
+        repairButton.SetEnabled(validation != null && validation.HasRepairCommand(ActionSequenceValidator.RepairInvalidIdsCommandId));
     }
 
     public void SetTransientMessage(string message)
@@ -57,26 +64,9 @@ internal sealed class ActionSequenceStatusBar
         return count;
     }
 
-    private static string BuildValidationText(ActionSequenceEditorValidationResult validation, ActionSequenceEditorIdentityValidationResult identity)
+    private static string BuildValidationText(ActionSequenceValidationPresentation validation)
     {
-        int identityIssues = identity != null ? identity.Issues.Count : 0;
-        int validationIssues = validation != null ? validation.Issues.Count : 0;
-        if (identityIssues == 0 && validationIssues == 0)
-            return "Valid";
-
-        var builder = new StringBuilder();
-        if (identityIssues > 0)
-            builder.Append(identityIssues).Append(" identity issue(s)");
-        if (validationIssues > 0)
-        {
-            if (builder.Length > 0)
-                builder.Append(", ");
-            builder.Append(validationIssues).Append(" validation issue(s)");
-            if (validation.HasErrors)
-                builder.Append(" with errors");
-        }
-
-        return builder.ToString();
+        return validation != null ? validation.BuildSummaryText() : "Valid";
     }
 }
 #endif

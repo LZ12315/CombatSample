@@ -24,7 +24,15 @@
         <ui:VisualElement name="status-bar" class="asv2-status-bar">
             <ui:Label name="status-target-label" class="asv2-status-label" />
             <ui:Label name="status-validation-label" class="asv2-status-label asv2-status-validation" />
+            <ui:Button name="issues-button" text="Issues" class="asv2-status-button" />
             <ui:Button name="repair-ids-button" text="Repair IDs" class="asv2-status-button" />
+        </ui:VisualElement>
+        <ui:VisualElement name="validation-panel" class="asv2-validation-panel">
+            <ui:VisualElement name="validation-panel-header" class="asv2-validation-panel-header">
+                <ui:Label name="validation-panel-title" class="asv2-validation-panel-title" />
+                <ui:Button name="validation-panel-close" text="x" class="asv2-toolbar-icon-button" />
+            </ui:VisualElement>
+            <ui:ScrollView name="validation-panel-list" class="asv2-validation-panel-list" />
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

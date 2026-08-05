@@ -6,6 +6,7 @@ using UnityEngine.UIElements;
 internal sealed class ActionSequenceClipView : VisualElement
 {
     private readonly Label label;
+    private readonly ActionSequenceIssueBadge issueBadge;
     private readonly VisualElement leftHandle;
     private readonly VisualElement rightHandle;
     private string phaseClass;
@@ -39,6 +40,10 @@ internal sealed class ActionSequenceClipView : VisualElement
         label.AddToClassList("asv2-clip-label");
         Add(label);
 
+        issueBadge = new ActionSequenceIssueBadge();
+        issueBadge.AddToClassList("asv2-clip-issue-badge");
+        Add(issueBadge);
+
         leftHandle = new VisualElement();
         leftHandle.AddToClassList("asv2-clip-resize-handle");
         leftHandle.AddToClassList("asv2-clip-resize-left");
@@ -58,7 +63,7 @@ internal sealed class ActionSequenceClipView : VisualElement
         RegisterCallback<PointerCaptureOutEvent>(OnPointerCaptureOut);
     }
 
-    public void Bind(ActionSequenceDisplayClip clip, ActionSequenceTrackSnapshot track, bool selected, ActionSequenceEditorState state = null)
+    public void Bind(ActionSequenceDisplayClip clip, ActionSequenceTrackSnapshot track, bool selected, ActionSequenceEditorState state = null, ActionSequenceValidationPresentation validation = null)
     {
         displayClip = clip;
         Snapshot = clip.Snapshot;
@@ -69,6 +74,7 @@ internal sealed class ActionSequenceClipView : VisualElement
         string displayName = ActionSequenceViewUtility.GetClipDisplayName(clip.Snapshot);
         label.text = displayName;
         label.tooltip = displayName;
+        issueBadge.Refresh(validation != null ? validation.GetClipIssueState(clip.Snapshot) : default);
 
         SetClass("asv2-clip-muted", track.Muted);
         SetClass("asv2-clip-locked", track.Locked);

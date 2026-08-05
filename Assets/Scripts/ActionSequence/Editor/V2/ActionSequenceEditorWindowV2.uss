@@ -373,3 +373,110 @@
     min-width: 76px;
     flex-shrink: 0;
 }
+
+.asv2-issue-badge {
+    min-width: 16px;
+    height: 16px;
+    border-radius: 8px;
+    margin-left: 4px;
+    margin-right: 2px;
+    padding-left: 4px;
+    padding-right: 4px;
+    font-size: 10px;
+    -unity-text-align: middle-center;
+    color: #151515;
+    flex-shrink: 0;
+}
+
+.asv2-clip-issue-badge {
+    position: absolute;
+    right: 3px;
+    top: 3px;
+}
+
+.asv2-issue-error {
+    background-color: #e06c6c;
+}
+
+.asv2-issue-warning {
+    background-color: #d4aa38;
+}
+
+.asv2-issue-info {
+    background-color: #8fb8e8;
+}
+
+.asv2-validation-panel {
+    position: absolute;
+    right: 8px;
+    bottom: 30px;
+    width: 420px;
+    max-height: 320px;
+    background-color: #252525;
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-left-color: #111111;
+    border-right-color: #111111;
+    border-top-color: #111111;
+    border-bottom-color: #111111;
+}
+
+.asv2-validation-panel-header {
+    height: 26px;
+    flex-direction: row;
+    align-items: center;
+    padding-left: 8px;
+    padding-right: 4px;
+    background-color: #303030;
+    border-bottom-width: 1px;
+    border-bottom-color: #151515;
+}
+
+.asv2-validation-panel-title {
+    flex-grow: 1;
+    color: #d7d7d7;
+    -unity-font-style: bold;
+}
+
+.asv2-validation-panel-list {
+    flex-grow: 1;
+}
+
+.asv2-validation-issue-row {
+    min-height: 28px;
+    flex-direction: row;
+    align-items: center;
+    padding-left: 7px;
+    padding-right: 5px;
+    border-left-width: 3px;
+    border-bottom-width: 1px;
+    border-bottom-color: #171717;
+}
+
+.asv2-validation-issue-error {
+    border-left-color: #e06c6c;
+}
+
+.asv2-validation-issue-warning {
+    border-left-color: #d4aa38;
+}
+
+.asv2-validation-issue-info {
+    border-left-color: #8fb8e8;
+}
+
+.asv2-validation-issue-label {
+    flex-grow: 1;
+    flex-shrink: 1;
+    color: #d0d0d0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.asv2-validation-issue-repair {
+    min-width: 54px;
+    flex-shrink: 0;
+}
