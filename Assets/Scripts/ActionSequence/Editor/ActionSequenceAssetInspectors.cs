@@ -222,13 +222,8 @@ internal sealed class ActionSequenceInspectorV2Builder : IDisposable
     {
         var foldout = new Foldout { text = "Sequence", value = true };
 
-        var buttons = new VisualElement();
-        buttons.style.flexDirection = FlexDirection.Row;
-        Button prototypeButton = new Button(OpenPrototype) { text = "Open Prototype" };
-        Button v2Button = new Button(OpenV2) { text = "Open V2 Preview" };
-        buttons.Add(prototypeButton);
-        buttons.Add(v2Button);
-        foldout.Add(buttons);
+        Button openButton = new Button(OpenActionSequenceEditor) { text = "Open Action Sequence Editor" };
+        foldout.Add(openButton);
 
         ActionSequenceSnapshot sequence = document.Sequence;
         var frameRate = new IntegerField("Frame Rate");
@@ -421,15 +416,7 @@ internal sealed class ActionSequenceInspectorV2Builder : IDisposable
         });
     }
 
-    private void OpenPrototype()
-    {
-        if (target is ActionAsset actionAsset)
-            ActionSequenceEditorWindow.Open(actionAsset);
-        else if (target is ActionSequenceAsset sequenceAsset)
-            ActionSequenceEditorWindow.Open(sequenceAsset);
-    }
-
-    private void OpenV2()
+    private void OpenActionSequenceEditor()
     {
         if (target is ActionAsset actionAsset)
             ActionSequenceEditorWindowV2.Open(actionAsset);

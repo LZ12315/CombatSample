@@ -10,12 +10,19 @@ public class ActionAssetHelper
     [OnOpenAsset(1)] 
     public static bool OnOpenActionAsset(int instanceID, int line)
     {
-        var actionAsset = EditorUtility.InstanceIDToObject(instanceID) as ActionAsset;
+        Object openedObject = EditorUtility.InstanceIDToObject(instanceID);
+        if (openedObject is ActionSequenceAsset sequenceAsset)
+        {
+            ActionSequenceEditorWindowV2.Open(sequenceAsset);
+            return true;
+        }
+
+        var actionAsset = openedObject as ActionAsset;
         if (actionAsset == null) return false; 
 
         if (actionAsset.UsesSequence)
         {
-            ActionSequenceEditorWindow.Open(actionAsset);
+            ActionSequenceEditorWindowV2.Open(actionAsset);
             return true;
         }
 

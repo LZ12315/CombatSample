@@ -48,21 +48,21 @@ public sealed class ActionSequenceEditorWindowV2 : EditorWindow
     private bool suppressCommandChanged;
     private double nextPollTime;
 
-    [MenuItem("Tools/Combat/Action Sequence Editor V2 (Preview)")]
+    [MenuItem("Tools/Combat/Action Sequence Editor")]
     public static void Open()
     {
-        GetWindow<ActionSequenceEditorWindowV2>("Action Sequence V2");
+        GetWindow<ActionSequenceEditorWindowV2>("Action Sequence");
     }
 
     public static void Open(ActionAsset actionAsset)
     {
-        var window = GetWindow<ActionSequenceEditorWindowV2>("Action Sequence V2");
+        var window = GetWindow<ActionSequenceEditorWindowV2>("Action Sequence");
         window.BindTarget(actionAsset, true);
     }
 
     public static void Open(ActionSequenceAsset sequenceAsset)
     {
-        var window = GetWindow<ActionSequenceEditorWindowV2>("Action Sequence V2");
+        var window = GetWindow<ActionSequenceEditorWindowV2>("Action Sequence");
         window.BindTarget(sequenceAsset, true);
     }
 

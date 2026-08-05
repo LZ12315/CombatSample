@@ -1,6 +1,6 @@
 # ActionSequence Editor V2 Architecture
 
-> Status: Approved architecture baseline; Stage 0 through Stage 5 validation/polish foundations are implemented pending full Unity EditMode verification
+> Status: Approved architecture baseline; Stage 0 through Stage 6 cutover is implemented. V2 is the normal ActionSequence editor entry, and the prototype remains available only as a diagnostic fallback.
 > Version: 1.0  
 > Date: 2026-08-03  
 > Target: Unity 2022.3.62f3  
@@ -28,7 +28,7 @@ UI Toolkit views + manipulators
 Unity Inspector selection bridge
 ```
 
-The prototype remains available while V2 is developed. It receives compile fixes only. V2 replaces it only after the complete authoring loop passes the acceptance gate in section 16.
+V2 is the normal ActionSequence editor entry. The prototype remains available only from the diagnostics menu and receives compile or data-reading compatibility fixes only. Prototype deletion requires a separate stabilization period and explicit approval.
 
 ## 2. Product Position
 
@@ -591,7 +591,7 @@ Exit: all mutations can be tested without an EditorWindow.
 - Implement timeline transform, ruler, grid, scroll synchronization, zoom, pan, and fit.
 - Render read-only track/clip views by stable ID.
 
-Status: implemented for the V2 preview window shell, timeline transform, read-only track/clip rendering, zoom/pan/fit, synchronized scrolling, status summaries, and focused EditMode coverage. Full Unity verification is pending.
+Status: implemented for the V2 window shell, timeline transform, read-only track/clip rendering, zoom/pan/fit, synchronized scrolling, status summaries, and focused EditMode coverage. Full Unity verification is pending.
 
 Exit: existing assets render correctly at different sizes and zoom levels without full-tree rebuilds.
 
@@ -634,6 +634,8 @@ Exit: no silent authored-data mutation and no hover-dependent refresh.
 - Redirect double-click/open helpers to V2.
 - Keep the prototype temporarily behind a diagnostic menu.
 - Remove the prototype only after a stabilization period and explicit approval.
+
+Status: implemented for normal editor routing. Sequence-backed `ActionAsset` and standalone `ActionSequenceAsset` now open the V2 editor from double-click and Inspector. LegacyTimeline routing remains on Unity Timeline. The prototype is retained under `Tools/Combat/Diagnostics/Action Sequence Prototype`.
 
 Exit: V2 is the only normal authoring entry point; LegacyTimeline still opens Unity Timeline.
 
@@ -682,7 +684,7 @@ Use representative stress assets, not synthetic thousands-of-items targets:
 
 ## 16. Cutover Acceptance Gate
 
-V2 may replace the prototype only when all are true:
+Stage 6 cutover is accepted only when all are true:
 
 - No compile errors on Unity 2022.3.62f3.
 - Stage 1 EditMode command/identity tests pass.

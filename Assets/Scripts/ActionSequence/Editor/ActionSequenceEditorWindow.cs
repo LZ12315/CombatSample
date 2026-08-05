@@ -6,7 +6,7 @@ using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-// Prototype editor: kept available while ActionSequence Editor V2 is built.
+// Prototype editor: kept as a diagnostic fallback after the V2 editor cutover.
 // Do not grow this window beyond compatibility fixes and baseline data support.
 public sealed class ActionSequenceEditorWindow : EditorWindow
 {
@@ -68,21 +68,21 @@ public sealed class ActionSequenceEditorWindow : EditorWindow
         public bool IsActive => Mode != ClipEditMode.None;
     }
 
-    [MenuItem("Tools/Combat/Action Sequence Editor")]
+    [MenuItem("Tools/Combat/Diagnostics/Action Sequence Prototype")]
     public static void Open()
     {
-        GetWindow<ActionSequenceEditorWindow>("Action Sequence");
+        GetWindow<ActionSequenceEditorWindow>("Action Sequence Prototype");
     }
 
     public static void Open(ActionAsset actionAsset)
     {
-        var window = GetWindow<ActionSequenceEditorWindow>("Action Sequence");
+        var window = GetWindow<ActionSequenceEditorWindow>("Action Sequence Prototype");
         window.SetTarget(actionAsset);
     }
 
     public static void Open(ActionSequenceAsset sequenceAsset)
     {
-        var window = GetWindow<ActionSequenceEditorWindow>("Action Sequence");
+        var window = GetWindow<ActionSequenceEditorWindow>("Action Sequence Prototype");
         window.SetTarget(sequenceAsset);
     }
 

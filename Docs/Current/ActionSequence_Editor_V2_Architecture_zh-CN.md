@@ -1,6 +1,6 @@
 # ActionSequence 编辑器 V2 架构
 
-> 状态：已确认的架构基线；Stage 0 至 Stage 5 Validation/Polish 基础已实现，等待完整 Unity EditMode 验证
+> 状态：已确认的架构基线；Stage 0 至 Stage 6 正式入口切换已实现。V2 是 ActionSequence 的正常编辑入口，Prototype 仅作为诊断退路保留。
 > 版本：1.0  
 > 日期：2026-08-03  
 > 目标版本：Unity 2022.3.62f3  
@@ -28,7 +28,7 @@ UI Toolkit 视图 + Manipulator
 Unity Inspector 选择桥接
 ```
 
-V2 开发期间保留现有原型。原型只接受编译修复，不再继续添加功能。只有当 V2 通过第 16 节的完整验收门槛后，才会替换原型。
+V2 是 ActionSequence 的正常编辑入口。原型只从诊断菜单保留，只接受编译或数据读取兼容修复。删除原型必须经过单独稳定观察期和明确确认。
 
 ## 2. 产品定位
 
@@ -591,7 +591,7 @@ Assets/Scripts/ActionSequence/Editor/V2/
 - 实现 Timeline Transform、Ruler、Grid、滚动同步、Zoom、Pan 和 Fit。
 - 使用稳定 ID 只读绘制现有 Track/Clip。
 
-状态：V2 Preview 窗口外壳、Timeline Transform、只读 Track/Clip 绘制、Zoom/Pan/Fit、滚动同步、状态摘要与聚焦 EditMode 测试已实现。完整 Unity 验证待执行。
+状态：V2 窗口外壳、Timeline Transform、只读 Track/Clip 绘制、Zoom/Pan/Fit、滚动同步、状态摘要与聚焦 EditMode 测试已实现。完整 Unity 验证待执行。
 
 退出条件：不同窗口尺寸和 Zoom 下都能正确显示已有 Asset，并且不进行整树重建。
 
@@ -634,6 +634,8 @@ Assets/Scripts/ActionSequence/Editor/V2/
 - 把 Double Click/Open Helper 切换到 V2。
 - 暂时把原型保留在诊断菜单中。
 - 经过稳定期并获得明确确认后再删除原型。
+
+状态：正常编辑入口切换已实现。Sequence backend 的 `ActionAsset` 和独立 `ActionSequenceAsset` 现在通过双击和 Inspector 打开 V2 编辑器。LegacyTimeline 路由仍进入 Unity Timeline。Prototype 保留在 `Tools/Combat/Diagnostics/Action Sequence Prototype` 下。
 
 退出条件：V2 成为唯一正常编辑入口，LegacyTimeline 仍然打开 Unity Timeline。
 
@@ -682,7 +684,7 @@ Assets/Scripts/ActionSequence/Editor/V2/
 
 ## 16. 替换验收门槛
 
-只有全部满足以下条件，V2 才能替换原型：
+只有全部满足以下条件，Stage 6 切换才算通过：
 
 - Unity 2022.3.62f3 编译无错误。
 - Stage 1 的 Command/Identity EditMode 测试通过。
