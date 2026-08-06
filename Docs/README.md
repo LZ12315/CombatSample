@@ -1,6 +1,6 @@
 # Documentation Index
 
-> Last audited against `main`: 2026-08-02
+> Last audited against `FrameWork` at `9d568e97`: 2026-08-07
 
 `Docs` is divided by document authority. A file's directory is part of its status; do not treat archived records or proposals as active work.
 
@@ -9,10 +9,11 @@
 - [Project Structure](Current/Project_Structure.md) — factual repository layout and scene entry points.
 - [Scene Ownership Baseline](Current/Scene_Ownership_Baseline_2026-08-02.md) — current release and targeted validation scenes.
 - [Actor Motion Validation](Current/Actor_Motion_Validation.md) — current behavior checklist; historical PlayMode results are explicitly marked and need rerunning.
-- [ActionSequence Editor Design Spec](Current/ActionSequence_Editor_Design_Spec.md) — active design language and acceptance rules for the fixed-frame ActionSequence editor.
-- [ActionSequence Editor Implementation Audit](Current/ActionSequence_Editor_Implementation_Audit_2026-08-02.md) — current gap analysis against the ActionSequence editor design spec.
-- [ActionSequence Editor V2 Architecture](Current/ActionSequence_Editor_V2_Architecture.md) — approved implementation architecture for rebuilding the editor on UI Toolkit; supersedes the prototype editor architecture.
-- [ActionSequence 编辑器 V2 架构（中文）](Current/ActionSequence_Editor_V2_Architecture_zh-CN.md) — V2 架构的完整中文版本。
+- [ActionSequence 大迭代复盘与当前架构说明](Current/ActionSequence_Iteration_Retrospective_2026-08-07_zh-CN.md) — Stage 0–7 的中文复盘、当前完成度、验证边界与后续方向。
+- [ActionSequence Editor Design Spec](Current/ActionSequence_Editor_Design_Spec.md) — fixed-frame ActionSequence 的产品语言基线；部分早期 non-goal 已在 V2 后续阶段实现。
+- [ActionSequence Editor Implementation Audit](Current/ActionSequence_Editor_Implementation_Audit_2026-08-02.md) — Prototype 的历史问题快照；不能作为当前缺陷列表。
+- [ActionSequence Editor V2 Architecture](Current/ActionSequence_Editor_V2_Architecture.md) — 已实现的 UI Toolkit 编辑器与 Stage 7 Runtime 架构基线。
+- [ActionSequence 编辑器 V2 架构（中文）](Current/ActionSequence_Editor_V2_Architecture_zh-CN.md) — 当前 V2 架构的完整中文版本。
 
 ## Proposals
 
@@ -28,14 +29,15 @@
 
 ## Current Follow-ups
 
-These are observations from the 2026-08-02 documentation audit, not approved implementation tasks:
+These are current observations, not approved implementation tasks:
 
 - Rerun the Actor Motion PlayMode checklist, especially double jump and current External RootMotion rotation behavior.
 - Decide whether a new broad development scene is needed; currently only release and targeted validation entry points are designated.
 - Consider an Inspector warning for Poll actions with empty entry conditions.
 - Consider an Action arbitration diagnostics tool if action-table debugging cost justifies it.
+- Run one representative Timeline-to-Sequence vertical action migration before choosing the next ActionSequence feature stage.
+- Systematically validate Animancer, HitBox, HitStop, cross-backend cancellation, loop, and Actor disable cleanup through the formal ActionPlayer path.
 - Confirm in Unity that the obsolete, currently unreferenced `CharacterControllerRigidbodyPush` component can be deleted.
-- Make an explicit go/no-go decision before investing further in Timeline-to-FrameEvent migration.
 
 ## Maintenance Rules
 

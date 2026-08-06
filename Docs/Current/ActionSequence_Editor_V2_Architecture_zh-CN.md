@@ -7,6 +7,7 @@
 > 范围：ActionSequence 编辑器，以及编辑器所需的数据基础  
 > 运行时边界：Sequence backend 的 ActionAsset 通过 ActionPlayer 使用固定帧 ActionSequence runtime 播放；编辑器预览仍只驱动播放头
 > English edition: [ActionSequence Editor V2 Architecture](ActionSequence_Editor_V2_Architecture.md)
+> 迭代背景与完成度：[ActionSequence 大迭代复盘与当前架构说明](ActionSequence_Iteration_Retrospective_2026-08-07_zh-CN.md)
 
 ## 1. 核心决定
 
