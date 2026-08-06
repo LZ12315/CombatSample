@@ -25,6 +25,7 @@ public sealed class ActionSequenceRuntime
     public int CurrentFrame { get; private set; } = -1;
     public bool IsPlaying { get; private set; }
     public bool IsComplete { get; private set; }
+    public ActionSequenceRuntimeDiagnostics Diagnostics { get; } = new ActionSequenceRuntimeDiagnostics();
 
     public int DurationFrames => Data != null ? Data.DurationFrames : 0;
     public int FrameRate => Data != null ? Data.FrameRate : 60;
@@ -52,6 +53,7 @@ public sealed class ActionSequenceRuntime
         Data = data;
         _clips.Clear();
         _activeClips.Clear();
+        Diagnostics.Clear();
         _frameAccumulator = 0f;
         CurrentFrame = -1;
         IsPlaying = data != null;
@@ -66,7 +68,16 @@ public sealed class ActionSequenceRuntime
             for (int trackIndex = 0; trackIndex < tracks.Count; trackIndex++)
             {
                 ActionSequenceTrackDefinition track = tracks[trackIndex];
-                if (track == null || track.muted)
+                if (track == null)
+                {
+                    Diagnostics.Add(new ActionSequenceRuntimeDiagnostic(
+                        ActionSequenceRuntimeDiagnosticCode.NullTrack,
+                        "Track is null and was skipped.",
+                        trackIndex));
+                    continue;
+                }
+
+                if (track.muted)
                     continue;
 
                 IReadOnlyList<ActionSequenceClipDefinition> definitions = track.Clips;
@@ -244,18 +255,53 @@ public sealed class ActionSequenceRuntime
         int clipIndex)
     {
         if (definition == null)
+        {
+            Diagnostics.Add(new ActionSequenceRuntimeDiagnostic(
+                ActionSequenceRuntimeDiagnosticCode.NullClip,
+                "Clip is null and was skipped.",
+                trackIndex,
+                clipIndex));
+            return;
+        }
+
+        if (definition.Phase != track.Phase)
+        {
+            Diagnostics.Add(new ActionSequenceRuntimeDiagnostic(
+                ActionSequenceRuntimeDiagnosticCode.PhaseMismatch,
+                $"Clip phase {definition.Phase} does not match track phase {track.Phase}.",
+                trackIndex,
+                clipIndex));
+            return;
+        }
+
+        if (!track.AllowsClipType(definition.GetType()))
+        {
+            Diagnostics.Add(new ActionSequenceRuntimeDiagnostic(
+                ActionSequenceRuntimeDiagnosticCode.DisallowedClipType,
+                $"{definition.GetType().Name} is not allowed on {track.GetType().Name}.",
+                trackIndex,
+                clipIndex));
+            return;
+        }
+
+        if (!TryGetRuntimeInterval(data, definition, trackIndex, clipIndex, false, Diagnostics, out int startFrame, out int endFrame))
             return;
 
-        if (definition.Phase != track.Phase || !track.AllowsClipType(definition.GetType()))
+        ActionSequenceClipRuntime runtime = definition.CreateRuntime();
+        if (runtime == null)
+        {
+            Diagnostics.Add(new ActionSequenceRuntimeDiagnostic(
+                ActionSequenceRuntimeDiagnosticCode.NullClipRuntime,
+                $"{definition.GetType().Name} returned a null runtime and was skipped.",
+                trackIndex,
+                clipIndex));
             return;
-
-        if (!TryGetRuntimeInterval(data, definition, out int startFrame, out int endFrame))
-            return;
+        }
 
         _clips.Add(new ClipRecord
         {
             Definition = definition,
-            Runtime = definition.CreateRuntime(),
+            Runtime = runtime,
             Phase = track.Phase,
             TrackIndex = trackIndex,
             ClipIndex = clipIndex,
@@ -274,15 +320,42 @@ public sealed class ActionSequenceRuntime
         {
             ActionSequenceClipDefinition definition = legacyClips[i];
             if (definition == null)
+            {
+                Diagnostics.Add(new ActionSequenceRuntimeDiagnostic(
+                    ActionSequenceRuntimeDiagnosticCode.NullClip,
+                    "Legacy clip is null and was skipped.",
+                    -1,
+                    i,
+                    true));
+                continue;
+            }
+
+            Diagnostics.Add(new ActionSequenceRuntimeDiagnostic(
+                ActionSequenceRuntimeDiagnosticCode.LegacyClipProjection,
+                "Legacy flat clip was projected into runtime without migrating asset data.",
+                -1,
+                i,
+                true));
+
+            if (!TryGetRuntimeInterval(data, definition, -1, i, true, Diagnostics, out int startFrame, out int endFrame))
                 continue;
 
-            if (!TryGetRuntimeInterval(data, definition, out int startFrame, out int endFrame))
+            ActionSequenceClipRuntime runtime = definition.CreateRuntime();
+            if (runtime == null)
+            {
+                Diagnostics.Add(new ActionSequenceRuntimeDiagnostic(
+                    ActionSequenceRuntimeDiagnosticCode.NullClipRuntime,
+                    $"{definition.GetType().Name} returned a null runtime and was skipped.",
+                    -1,
+                    i,
+                    true));
                 continue;
+            }
 
             _clips.Add(new ClipRecord
             {
                 Definition = definition,
-                Runtime = definition.CreateRuntime(),
+                Runtime = runtime,
                 Phase = definition.Phase,
                 TrackIndex = int.MaxValue,
                 ClipIndex = i,
@@ -295,11 +368,25 @@ public sealed class ActionSequenceRuntime
     private static bool TryGetRuntimeInterval(
         ActionSequenceData data,
         ActionSequenceClipDefinition definition,
+        int trackIndex,
+        int clipIndex,
+        bool isLegacy,
+        ActionSequenceRuntimeDiagnostics diagnostics,
         out int startFrame,
         out int endFrame)
     {
         startFrame = Mathf.Max(0, definition.startFrame);
         endFrame = Mathf.Max(startFrame + 1, definition.endFrame);
+
+        if (startFrame != definition.startFrame || endFrame != definition.endFrame)
+        {
+            diagnostics?.Add(new ActionSequenceRuntimeDiagnostic(
+                ActionSequenceRuntimeDiagnosticCode.TimingAdjusted,
+                $"Timing [{definition.startFrame}, {definition.endFrame}) was projected as [{startFrame}, {endFrame}) for runtime.",
+                trackIndex,
+                clipIndex,
+                isLegacy));
+        }
 
         if (data.DurationMode == ActionSequenceDurationMode.FixedFrames)
         {
@@ -308,9 +395,28 @@ public sealed class ActionSequenceRuntime
                 return false;
 
             if (startFrame >= duration)
+            {
+                diagnostics?.Add(new ActionSequenceRuntimeDiagnostic(
+                    ActionSequenceRuntimeDiagnosticCode.FixedDurationClipSkipped,
+                    $"Clip starts at {startFrame}, outside fixed duration {duration}.",
+                    trackIndex,
+                    clipIndex,
+                    isLegacy));
                 return false;
+            }
 
+            int unclampedEndFrame = endFrame;
             endFrame = Mathf.Min(endFrame, duration);
+            if (endFrame != unclampedEndFrame)
+            {
+                diagnostics?.Add(new ActionSequenceRuntimeDiagnostic(
+                    ActionSequenceRuntimeDiagnosticCode.FixedDurationClipTruncated,
+                    $"Clip end {unclampedEndFrame} was truncated to fixed duration {duration}.",
+                    trackIndex,
+                    clipIndex,
+                    isLegacy));
+            }
+
             if (endFrame <= startFrame)
                 return false;
         }

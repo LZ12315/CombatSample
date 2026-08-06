@@ -3,8 +3,8 @@ using UnityEngine;
 using UnityEngine.Playables;
 
 /// <summary>
-/// 角色动作播放器 - 管理 Timeline 动画的播放、速度与生命周期。
-/// 
+/// 角色动作播放器 - 管理 Action 播放载体、速度与生命周期。
+///
 /// <para><b>速度控制设计：</b></para>
 /// <para>1. <b>_baseSpeed</b>：当前 Action 自己的基础播放速度。</para>
 /// <para>2. <b>_externalSpeedModifiers</b>：SpeedVFX / HitStop / Buff 等外部临时倍率。</para>
@@ -20,6 +20,8 @@ public class ActionPlayer : MonoBehaviour
     [SerializeField] private Actor _actor;
 
     private PlayableDirector _director;
+    private IActionPlaybackSession _session;
+    private bool _isFinalizingAction;
 
     /// <summary>
     /// 当前 Action 自己的基础播放速度。临时慢速效果不应写入这里。
@@ -29,7 +31,7 @@ public class ActionPlayer : MonoBehaviour
     private readonly SpeedModifierStack _externalSpeedModifiers = new();
 
     /// <summary>
-    /// 当前最终播放速度。Director 实际速度会被防御性同步到这个值。
+    /// 当前最终播放速度。实际播放载体会被防御性同步到这个值。
     /// </summary>
     public double PlaybackSpeed => _baseSpeed * _externalSpeedModifiers.Value;
 
@@ -46,22 +48,18 @@ public class ActionPlayer : MonoBehaviour
     public ActionInstance CurrentAction { get; private set; }
 
     /// <summary>
-    /// 当前动作已播放到第几帧（从 0 开始），每帧 Update 中由 <c>Floor(_director.time * CurrentFrameRate)</c> 计算。
-    /// <para>HitStop 冻结 <c>_director.time</c> 时本值自然停滞，语义天然正确。</para>
-    /// <para>无当前动作或已 Stop 时归零。</para>
+    /// 当前动作已播放到第几帧（从 0 开始）。无当前动作或已 Stop 时归零。
     /// <para>供 <see cref="ActionStateManager"/> 判定 <see cref="CancelWindow"/> 是否命中使用。</para>
     /// </summary>
     public int CurrentFrame { get; private set; }
 
     /// <summary>
-    /// 当前动作的帧率（由其 TimelineAsset.editorSettings.frameRate 在 Bind 时一次性读入并缓存）。
-    /// 使用 <c>Mathf.Max(1, Round(frameRate))</c> 兜底防除零。无当前动作时为 0。
+    /// 当前动作的帧率。无当前动作时为 0。
     /// </summary>
     public int CurrentFrameRate { get; private set; }
 
     /// <summary>
-    /// 当前动作的总帧数（= Floor(duration * frameRate)）。
-    /// 供 <see cref="CancelWindow"/> 解析 <see cref="FrameAnchor.End"/> 锚点使用。
+    /// 当前动作的总帧数。供 <see cref="CancelWindow"/> 解析 <see cref="FrameAnchor.End"/> 锚点使用。
     /// 无当前动作时为 0。
     /// </summary>
     public int TotalFrames { get; private set; }
@@ -69,16 +67,10 @@ public class ActionPlayer : MonoBehaviour
     /// <summary>当前播放 Action 的启动上下文快照，供 Loop 重播时保留。</summary>
     private ActionEventContext _currentContext;
 
-    /// <summary>动作正常结束（时间走到末尾附近）且已完成 OnExit / 清 transient / 卸 Timeline 后触发。Loop 重播不会触发。</summary>
+    /// <summary>动作正常结束且已完成 OnExit / 清 transient / 释放播放载体后触发。Loop 重播不会触发。</summary>
     public event Action<ActionInstance> OnActionFinished;
-    /// <summary>动作被中断或切走时触发（非本组件 StopAction 先清空引用的情况）。</summary>
+    /// <summary>动作被播放载体异常中断时触发。显式 StopAction / 切换 Action 不触发。</summary>
     public event Action<ActionInstance> OnActionInterrupted;
-
-    /// <summary>
-    /// StopAction 主动停止 Director 时，stopped 回调会同步/异步进入。
-    /// 该标记用于避免回调重复执行 Action 退出流程。
-    /// </summary>
-    private bool _isStoppingAction;
 
     private void Awake()
     {
@@ -89,83 +81,66 @@ public class ActionPlayer : MonoBehaviour
             _actor = GetComponentInParent<Actor>();
     }
 
-    private void OnEnable()
-    {
-        _director.stopped += HandleDirectorStopped;
-    }
-
     private void OnDisable()
     {
-        _director.stopped -= HandleDirectorStopped;
+        StopActionForDisable();
         ClearExternalSpeedModifiers();
     }
 
-    /// <summary>停止当前动作：先停 Timeline 触发 Clip 清理，再执行 Action 退出与状态恢复。</summary>
+    /// <summary>停止当前动作：先停止播放载体触发 Clip 清理，再执行 Action 退出与状态恢复。</summary>
     public void StopAction()
     {
-        var inst = CurrentAction;
-        if (inst == null)
+        var action = CurrentAction;
+        if (action == null)
             return;
 
-        _isStoppingAction = true;
-        try
-        {
-            if (_director.playableAsset != null)
-                _director.Stop();
-        }
-        finally
-        {
-            _isStoppingAction = false;
-        }
-
-        FinalizeCurrentAction(inst, clearTimeline: true);
+        IActionPlaybackSession session = _session;
+        SafeStopSession(session, ActionPlaybackStopMode.Explicit);
+        FinalizeCurrentAction(action, session, clearTimeline: true, disposeSession: true);
     }
 
-    /// <summary>播放指定动作：先 StopAction，再绑定 Timeline、OnEnter。</summary>
+    /// <summary>播放指定动作：先 StopAction，再按配置绑定 Timeline 或 Sequence。</summary>
     public void BeginAction(ActionAsset actionAsset, ActionEventContext context = default)
     {
         StopAction();
         _currentContext = context;
-        TryBindAndPlayTimeline(actionAsset);
-    }
 
-    private bool TryBindAndPlayTimeline(ActionAsset actionAsset)
-    {
-        if (actionAsset == null || actionAsset.TimelineAsset == null)
+        if (!TryValidateActionAsset(actionAsset, out string warning))
         {
-            Debug.LogWarning("播放失败：ActionAsset 或 Timeline 为空。请在 ActionAsset 上指定 Timeline。", this);
-            return false;
+            Debug.LogWarning(warning, this);
+            ResetPublicPlaybackState();
+            return;
         }
 
-        CurrentAction = actionAsset.CreateActionInstance();
-        // 必须在 Play/Evaluate 之前调用 OnEnter，
-        // 因为 Evaluate 会立即触发 OnClipStart，此时 Timeline Clip 需要访问 Actor。
-        CurrentAction.OnEnter(_actor, _currentContext);
-        _director.playableAsset = CurrentAction.Config.TimelineAsset;
-        _director.time = 0;
-        // 缓存帧率（兜底 1 防除零），并把当前帧号归零。供 ASM 判定 CancelWindow 使用。
-        var ts = CurrentAction.Config.TimelineAsset;
-        CurrentFrameRate = Mathf.Max(1, Mathf.RoundToInt((float)ts.editorSettings.frameRate));
-        TotalFrames = Mathf.FloorToInt((float)(ts.duration * CurrentFrameRate));
-        CurrentFrame = 0;
-        // 不在这里清外部速度修正。SpeedVFX / HitStop 可能需要跨 Action 继续生效。
-        _director.Play();
-        _director.Evaluate();
-        // 新 Director 默认速度为 1，立即同步最终速度。
-        SyncPlaybackSpeedToDirector();
-        return true;
+        ActionInstance action = actionAsset.CreateActionInstance();
+        CurrentAction = action;
+
+        IActionPlaybackSession session = null;
+        try
+        {
+            action.OnEnter(_actor, _currentContext);
+            session = CreateSession(action, _currentContext);
+            BindSession(session);
+            session.Start();
+            session.SetSpeed(PlaybackSpeed);
+            SyncPublicPlaybackState();
+            LogSequenceDiagnosticsOnce(session);
+        }
+        catch (Exception exception)
+        {
+            Debug.LogException(exception, this);
+            HandleSessionException(action, session);
+        }
     }
 
     public void Pause()
     {
-        if (_director.state == PlayState.Playing)
-            _director.Pause();
+        _session?.Pause();
     }
 
     public void Resume()
     {
-        if (_director.state == PlayState.Paused)
-            _director.Resume();
+        _session?.Resume();
     }
 
     /// <summary>
@@ -182,7 +157,7 @@ public class ActionPlayer : MonoBehaviour
     public void SetBaseSpeed(double speed)
     {
         _baseSpeed = SanitizeSpeed(speed);
-        SyncPlaybackSpeedToDirector();
+        SyncPlaybackSpeedToSession();
     }
 
     /// <summary>
@@ -194,7 +169,7 @@ public class ActionPlayer : MonoBehaviour
         string debugName = null)
     {
         SpeedModifierToken token = _externalSpeedModifiers.Add(scale, blendMode, debugName);
-        SyncPlaybackSpeedToDirector();
+        SyncPlaybackSpeedToSession();
         return token;
     }
 
@@ -206,7 +181,7 @@ public class ActionPlayer : MonoBehaviour
     {
         bool updated = _externalSpeedModifiers.Update(token, scale, blendMode, debugName);
         if (updated)
-            SyncPlaybackSpeedToDirector();
+            SyncPlaybackSpeedToSession();
 
         return updated;
     }
@@ -215,7 +190,7 @@ public class ActionPlayer : MonoBehaviour
     {
         bool removed = _externalSpeedModifiers.Remove(token);
         if (removed)
-            SyncPlaybackSpeedToDirector();
+            SyncPlaybackSpeedToSession();
 
         return removed;
     }
@@ -226,102 +201,252 @@ public class ActionPlayer : MonoBehaviour
             return;
 
         _externalSpeedModifiers.Clear();
-        SyncPlaybackSpeedToDirector();
-    }
-
-    /// <summary>
-    /// 防御性同步：将最终 PlaybackSpeed 同步到 PlayableDirector 的实际速度。
-    /// </summary>
-    private void SyncPlaybackSpeedToDirector()
-    {
-        if (_director == null || !_director.playableGraph.IsValid())
-            return;
-
-        if (_director.playableGraph.GetRootPlayableCount() == 0)
-            return;
-
-        var rootPlayable = _director.playableGraph.GetRootPlayable(0);
-        double expectedSpeed = PlaybackSpeed;
-        double actualSpeed = rootPlayable.GetSpeed();
-
-        // 如果实际速度与期望值不一致（考虑浮点误差），进行纠正。
-        if (Math.Abs(actualSpeed - expectedSpeed) > 0.001)
-        {
-            rootPlayable.SetSpeed(expectedSpeed);
-        }
+        SyncPlaybackSpeedToSession();
     }
 
     private void Update()
     {
-        // 防御性同步：确保 Director 实际速度与最终 PlaybackSpeed 一致。
-        // 这处理了动作切换、外部干扰等边界情况。
-        if (CurrentAction != null)
+        IActionPlaybackSession session = _session;
+        if (CurrentAction == null || session == null)
+            return;
+
+        try
         {
-            SyncPlaybackSpeedToDirector();
+            session.SetSpeed(PlaybackSpeed);
+            session.Tick(Time.deltaTime);
+            if (session == _session)
+                SyncPublicPlaybackState();
         }
-
-        if (CurrentAction != null && _director.state == PlayState.Playing)
+        catch (Exception exception)
         {
-            double normalizedTime = _director.duration > 0 ? _director.time / _director.duration : 0;
-            CurrentAction.UpdateNormalizedTime(normalizedTime);
-
-            // 计算当前帧号（HitStop 时 _director.time 冻结 → 帧号自动冻结，符合预期）
-            CurrentFrame = Mathf.FloorToInt((float)(_director.time * CurrentFrameRate));
+            Debug.LogException(exception, this);
+            HandleSessionException(CurrentAction, session);
         }
     }
 
-    private void HandleDirectorStopped(PlayableDirector director)
+    private static bool TryValidateActionAsset(ActionAsset actionAsset, out string warning)
     {
-        if (_isStoppingAction)
+        if (actionAsset == null)
+        {
+            warning = "Action 播放失败：ActionAsset 为空。";
+            return false;
+        }
+
+        if (actionAsset.UsesTimeline)
+        {
+            if (actionAsset.TimelineAsset == null)
+            {
+                warning = "Action 播放失败：LegacyTimeline Action 缺少 TimelineAsset。";
+                return false;
+            }
+
+            warning = null;
+            return true;
+        }
+
+        if (actionAsset.UsesSequence)
+        {
+            if (actionAsset.SequenceData == null)
+            {
+                warning = "Action 播放失败：Sequence Action 缺少 SequenceData。";
+                return false;
+            }
+
+            warning = null;
+            return true;
+        }
+
+        warning = $"Action 播放失败：不支持的播放后端 {actionAsset.PlaybackBackend}。";
+        return false;
+    }
+
+    private IActionPlaybackSession CreateSession(ActionInstance action, ActionEventContext context)
+    {
+        if (action.Config.UsesTimeline)
+            return new TimelineActionPlaybackSession(action, _director);
+
+        if (action.Config.UsesSequence)
+            return new SequenceActionPlaybackSession(action, _actor, context);
+
+        throw new InvalidOperationException($"Unsupported action playback backend {action.Config.PlaybackBackend}.");
+    }
+
+    private void BindSession(IActionPlaybackSession session)
+    {
+        UnbindSession(_session);
+        _session = session;
+        if (_session == null)
             return;
 
-        if (CurrentAction == null)
+        _session.Completed += HandleSessionCompleted;
+        _session.Interrupted += HandleSessionInterrupted;
+    }
+
+    private void UnbindSession(IActionPlaybackSession session)
+    {
+        if (session == null)
+            return;
+
+        session.Completed -= HandleSessionCompleted;
+        session.Interrupted -= HandleSessionInterrupted;
+    }
+
+    private void DisposeSession(IActionPlaybackSession session)
+    {
+        if (session == null)
+            return;
+
+        UnbindSession(session);
+        session.Dispose();
+        if (_session == session)
+            _session = null;
+    }
+
+    private void HandleSessionCompleted(IActionPlaybackSession session)
+    {
+        if (session == null || session != _session || CurrentAction == null || _isFinalizingAction)
             return;
 
         ActionInstance finished = CurrentAction;
 
-        if (finished.RuntimeData.normalizedTime >= 0.95f)
+        if (finished.Config.IsLoop)
         {
-            if (finished.Config.IsLoop)
+            try
             {
-                // Loop 重播：直接让 Director 从头播放，不打断 ActionInstance 和动画状态。
-                // 不执行 OnExit/OnEnter，避免 Movement 状态闪烁和动画重启。
-                finished.ResetRuntimeData();
-                _director.time = 0;
-                CurrentFrame = 0;
-                _director.Play();
-                SyncPlaybackSpeedToDirector();
-                return;
+                session.Restart();
+                session.SetSpeed(PlaybackSpeed);
+                SyncPublicPlaybackState();
             }
-
-            FinalizeCurrentAction(finished, clearTimeline: true);
-            // 不在动作结束时清外部速度修正。外部 Effect 持有 token，必须由它自己释放。
-            OnActionFinished?.Invoke(finished);
+            catch (Exception exception)
+            {
+                Debug.LogException(exception, this);
+                HandleSessionException(finished, session);
+            }
             return;
         }
 
-        FinalizeCurrentAction(finished, clearTimeline: false);
-        OnActionInterrupted?.Invoke(finished);
+        FinalizeCurrentAction(finished, session, clearTimeline: true, disposeSession: true);
+        OnActionFinished?.Invoke(finished);
     }
 
-    private void FinalizeCurrentAction(ActionInstance action, bool clearTimeline)
+    private void HandleSessionInterrupted(IActionPlaybackSession session)
     {
+        if (session == null || session != _session || CurrentAction == null || _isFinalizingAction)
+            return;
+
+        ActionInstance interrupted = CurrentAction;
+        FinalizeCurrentAction(interrupted, session, clearTimeline: false, disposeSession: true);
+        OnActionInterrupted?.Invoke(interrupted);
+    }
+
+    private void HandleSessionException(ActionInstance action, IActionPlaybackSession session)
+    {
+        if (action == null)
+        {
+            DisposeSession(session);
+            ResetPublicPlaybackState();
+            return;
+        }
+
+        SafeStopSession(session, ActionPlaybackStopMode.Interrupted);
+        FinalizeCurrentAction(action, session, clearTimeline: true, disposeSession: true);
+        OnActionInterrupted?.Invoke(action);
+    }
+
+    private void StopActionForDisable()
+    {
+        var action = CurrentAction;
         if (action == null)
             return;
 
-        if (CurrentAction == action)
-            CurrentAction = null;
+        IActionPlaybackSession session = _session;
+        SafeStopSession(session, ActionPlaybackStopMode.Disable);
+        FinalizeCurrentAction(action, session, clearTimeline: true, disposeSession: true);
+    }
 
-        action.OnExit();
-        _actor?.ClearTransientTags();
+    private void SafeStopSession(IActionPlaybackSession session, ActionPlaybackStopMode stopMode)
+    {
+        if (session == null)
+            return;
 
-        if (clearTimeline)
-            _director.playableAsset = null;
+        try
+        {
+            session.Stop(stopMode);
+        }
+        catch (Exception exception)
+        {
+            Debug.LogException(exception, this);
+        }
+    }
 
-        _currentContext = default;
+    private void FinalizeCurrentAction(ActionInstance action, IActionPlaybackSession session, bool clearTimeline, bool disposeSession)
+    {
+        if (action == null || _isFinalizingAction)
+            return;
+
+        _isFinalizingAction = true;
+        try
+        {
+            if (CurrentAction == action)
+                CurrentAction = null;
+
+            action.OnExit();
+            _actor?.ClearTransientTags();
+
+            if (clearTimeline && _director != null)
+                _director.playableAsset = null;
+
+            _currentContext = default;
+            ResetPublicPlaybackState();
+        }
+        finally
+        {
+            _isFinalizingAction = false;
+            if (disposeSession)
+                DisposeSession(session);
+        }
+    }
+
+    /// <summary>
+    /// 防御性同步：将最终 PlaybackSpeed 同步到当前播放载体。
+    /// </summary>
+    private void SyncPlaybackSpeedToSession()
+    {
+        _session?.SetSpeed(PlaybackSpeed);
+    }
+
+    private void SyncPublicPlaybackState()
+    {
+        IActionPlaybackSession session = _session;
+        if (session == null || CurrentAction == null)
+        {
+            ResetPublicPlaybackState();
+            return;
+        }
+
+        CurrentFrame = session.CurrentFrame;
+        CurrentFrameRate = session.FrameRate;
+        TotalFrames = session.TotalFrames;
+        CurrentAction.UpdateNormalizedTime(session.NormalizedTime);
+    }
+
+    private void ResetPublicPlaybackState()
+    {
         CurrentFrame = 0;
         CurrentFrameRate = 0;
         TotalFrames = 0;
+    }
+
+    private void LogSequenceDiagnosticsOnce(IActionPlaybackSession session)
+    {
+        if (session is not SequenceActionPlaybackSession sequenceSession)
+            return;
+
+        ActionSequenceRuntimeDiagnostics diagnostics = sequenceSession.Diagnostics;
+        if (diagnostics == null || !diagnostics.HasIssues)
+            return;
+
+        Debug.LogWarning(diagnostics.ToSummary("Sequence Action runtime diagnostics"), this);
     }
 
     private static double SanitizeSpeed(double speed)

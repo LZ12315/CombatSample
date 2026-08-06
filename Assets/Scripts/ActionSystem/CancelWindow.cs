@@ -23,7 +23,7 @@ public enum FrameAnchor
 /// <para>设计约定：</para>
 /// <list type="bullet">
 ///   <item><b>帧数唯一</b>：不使用 NormalizedTime。帧号由 <see cref="ActionPlayer.CurrentFrame"/> 维护，
-///   等于 <c>Floor(director.time * frameRate)</c>。HitStop 冻结 director.time → 帧号自然冻结，语义天然正确。</item>
+///   HitStop 冻结当前播放载体时帧号自然停滞，语义天然正确。</item>
 ///   <item><b>startAnchor / startFrame</b>：窗口开启帧（包含）。锚点为 <see cref="FrameAnchor.Start"/> 时等价于帧 0；
 ///   为 <see cref="FrameAnchor.Custom"/> 时使用 <c>startFrame</c> 的值。</item>
 ///   <item><b>endAnchor / endFrame</b>：窗口结束帧（包含）。锚点为 <see cref="FrameAnchor.End"/> 时等价于动作最后一帧；

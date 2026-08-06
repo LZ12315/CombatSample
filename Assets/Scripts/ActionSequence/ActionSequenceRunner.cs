@@ -54,6 +54,10 @@ public sealed class ActionSequenceRunner : MonoBehaviour
 
         _context.Actor = ResolveActor();
         _context.EventContext = eventContext;
+
+        ActionSequenceRuntimeDiagnostics diagnostics = _runtime?.Diagnostics;
+        if (diagnostics != null && diagnostics.HasIssues)
+            Debug.LogWarning(diagnostics.ToSummary("ActionSequenceRunner runtime diagnostics"), this);
     }
 
     public void Replay(ActionEventContext eventContext = default)

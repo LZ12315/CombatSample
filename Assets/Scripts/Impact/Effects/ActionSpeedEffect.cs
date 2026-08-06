@@ -1,7 +1,7 @@
 using UnityEngine;
 
 /// <summary>
-/// 控制攻击者（可选受击者）的 ActionPlayer Timeline 播放速度，实现 HitStop/HitStick 效果；
+/// 控制攻击者（可选受击者）的 ActionPlayer 播放速度，实现 HitStop/HitStick 效果；
 /// 并同步 <see cref="ActorMotor"/> 的 movement time scale，使 KCC/重力/冲量与动画同速冻结。
 /// 
 /// 本效果不再缓存并恢复旧速度；它只向 ActionPlayer / ActorMotor 申请临时 modifier token，
@@ -81,7 +81,7 @@ public class ActionSpeedEffect : ImpactEffect
         _targetSpeedApplied = false;
         _released = false;
 
-        // 攻击者：当帧即降速（无 TARGET_START_DELAY）；ActorMotor 与 Timeline 同步缩放 dt。
+        // 攻击者：当帧即降速（无 TARGET_START_DELAY）；ActorMotor 与 Action 播放同步缩放 dt。
         ApplyAttackerSpeed();
 
         // 受击者：TARGET_START_DELAY 后再申请 Action / Movement modifier（不变量，见上）。
