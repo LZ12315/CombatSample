@@ -1,11 +1,11 @@
 # ActionSequence 编辑器 V2 架构
 
-> 状态：已确认的架构基线；Stage 0 至 Stage 6 正式入口切换已实现。V2 是 ActionSequence 的正常编辑入口，Prototype 仅作为诊断退路保留。
+> 状态：已确认的架构基线；Stage 0 至 Stage 7 运行时接入已实现。V2 是 ActionSequence 的正常编辑入口，Prototype 仅作为诊断退路保留。
 > 版本：1.0  
 > 日期：2026-08-03  
 > 目标版本：Unity 2022.3.62f3  
 > 范围：ActionSequence 编辑器，以及编辑器所需的数据基础  
-> 运行时边界：保留现有固定帧 ActionSequence runtime；本阶段不接入 ActionPlayer  
+> 运行时边界：Sequence backend 的 ActionAsset 通过 ActionPlayer 使用固定帧 ActionSequence runtime 播放；编辑器预览仍只驱动播放头
 > English edition: [ActionSequence Editor V2 Architecture](ActionSequence_Editor_V2_Architecture.md)
 
 ## 1. 核心决定
@@ -69,7 +69,6 @@ ActionSequence 是面向战斗动作的、确定性的固定帧编辑工具。�
 
 ### 3.2 V2 首版明确不做
 
-- 接入 ActionPlayer。
 - 真实驱动 Animancer、Force 或 HitBox 预览。
 - 多选和框选。
 - 跨 Track 拖动 Clip。
@@ -639,6 +638,17 @@ Assets/Scripts/ActionSequence/Editor/V2/
 
 退出条件：V2 成为唯一正常编辑入口，LegacyTimeline 仍然打开 Unity Timeline。
 
+### Stage 7 — Runtime 接入
+
+- 将 `ActionPlayer` 拆成 backend-neutral 协调器，以及 Timeline / Sequence 两种播放会话。
+- 让 Sequence backend 的 `ActionAsset` 通过 `ActionSequenceRuntime` 播放。
+- 保持 LegacyTimeline 行为、ActionStateManager 仲裁、速度 modifier、CancelWindow、显式停止、Disable 清理、Loop 和 ActionPlayer public API 不变。
+- 为非法 Sequence 数据增加只读运行时诊断，不修改用户 Asset。
+
+状态：已实现 ActionPlayer 会话路由、Timeline 兼容边界、内嵌 SequenceData 播放、Begin 时立即执行 frame 0、Update 驱动固定帧推进、速度与暂停、确定性 Stop/Disable 清理、Loop，以及聚合的 Sequence runtime warning。
+
+退出条件：Sequence Action 可以从现有 ActionStateManager 路径运行；编辑器播放头预览仍不会执行 runtime clip。
+
 ## 15. 验证策略
 
 ### 15.1 EditMode 测试
@@ -654,6 +664,7 @@ Assets/Scripts/ActionSequence/Editor/V2/
 - Fixed/Auto Duration 计算。
 - Validation 不修改源数据。
 - 现有确定性 Runtime 排序与 Muted Track 行为。
+- ActionPlayer Sequence 接入、frame 0 执行、完成延迟收口、停止清理和运行时诊断。
 - 多个 Runtime/Editor Document 实例不共享状态。
 
 ### 15.2 Editor 手动验证矩阵

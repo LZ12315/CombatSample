@@ -1,11 +1,11 @@
 # ActionSequence Editor V2 Architecture
 
-> Status: Approved architecture baseline; Stage 0 through Stage 6 cutover is implemented. V2 is the normal ActionSequence editor entry, and the prototype remains available only as a diagnostic fallback.
+> Status: Approved architecture baseline; Stage 0 through Stage 7 runtime integration is implemented. V2 is the normal ActionSequence editor entry, and the prototype remains available only as a diagnostic fallback.
 > Version: 1.0  
 > Date: 2026-08-03  
 > Target: Unity 2022.3.62f3  
 > Scope: ActionSequence authoring editor and its editor-facing data requirements  
-> Runtime boundary: keep the existing fixed-frame ActionSequence runtime; do not integrate ActionPlayer in this project stage  
+> Runtime boundary: Sequence-backed ActionAssets play through ActionPlayer using the fixed-frame ActionSequence runtime; editor preview remains playhead-only
 > Chinese edition: [ActionSequence 编辑器 V2 架构](ActionSequence_Editor_V2_Architecture_zh-CN.md)
 
 ## 1. Decision
@@ -69,7 +69,6 @@ V2 is complete only when a user can:
 
 ### 3.2 V2 first-release non-goals
 
-- ActionPlayer integration.
 - Real Animancer, force, or HitBox preview.
 - Multi-selection and box selection.
 - Cross-track clip dragging.
@@ -639,6 +638,17 @@ Status: implemented for normal editor routing. Sequence-backed `ActionAsset` and
 
 Exit: V2 is the only normal authoring entry point; LegacyTimeline still opens Unity Timeline.
 
+### Stage 7 — Runtime integration
+
+- Split `ActionPlayer` into a backend-neutral coordinator plus Timeline and Sequence playback sessions.
+- Route Sequence-backed `ActionAsset` playback through `ActionSequenceRuntime`.
+- Preserve LegacyTimeline behavior, ActionStateManager arbitration, speed modifiers, cancel windows, explicit stop, disable cleanup, looping, and public ActionPlayer APIs.
+- Add read-only runtime diagnostics for invalid Sequence data without mutating authored assets.
+
+Status: implemented for ActionPlayer session routing, Timeline compatibility boundary, embedded SequenceData playback, immediate frame-0 execution, fixed-frame Update ticking, speed and pause handling, deterministic stop/disable cleanup, looping, and aggregated Sequence runtime warnings.
+
+Exit: Sequence actions can run from the existing ActionStateManager path; editor playhead preview still does not execute runtime clips.
+
 ## 15. Verification Strategy
 
 ### 15.1 EditMode tests
@@ -654,6 +664,7 @@ Exit: V2 is the only normal authoring entry point; LegacyTimeline still opens Un
 - Fixed and Auto duration calculations.
 - Validation does not mutate source data.
 - Existing deterministic runtime sorting and muted-track behavior.
+- ActionPlayer Sequence integration, frame-0 execution, completion deferral, stop cleanup, and runtime diagnostics.
 - Multiple runtime/editor document instances do not share state.
 
 ### 15.2 Manual Editor matrix

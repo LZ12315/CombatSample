@@ -297,6 +297,38 @@ public sealed class ActionSequenceRuntimeTests
         Assert.AreEqual(20, clip.endFrame);
     }
 
+    [Test]
+    public void Runtime_ReportsDiagnosticsWithoutMutatingAsset()
+    {
+        ActionSequenceAsset asset = ScriptableObject.CreateInstance<ActionSequenceAsset>();
+        asset.EditorSetTiming(60, 3);
+        asset.EditorTracks.Clear();
+        var adjusted = new ProbeClipDefinition("A", ActionSequenceClipPhase.State, -2, 10);
+        var skipped = new ProbeClipDefinition("B", ActionSequenceClipPhase.State, 5, 8);
+        var nullRuntime = new NullRuntimeClipDefinition(0, 1);
+        var disallowed = new DisallowedStateClipDefinition(0, 1);
+        var track = new ProbeTrackDefinition(ActionSequenceClipPhase.State, adjusted, skipped);
+        track.EditorClips.Add(nullRuntime);
+        track.EditorClips.Add(disallowed);
+        asset.EditorTracks.Add(track);
+        asset.EditorClips.Add(new ProbeClipDefinition("Legacy", ActionSequenceClipPhase.State, 0, 1));
+
+        var runtime = new ActionSequenceRuntime(asset);
+
+        Assert.IsTrue(runtime.Diagnostics.HasIssues);
+        AssertHasDiagnostic(runtime.Diagnostics, ActionSequenceRuntimeDiagnosticCode.TimingAdjusted);
+        AssertHasDiagnostic(runtime.Diagnostics, ActionSequenceRuntimeDiagnosticCode.FixedDurationClipTruncated);
+        AssertHasDiagnostic(runtime.Diagnostics, ActionSequenceRuntimeDiagnosticCode.FixedDurationClipSkipped);
+        AssertHasDiagnostic(runtime.Diagnostics, ActionSequenceRuntimeDiagnosticCode.NullClipRuntime);
+        AssertHasDiagnostic(runtime.Diagnostics, ActionSequenceRuntimeDiagnosticCode.DisallowedClipType);
+        AssertHasDiagnostic(runtime.Diagnostics, ActionSequenceRuntimeDiagnosticCode.LegacyClipProjection);
+        Assert.AreEqual(-2, adjusted.startFrame);
+        Assert.AreEqual(10, adjusted.endFrame);
+        Assert.AreEqual(5, skipped.startFrame);
+        Assert.AreEqual(8, skipped.endFrame);
+        Assert.AreEqual(1, asset.EditorClips.Count);
+    }
+
     private static ActionSequenceAsset CreateAsset(int durationFrames, params ActionSequenceClipDefinition[] clips)
     {
         ActionSequenceAsset asset = ScriptableObject.CreateInstance<ActionSequenceAsset>();
@@ -330,10 +362,21 @@ public sealed class ActionSequenceRuntimeTests
         return null;
     }
 
+    private static void AssertHasDiagnostic(ActionSequenceRuntimeDiagnostics diagnostics, ActionSequenceRuntimeDiagnosticCode code)
+    {
+        for (int i = 0; i < diagnostics.Issues.Count; i++)
+        {
+            if (diagnostics.Issues[i].Code == code)
+                return;
+        }
+
+        Assert.Fail($"Expected runtime diagnostic {code}.");
+    }
+
     private sealed class ProbeTrackDefinition : ActionSequenceTrackDefinition
     {
         private readonly ActionSequenceClipPhase _phase;
-        private static readonly System.Type[] ClipTypes = { typeof(ProbeClipDefinition) };
+        private static readonly System.Type[] ClipTypes = { typeof(ProbeClipDefinition), typeof(NullRuntimeClipDefinition) };
 
         public ProbeTrackDefinition(ActionSequenceClipPhase phase, params ActionSequenceClipDefinition[] clips)
         {
@@ -394,6 +437,42 @@ public sealed class ActionSequenceRuntimeTests
             {
                 return (List<string>)context.UserData;
             }
+        }
+    }
+
+    private sealed class DisallowedStateClipDefinition : ActionSequenceClipDefinition
+    {
+        public DisallowedStateClipDefinition(int start, int end)
+        {
+            startFrame = start;
+            endFrame = end;
+        }
+
+        public override ActionSequenceClipPhase Phase => ActionSequenceClipPhase.State;
+
+        public override ActionSequenceClipRuntime CreateRuntime()
+        {
+            return new Runtime();
+        }
+
+        private sealed class Runtime : ActionSequenceClipRuntime
+        {
+        }
+    }
+
+    private sealed class NullRuntimeClipDefinition : ActionSequenceClipDefinition
+    {
+        public NullRuntimeClipDefinition(int start, int end)
+        {
+            startFrame = start;
+            endFrame = end;
+        }
+
+        public override ActionSequenceClipPhase Phase => ActionSequenceClipPhase.State;
+
+        public override ActionSequenceClipRuntime CreateRuntime()
+        {
+            return null;
         }
     }
 }
