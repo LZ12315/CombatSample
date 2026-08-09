@@ -15,9 +15,8 @@ using UnityEngine;
 ///
 /// Attach this to a scene-level manager object (e.g. Manager.prefab) so the project
 /// has one explicit, reviewable place where actor separation is coordinated.
-/// Runs in FixedUpdate at execution order -99, right after KinematicCharacterSystem (-100).
+/// CombatSimulationDriver calls ResolveFixedStep once after the complete KCC fixed step.
 /// </summary>
-[DefaultExecutionOrder(-99)]
 public class ActorCollisionResolver : MonoBehaviour
 {
     #region === Registration ===
@@ -87,9 +86,13 @@ public class ActorCollisionResolver : MonoBehaviour
 
     #endregion
 
-    #region === Unity Lifecycle ===
+    #region === Fixed Simulation ===
 
-    private void FixedUpdate()
+    /// <summary>
+    /// Ages cached contacts and resolves all actor overlaps for one fixed simulation step.
+    /// This has one authoritative caller: CombatSimulationDriver, after KCC finishes.
+    /// </summary>
+    internal void ResolveFixedStep()
     {
         // Copy keys first; Dictionary cannot be modified while its enumerator is active.
         _agedKeys.Clear();
