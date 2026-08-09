@@ -17,6 +17,7 @@
 
 ## Proposals
 
+- [CombatSample ActionSequence 最终架构 v2](Proposals/CombatSample_ActionSequence_Final_Architecture_v2_zh-CN.md) — approved implementation baseline, now partially implemented: the project-side KCC Driver compatibility slice and 60 Hz fixed world clock have landed; Sequence phasing, AnimationConfig, baked motion, LocomotionController, and HitBox synchronization remain staged work.
 - [帧表迁移完整落地方案（历史草案）](Proposals/帧表迁移完整落地方案_历史草案.md) — not approved and not executable as written. Requires a new go/no-go decision and redesign against the current Timeline-based action system.
 
 ## Archive
