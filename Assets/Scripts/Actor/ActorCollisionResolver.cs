@@ -15,7 +15,8 @@ using UnityEngine;
 ///
 /// Attach this to a scene-level manager object (e.g. Manager.prefab) so the project
 /// has one explicit, reviewable place where actor separation is coordinated.
-/// CombatSimulationDriver calls ResolveFixedStep once after the complete KCC fixed step.
+/// CombatSimulationDriver calls ResolveFixedStep once after KCC and before
+/// PostWorld gameplay queries and interpolation reset.
 /// </summary>
 public class ActorCollisionResolver : MonoBehaviour
 {
@@ -90,7 +91,8 @@ public class ActorCollisionResolver : MonoBehaviour
 
     /// <summary>
     /// Ages cached contacts and resolves all actor overlaps for one fixed simulation step.
-    /// This has one authoritative caller: CombatSimulationDriver, after KCC finishes.
+    /// This has one authoritative caller: CombatSimulationDriver, after KCC and
+    /// before PostWorld gameplay queries.
     /// </summary>
     internal void ResolveFixedStep()
     {

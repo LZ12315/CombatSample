@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using KinematicCharacterController;
 using NUnit.Framework;
 using UnityEditor;
@@ -55,6 +56,8 @@ public sealed class CombatSimulationDriverPlayModeTests
     private GameObject _probeOwner;
     private GameObject _actorOwnerA;
     private GameObject _actorOwnerB;
+    private GameObject _sequenceActorOwner;
+    private ActionAsset _sequenceAction;
     private CombatSimulationDriver _driver;
     private bool _savedInterpolate;
     private bool _hasSavedInterpolate;
@@ -161,10 +164,12 @@ public sealed class CombatSimulationDriverPlayModeTests
             Vector3.Distance(observation.TransformPosition, observation.TransientPosition),
             Is.LessThan(0.0001f));
 
+        yield return VerifySequenceCrossesWorldMotionBarrier(controller, motor, observation);
+        yield return VerifyResolverRunsAfterKcc();
+        yield return VerifyWorldFaultStopsFurtherSimulation(controller);
+
         Object.DestroyImmediate(_probeOwner);
         _probeOwner = null;
-
-        yield return VerifyResolverRunsAfterKcc();
 
         CleanupRuntimeObjects();
         yield return new ExitPlayMode();
@@ -261,6 +266,107 @@ public sealed class CombatSimulationDriverPlayModeTests
         Assert.GreaterOrEqual(HorizontalDistance(actorA, actorB), combinedRadius - 0.001f);
     }
 
+    private IEnumerator VerifySequenceCrossesWorldMotionBarrier(
+        ProbeController controller,
+        KinematicCharacterMotor motor,
+        CombatSimulationFixedObservationProbe observation)
+    {
+        var phaseEvents = new List<string>();
+        Collider probeCollider = motor.GetComponent<Collider>();
+        Assert.IsNotNull(probeCollider);
+
+        _sequenceActorOwner = new GameObject("CombatSimulationDriver Sequence Actor");
+        _sequenceActorOwner.AddComponent<Actor>();
+        ActionPlayer player = _sequenceActorOwner.AddComponent<ActionPlayer>();
+
+        _sequenceAction = ScriptableObject.CreateInstance<ActionAsset>();
+        _sequenceAction.SetPlaybackBackend(ActionPlaybackBackend.Sequence);
+        _sequenceAction.SequenceData.EditorSetTiming(60, 1);
+        _sequenceAction.SequenceData.EditorTracks.Clear();
+        _sequenceAction.SequenceData.EditorTracks.Add(new DriverPhaseProbeTrack(
+            ActionSequenceClipPhase.State,
+            new DriverPhaseProbeClip(
+                ActionSequenceClipPhase.State,
+                phaseEvents,
+                "pre")));
+        _sequenceAction.SequenceData.EditorTracks.Add(new DriverPhaseProbeTrack(
+            ActionSequenceClipPhase.HitBox,
+            new DriverPhaseProbeClip(
+                ActionSequenceClipPhase.HitBox,
+                phaseEvents,
+                "post",
+                motor,
+                probeCollider)));
+
+        controller.RequestedVelocity = Vector3.right * 120f;
+        controller.PhaseEvents = phaseEvents;
+        KinematicCharacterSystem.Settings.Interpolate = true;
+        int previousObservationCount = observation.Count;
+
+        player.BeginAction(_sequenceAction);
+        Assert.AreEqual(0, phaseEvents.Count, "Frame 0 must wait for the fixed simulation tick.");
+
+        yield return WaitForObservation(observation, previousObservationCount);
+        AssertSequencePhaseOrder(phaseEvents);
+        Assert.IsNull(player.CurrentAction, "A one-frame Sequence must finish in the same EndFrame.");
+        Assert.That(
+            Vector3.Distance(observation.TransformPosition, observation.InitialTickPosition),
+            Is.LessThan(0.0001f),
+            "Interpolation Post must run after Sequence PostWorld and restore the rendered Transform.");
+
+        phaseEvents.Clear();
+        KinematicCharacterSystem.Settings.Interpolate = false;
+        previousObservationCount = observation.Count;
+        player.BeginAction(_sequenceAction);
+
+        yield return WaitForObservation(observation, previousObservationCount);
+        AssertSequencePhaseOrder(phaseEvents);
+        Assert.That(
+            Vector3.Distance(observation.TransformPosition, observation.TransientPosition),
+            Is.LessThan(0.0001f),
+            "Disabling interpolation must not change the Sequence phase order.");
+
+        controller.PhaseEvents = null;
+        controller.RequestedVelocity = Vector3.right;
+    }
+
+    private IEnumerator VerifyWorldFaultStopsFurtherSimulation(ProbeController controller)
+    {
+        LogAssert.Expect(
+            LogType.Exception,
+            new Regex("InvalidOperationException: Injected world simulation fault"));
+
+        controller.ThrowOnBefore = true;
+        float deadline = Time.realtimeSinceStartup + 5f;
+        while (!_driver.IsSimulationFaulted && Time.realtimeSinceStartup < deadline)
+            yield return null;
+
+        Assert.IsTrue(_driver.IsSimulationFaulted, "Timed out waiting for the Driver fault state.");
+        Assert.IsTrue(_driver.IsSimulationOwner);
+        Assert.IsFalse(KinematicCharacterSystem.Settings.AutoSimulation);
+
+        int beforeCountAtFault = controller.BeforeCount;
+        yield return null;
+        yield return null;
+        Assert.AreEqual(
+            beforeCountAtFault,
+            controller.BeforeCount,
+            "A faulted Driver must not continue partially trustworthy world simulation.");
+    }
+
+    private static void AssertSequencePhaseOrder(List<string> phaseEvents)
+    {
+        int preIndex = phaseEvents.IndexOf("pre");
+        int kccIndex = phaseEvents.IndexOf("kcc");
+        int postIndex = phaseEvents.IndexOf("post-synced");
+        int exitIndex = phaseEvents.IndexOf("exit");
+
+        Assert.GreaterOrEqual(preIndex, 0);
+        Assert.Greater(kccIndex, preIndex);
+        Assert.Greater(postIndex, kccIndex);
+        Assert.Greater(exitIndex, postIndex);
+    }
+
     private static ActorMotor CreateActorMotor(string name, Vector3 position, out GameObject owner)
     {
         owner = new GameObject(name);
@@ -302,6 +408,18 @@ public sealed class CombatSimulationDriverPlayModeTests
             _actorOwnerB = null;
         }
 
+        if (_sequenceActorOwner != null)
+        {
+            Object.DestroyImmediate(_sequenceActorOwner);
+            _sequenceActorOwner = null;
+        }
+
+        if (_sequenceAction != null)
+        {
+            Object.DestroyImmediate(_sequenceAction);
+            _sequenceAction = null;
+        }
+
         if (_duplicateOwner != null)
         {
             Object.DestroyImmediate(_duplicateOwner);
@@ -333,6 +451,8 @@ public sealed class CombatSimulationDriverPlayModeTests
         public readonly List<float> DeltaTimes = new List<float>();
 
         public Vector3 RequestedVelocity;
+        public List<string> PhaseEvents;
+        public bool ThrowOnBefore;
         public int BeforeCount;
         public int UpdateRotationCount;
         public int UpdateVelocityCount;
@@ -344,6 +464,9 @@ public sealed class CombatSimulationDriverPlayModeTests
             BeforeCount++;
             FixedTimes.Add(Time.fixedTime);
             DeltaTimes.Add(deltaTime);
+
+            if (ThrowOnBefore)
+                throw new System.InvalidOperationException("Injected world simulation fault.");
         }
 
         public void UpdateRotation(ref Quaternion currentRotation, float deltaTime)
@@ -365,6 +488,7 @@ public sealed class CombatSimulationDriverPlayModeTests
         public void AfterCharacterUpdate(float deltaTime)
         {
             AfterCount++;
+            PhaseEvents?.Add("kcc");
         }
 
         public bool IsColliderValidForCollisions(Collider coll)
@@ -400,6 +524,109 @@ public sealed class CombatSimulationDriverPlayModeTests
 
         public void OnDiscreteCollisionDetected(Collider hitCollider)
         {
+        }
+    }
+
+    private sealed class DriverPhaseProbeTrack : ActionSequenceTrackDefinition
+    {
+        private static readonly System.Type[] ClipTypes = { typeof(DriverPhaseProbeClip) };
+        private readonly ActionSequenceClipPhase _phase;
+
+        public DriverPhaseProbeTrack(
+            ActionSequenceClipPhase phase,
+            params ActionSequenceClipDefinition[] clips)
+        {
+            _phase = phase;
+            for (int i = 0; i < clips.Length; i++)
+                AddClip(clips[i]);
+        }
+
+        public override ActionSequenceClipPhase Phase => _phase;
+        public override System.Type[] AllowedClipTypes => ClipTypes;
+    }
+
+    private sealed class DriverPhaseProbeClip : ActionSequenceClipDefinition
+    {
+        private readonly ActionSequenceClipPhase _phase;
+        private readonly List<string> _events;
+        private readonly string _eventName;
+        private readonly KinematicCharacterMotor _motor;
+        private readonly Collider _expectedCollider;
+
+        public DriverPhaseProbeClip(
+            ActionSequenceClipPhase phase,
+            List<string> events,
+            string eventName,
+            KinematicCharacterMotor motor = null,
+            Collider expectedCollider = null)
+        {
+            _phase = phase;
+            _events = events;
+            _eventName = eventName;
+            _motor = motor;
+            _expectedCollider = expectedCollider;
+            startFrame = 0;
+            endFrame = 1;
+        }
+
+        public override ActionSequenceClipPhase Phase => _phase;
+
+        public override ActionSequenceClipRuntime CreateRuntime()
+        {
+            return new Runtime(_events, _eventName, _motor, _expectedCollider);
+        }
+
+        private sealed class Runtime : ActionSequenceClipRuntime
+        {
+            private readonly List<string> _events;
+            private readonly string _eventName;
+            private readonly KinematicCharacterMotor _motor;
+            private readonly Collider _expectedCollider;
+            private readonly Collider[] _overlapResults = new Collider[8];
+
+            public Runtime(
+                List<string> events,
+                string eventName,
+                KinematicCharacterMotor motor,
+                Collider expectedCollider)
+            {
+                _events = events;
+                _eventName = eventName;
+                _motor = motor;
+                _expectedCollider = expectedCollider;
+            }
+
+            public override void OnTick(ActionSequenceContext context)
+            {
+                if (_motor == null || _expectedCollider == null)
+                {
+                    _events.Add(_eventName);
+                    return;
+                }
+
+                int count = Physics.OverlapSphereNonAlloc(
+                    _motor.TransientPosition,
+                    0.1f,
+                    _overlapResults,
+                    ~0,
+                    QueryTriggerInteraction.Collide);
+                bool foundExpectedCollider = false;
+                for (int i = 0; i < count; i++)
+                {
+                    if (_overlapResults[i] == _expectedCollider)
+                    {
+                        foundExpectedCollider = true;
+                        break;
+                    }
+                }
+
+                _events.Add(foundExpectedCollider ? "post-synced" : "post-unsynced");
+            }
+
+            public override void OnExit(ActionSequenceContext context, bool completed)
+            {
+                _events.Add("exit");
+            }
         }
     }
 }

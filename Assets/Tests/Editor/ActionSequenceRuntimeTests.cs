@@ -5,6 +5,180 @@ using UnityEngine;
 public sealed class ActionSequenceRuntimeTests
 {
     [Test]
+    public void FrameTransaction_SeparatesPreWorldPostWorldAndEndFrame()
+    {
+        ActionSequenceAsset asset = CreateAsset(
+            1,
+            new ProbeClipDefinition("M", ActionSequenceClipPhase.Motion, 0, 1),
+            new ProbeClipDefinition("C", ActionSequenceClipPhase.Cleanup, 0, 1),
+            new ProbeClipDefinition("H", ActionSequenceClipPhase.HitBox, 0, 1),
+            new ProbeClipDefinition("A", ActionSequenceClipPhase.Animation, 0, 1),
+            new ProbeClipDefinition("S", ActionSequenceClipPhase.State, 0, 1));
+        var runtime = new ActionSequenceRuntime(asset);
+        var events = new List<string>();
+        var context = new ActionSequenceContext { UserData = events };
+
+        Assert.IsTrue(runtime.BeginFrame(context, 0.02f, 0.5f));
+
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                "S:enter:0",
+                "A:enter:0",
+                "M:enter:0",
+                "H:enter:0",
+                "C:enter:0",
+            },
+            events);
+        Assert.AreEqual(ActionSequenceFrameTransactionState.Begun, runtime.FrameTransactionState);
+        Assert.AreEqual(-1, runtime.CurrentFrame);
+        Assert.AreEqual(0, runtime.PendingFrame);
+        Assert.AreEqual(0.02f, context.DeltaTime);
+        Assert.AreEqual(0.5f, context.SpeedScale);
+
+        runtime.ExecutePreWorld();
+
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                "S:enter:0",
+                "A:enter:0",
+                "M:enter:0",
+                "H:enter:0",
+                "C:enter:0",
+                "S:tick:0",
+                "A:tick:0",
+                "M:tick:0",
+            },
+            events);
+        Assert.AreEqual(ActionSequenceFrameTransactionState.PreWorldComplete, runtime.FrameTransactionState);
+        Assert.IsFalse(runtime.IsComplete);
+
+        runtime.ExecutePostWorld();
+
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                "S:enter:0",
+                "A:enter:0",
+                "M:enter:0",
+                "H:enter:0",
+                "C:enter:0",
+                "S:tick:0",
+                "A:tick:0",
+                "M:tick:0",
+                "H:tick:0",
+                "C:tick:0",
+            },
+            events);
+        Assert.AreEqual(ActionSequenceFrameTransactionState.PostWorldComplete, runtime.FrameTransactionState);
+        Assert.IsFalse(runtime.IsComplete);
+
+        runtime.EndFrame();
+
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                "S:enter:0",
+                "A:enter:0",
+                "M:enter:0",
+                "H:enter:0",
+                "C:enter:0",
+                "S:tick:0",
+                "A:tick:0",
+                "M:tick:0",
+                "H:tick:0",
+                "C:tick:0",
+                "C:exit:1:True",
+                "H:exit:1:True",
+                "M:exit:1:True",
+                "A:exit:1:True",
+                "S:exit:1:True",
+            },
+            events);
+        Assert.AreEqual(ActionSequenceFrameTransactionState.Idle, runtime.FrameTransactionState);
+        Assert.AreEqual(0, runtime.CurrentFrame);
+        Assert.AreEqual(-1, runtime.PendingFrame);
+        Assert.IsTrue(runtime.IsComplete);
+    }
+
+    [Test]
+    public void FrameTransaction_RejectsOutOfOrderOrCompetingAdvance()
+    {
+        ActionSequenceAsset asset = CreateAsset(1);
+        var runtime = new ActionSequenceRuntime(asset);
+        var context = new ActionSequenceContext();
+
+        Assert.Throws<System.InvalidOperationException>(() => runtime.ExecutePreWorld());
+        Assert.IsTrue(runtime.BeginFrame(context));
+        Assert.Throws<System.InvalidOperationException>(() => runtime.BeginFrame(context));
+        Assert.Throws<System.InvalidOperationException>(() => runtime.Tick(context, 1f / 60f));
+        Assert.Throws<System.InvalidOperationException>(() => runtime.StepFrame(context));
+        Assert.Throws<System.InvalidOperationException>(() => runtime.ExecutePostWorld());
+
+        runtime.ExecutePreWorld();
+        Assert.Throws<System.InvalidOperationException>(() => runtime.EndFrame());
+
+        runtime.ExecutePostWorld();
+        runtime.EndFrame();
+    }
+
+    [Test]
+    public void FrameTransaction_CancelCleansOpenFrameWithoutCommittingIt()
+    {
+        ActionSequenceAsset asset = CreateAsset(
+            2,
+            new ProbeClipDefinition("H", ActionSequenceClipPhase.HitBox, 0, 2),
+            new ProbeClipDefinition("S", ActionSequenceClipPhase.State, 0, 2));
+        var runtime = new ActionSequenceRuntime(asset);
+        var events = new List<string>();
+        var context = new ActionSequenceContext { UserData = events };
+
+        runtime.BeginFrame(context);
+        runtime.ExecutePreWorld();
+        runtime.Cancel(context);
+
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                "S:enter:0",
+                "H:enter:0",
+                "S:tick:0",
+                "H:exit:0:False",
+                "S:exit:0:False",
+            },
+            events);
+        Assert.AreEqual(-1, runtime.CurrentFrame);
+        Assert.AreEqual(ActionSequenceFrameTransactionState.Idle, runtime.FrameTransactionState);
+        Assert.IsFalse(runtime.HasOpenFrame);
+        Assert.IsTrue(runtime.IsComplete);
+    }
+
+    [Test]
+    public void StepFrame_ExitsHalfOpenClipAtItsEndBoundary()
+    {
+        ActionSequenceAsset asset = CreateAsset(
+            3,
+            new ProbeClipDefinition("A", ActionSequenceClipPhase.State, 0, 1));
+        var runtime = new ActionSequenceRuntime(asset);
+        var events = new List<string>();
+        var context = new ActionSequenceContext { UserData = events };
+
+        runtime.StepFrame(context);
+
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                "A:enter:0",
+                "A:tick:0",
+                "A:exit:1:True",
+            },
+            events);
+        Assert.AreEqual(0, context.Frame);
+        Assert.IsFalse(runtime.IsComplete);
+    }
+
+    [Test]
     public void StepFrame_ProcessesFrameZeroAndHalfOpenInterval()
     {
         ActionSequenceAsset asset = CreateAsset(

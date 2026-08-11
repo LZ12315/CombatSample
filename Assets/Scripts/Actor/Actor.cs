@@ -5,6 +5,8 @@ using UnityEngine;
 
 public class Actor : MonoBehaviour
 {
+    private ActorSimulationRuntime _simulationRuntime;
+
     #region === 组件引用 ===
 
     public ActorMotor actorMotor;
@@ -12,6 +14,10 @@ public class Actor : MonoBehaviour
     public ActionPlayer actionPlayer;
     public AnimancerComponent animancer;
     public ActorCombater combater;
+
+    [Header("Animation")]
+    [SerializeField] private AnimationConfig animationConfig;
+    public AnimationConfig AnimationConfig => animationConfig;
 
     [Header("Camera")]
     [Tooltip("相机观察该 Actor 时使用的目标点。玩家通常指向 CameraPivot；敌人可指向胸口/锁定点。未配置时回退到 Actor Transform。")]
@@ -33,12 +39,46 @@ public class Actor : MonoBehaviour
     private void Awake()
     {
         actorMotor = actorMotor != null ? actorMotor : GetComponent<ActorMotor>();
+        actionPlayer = actionPlayer != null ? actionPlayer : GetComponent<ActionPlayer>();
+        EnsureSimulationRuntime();
 
         if (cameraTarget == null)
             cameraTarget = transform.Find("CameraPivot");
 
         persistentTags = gameObject.GetTagContainer();
         transientTags = new TagContainer();
+    }
+
+    private void OnEnable()
+    {
+        EnsureSimulationRuntime();
+        CombatSimulationDriver.RegisterActor(_simulationRuntime);
+    }
+
+    private void OnDisable()
+    {
+        if (_simulationRuntime != null)
+        {
+            _simulationRuntime.AbortSimulationTick();
+            CombatSimulationDriver.UnregisterActor(_simulationRuntime);
+        }
+
+        // Actor can be disabled independently from ActionPlayer. Do not leave a
+        // fixed Sequence session alive after its simulation entry is removed.
+        if (actionPlayer != null && actionPlayer.isActiveAndEnabled)
+            actionPlayer.StopAction();
+    }
+
+    private void OnDestroy()
+    {
+        if (_simulationRuntime != null)
+            CombatSimulationDriver.UnregisterActor(_simulationRuntime);
+    }
+
+    private void EnsureSimulationRuntime()
+    {
+        if (_simulationRuntime == null)
+            _simulationRuntime = new ActorSimulationRuntime(this);
     }
 
     public TagContainer GetTagContainer(ActorTagContainerType containerType)

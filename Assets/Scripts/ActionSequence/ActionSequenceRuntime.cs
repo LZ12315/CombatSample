@@ -2,6 +2,14 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
+public enum ActionSequenceFrameTransactionState
+{
+    Idle = 0,
+    Begun = 1,
+    PreWorldComplete = 2,
+    PostWorldComplete = 3,
+}
+
 public sealed class ActionSequenceRuntime
 {
     private sealed class ClipRecord
@@ -19,17 +27,22 @@ public sealed class ActionSequenceRuntime
     private readonly List<ClipRecord> _clips = new List<ClipRecord>();
     private readonly List<ClipRecord> _activeClips = new List<ClipRecord>();
     private float _frameAccumulator;
+    private ActionSequenceContext _frameContext;
+    private int _pendingFrame = -1;
 
     public ActionSequenceAsset Asset { get; private set; }
     public ActionSequenceData Data { get; private set; }
     public int CurrentFrame { get; private set; } = -1;
     public bool IsPlaying { get; private set; }
     public bool IsComplete { get; private set; }
+    public ActionSequenceFrameTransactionState FrameTransactionState { get; private set; }
     public ActionSequenceRuntimeDiagnostics Diagnostics { get; } = new ActionSequenceRuntimeDiagnostics();
 
     public int DurationFrames => Data != null ? Data.DurationFrames : 0;
     public int FrameRate => Data != null ? Data.FrameRate : 60;
     public float NormalizedTime => DurationFrames > 0 ? Mathf.Clamp01((CurrentFrame + 1f) / DurationFrames) : 0f;
+    public bool HasOpenFrame => FrameTransactionState != ActionSequenceFrameTransactionState.Idle;
+    public int PendingFrame => HasOpenFrame ? _pendingFrame : -1;
 
     public ActionSequenceRuntime(ActionSequenceAsset asset)
     {
@@ -55,6 +68,7 @@ public sealed class ActionSequenceRuntime
         _activeClips.Clear();
         Diagnostics.Clear();
         _frameAccumulator = 0f;
+        ResetFrameTransaction();
         CurrentFrame = -1;
         IsPlaying = data != null;
         IsComplete = data == null;
@@ -101,6 +115,8 @@ public sealed class ActionSequenceRuntime
         if (context == null)
             throw new ArgumentNullException(nameof(context));
 
+        EnsureNoOpenFrame(nameof(Tick));
+
         if (deltaSeconds <= 0f || speedScale <= 0f)
             return 0;
 
@@ -122,12 +138,93 @@ public sealed class ActionSequenceRuntime
         return StepFrame(context, 1f / FrameRate, 1f);
     }
 
+    public bool BeginFrame(ActionSequenceContext context)
+    {
+        return BeginFrame(context, 1f / FrameRate, 1f);
+    }
+
+    public bool BeginFrame(ActionSequenceContext context, float deltaTime, float speedScale)
+    {
+        if (context == null)
+            throw new ArgumentNullException(nameof(context));
+
+        EnsureNoOpenFrame(nameof(BeginFrame));
+
+        if (!IsPlaying || IsComplete || Data == null)
+            return false;
+
+        int nextFrame = CurrentFrame + 1;
+        if (nextFrame >= DurationFrames)
+        {
+            CompleteWithoutFrame(context);
+            return false;
+        }
+
+        _frameContext = context;
+        _pendingFrame = nextFrame;
+        FrameTransactionState = ActionSequenceFrameTransactionState.Begun;
+
+        context.Frame = nextFrame;
+        context.FrameRate = FrameRate;
+        context.DeltaTime = deltaTime;
+        context.SpeedScale = speedScale;
+
+        EnterClipsStartingAt(nextFrame, context);
+        return true;
+    }
+
+    public void ExecutePreWorld()
+    {
+        RequireFrameState(ActionSequenceFrameTransactionState.Begun, nameof(ExecutePreWorld));
+        TickActiveClips(
+            _frameContext,
+            ActionSequenceClipPhase.State,
+            ActionSequenceClipPhase.Motion);
+        FrameTransactionState = ActionSequenceFrameTransactionState.PreWorldComplete;
+    }
+
+    public void ExecutePostWorld()
+    {
+        RequireFrameState(ActionSequenceFrameTransactionState.PreWorldComplete, nameof(ExecutePostWorld));
+        TickActiveClips(
+            _frameContext,
+            ActionSequenceClipPhase.HitBox,
+            ActionSequenceClipPhase.Cleanup);
+        FrameTransactionState = ActionSequenceFrameTransactionState.PostWorldComplete;
+    }
+
+    public void EndFrame()
+    {
+        RequireFrameState(ActionSequenceFrameTransactionState.PostWorldComplete, nameof(EndFrame));
+
+        int completedFrame = _pendingFrame;
+        ActionSequenceContext context = _frameContext;
+        context.Frame = completedFrame + 1;
+        ExitClipsEndingAt(completedFrame + 1, context, true);
+
+        CurrentFrame = completedFrame;
+        if (CurrentFrame >= DurationFrames - 1)
+        {
+            ExitAll(context, true);
+            IsComplete = true;
+            IsPlaying = false;
+        }
+        else
+        {
+            context.Frame = completedFrame;
+        }
+
+        ResetFrameTransaction();
+    }
+
     public void Cancel(ActionSequenceContext context)
     {
         if (!IsPlaying || Data == null)
             return;
 
-        ExitAll(context, false);
+        ActionSequenceContext exitContext = _frameContext ?? context;
+        ExitAll(exitContext, false);
+        ResetFrameTransaction();
         IsPlaying = false;
         IsComplete = true;
     }
@@ -140,30 +237,14 @@ public sealed class ActionSequenceRuntime
         if (context == null)
             throw new ArgumentNullException(nameof(context));
 
-        int nextFrame = CurrentFrame + 1;
-        if (nextFrame >= DurationFrames)
-        {
-            Complete(context);
+        EnsureNoOpenFrame(nameof(StepFrame));
+
+        if (!BeginFrame(context, deltaTime, speedScale))
             return false;
-        }
 
-        context.Frame = nextFrame;
-        context.FrameRate = FrameRate;
-        context.DeltaTime = deltaTime;
-        context.SpeedScale = speedScale;
-
-        ExitClipsEndingAt(nextFrame, context, true);
-        EnterClipsStartingAt(nextFrame, context);
-        TickActiveClips(context);
-
-        CurrentFrame = nextFrame;
-
-        if (CurrentFrame >= DurationFrames - 1)
-        {
-            context.Frame = DurationFrames;
-            Complete(context);
-        }
-
+        ExecutePreWorld();
+        ExecutePostWorld();
+        EndFrame();
         return true;
     }
 
@@ -181,12 +262,20 @@ public sealed class ActionSequenceRuntime
         }
     }
 
-    private void TickActiveClips(ActionSequenceContext context)
+    private void TickActiveClips(
+        ActionSequenceContext context,
+        ActionSequenceClipPhase firstPhase,
+        ActionSequenceClipPhase lastPhase)
     {
         for (int i = 0; i < _activeClips.Count; i++)
         {
             ClipRecord record = _activeClips[i];
-            if (record.Active && context.Frame >= record.StartFrame && context.Frame < record.EndFrame)
+            if (!record.Active
+                || (int)record.Phase < (int)firstPhase
+                || (int)record.Phase > (int)lastPhase)
+                continue;
+
+            if (context.Frame >= record.StartFrame && context.Frame < record.EndFrame)
                 record.Runtime?.OnTick(context);
         }
     }
@@ -205,14 +294,40 @@ public sealed class ActionSequenceRuntime
         }
     }
 
-    private void Complete(ActionSequenceContext context)
+    private void CompleteWithoutFrame(ActionSequenceContext context)
     {
         if (IsComplete)
             return;
 
+        context.Frame = DurationFrames;
         ExitAll(context, true);
         IsComplete = true;
         IsPlaying = false;
+    }
+
+    private void EnsureNoOpenFrame(string operation)
+    {
+        if (!HasOpenFrame)
+            return;
+
+        throw new InvalidOperationException(
+            $"{operation} cannot run while frame {_pendingFrame} is in state {FrameTransactionState}.");
+    }
+
+    private void RequireFrameState(ActionSequenceFrameTransactionState expectedState, string operation)
+    {
+        if (FrameTransactionState == expectedState)
+            return;
+
+        throw new InvalidOperationException(
+            $"{operation} requires frame state {expectedState}, but the current state is {FrameTransactionState}.");
+    }
+
+    private void ResetFrameTransaction()
+    {
+        _frameContext = null;
+        _pendingFrame = -1;
+        FrameTransactionState = ActionSequenceFrameTransactionState.Idle;
     }
 
     private void ExitAll(ActionSequenceContext context, bool completed)

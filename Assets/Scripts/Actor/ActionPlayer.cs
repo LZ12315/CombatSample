@@ -21,6 +21,7 @@ public class ActionPlayer : MonoBehaviour
 
     private PlayableDirector _director;
     private IActionPlaybackSession _session;
+    private IFixedActionPlaybackSession _fixedTickSession;
     private bool _isFinalizingAction;
 
     /// <summary>
@@ -210,6 +211,9 @@ public class ActionPlayer : MonoBehaviour
         if (CurrentAction == null || session == null)
             return;
 
+        if (session is IFixedActionPlaybackSession)
+            return;
+
         try
         {
             session.SetSpeed(PlaybackSpeed);
@@ -222,6 +226,86 @@ public class ActionPlayer : MonoBehaviour
             Debug.LogException(exception, this);
             HandleSessionException(CurrentAction, session);
         }
+    }
+
+    internal void ExecuteSimulationPreWorld(float deltaSeconds)
+    {
+        if (_fixedTickSession != null)
+            return;
+
+        if (_session is not IFixedActionPlaybackSession fixedSession || CurrentAction == null)
+            return;
+
+        try
+        {
+            fixedSession.SetSpeed(PlaybackSpeed);
+            if (!fixedSession.TryBeginFrame(deltaSeconds))
+                return;
+
+            _fixedTickSession = fixedSession;
+            fixedSession.ExecutePreWorld();
+        }
+        catch (Exception exception)
+        {
+            HandleFixedSessionException(fixedSession, exception);
+        }
+    }
+
+    internal void ExecuteSimulationPostWorld()
+    {
+        IFixedActionPlaybackSession fixedSession = _fixedTickSession;
+        if (fixedSession == null || !fixedSession.HasOpenFrame)
+            return;
+
+        try
+        {
+            fixedSession.ExecutePostWorld();
+        }
+        catch (Exception exception)
+        {
+            HandleFixedSessionException(fixedSession, exception);
+        }
+    }
+
+    internal void EndSimulationTick()
+    {
+        IFixedActionPlaybackSession fixedSession = _fixedTickSession;
+        _fixedTickSession = null;
+
+        if (fixedSession == null || !fixedSession.HasOpenFrame)
+            return;
+
+        try
+        {
+            fixedSession.EndFrame();
+            if (ReferenceEquals(fixedSession, _session))
+                SyncPublicPlaybackState();
+        }
+        catch (Exception exception)
+        {
+            HandleFixedSessionException(fixedSession, exception);
+        }
+    }
+
+    internal void AbortSimulationTick()
+    {
+        IFixedActionPlaybackSession fixedSession = _fixedTickSession;
+        _fixedTickSession = null;
+
+        if (fixedSession == null)
+            return;
+
+        try
+        {
+            fixedSession.AbortFrame();
+        }
+        catch (Exception exception)
+        {
+            Debug.LogException(exception, this);
+        }
+
+        if (ReferenceEquals(fixedSession, _session) && CurrentAction == fixedSession.Action)
+            HandleSessionException(CurrentAction, fixedSession);
     }
 
     private static bool TryValidateActionAsset(ActionAsset actionAsset, out string warning)
@@ -249,6 +333,13 @@ public class ActionPlayer : MonoBehaviour
             if (actionAsset.SequenceData == null)
             {
                 warning = "Action 播放失败：Sequence Action 缺少 SequenceData。";
+                return false;
+            }
+
+            if (actionAsset.SequenceData.FrameRate != 60)
+            {
+                warning =
+                    $"Action 播放失败：Gameplay Sequence 必须使用 60 Hz，当前为 {actionAsset.SequenceData.FrameRate} Hz。";
                 return false;
             }
 
@@ -295,6 +386,9 @@ public class ActionPlayer : MonoBehaviour
     {
         if (session == null)
             return;
+
+        if (ReferenceEquals(_fixedTickSession, session))
+            _fixedTickSession = null;
 
         UnbindSession(session);
         session.Dispose();
@@ -351,6 +445,19 @@ public class ActionPlayer : MonoBehaviour
         SafeStopSession(session, ActionPlaybackStopMode.Interrupted);
         FinalizeCurrentAction(action, session, clearTimeline: true, disposeSession: true);
         OnActionInterrupted?.Invoke(action);
+    }
+
+    private void HandleFixedSessionException(IFixedActionPlaybackSession session, Exception exception)
+    {
+        Debug.LogException(exception, this);
+
+        if (ReferenceEquals(_fixedTickSession, session))
+            _fixedTickSession = null;
+
+        if (ReferenceEquals(session, _session) && CurrentAction == session.Action)
+            HandleSessionException(CurrentAction, session);
+        else
+            SafeStopSession(session, ActionPlaybackStopMode.Interrupted);
     }
 
     private void StopActionForDisable()
@@ -412,7 +519,21 @@ public class ActionPlayer : MonoBehaviour
     /// </summary>
     private void SyncPlaybackSpeedToSession()
     {
-        _session?.SetSpeed(PlaybackSpeed);
+        IActionPlaybackSession session = _session;
+        if (session == null)
+            return;
+
+        try
+        {
+            session.SetSpeed(PlaybackSpeed);
+        }
+        catch (Exception exception)
+        {
+            if (session is IFixedActionPlaybackSession fixedSession)
+                HandleFixedSessionException(fixedSession, exception);
+            else
+                throw;
+        }
     }
 
     private void SyncPublicPlaybackState()

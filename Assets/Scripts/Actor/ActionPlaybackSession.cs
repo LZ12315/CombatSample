@@ -28,3 +28,14 @@ internal interface IActionPlaybackSession : IDisposable
     void Restart();
     void Stop(ActionPlaybackStopMode stopMode);
 }
+
+internal interface IFixedActionPlaybackSession : IActionPlaybackSession
+{
+    bool HasOpenFrame { get; }
+
+    bool TryBeginFrame(float deltaSeconds);
+    void ExecutePreWorld();
+    void ExecutePostWorld();
+    void EndFrame();
+    void AbortFrame();
+}

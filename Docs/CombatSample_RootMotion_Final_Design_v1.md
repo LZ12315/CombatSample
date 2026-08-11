@@ -2,6 +2,8 @@
 
 > 本文档是 CombatSample 的 Root Motion 最终架构方案。
 > 方案综合了公司成熟项目的架构审查、MxM 源码调研，以及 CombatSample 当前 ActionSequence / ActorMotor / KCC 架构。
+>
+> **作者资产结构更新（2026-08-10）：** 本文关于独立 `RootMotionBakeProfile` 与独立 trajectory `.asset` 的描述已被 `Proposals/CombatSample_ActionSequence_Final_Architecture_v2_zh-CN.md` Stage C2.4 取代。当前实现由 AnimationConfig 直接保存 Editor Bake Context，并把生成的 RootMotionTrajectory 内嵌到对应 Entry；本文的连续 Graph 求值、Trajectory 数学和 Runtime 权威划分仍作为设计依据。
 
 ---
 

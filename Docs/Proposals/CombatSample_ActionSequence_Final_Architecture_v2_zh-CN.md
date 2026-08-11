@@ -1,8 +1,8 @@
 # CombatSample ActionSequence 最终架构 v2
 
-> 状态：已批准的实施基线，分阶段实施中；Stage B 的 Driver 兼容切片与 60 Hz 世界固定时钟已落地
+> 状态：已批准的实施基线，分阶段实施中；Stage B 固定接线与 Stage C1–C2.4 AnimationConfig/Baker 作者工作流已落地
 >
-> 日期：2026-08-09
+> 日期：2026-08-10
 >
 > 范围：ActionSequence、AnimationConfig、Root Motion、Locomotion、ActorMotor/KCC 与 HitBox 固定模拟顺序
 
@@ -245,11 +245,11 @@ AnimationConfig
 
 Key 必须唯一。运行时 Clip 只通过 Actor 上的 AnimationConfig 查找，不保存角色 Prefab、Animator 或 Avatar 的运行时副本。
 
-### 5.2 BakeProfile 与运行时配置分离
+### 5.2 AnimationConfig 自己拥有 Bake 上下文
 
-Reference Character Prefab、Animator、Avatar、采样率和 Validator 参数属于 Editor-only `RootMotionBakeProfile`，不进入运行时 Entry。每个 AnimationConfig 必须能通过一个明确的 editor-only authoring link 找到唯一 BakeProfile，Inspector 的 Bake/Rebake 都使用该 link；不能按命名猜 Profile。具体 link 存在 editor metadata、子资产还是 `#if UNITY_EDITOR` 字段属于实现细节，运行时查询 API 不暴露它。这样可以避免把烘焙依赖带进运行时 Entry。
+Reference Character Prefab、Animator、Avatar、采样率和 Validator 参数由 `AnimationConfig` 的 Editor-only Bake Context 直接保存，不再创建独立 `RootMotionBakeProfile` 资产，也不进入运行时 Entry。Inspector 的 Bake/Rebake 始终使用当前 Config 的明确字段，不按命名或目录猜测上下文；Player 构建中的运行时查询 API 不暴露这些 Editor 字段。
 
-每个 Rig / Avatar Family 使用自己的 BakeProfile。不同体型是否共用同一 trajectory 必须通过 Validator 证明；不使用猜测性的 `humanScale` 修正。
+每个角色或 Rig / Avatar Family 使用自己的 AnimationConfig。不同体型是否共用同一 trajectory 必须通过 Validator 证明；不使用猜测性的 `humanScale` 修正。
 
 ### 5.3 作者工作流
 
@@ -261,7 +261,9 @@ Bake / Rebake / Bake All
 
 对于能唯一解析出一个 AnimationClip 的 Transition，Baker 自动取得源 Clip。Entry 中不再要求作者重复填写一个 `RootMotionSourceClip`。
 
-生成的 `RootMotionTrajectory` 是独立 `.asset`，由工具确定性创建或更新在该 AnimationConfig 对应的 `Generated/` 目录，并自动回填引用。作者不手工创建、命名或拖拽配对。
+生成的 `RootMotionTrajectory` 是普通可序列化数据，直接内嵌在对应 `AnimationConfig.Entry` 中。一个 AnimationConfig 是动画引用、Bake 上下文和生成运动数据的唯一物理资产；不再创建 `Generated/` 目录或每动画一个 `.asset`。Entry 使用显式存在标记区分“尚未 Bake”和合法的零运动数据，不能依赖 Unity 对内嵌 class 的 null 序列化行为。
+
+`Bake` 与 `Rebake` 使用同一操作：先在内存中完成 Bake、独立 Oracle Validate、DependencyHash 和结构校验，全部成功后才以一次 Config 修改替换 Entry 内的数据；失败保留上一份有效 trajectory。`Bake All` 处理所有可唯一解析到单 Clip 的 Entry，并明确跳过第一版只能 Pose-only 的多 Clip Transition。`Clear Data` 只清除该 Entry 的内嵌数据，不涉及磁盘孤儿或跨 Entry 所有权。
 
 Mixer 或 Directional Transition 第一版可以 Pose-only，但不能直接 Bake Gameplay Root Motion。需要位移时，RootMotionClip 使用另一个能唯一解析到单 Clip 的 key；不在运行时混合多个子动画 trajectory。
 
@@ -270,7 +272,7 @@ Mixer 或 Directional Transition 第一版可以 Pose-only，但不能直接 Bak
 ```text
 AnimationClip
     +
-RootMotionBakeProfile
+AnimationConfig Editor Bake Context
     ↓
 实例化干净 Reference Rig
     ↓
@@ -326,7 +328,6 @@ Trajectory metadata 至少覆盖：
 
 ```text
 Source Clip
-BakeProfile / Reference Rig / Avatar
 Sample Rate
 Duration
 Baker Version
@@ -334,11 +335,17 @@ Dependency Hash
 相关 Importer 依赖
 ```
 
-Transition 的源 Clip、Avatar、Reference Rig、相关 Import Settings 或 Baker 格式改变后，Entry 必须显示 stale。
+Reference Rig、Avatar 与 Validator 容差由 AnimationConfig 保存，并作为 DependencyHash 输入而不是重复写进每个 Entry。Transition 的源 Clip、Avatar、Reference Rig、相关 Import Settings 或 Baker 格式改变后，Entry 必须显示 stale。
+
+当前 `DependencyHash` 明确包含 Baker version、采样率、Validator 容差、源 Clip GUID/local id/依赖哈希、Reference Rig 与 Avatar 的 GUID/local id/依赖哈希。它不能包含 AnimationConfig 自身的依赖哈希，否则内嵌 trajectory 的每次成功写入都会让自己立即 stale。所有外部依赖必须是持久化资产，禁止用运行时 instance id 产生重启后变化的“伪稳定”结果。AnimationConfig Inspector 显示 `Ready / Missing / Stale / PoseOnly / Invalid`，并保留最近一次 Bake/Validate 的明确失败信息。
 
 启用的 RootMotionClip 或使用烘焙旋转的 SelfRotationClip 如果遇到缺 key、缺 trajectory 或 stale bake，整个 Action 拒绝开始并输出包含 Actor、Action、Clip 和 key 的明确诊断。禁止静默原地播放，也禁止回退到 Animator Root Motion。
 
 Validator 必须使用独立求值路径与 Unity 原始结果对照，不能用 Baker 自己的 samples 验证自己。
+
+当前 Validator 会从同一 AnimationConfig Bake Context 重新实例化一份独立 Reference Rig，并创建自己的 Manual PlayableGraph。它通过 `OnAnimatorMove` 逐步读取 Unity 的 `Animator.deltaPosition / deltaRotation` 并累计，不调用 Baker，也不复用 Baker 的 Transform 捕获或累计数学。两条路径只共享源 Clip、Config Bake Context 与待比较的采样时间。
+
+Validator 逐点比较累计位置与旋转，报告最大位置误差、最大旋转误差、各自发生的 sample index/time，以及 `M(0)`、Duration 和容差越界诊断。位置与角度容差由 AnimationConfig 明确配置。
 
 ---
 
@@ -720,31 +727,33 @@ Physics.SyncTransforms
 | 当前实现 | 与目标的差异 |
 | --- | --- |
 | `ActionAsset` 同时保存 Timeline、backend enum 和 SequenceData | 仍是迁移期双后端；最终只保留内嵌 SequenceData |
-| `ActionPlayer.Update()` 用 `Time.deltaTime` 推进 Session | 权威 Sequence 推进尚未进入 CombatSimulationDriver |
-| Sequence `Start()` 立即执行 Frame 0 | Frame 0 目前可能在 LateUpdate/任意 BeginAction 调用阶段执行 |
-| `ActionSequenceRuntime.Tick()` 可以在一次调用中 while 补多帧 | 不能保证每个 gameplay frame 都经过一次 KCC 和 HitBox barrier |
-| Unity Fixed Timestep 已为 `1 / 60`，Sequence 默认 60 Hz | 世界固定时钟已统一；Sequence 资产与启动门禁尚未落实 |
-| SequenceData 允许任意正 frameRate，Sequence session speed 也未拒绝大于 1 | Gameplay Sequence 的 60 Hz 与 `0..1` 限制尚未形成 Validator/运行时门禁 |
-| `CombatSimulationDriver` 已在 Manager 上唯一接管 KCC，关闭 AutoSimulation 并调用公开手动模拟 API | 当前仍是保持旧行为的兼容切片，尚未接入 Actor/Sequence PreWorld 与 PostWorld |
-| ActorCollisionResolver 已移除独立 `FixedUpdate`，由 Driver 在 KCC interpolation Post 后显式调用 | 已消除第二入口；最终 WorldMotionCommit 仍需把 Resolver、SyncTransforms 和 HitBox 放到 interpolation Post 之前 |
-| Physics `m_AutoSyncTransforms = 0` | HitBox 前尚无 Driver 统一调用 `Physics.SyncTransforms` |
+| `ActionPlayer.Update()` 只继续轮询 Legacy Timeline；正式 Sequence 由 ActorSimulationRuntime 在 Driver 固定 Tick 推进 | Sequence 已脱离 Update；ASM/Action.OnEnter 仍保持当前提交时机 |
+| Sequence `Start()` 只创建 Runtime，固定累加器跨帧后才执行 Frame 0 | 速度为 0 时不会进入任何 Sequence Clip；Pose-only activation baseline 尚未实现 |
+| `ActionSequenceRuntime` 的 `BeginFrame → ExecutePreWorld → ExecutePostWorld → EndFrame` 已接到 KCC world solve 两侧 | `CurrentFrame` 只在 EndFrame 提交；最后一帧在同一 EndFrame 完成 Action |
+| `ActionSequenceRuntime.Tick()` 仍可在一次调用中 while 补多帧 | 仅供 ActionSequenceRunner 等非权威预览入口；正式 Action Session 每个世界 Tick 最多一帧 |
+| Unity Fixed Timestep 已为 `1 / 60`，Sequence 默认 60 Hz | 世界固定时钟与正式播放启动门禁已统一；编辑器资产 Validator 提示尚未落实 |
+| 正式 Sequence 启动时拒绝非 60 Hz 数据，Session 拒绝 `speed > 1` 并中断非法 Action | 运行时门禁已落实；编辑器 Validator 提示仍待补充 |
+| `CombatSimulationDriver` 唯一接管 KCC，并通过每 Actor 一个纯 C# ActorSimulationRuntime 调用 Sequence phases | Clip/Condition 不注册 Driver；ASM BeginTick、Locomotion 与其他 Actor 子系统尚未接入该入口 |
+| ActorCollisionResolver 已移除独立 `FixedUpdate`，由 Driver 在 KCC 后、interpolation Post 前显式调用 | Resolver 已进入 WorldMotionCommit；最终速度 readout 后置仍属于后续 Motor 阶段 |
+| Physics `m_AutoSyncTransforms = 0` | Driver 已在 Resolver 后、PostWorld 前全局调用一次 `Physics.SyncTransforms` |
 | `ActionSequenceRunner` 使用独立 FixedUpdate -40 | 只能作为调试/预览入口，不能成为第二套生产权威 |
 | ActorLogicInput 每 Update 直接 `SetLocomotionIntent` 到 Motor | 尚未改为只保存，LocomotionController 尚不存在 |
 | ASM 的 Locomotion start context、Action `facingOnStart` 与相关 Condition 仍从 ActorMotor 读取 Intent | ActorLogicInput 停止推 Motor 时必须一起改读其最新保存值 |
 | ASM 在 LateUpdate 仲裁并立即 BeginAction | 尚未改为请求排队、BeginTick 提交 |
 | CancelRule 只有 Specific/Tag/Any，没有 Conditions 或 Locomotion target | Locomotion 取消合同尚未实现 |
-| Animancer Clip 直接保存 TransitionAsset | AnimationConfig key 查询尚未实现 |
-| RootMotionTrajectory、Baker、RootMotionClip、SelfRotationClip 均不存在 | 本文的数据与 Clip 管线全部待实现 |
+| `AnimationConfig`、Entry、Actor 可选引用、大小写敏感 key 查询与 Editor-only Bake Context 已实现 | Animancer Clip 尚未改为通过 Actor 的 AnimationConfig key 查询 |
+| `RootMotionTrajectory` 已保存累计 XYZ、完整 Quaternion 与基础 metadata，并提供 Sample/Extract/SE(3) 数学 | 运行时消费 Clip 尚未实现 |
+| AnimationConfig 内置 Bake Context、唯一 AnimationClip resolver、Manual PlayableGraph Baker、独立 Oracle Validator、Entry 内嵌 trajectory、Inspector Bake/Rebake/Bake All 与 DependencyHash/stale 已实现 | 运行时对 missing/stale trajectory 的 Action 启动阻断要随消费 Clip 在 Stage D 接入 |
 | RootMotionBuffer 只接 Animator delta，并简单累加 position | source gating 与正确 trajectory 数学尚未实现 |
 | 现有 Animator Root Motion 分支按 position 非零提前 return，并乘 MovementTimeScale | 若直接复用它接 trajectory，会吞掉其他通道、用数值误判 owner 并二次缩放 authored displacement |
 | ActorMotor 在普通 Update 计算 Locomotion/Facing | 权威计算尚未进入 PreWorldMotion |
-| HitBox Clip 在 Sequence OnTick 中立即 Query 并 TakeDamage | 尚未移动到 KCC 后，也没有集中 SyncTransforms 或 Query/Resolve 分离 |
+| HitBox Clip 已在 KCC、Resolver 与 SyncTransforms 后的 Sequence PostWorld 中 Query | 仍是 Query 后立即 TakeDamage；HitIntent 收集、稳定排序与两阶段 Resolve 尚未实现 |
 | ActionMotionConfig 仍由 ActionInstance OnEnter/Exit 整招应用 | 尚未迁移到域规则与具体 Clip |
 | Action 结束时 `ActionPlayer` 调用 `ClearTransientTags()` 全清 | 目标需要按 owner 释放 Action tags，并在域切换事务中原子写入胜选 Mode tags |
 
 仓库目前已有 70 个 ActionAsset；其中仅 3 个显式选择 Sequence backend，67 个仍按 Legacy Timeline 路径运行。`Assets/Create/ActionAssets` 下 68 个 Action 都仍保存 Timeline 引用。因此不能先删除 Legacy 字段、PlayableDirector 或 Timeline Session。
 
-当前已有 84 个 ActionSequence/ActionPlayer Editor 测试，主要覆盖编辑器、固定帧 Runtime 和 ActionPlayer 生命周期；尚没有覆盖新 Root Motion/Motor/Driver 管线的自动测试。本次文档工作没有运行 Unity Test Runner。
+当前已有一组 ActionSequence/ActionPlayer Editor 测试，主要覆盖编辑器、固定帧 Runtime 和 ActionPlayer 生命周期；单帧 Runtime、固定 Session、Driver 屏障、AnimationConfig 歧义处理、Trajectory 刚体数学、Baker、独立 Oracle Validator 与内嵌写盘工作流均有聚焦测试。Bake 工作流测试覆盖 Config 内持久化、无 Generated 资产、Clip/Rig/设置依赖 stale、失败不覆盖、Clear Data 和 Bake All/Pose-only 跳过。Baker 与 Oracle 已在仓库 Kiana Humanoid Avatar 上验证同一份非零 Root Motion；synthetic fixture 覆盖 Translation+Rotation、in-place、Root Y 与快速转身。当前仓库 Generic FBX 的 `motionNodeName` 均为空，因此两条独立路径按 Unity Importer 语义都得到 Identity，不从名为 `root` 的骨骼猜运动。仓库仍缺少一份明确配置非零 Root Motion Node 的 Generic fixture；在不修改现有 FBX Import Settings 的约束下，本阶段如实记录该缺口，不伪造非零 Generic 结论。完整 Root Motion/Motor 管线测试尚未实现。
 
 关键证据入口：
 
@@ -788,17 +797,24 @@ Legacy Timeline 当前也没有保证“编辑器标记的第 N 帧 Pose → Ani
 ### Stage B：固定模拟骨架
 
 - 已完成：新增 Manager 上唯一 CombatSimulationDriver。
-- 新增每 Actor 一个 ActorSimulationRuntime。
+- 已完成：每个 Actor 创建并注册一个纯 C# ActorSimulationRuntime，作为唯一 Actor 固定模拟入口。
 - 已完成：在 Driver Awake 中验证唯一实例并关闭 KCC AutoSimulation，接管公开手动 Simulate 顺序。
-- 将 ActorCollisionResolver、SyncTransforms 和 Sequence Pre/Post 屏障接入；HitBox 只进入 PostWorld。
+- 已完成：ActionSequence 单帧拆为 BeginFrame、PreWorld、PostWorld、EndFrame，并由正式 Session 跨 KCC 屏障执行。
+- 已完成：ActorCollisionResolver、SyncTransforms 和 Sequence Pre/Post 屏障接入；HitBox 只在 PostWorld Tick。
 - 已完成：把 Fixed Timestep 统一到 60 Hz。
-- Gameplay Sequence Validator/启动入口拒绝非 60 Hz 数据，Sequence session 唯一速度入口拒绝大于 1。
+- 已完成（运行时）：Gameplay Sequence 启动入口拒绝非 60 Hz 数据，Sequence Session 拒绝大于 1 的速度；编辑器 Validator 提示待补。
 
 ### Stage C：AnimationConfig 与 Baker
 
-- 实现 AnimationConfig、Entry 和 Actor 引用。
-- 实现 BakeProfile、Baker、Trajectory、Sample/Extract、metadata 和 Validator。
-- 实现 Generated 资产工作流与缺失/stale 启动阻断。
+- 已完成 C1：实现 AnimationConfig、Entry、Actor 可选引用和稳定 key 查询；重复 key 拒绝解析。
+- 已完成 C1：实现 RootMotionTrajectory、累计 XYZ/完整 Quaternion、基础 metadata、Sample/Extract/Compose/Inverse 与只读数据校验。
+- 已完成 C2.1：实现 Reference Rig、采样率与 Validator 容差的 Editor-only Bake Context；单 Animator、有效 Avatar、单位 Scale 和干净 Rig 是硬门禁。
+- 已完成 C2.1：实现唯一 AnimationClip resolver，以及以 `Evaluate(0)` 为基线、连续 Manual Graph Evaluate、精确采到 duration 的内存 Baker Core；Humanoid/Generic 使用同一实现。
+- 已完成 C2.2：实现独立 Reference Rig + Manual PlayableGraph 的 Oracle Validator，通过 `Animator.deltaPosition/deltaRotation` 与 Baker 逐点对照并输出最大误差位置。
+- C2.2 已验证 synthetic Translation+Rotation、in-place、Root Y、快速转身、真实 Humanoid 非零运动与当前 Generic Identity importer 语义；仓库缺少非零 Generic Root Motion Node fixture，留作新增测试资产后补验，不修改现有 FBX Import Settings。
+- 已完成 C2.3：实现 Inspector Bake/Rebake/Bake All、DependencyHash 与 stale/invalid 状态。
+- 已完成 C2.4：移除独立 BakeProfile 和 Generated trajectory 资产；Bake Context 归入 AnimationConfig，trajectory 作为普通序列化数据内嵌 Entry，并用显式存在标记稳定表达 Missing。
+- C2.4 写盘采用先 Bake+Oracle Validate、后一次替换 Entry 数据的事务边界；失败不覆盖旧 trajectory，Clear Data 不产生磁盘孤儿。Action 启动时阻断 missing/stale 的运行时门禁随实际消费 Clip 在 Stage D 接入。
 
 ### Stage D：Sequence Pose / Motion
 

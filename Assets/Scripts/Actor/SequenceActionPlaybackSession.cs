@@ -1,16 +1,16 @@
 using System;
 using UnityEngine;
 
-internal sealed class SequenceActionPlaybackSession : IActionPlaybackSession
+internal sealed class SequenceActionPlaybackSession : IFixedActionPlaybackSession
 {
     private readonly Actor _actor;
     private readonly ActionEventContext _eventContext;
     private readonly ActionSequenceContext _sequenceContext = new ActionSequenceContext();
     private ActionSequenceRuntime _runtime;
     private bool _paused;
-    private bool _completionPending;
     private bool _disposed;
     private double _speed = 1.0;
+    private double _frameAccumulator;
 
     public SequenceActionPlaybackSession(ActionInstance action, Actor actor, ActionEventContext eventContext)
     {
@@ -24,7 +24,8 @@ internal sealed class SequenceActionPlaybackSession : IActionPlaybackSession
     public int FrameRate => _runtime != null ? _runtime.FrameRate : 0;
     public int TotalFrames => _runtime != null ? _runtime.DurationFrames : 0;
     public double NormalizedTime => _runtime != null ? _runtime.NormalizedTime : 0;
-    public bool IsPlaying => !_disposed && _runtime != null && (_runtime.IsPlaying || _completionPending);
+    public bool IsPlaying => !_disposed && _runtime != null && _runtime.IsPlaying;
+    public bool HasOpenFrame => !_disposed && _runtime != null && _runtime.HasOpenFrame;
     public ActionSequenceRuntimeDiagnostics Diagnostics => _runtime?.Diagnostics;
 
     public event Action<IActionPlaybackSession> Completed;
@@ -33,29 +34,68 @@ internal sealed class SequenceActionPlaybackSession : IActionPlaybackSession
     public void Start()
     {
         CreateRuntimeAndContext();
-        StepFrameZero();
     }
 
     public void Tick(float deltaSeconds)
     {
-        if (_disposed || _runtime == null)
-            return;
+        throw new InvalidOperationException(
+            "Sequence playback is fixed-simulation owned and cannot be advanced from Update.");
+    }
 
-        if (_completionPending)
-        {
-            CompletePending();
-            return;
-        }
+    public bool TryBeginFrame(float deltaSeconds)
+    {
+        if (_disposed || _runtime == null || !_runtime.IsPlaying || _runtime.IsComplete || _paused)
+            return false;
 
-        if (_paused)
-            return;
+        if (deltaSeconds <= 0f || float.IsNaN(deltaSeconds) || float.IsInfinity(deltaSeconds))
+            return false;
 
+        _frameAccumulator += deltaSeconds * _speed * _runtime.FrameRate;
+        if (_frameAccumulator < 1.0)
+            return false;
+
+        _frameAccumulator -= 1.0;
         _sequenceContext.Actor = _actor;
-        _runtime.Tick(_sequenceContext, deltaSeconds, (float)_speed);
+        return _runtime.BeginFrame(
+            _sequenceContext,
+            1f / _runtime.FrameRate,
+            (float)_speed);
+    }
+
+    public void ExecutePreWorld()
+    {
+        if (!HasOpenFrame)
+            return;
+
+        _runtime.ExecutePreWorld();
+    }
+
+    public void ExecutePostWorld()
+    {
+        if (!HasOpenFrame)
+            return;
+
+        _runtime.ExecutePostWorld();
+    }
+
+    public void EndFrame()
+    {
+        if (!HasOpenFrame)
+            return;
+
+        _runtime.EndFrame();
         Action.UpdateNormalizedTime(NormalizedTime);
 
         if (_runtime.IsComplete)
-            _completionPending = true;
+            Completed?.Invoke(this);
+    }
+
+    public void AbortFrame()
+    {
+        if (_runtime != null && !_runtime.IsComplete)
+            _runtime.Cancel(_sequenceContext);
+
+        _frameAccumulator = 0.0;
     }
 
     public void Pause()
@@ -73,16 +113,22 @@ internal sealed class SequenceActionPlaybackSession : IActionPlaybackSession
         if (double.IsNaN(speed) || double.IsInfinity(speed))
             speed = 1.0;
 
-        _speed = Math.Max(0.0, speed);
+        if (speed > 1.0 + 0.000001)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(speed),
+                speed,
+                "Gameplay Sequence speed must be within [0, 1].");
+        }
+
+        _speed = Math.Min(1.0, Math.Max(0.0, speed));
     }
 
     public void Restart()
     {
         Action.ResetRuntimeData();
-        _completionPending = false;
         _paused = false;
         CreateRuntimeAndContext();
-        StepFrameZero();
     }
 
     public void Stop(ActionPlaybackStopMode stopMode)
@@ -93,7 +139,7 @@ internal sealed class SequenceActionPlaybackSession : IActionPlaybackSession
         if (!_runtime.IsComplete)
             _runtime.Cancel(_sequenceContext);
 
-        _completionPending = false;
+        _frameAccumulator = 0.0;
     }
 
     public void Dispose()
@@ -104,24 +150,8 @@ internal sealed class SequenceActionPlaybackSession : IActionPlaybackSession
     private void CreateRuntimeAndContext()
     {
         _runtime = new ActionSequenceRuntime(Action.Config.SequenceData);
+        _frameAccumulator = 0.0;
         _sequenceContext.Actor = _actor;
         _sequenceContext.EventContext = _eventContext;
-    }
-
-    private void StepFrameZero()
-    {
-        _runtime.StepFrame(_sequenceContext);
-        Action.UpdateNormalizedTime(NormalizedTime);
-        if (_runtime.IsComplete)
-            _completionPending = true;
-    }
-
-    private void CompletePending()
-    {
-        if (!_completionPending)
-            return;
-
-        _completionPending = false;
-        Completed?.Invoke(this);
     }
 }
