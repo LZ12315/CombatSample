@@ -9,31 +9,100 @@ using UnityEngine;
 /// </summary>
 public sealed class RootMotionBuffer
 {
-    private Vector3 _pendingPosition;
-    private Quaternion _pendingRotation = Quaternion.identity;
+    private int _nextOwnerId = 1;
 
-    private Vector3 _tickPosition;
-    private Quaternion _tickRotation = Quaternion.identity;
+    private Vector3 _pendingAnimatorPosition;
+    private Quaternion _pendingAnimatorRotation = Quaternion.identity;
+
+    private Vector3 _tickAnimatorPosition;
+    private Quaternion _tickAnimatorRotation = Quaternion.identity;
+
+    private MotionOwner _trajectoryOwner;
+    private Vector3 _pendingTrajectoryLocalPosition;
+
+    private MotionOwner _tickTrajectoryOwner;
+    private Vector3 _tickTrajectoryLocalPosition;
+
+    public Vector3 PendingPosition => _tickAnimatorPosition;
+    public Quaternion PendingRotation => _tickAnimatorRotation;
+    public bool HasTrajectoryTick => _tickTrajectoryOwner.IsValid;
+    public Vector3 TrajectoryLocalPosition => _tickTrajectoryLocalPosition;
 
     public void AddAnimatorDelta(
         Vector3 deltaPosition,
         Quaternion deltaRotation)
     {
-        _pendingPosition += deltaPosition;
-        _pendingRotation = deltaRotation * _pendingRotation;
+        _pendingAnimatorPosition += deltaPosition;
+        _pendingAnimatorRotation = deltaRotation * _pendingAnimatorRotation;
     }
 
-    public Vector3 PendingPosition => _tickPosition;
-    public Quaternion PendingRotation => _tickRotation;
+    public void ClearAnimator()
+    {
+        _pendingAnimatorPosition = Vector3.zero;
+        _pendingAnimatorRotation = Quaternion.identity;
+        _tickAnimatorPosition = Vector3.zero;
+        _tickAnimatorRotation = Quaternion.identity;
+    }
+
+    public MotionOwner BeginTrajectory()
+    {
+        if (_trajectoryOwner.IsValid)
+        {
+            Debug.LogWarning(
+                $"[RootMotionBuffer] Replacing active trajectory owner id={_trajectoryOwner.Id}. " +
+                "Root motion trajectory is single-slot; old owner will not regain control automatically.");
+        }
+
+        _trajectoryOwner = NewOwner();
+        _pendingTrajectoryLocalPosition = Vector3.zero;
+        return _trajectoryOwner;
+    }
+
+    public bool SubmitTrajectory(MotionOwner owner, Vector3 localPositionDelta)
+    {
+        if (!IsCurrent(owner, _trajectoryOwner))
+            return false;
+
+        _pendingTrajectoryLocalPosition += localPositionDelta;
+        return true;
+    }
+
+    public void EndTrajectory(MotionOwner owner)
+    {
+        if (!IsCurrent(owner, _trajectoryOwner))
+            return;
+
+        _trajectoryOwner = default;
+        _pendingTrajectoryLocalPosition = Vector3.zero;
+        _tickTrajectoryOwner = default;
+        _tickTrajectoryLocalPosition = Vector3.zero;
+    }
 
     /// <summary>
     /// 在 KCC tick 开始时调用：快照当前累积值供本帧消费，清空缓冲区继续接收下一帧的 root motion。
     /// </summary>
     public void BeginMotorTick()
     {
-        _tickPosition = _pendingPosition;
-        _tickRotation = _pendingRotation;
-        _pendingPosition = Vector3.zero;
-        _pendingRotation = Quaternion.identity;
+        _tickAnimatorPosition = _pendingAnimatorPosition;
+        _tickAnimatorRotation = _pendingAnimatorRotation;
+        _pendingAnimatorPosition = Vector3.zero;
+        _pendingAnimatorRotation = Quaternion.identity;
+
+        _tickTrajectoryOwner = _trajectoryOwner;
+        _tickTrajectoryLocalPosition = _pendingTrajectoryLocalPosition;
+        _pendingTrajectoryLocalPosition = Vector3.zero;
+    }
+
+    private MotionOwner NewOwner()
+    {
+        if (_nextOwnerId == int.MaxValue)
+            _nextOwnerId = 1;
+
+        return new MotionOwner(_nextOwnerId++);
+    }
+
+    private static bool IsCurrent(MotionOwner owner, MotionOwner current)
+    {
+        return owner.IsValid && owner.Id == current.Id;
     }
 }

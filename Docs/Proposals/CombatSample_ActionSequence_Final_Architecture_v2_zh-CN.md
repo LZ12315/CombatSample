@@ -728,7 +728,7 @@ Physics.SyncTransforms
 | --- | --- |
 | `ActionAsset` 同时保存 Timeline、backend enum 和 SequenceData | 仍是迁移期双后端；最终只保留内嵌 SequenceData |
 | `ActionPlayer.Update()` 只继续轮询 Legacy Timeline；正式 Sequence 由 ActorSimulationRuntime 在 Driver 固定 Tick 推进 | Sequence 已脱离 Update；ASM/Action.OnEnter 仍保持当前提交时机 |
-| Sequence `Start()` 只创建 Runtime，固定累加器跨帧后才执行 Frame 0 | 速度为 0 时不会进入任何 Sequence Clip；Pose-only activation baseline 尚未实现 |
+| Sequence `Start()` 只创建 Runtime；固定 Tick 中会先建立 Frame 0 Animation-only baseline，再按累加器决定是否提交 Gameplay Frame | 速度为 0 时只允许 Pose baseline，不进入 State/Motion/HitBox |
 | `ActionSequenceRuntime` 的 `BeginFrame → ExecutePreWorld → ExecutePostWorld → EndFrame` 已接到 KCC world solve 两侧 | `CurrentFrame` 只在 EndFrame 提交；最后一帧在同一 EndFrame 完成 Action |
 | `ActionSequenceRuntime.Tick()` 仍可在一次调用中 while 补多帧 | 仅供 ActionSequenceRunner 等非权威预览入口；正式 Action Session 每个世界 Tick 最多一帧 |
 | Unity Fixed Timestep 已为 `1 / 60`，Sequence 默认 60 Hz | 世界固定时钟与正式播放启动门禁已统一；编辑器资产 Validator 提示尚未落实 |
@@ -741,11 +741,11 @@ Physics.SyncTransforms
 | ASM 的 Locomotion start context、Action `facingOnStart` 与相关 Condition 仍从 ActorMotor 读取 Intent | ActorLogicInput 停止推 Motor 时必须一起改读其最新保存值 |
 | ASM 在 LateUpdate 仲裁并立即 BeginAction | 尚未改为请求排队、BeginTick 提交 |
 | CancelRule 只有 Specific/Tag/Any，没有 Conditions 或 Locomotion target | Locomotion 取消合同尚未实现 |
-| `AnimationConfig`、Entry、Actor 可选引用、大小写敏感 key 查询与 Editor-only Bake Context 已实现 | Animancer Clip 尚未改为通过 Actor 的 AnimationConfig key 查询 |
-| `RootMotionTrajectory` 已保存累计 XYZ、完整 Quaternion 与基础 metadata，并提供 Sample/Extract/SE(3) 数学 | 运行时消费 Clip 尚未实现 |
+| `AnimationConfig`、Entry、Actor 可选引用、大小写敏感 key 查询与 Editor-only Bake Context 已实现 | Stage D1 已接入 AnimationPoseClip/RootMotionClip 运行时 key 查询；Actor Prefab 仍需逐角色配置具体 AnimationConfig 引用 |
+| `RootMotionTrajectory` 已保存累计 XYZ、完整 Quaternion 与基础 metadata，并提供 Sample/Extract/SE(3) 数学 | Stage D1 已实现 XZ displacement 消费；Root Y、Yaw/Pitch/Roll gameplay 消费仍未实现 |
 | AnimationConfig 内置 Bake Context、唯一 AnimationClip resolver、Manual PlayableGraph Baker、独立 Oracle Validator、Entry 内嵌 trajectory、Inspector Bake/Rebake/Bake All 与 DependencyHash/stale 已实现 | 运行时对 missing/stale trajectory 的 Action 启动阻断要随消费 Clip 在 Stage D 接入 |
-| RootMotionBuffer 只接 Animator delta，并简单累加 position | source gating 与正确 trajectory 数学尚未实现 |
-| 现有 Animator Root Motion 分支按 position 非零提前 return，并乘 MovementTimeScale | 若直接复用它接 trajectory，会吞掉其他通道、用数值误判 owner 并二次缩放 authored displacement |
+| RootMotionBuffer 已分离 Legacy Animator delta 与 Sequence trajectory owner | Animator RootMotion 兼容路径仍保留；trajectory 当前只消费 XZ 位移，不消费 Y 或旋转 |
+| Sequence RootMotionClip 使用 trajectory `Extract(t0,t1)`，提交 local XZ 给 ActorMotor | SelfRotation、Root Y、Motion Warp、RM+LocomotionInput 同时主导仍未实现 |
 | ActorMotor 在普通 Update 计算 Locomotion/Facing | 权威计算尚未进入 PreWorldMotion |
 | HitBox Clip 已在 KCC、Resolver 与 SyncTransforms 后的 Sequence PostWorld 中 Query | 仍是 Query 后立即 TakeDamage；HitIntent 收集、稳定排序与两阶段 Resolve 尚未实现 |
 | ActionMotionConfig 仍由 ActionInstance OnEnter/Exit 整招应用 | 尚未迁移到域规则与具体 Clip |
@@ -753,7 +753,7 @@ Physics.SyncTransforms
 
 仓库目前已有 70 个 ActionAsset；其中仅 3 个显式选择 Sequence backend，67 个仍按 Legacy Timeline 路径运行。`Assets/Create/ActionAssets` 下 68 个 Action 都仍保存 Timeline 引用。因此不能先删除 Legacy 字段、PlayableDirector 或 Timeline Session。
 
-当前已有一组 ActionSequence/ActionPlayer Editor 测试，主要覆盖编辑器、固定帧 Runtime 和 ActionPlayer 生命周期；单帧 Runtime、固定 Session、Driver 屏障、AnimationConfig 歧义处理、Trajectory 刚体数学、Baker、独立 Oracle Validator 与内嵌写盘工作流均有聚焦测试。Bake 工作流测试覆盖 Config 内持久化、无 Generated 资产、Clip/Rig/设置依赖 stale、失败不覆盖、Clear Data 和 Bake All/Pose-only 跳过。Baker 与 Oracle 已在仓库 Kiana Humanoid Avatar 上验证同一份非零 Root Motion；synthetic fixture 覆盖 Translation+Rotation、in-place、Root Y 与快速转身。当前仓库 Generic FBX 的 `motionNodeName` 均为空，因此两条独立路径按 Unity Importer 语义都得到 Identity，不从名为 `root` 的骨骼猜运动。仓库仍缺少一份明确配置非零 Root Motion Node 的 Generic fixture；在不修改现有 FBX Import Settings 的约束下，本阶段如实记录该缺口，不伪造非零 Generic 结论。完整 Root Motion/Motor 管线测试尚未实现。
+当前已有一组 ActionSequence/ActionPlayer Editor 测试，主要覆盖编辑器、固定帧 Runtime 和 ActionPlayer 生命周期；单帧 Runtime、固定 Session、Driver 屏障、AnimationConfig 歧义处理、Trajectory 刚体数学、Baker、独立 Oracle Validator 与内嵌写盘工作流均有聚焦测试。Bake 工作流测试覆盖 Config 内持久化、无 Generated 资产、Clip/Rig/设置依赖 stale、失败不覆盖、Clear Data 和 Bake All/Pose-only 跳过。Baker 与 Oracle 已在仓库 Kiana Humanoid Avatar 上验证同一份非零 Root Motion；synthetic fixture 覆盖 Translation+Rotation、in-place、Root Y 与快速转身。当前仓库 Generic FBX 的 `motionNodeName` 均为空，因此两条独立路径按 Unity Importer 语义都得到 Identity，不从名为 `root` 的骨骼猜运动。仓库仍缺少一份明确配置非零 Root Motion Node 的 Generic fixture；在不修改现有 FBX Import Settings 的约束下，本阶段如实记录该缺口，不伪造非零 Generic 结论。Stage D1 增加了 trajectory XZ 与 Motor 合成聚焦测试；完整场景 RootMotion/HitBox/HitStop 手动回归仍未完成。
 
 关键证据入口：
 
@@ -818,9 +818,11 @@ Legacy Timeline 当前也没有保证“编辑器标记的第 N 帧 Pose → Ani
 
 ### Stage D：Sequence Pose / Motion
 
-- AnimationPoseClip 改为 key 查询。
-- 实现 RootMotionClip 和 SelfRotationClip。
-- 局部升级 RootMotionBuffer、ActorMotionRuntime、ActorMotor、Facing handoff 和 source gating。
+- 已完成 D1：AnimationPoseClip 改为通过 Actor.AnimationConfig key 查询 Transition，直接 TransitionAsset 字段退出正式 Clip。
+- 已完成 D1：Sequence session 在第一次 Pose Evaluate 前压制 Animator RootMotion relay，并支持 Frame 0 Animation-only baseline。
+- 已完成 D1：实现 RootMotionClip，通过 AnimationConfig key 查询内嵌 RootMotionTrajectory，按 `[startFrame,endFrame)` 映射 Extract 并只提交 local XZ 位移。
+- 已完成 D1：局部升级 RootMotionBuffer、ActorMotionRuntime、ActorMotor，新增 trajectory owner/source gating；trajectory 位移不再乘 MovementTimeScale，并与水平 impulse/vertical channels 按 v1 合同合成。
+- 未完成 D2：SelfRotationClip、Facing handoff、RootYaw/Target/Direction 旋转合同。
 - 验证同帧 Pose、位移、旋转、KCC 和 HitBox。
 - 固化 `[startFrame,endFrame)`、Frame 0 activation/freeze、最后一帧 PostWorld 后清理的测试。
 

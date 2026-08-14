@@ -361,9 +361,54 @@ public sealed class ActionSequenceRuntimeTests
     public void Track_AllowsOnlyConfiguredClipTypes()
     {
         var animationTrack = new ActionSequenceAnimationTrack();
+        var motionTrack = new ActionSequenceMotionTrack();
 
-        Assert.IsTrue(animationTrack.AllowsClipType(typeof(ActionSequenceAnimancerClipDefinition)));
+        Assert.IsTrue(animationTrack.AllowsClipType(typeof(ActionSequenceAnimationPoseClipDefinition)));
         Assert.IsFalse(animationTrack.AllowsClipType(typeof(ActionSequenceHitBoxClipDefinition)));
+        Assert.IsTrue(motionTrack.AllowsClipType(typeof(ActionSequenceRootMotionClipDefinition)));
+    }
+
+    [Test]
+    public void ApplyPoseBaseline_OnlyEntersAndTicksFrameZeroAnimationClips()
+    {
+        ActionSequenceAsset asset = CreateAsset(
+            2,
+            new BaselineProbeClipDefinition("S", ActionSequenceClipPhase.State, 0, 2),
+            new BaselineProbeClipDefinition("A", ActionSequenceClipPhase.Animation, 0, 2),
+            new BaselineProbeClipDefinition("M", ActionSequenceClipPhase.Motion, 0, 2),
+            new BaselineProbeClipDefinition("H", ActionSequenceClipPhase.HitBox, 0, 2));
+        var runtime = new ActionSequenceRuntime(asset);
+        var events = new List<string>();
+        var context = new ActionSequenceContext { UserData = events };
+
+        Assert.IsTrue(runtime.ApplyPoseBaseline(context));
+
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                "A:enter:0:baseline",
+                "A:tick:0:baseline",
+            },
+            events);
+        Assert.AreEqual(-1, runtime.CurrentFrame);
+        Assert.IsFalse(runtime.HasOpenFrame);
+
+        Assert.IsTrue(runtime.BeginFrame(context));
+        runtime.ExecutePreWorld();
+
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                "A:enter:0:baseline",
+                "A:tick:0:baseline",
+                "S:enter:0:frame",
+                "M:enter:0:frame",
+                "H:enter:0:frame",
+                "S:tick:0:frame",
+                "A:tick:0:frame",
+                "M:tick:0:frame",
+            },
+            events);
     }
 
     [Test]
@@ -550,7 +595,12 @@ public sealed class ActionSequenceRuntimeTests
     private sealed class ProbeTrackDefinition : ActionSequenceTrackDefinition
     {
         private readonly ActionSequenceClipPhase _phase;
-        private static readonly System.Type[] ClipTypes = { typeof(ProbeClipDefinition), typeof(NullRuntimeClipDefinition) };
+        private static readonly System.Type[] ClipTypes =
+        {
+            typeof(ProbeClipDefinition),
+            typeof(BaselineProbeClipDefinition),
+            typeof(NullRuntimeClipDefinition),
+        };
 
         public ProbeTrackDefinition(ActionSequenceClipPhase phase, params ActionSequenceClipDefinition[] clips)
         {
@@ -610,6 +660,58 @@ public sealed class ActionSequenceRuntimeTests
             private static List<string> Events(ActionSequenceContext context)
             {
                 return (List<string>)context.UserData;
+            }
+
+        }
+    }
+
+    private sealed class BaselineProbeClipDefinition : ActionSequenceClipDefinition
+    {
+        private readonly string _id;
+        private readonly ActionSequenceClipPhase _phase;
+
+        public BaselineProbeClipDefinition(string id, ActionSequenceClipPhase phase, int start, int end)
+        {
+            _id = id;
+            _phase = phase;
+            startFrame = start;
+            endFrame = end;
+        }
+
+        public override ActionSequenceClipPhase Phase => _phase;
+
+        public override ActionSequenceClipRuntime CreateRuntime()
+        {
+            return new Runtime(_id);
+        }
+
+        private sealed class Runtime : ActionSequenceClipRuntime
+        {
+            private readonly string _id;
+
+            public Runtime(string id)
+            {
+                _id = id;
+            }
+
+            public override void OnEnter(ActionSequenceContext context)
+            {
+                Events(context).Add($"{_id}:enter:{context.Frame}:{BaselineState(context)}");
+            }
+
+            public override void OnTick(ActionSequenceContext context)
+            {
+                Events(context).Add($"{_id}:tick:{context.Frame}:{BaselineState(context)}");
+            }
+
+            private static List<string> Events(ActionSequenceContext context)
+            {
+                return (List<string>)context.UserData;
+            }
+
+            private static string BaselineState(ActionSequenceContext context)
+            {
+                return context.IsPoseBaseline ? "baseline" : "frame";
             }
         }
     }

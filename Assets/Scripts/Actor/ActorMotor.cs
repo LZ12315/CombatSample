@@ -85,6 +85,7 @@ public class ActorMotor : MonoBehaviour, ICharacterController
     #region === 单帧桥接状态 ===
 
     private Vector3 _motorFrameStartWorldPosition;
+    private Quaternion _motorFrameStartWorldRotation = Quaternion.identity;
     private Vector3 _requestedVelocity;
     private bool _kccPaused;
 
@@ -130,6 +131,26 @@ public class ActorMotor : MonoBehaviour, ICharacterController
     public void AddAnimatorRootMotionDelta(Vector3 deltaPosition, Quaternion deltaRotation)
     {
         MotionRuntime.AddAnimatorDelta(deltaPosition, deltaRotation);
+    }
+
+    public void SetAnimatorRootMotionSuppressed(bool suppressed)
+    {
+        MotionRuntime.SetAnimatorRootMotionSuppressed(suppressed);
+    }
+
+    public MotionOwner BeginTrajectoryRootMotion()
+    {
+        return MotionRuntime.BeginTrajectoryRootMotion();
+    }
+
+    public bool SubmitTrajectoryRootMotion(MotionOwner owner, Vector3 localPositionDelta)
+    {
+        return MotionRuntime.SubmitTrajectoryRootMotion(owner, localPositionDelta);
+    }
+
+    public void EndTrajectoryRootMotion(MotionOwner owner)
+    {
+        MotionRuntime.EndTrajectoryRootMotion(owner);
     }
 
     public void AddHorizontalImpulse(Vector3 velocity)
@@ -352,6 +373,7 @@ public class ActorMotor : MonoBehaviour, ICharacterController
     public void BeforeCharacterUpdate(float deltaTime)
     {
         _motorFrameStartWorldPosition = transform.position;
+        _motorFrameStartWorldRotation = transform.rotation;
         _requestedVelocity = Vector3.zero;
         _kccPaused = false;
 
@@ -407,6 +429,7 @@ public class ActorMotor : MonoBehaviour, ICharacterController
             Motor,
             _locomotion.CachedVelocity,
             grounded,
+            _motorFrameStartWorldRotation,
             deltaTime);
 
         _requestedVelocity = currentVelocity;

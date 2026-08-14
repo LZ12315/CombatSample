@@ -45,6 +45,7 @@ public sealed class ActorMotionRuntime
     private float _movementTimeScale = 1f;
     private float _gravityScale = 1f;
     private RootMotionApplyMode _rootMotionApplyMode = RootMotionApplyMode.External;
+    private bool _animatorRootMotionSuppressed;
 
     #endregion
 
@@ -103,6 +104,13 @@ public sealed class ActorMotionRuntime
     public void SetRootMotionApplyMode(RootMotionApplyMode mode)
     {
         _rootMotionApplyMode = mode;
+    }
+
+    public void SetAnimatorRootMotionSuppressed(bool suppressed)
+    {
+        _animatorRootMotionSuppressed = suppressed;
+        if (suppressed)
+            _rootMotion.ClearAnimator();
     }
 
     #endregion
@@ -173,21 +181,41 @@ public sealed class ActorMotionRuntime
         KinematicCharacterMotor motor,
         Vector3 locomotionVelocity,
         bool isGrounded,
+        Quaternion tickStartRotation,
         float deltaTime)
     {
         float ts = _movementTimeScale;
 
-        if (ShouldApplyRootMotion && _rootMotion.PendingPosition.sqrMagnitude > 0.0001f)
+        if (!_rootMotion.HasTrajectoryTick
+            && ShouldApplyRootMotion
+            && _rootMotion.PendingPosition.sqrMagnitude > 0.0001f)
         {
-            Vector3 velocity = _rootMotion.PendingPosition / deltaTime * ts;
+            Vector3 legacyRootVelocity = _rootMotion.PendingPosition / deltaTime * ts;
             if (isGrounded)
-                velocity = motor.GetDirectionTangentToSurface(
-                    velocity,
-                    motor.GroundingStatus.GroundNormal) * velocity.magnitude;
-            return velocity;
+                legacyRootVelocity = motor.GetDirectionTangentToSurface(
+                    legacyRootVelocity,
+                    motor.GroundingStatus.GroundNormal) * legacyRootVelocity.magnitude;
+            return legacyRootVelocity;
         }
 
-        Vector3 horizontal = _channels.ComposeHorizontal(locomotionVelocity, ts);
+        Vector3 horizontal;
+        if (_channels.TryComposeHorizontalVelocityOwner(ts, out horizontal))
+        {
+            horizontal.y = 0f;
+        }
+        else if (_rootMotion.HasTrajectoryTick)
+        {
+            Vector3 localDelta = _rootMotion.TrajectoryLocalPosition;
+            localDelta.y = 0f;
+            horizontal = tickStartRotation * localDelta / deltaTime;
+            horizontal.y = 0f;
+            horizontal += _channels.HorizontalImpulseVelocity * ts;
+        }
+        else
+        {
+            horizontal = _channels.ComposeHorizontal(locomotionVelocity, ts);
+        }
+
         float vertical = _channels.ComposeVertical(ts);
 
         if (isGrounded)
@@ -198,7 +226,8 @@ public sealed class ActorMotionRuntime
             vertical = 0f;
         }
 
-        return horizontal + motor.CharacterUp * vertical;
+        Vector3 characterUp = motor != null ? motor.CharacterUp : Vector3.up;
+        return horizontal + characterUp * vertical;
     }
 
     public void PublishSolvedVelocity(
@@ -309,7 +338,26 @@ public sealed class ActorMotionRuntime
         Vector3 deltaPosition,
         Quaternion deltaRotation)
     {
+        if (_animatorRootMotionSuppressed)
+            return;
+
         _rootMotion.AddAnimatorDelta(deltaPosition, deltaRotation);
+    }
+
+    public MotionOwner BeginTrajectoryRootMotion()
+    {
+        _rootMotion.ClearAnimator();
+        return _rootMotion.BeginTrajectory();
+    }
+
+    public bool SubmitTrajectoryRootMotion(MotionOwner owner, Vector3 localPositionDelta)
+    {
+        return _rootMotion.SubmitTrajectory(owner, localPositionDelta);
+    }
+
+    public void EndTrajectoryRootMotion(MotionOwner owner)
+    {
+        _rootMotion.EndTrajectory(owner);
     }
 
     #endregion
@@ -317,7 +365,7 @@ public sealed class ActorMotionRuntime
     #region === 内部工具 ===
 
     private bool ShouldApplyRootMotion =>
-        _rootMotionApplyMode == RootMotionApplyMode.Managed;
+        _rootMotionApplyMode == RootMotionApplyMode.Managed && !_animatorRootMotionSuppressed;
 
     #endregion
 }

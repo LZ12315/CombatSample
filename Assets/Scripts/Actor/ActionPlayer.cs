@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using Animancer;
 using UnityEngine;
 using UnityEngine.Playables;
 
@@ -308,7 +310,7 @@ public class ActionPlayer : MonoBehaviour
             HandleSessionException(CurrentAction, fixedSession);
     }
 
-    private static bool TryValidateActionAsset(ActionAsset actionAsset, out string warning)
+    private bool TryValidateActionAsset(ActionAsset actionAsset, out string warning)
     {
         if (actionAsset == null)
         {
@@ -343,12 +345,111 @@ public class ActionPlayer : MonoBehaviour
                 return false;
             }
 
+            if (!TryValidateSequenceAnimationDependencies(actionAsset.SequenceData, out warning))
+                return false;
+
             warning = null;
             return true;
         }
 
         warning = $"Action 播放失败：不支持的播放后端 {actionAsset.PlaybackBackend}。";
         return false;
+    }
+
+    private bool TryValidateSequenceAnimationDependencies(ActionSequenceData sequenceData, out string warning)
+    {
+        warning = null;
+        if (sequenceData == null)
+            return true;
+
+        AnimationConfig config = _actor != null ? _actor.AnimationConfig : null;
+        var rootMotionIntervals = new List<ActionSequenceRootMotionClipDefinition>();
+
+        IReadOnlyList<ActionSequenceTrackDefinition> tracks = sequenceData.Tracks;
+        for (int trackIndex = 0; tracks != null && trackIndex < tracks.Count; trackIndex++)
+        {
+            ActionSequenceTrackDefinition track = tracks[trackIndex];
+            if (track == null || track.muted)
+                continue;
+
+            if (!TryValidateSequenceClips(track.Clips, config, rootMotionIntervals, out warning))
+                return false;
+        }
+
+        if (!TryValidateSequenceClips(sequenceData.LegacyClips, config, rootMotionIntervals, out warning))
+            return false;
+
+        for (int i = 0; i < rootMotionIntervals.Count; i++)
+        {
+            ActionSequenceRootMotionClipDefinition a = rootMotionIntervals[i];
+            for (int j = i + 1; j < rootMotionIntervals.Count; j++)
+            {
+                ActionSequenceRootMotionClipDefinition b = rootMotionIntervals[j];
+                if (a.StartFrame < b.EndFrame && b.StartFrame < a.EndFrame)
+                {
+                    warning =
+                        $"Action 播放失败：RootMotionClip 区间重叠 [{a.StartFrame}, {a.EndFrame}) 与 [{b.StartFrame}, {b.EndFrame})。";
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private static bool TryValidateSequenceClips(
+        IReadOnlyList<ActionSequenceClipDefinition> clips,
+        AnimationConfig config,
+        List<ActionSequenceRootMotionClipDefinition> rootMotionIntervals,
+        out string warning)
+    {
+        warning = null;
+        for (int i = 0; clips != null && i < clips.Count; i++)
+        {
+            ActionSequenceClipDefinition clip = clips[i];
+            if (clip is ActionSequenceAnimationPoseClipDefinition poseClip)
+            {
+                if (config == null)
+                {
+                    warning = "Action 播放失败：Sequence 动画 Clip 需要 Actor.AnimationConfig。";
+                    return false;
+                }
+
+                if (!config.TryGetTransition(poseClip.AnimationKey, out TransitionAsset transition)
+                    || transition == null
+                    || transition.Transition == null)
+                {
+                    warning = $"Action 播放失败：AnimationConfig 找不到动画 key '{poseClip.AnimationKey}' 的 Transition。";
+                    return false;
+                }
+            }
+            else if (clip is ActionSequenceRootMotionClipDefinition rootMotionClip)
+            {
+                if (config == null)
+                {
+                    warning = "Action 播放失败：RootMotionClip 需要 Actor.AnimationConfig。";
+                    return false;
+                }
+
+                if (!config.TryGetTrajectory(rootMotionClip.AnimationKey, out RootMotionTrajectory trajectory)
+                    || trajectory == null)
+                {
+                    warning = $"Action 播放失败：AnimationConfig 找不到动画 key '{rootMotionClip.AnimationKey}' 的 RootMotionTrajectory。";
+                    return false;
+                }
+
+                RootMotionTrajectoryValidationResult validation = trajectory.ValidateData();
+                if (!validation.IsValid)
+                {
+                    warning = $"Action 播放失败：动画 key '{rootMotionClip.AnimationKey}' 的 RootMotionTrajectory 数据无效。";
+                    return false;
+                }
+
+                rootMotionIntervals?.Add(rootMotionClip);
+            }
+        }
+
+        return true;
     }
 
     private IActionPlaybackSession CreateSession(ActionInstance action, ActionEventContext context)

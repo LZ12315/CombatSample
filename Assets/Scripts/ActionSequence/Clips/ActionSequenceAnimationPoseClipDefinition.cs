@@ -2,13 +2,16 @@ using Animancer;
 using UnityEngine;
 
 [System.Serializable]
-public sealed class ActionSequenceAnimancerClipDefinition : ActionSequenceClipDefinition
+public sealed class ActionSequenceAnimationPoseClipDefinition : ActionSequenceClipDefinition
 {
-    public TransitionAsset transitionAsset;
+    [SerializeField] private string animationKey = string.Empty;
     public AnimancerParameterMode parameterMode = AnimancerParameterMode.None;
     public Vector2 fallbackVector2 = Vector2.zero;
     public float fallbackFloat;
+    [Min(0f)] public float startOffsetSeconds;
     public float playbackSpeed = 1f;
+
+    public string AnimationKey => animationKey;
 
     public override ActionSequenceClipPhase Phase => ActionSequenceClipPhase.Animation;
 
@@ -19,10 +22,12 @@ public sealed class ActionSequenceAnimancerClipDefinition : ActionSequenceClipDe
 
     private sealed class Runtime : ActionSequenceClipRuntime
     {
-        private readonly ActionSequenceAnimancerClipDefinition _definition;
+        private readonly ActionSequenceAnimationPoseClipDefinition _definition;
         private AnimancerState _state;
+        private TransitionAsset _transitionAsset;
+        private float _transitionDuration;
 
-        public Runtime(ActionSequenceAnimancerClipDefinition definition)
+        public Runtime(ActionSequenceAnimationPoseClipDefinition definition)
         {
             _definition = definition;
         }
@@ -33,10 +38,11 @@ public sealed class ActionSequenceAnimancerClipDefinition : ActionSequenceClipDe
             if (actor == null || actor.animancer == null)
                 return;
 
-            if (_definition.transitionAsset == null || _definition.transitionAsset.Transition == null)
+            if (!ResolveTransition(actor, out _transitionAsset))
                 return;
 
-            _state = actor.animancer.Play(_definition.transitionAsset.Transition);
+            _transitionDuration = (float)AnimancerTransitionUtility.GetDuration(_transitionAsset);
+            _state = actor.animancer.Play(_transitionAsset.Transition);
             InitializeMixerParameter(context);
 
             if (_state != null)
@@ -58,6 +64,20 @@ public sealed class ActionSequenceAnimancerClipDefinition : ActionSequenceClipDe
                 _state.IsPlaying = false;
 
             _state = null;
+            _transitionAsset = null;
+            _transitionDuration = 0f;
+        }
+
+        private bool ResolveTransition(Actor actor, out TransitionAsset transitionAsset)
+        {
+            transitionAsset = null;
+            AnimationConfig config = actor != null ? actor.AnimationConfig : null;
+            if (config == null)
+                return false;
+
+            return config.TryGetTransition(_definition.AnimationKey, out transitionAsset)
+                   && transitionAsset != null
+                   && transitionAsset.Transition != null;
         }
 
         private void Sample(ActionSequenceContext context)
@@ -65,10 +85,16 @@ public sealed class ActionSequenceAnimancerClipDefinition : ActionSequenceClipDe
             if (_state == null || context.Actor == null || context.Actor.animancer == null)
                 return;
 
-            int localFrame = Mathf.Max(0, context.Frame - _definition.StartFrame);
-            float speed = Mathf.Max(0f, _definition.playbackSpeed);
+            float sampleTime = ActionSequenceAnimationTimeUtility.GetFrameEndTime(
+                context,
+                _definition.StartFrame,
+                _definition.startOffsetSeconds,
+                _definition.playbackSpeed);
+            if (_transitionDuration > 0f)
+                sampleTime = Mathf.Min(sampleTime, _transitionDuration);
+
             _state.Speed = 0f;
-            _state.Time = localFrame / (float)Mathf.Max(1, context.FrameRate) * speed;
+            _state.Time = sampleTime;
             context.Actor.animancer.Evaluate();
         }
 

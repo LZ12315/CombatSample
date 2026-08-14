@@ -9,6 +9,7 @@ internal sealed class SequenceActionPlaybackSession : IFixedActionPlaybackSessio
     private ActionSequenceRuntime _runtime;
     private bool _paused;
     private bool _disposed;
+    private bool _animatorRootMotionSuppressed;
     private double _speed = 1.0;
     private double _frameAccumulator;
 
@@ -33,6 +34,7 @@ internal sealed class SequenceActionPlaybackSession : IFixedActionPlaybackSessio
 
     public void Start()
     {
+        SetAnimatorRootMotionSuppressed(true);
         CreateRuntimeAndContext();
     }
 
@@ -50,12 +52,14 @@ internal sealed class SequenceActionPlaybackSession : IFixedActionPlaybackSessio
         if (deltaSeconds <= 0f || float.IsNaN(deltaSeconds) || float.IsInfinity(deltaSeconds))
             return false;
 
+        _sequenceContext.Actor = _actor;
+        _runtime.ApplyPoseBaseline(_sequenceContext);
+
         _frameAccumulator += deltaSeconds * _speed * _runtime.FrameRate;
         if (_frameAccumulator < 1.0)
             return false;
 
         _frameAccumulator -= 1.0;
-        _sequenceContext.Actor = _actor;
         return _runtime.BeginFrame(
             _sequenceContext,
             1f / _runtime.FrameRate,
@@ -128,6 +132,7 @@ internal sealed class SequenceActionPlaybackSession : IFixedActionPlaybackSessio
     {
         Action.ResetRuntimeData();
         _paused = false;
+        SetAnimatorRootMotionSuppressed(true);
         CreateRuntimeAndContext();
     }
 
@@ -140,11 +145,13 @@ internal sealed class SequenceActionPlaybackSession : IFixedActionPlaybackSessio
             _runtime.Cancel(_sequenceContext);
 
         _frameAccumulator = 0.0;
+        SetAnimatorRootMotionSuppressed(false);
     }
 
     public void Dispose()
     {
         _disposed = true;
+        SetAnimatorRootMotionSuppressed(false);
     }
 
     private void CreateRuntimeAndContext()
@@ -153,5 +160,15 @@ internal sealed class SequenceActionPlaybackSession : IFixedActionPlaybackSessio
         _frameAccumulator = 0.0;
         _sequenceContext.Actor = _actor;
         _sequenceContext.EventContext = _eventContext;
+    }
+
+    private void SetAnimatorRootMotionSuppressed(bool suppressed)
+    {
+        if (_animatorRootMotionSuppressed == suppressed)
+            return;
+
+        _animatorRootMotionSuppressed = suppressed;
+        if (_actor != null && _actor.actorMotor != null)
+            _actor.actorMotor.SetAnimatorRootMotionSuppressed(suppressed);
     }
 }

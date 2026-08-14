@@ -146,7 +146,7 @@ public sealed class ActionSequenceAnimationTrack : ActionSequenceTrackDefinition
 {
     private static readonly Type[] ClipTypes =
     {
-        typeof(ActionSequenceAnimancerClipDefinition),
+        typeof(ActionSequenceAnimationPoseClipDefinition),
     };
 
     public override ActionSequenceClipPhase Phase => ActionSequenceClipPhase.Animation;
@@ -158,6 +158,7 @@ public sealed class ActionSequenceMotionTrack : ActionSequenceTrackDefinition
 {
     private static readonly Type[] ClipTypes =
     {
+        typeof(ActionSequenceRootMotionClipDefinition),
         typeof(ActionSequenceImpulseClipDefinition),
     };
 

@@ -29,6 +29,7 @@ public sealed class ActionSequenceRuntime
     private float _frameAccumulator;
     private ActionSequenceContext _frameContext;
     private int _pendingFrame = -1;
+    private bool _poseBaselineApplied;
 
     public ActionSequenceAsset Asset { get; private set; }
     public ActionSequenceData Data { get; private set; }
@@ -70,6 +71,7 @@ public sealed class ActionSequenceRuntime
         _frameAccumulator = 0f;
         ResetFrameTransaction();
         CurrentFrame = -1;
+        _poseBaselineApplied = false;
         IsPlaying = data != null;
         IsComplete = data == null;
 
@@ -138,6 +140,44 @@ public sealed class ActionSequenceRuntime
         return StepFrame(context, 1f / FrameRate, 1f);
     }
 
+    public bool ApplyPoseBaseline(ActionSequenceContext context)
+    {
+        if (context == null)
+            throw new ArgumentNullException(nameof(context));
+
+        EnsureNoOpenFrame(nameof(ApplyPoseBaseline));
+
+        if (_poseBaselineApplied || !IsPlaying || IsComplete || Data == null || DurationFrames <= 0)
+            return false;
+
+        _poseBaselineApplied = true;
+
+        context.Frame = 0;
+        context.FrameRate = FrameRate;
+        context.DeltaTime = 0f;
+        context.SpeedScale = 0f;
+        context.IsPoseBaseline = true;
+
+        try
+        {
+            EnterClipsStartingAt(
+                0,
+                context,
+                ActionSequenceClipPhase.Animation,
+                ActionSequenceClipPhase.Animation);
+            TickActiveClips(
+                context,
+                ActionSequenceClipPhase.Animation,
+                ActionSequenceClipPhase.Animation);
+        }
+        finally
+        {
+            context.IsPoseBaseline = false;
+        }
+
+        return true;
+    }
+
     public bool BeginFrame(ActionSequenceContext context)
     {
         return BeginFrame(context, 1f / FrameRate, 1f);
@@ -168,6 +208,7 @@ public sealed class ActionSequenceRuntime
         context.FrameRate = FrameRate;
         context.DeltaTime = deltaTime;
         context.SpeedScale = speedScale;
+        context.IsPoseBaseline = false;
 
         EnterClipsStartingAt(nextFrame, context);
         return true;
@@ -250,16 +291,33 @@ public sealed class ActionSequenceRuntime
 
     private void EnterClipsStartingAt(int frame, ActionSequenceContext context)
     {
+        EnterClipsStartingAt(
+            frame,
+            context,
+            ActionSequenceClipPhase.State,
+            ActionSequenceClipPhase.Cleanup);
+    }
+
+    private void EnterClipsStartingAt(
+        int frame,
+        ActionSequenceContext context,
+        ActionSequenceClipPhase firstPhase,
+        ActionSequenceClipPhase lastPhase)
+    {
         for (int i = 0; i < _clips.Count; i++)
         {
             ClipRecord record = _clips[i];
             if (record.Active || record.StartFrame != frame)
+                continue;
+            if ((int)record.Phase < (int)firstPhase || (int)record.Phase > (int)lastPhase)
                 continue;
 
             record.Active = true;
             _activeClips.Add(record);
             record.Runtime?.OnEnter(context);
         }
+
+        _activeClips.Sort(CompareClipRecords);
     }
 
     private void TickActiveClips(

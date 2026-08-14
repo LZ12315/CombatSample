@@ -327,6 +327,109 @@ public sealed class ActionPlayerSequenceIntegrationTests
     }
 
     [Test]
+    public void SequencePoseClip_WithoutAnimationConfig_IsRejectedBeforeActionEnter()
+    {
+        var poseClip = new ActionSequenceAnimationPoseClipDefinition { startFrame = 0, endFrame = 1 };
+        SetPrivateField(poseClip, "animationKey", "attack");
+        ActionAsset action = CreateSequenceAction(1, poseClip);
+        ActionPlayer player = CreatePlayer(out GameObject owner);
+
+        try
+        {
+            LogAssert.Expect(
+                LogType.Warning,
+                "Action 播放失败：Sequence 动画 Clip 需要 Actor.AnimationConfig。");
+
+            player.BeginAction(action);
+
+            Assert.IsNull(player.CurrentAction);
+        }
+        finally
+        {
+            Object.DestroyImmediate(owner);
+            Object.DestroyImmediate(action);
+        }
+    }
+
+    [Test]
+    public void SequencePoseClip_MissingKey_IsRejectedBeforeActionEnter()
+    {
+        var poseClip = new ActionSequenceAnimationPoseClipDefinition { startFrame = 0, endFrame = 1 };
+        SetPrivateField(poseClip, "animationKey", "missing");
+        ActionAsset action = CreateSequenceAction(1, poseClip);
+        ActionPlayer player = CreatePlayerWithAnimationConfig(out GameObject owner, CreateAnimationConfig());
+
+        try
+        {
+            LogAssert.Expect(
+                LogType.Warning,
+                "Action 播放失败：AnimationConfig 找不到动画 key 'missing' 的 Transition。");
+
+            player.BeginAction(action);
+
+            Assert.IsNull(player.CurrentAction);
+        }
+        finally
+        {
+            Object.DestroyImmediate(owner);
+            Object.DestroyImmediate(action);
+        }
+    }
+
+    [Test]
+    public void SequenceRootMotionClip_MissingTrajectory_IsRejectedBeforeActionEnter()
+    {
+        var rootClip = new ActionSequenceRootMotionClipDefinition { startFrame = 0, endFrame = 1 };
+        SetPrivateField(rootClip, "animationKey", "missing");
+        ActionAsset action = CreateSequenceAction(1, rootClip);
+        ActionPlayer player = CreatePlayerWithAnimationConfig(out GameObject owner, CreateAnimationConfig());
+
+        try
+        {
+            LogAssert.Expect(
+                LogType.Warning,
+                "Action 播放失败：AnimationConfig 找不到动画 key 'missing' 的 RootMotionTrajectory。");
+
+            player.BeginAction(action);
+
+            Assert.IsNull(player.CurrentAction);
+        }
+        finally
+        {
+            Object.DestroyImmediate(owner);
+            Object.DestroyImmediate(action);
+        }
+    }
+
+    [Test]
+    public void SequenceRootMotionClip_OverlappingIntervalsAreRejectedBeforeActionEnter()
+    {
+        var first = new ActionSequenceRootMotionClipDefinition { startFrame = 0, endFrame = 2 };
+        var second = new ActionSequenceRootMotionClipDefinition { startFrame = 1, endFrame = 3 };
+        SetPrivateField(first, "animationKey", "attack");
+        SetPrivateField(second, "animationKey", "attack");
+        ActionAsset action = CreateSequenceAction(3, first, second);
+        AnimationConfig config = CreateAnimationConfig(new AnimationConfigEntry("attack", null, CreateTrajectory()));
+        ActionPlayer player = CreatePlayerWithAnimationConfig(out GameObject owner, config);
+
+        try
+        {
+            LogAssert.Expect(
+                LogType.Warning,
+                "Action 播放失败：RootMotionClip 区间重叠 [0, 2) 与 [1, 3)。");
+
+            player.BeginAction(action);
+
+            Assert.IsNull(player.CurrentAction);
+        }
+        finally
+        {
+            Object.DestroyImmediate(owner);
+            Object.DestroyImmediate(action);
+        }
+    }
+
+    [Test]
     public void LoopSequence_RestartsWithoutExecutingNewFrameZeroInSameTick()
     {
         ActionAsset action = CreateSequenceAction(
@@ -368,6 +471,15 @@ public sealed class ActionPlayerSequenceIntegrationTests
         owner.AddComponent<PlayableDirector>();
         ActionPlayer player = owner.AddComponent<ActionPlayer>();
         InvokePrivate(player, "Awake");
+        return player;
+    }
+
+    private static ActionPlayer CreatePlayerWithAnimationConfig(out GameObject owner, AnimationConfig config)
+    {
+        ActionPlayer player = CreatePlayer(out owner);
+        Actor actor = owner.AddComponent<Actor>();
+        SetPrivateField(actor, "animationConfig", config);
+        SetPrivateField(player, "_actor", actor);
         return player;
     }
 
@@ -415,6 +527,29 @@ public sealed class ActionPlayerSequenceIntegrationTests
         return action;
     }
 
+    private static AnimationConfig CreateAnimationConfig(params AnimationConfigEntry[] entries)
+    {
+        AnimationConfig config = ScriptableObject.CreateInstance<AnimationConfig>();
+        config.EditorSetEntries(entries);
+        return config;
+    }
+
+    private static RootMotionTrajectory CreateTrajectory()
+    {
+        var clip = new AnimationClip();
+        var trajectory = new RootMotionTrajectory();
+        trajectory.EditorSetData(
+            clip,
+            60,
+            1f,
+            1,
+            "test-hash",
+            new[] { 0f, 1f },
+            new[] { Vector3.zero, Vector3.forward },
+            new[] { Quaternion.identity, Quaternion.identity });
+        return trajectory;
+    }
+
     private static ProbeTrackDefinition FindTrack(ActionAsset action, ActionSequenceClipPhase phase)
     {
         for (int i = 0; i < action.SequenceData.EditorTracks.Count; i++)
@@ -428,7 +563,12 @@ public sealed class ActionPlayerSequenceIntegrationTests
 
     private sealed class ProbeTrackDefinition : ActionSequenceTrackDefinition
     {
-        private static readonly System.Type[] ClipTypes = { typeof(ProbeClipDefinition) };
+        private static readonly System.Type[] ClipTypes =
+        {
+            typeof(ProbeClipDefinition),
+            typeof(ActionSequenceAnimationPoseClipDefinition),
+            typeof(ActionSequenceRootMotionClipDefinition),
+        };
         private readonly ActionSequenceClipPhase _phase;
 
         public ProbeTrackDefinition(ActionSequenceClipPhase phase)

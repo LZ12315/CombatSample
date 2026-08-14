@@ -59,6 +59,7 @@ public sealed class MotionChannels
     public float DebugGravityAccumulator => _gravityAccumulator;
     public Vector3 DebugOwnerHorizontalVelocity => _horizontalVelocity;
     public float DebugOwnerVerticalVelocity => _verticalVelocity;
+    public Vector3 HorizontalImpulseVelocity => _horizontalImpulseVelocity;
 
     #endregion
 
@@ -280,6 +281,18 @@ public sealed class MotionChannels
         Vector3 horizontal = locomotionVelocity + _horizontalImpulseVelocity;
         horizontal.y = 0f;
         return horizontal * timeScale;
+    }
+
+    public bool TryComposeHorizontalVelocityOwner(float timeScale, out Vector3 velocity)
+    {
+        if (!_horizontalVelocityOwner.IsValid)
+        {
+            velocity = Vector3.zero;
+            return false;
+        }
+
+        velocity = _horizontalVelocity * timeScale;
+        return true;
     }
 
     /// <summary>
