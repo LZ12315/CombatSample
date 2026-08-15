@@ -25,6 +25,12 @@ public sealed class FacingRuntime
         _pendingRotation = initialRotation;
     }
 
+    public void SyncTo(Quaternion rotation)
+    {
+        _targetRotation = rotation;
+        _pendingRotation = rotation;
+    }
+
     public void SetOverride(Vector3 worldDirection, float angularSpeed = -1f)
     {
         if (worldDirection.sqrMagnitude < 0.001f)

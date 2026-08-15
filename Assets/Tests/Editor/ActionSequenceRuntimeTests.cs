@@ -366,6 +366,7 @@ public sealed class ActionSequenceRuntimeTests
         Assert.IsTrue(animationTrack.AllowsClipType(typeof(ActionSequenceAnimationPoseClipDefinition)));
         Assert.IsFalse(animationTrack.AllowsClipType(typeof(ActionSequenceHitBoxClipDefinition)));
         Assert.IsTrue(motionTrack.AllowsClipType(typeof(ActionSequenceRootMotionClipDefinition)));
+        Assert.IsTrue(motionTrack.AllowsClipType(typeof(ActionSequenceSelfRotationClipDefinition)));
     }
 
     [Test]

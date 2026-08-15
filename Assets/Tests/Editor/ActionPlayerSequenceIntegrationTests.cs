@@ -278,6 +278,43 @@ public sealed class ActionPlayerSequenceIntegrationTests
     }
 
     [Test]
+    public void HalfSpeed_DoesNotEnterSelfRotationBeforeFirstGameplayFrame()
+    {
+        var selfRotationClip = new ActionSequenceSelfRotationClipDefinition { startFrame = 0, endFrame = 2 };
+        SetPrivateField(selfRotationClip, "animationKey", "attack");
+        ActionAsset action = CreateSequenceAction(
+            2,
+            new PoseRefreshProbeClipDefinition("A", ActionSequenceClipPhase.Animation, 0, 2),
+            selfRotationClip);
+        AnimationConfig config = CreateAnimationConfig(new AnimationConfigEntry("attack", null, CreateTrajectory()));
+        ActionPlayer player = CreatePlayerWithAnimationConfig(out GameObject owner, config);
+
+        try
+        {
+            player.SetBaseSpeed(0.5);
+            player.BeginAction(action);
+
+            ExecuteFixedTick(player);
+
+            CollectionAssert.AreEqual(
+                new[]
+                {
+                    "A:enter:0:0:baseline",
+                    "A:tick:0:0:baseline",
+                    "A:tick:0:0.5:refresh",
+                },
+                ProbeClipDefinition.Events);
+            Assert.IsNotNull(player.CurrentAction);
+        }
+        finally
+        {
+            Object.DestroyImmediate(owner);
+            Object.DestroyImmediate(action);
+            Object.DestroyImmediate(config);
+        }
+    }
+
+    [Test]
     public void ZeroSpeed_DoesNotEnterFrameZero()
     {
         ActionAsset action = CreateSequenceAction(
@@ -547,6 +584,60 @@ public sealed class ActionPlayerSequenceIntegrationTests
     }
 
     [Test]
+    public void SequenceSelfRotationClip_MissingTrajectory_IsRejectedBeforeActionEnter()
+    {
+        var selfRotationClip = new ActionSequenceSelfRotationClipDefinition { startFrame = 0, endFrame = 1 };
+        SetPrivateField(selfRotationClip, "animationKey", "missing");
+        ActionAsset action = CreateSequenceAction(1, selfRotationClip);
+        ActionPlayer player = CreatePlayerWithAnimationConfig(out GameObject owner, CreateAnimationConfig());
+
+        try
+        {
+            LogAssert.Expect(
+                LogType.Warning,
+                "Action 播放失败：AnimationConfig 找不到动画 key 'missing' 的 RootMotionTrajectory。");
+
+            player.BeginAction(action);
+
+            Assert.IsNull(player.CurrentAction);
+        }
+        finally
+        {
+            Object.DestroyImmediate(owner);
+            Object.DestroyImmediate(action);
+        }
+    }
+
+    [Test]
+    public void SequenceSelfRotationClip_OverlappingIntervalsAreRejectedBeforeActionEnter()
+    {
+        var first = new ActionSequenceSelfRotationClipDefinition { startFrame = 0, endFrame = 2 };
+        var second = new ActionSequenceSelfRotationClipDefinition { startFrame = 1, endFrame = 3 };
+        SetPrivateField(first, "animationKey", "attack");
+        SetPrivateField(second, "animationKey", "attack");
+        ActionAsset action = CreateSequenceAction(3, first, second);
+        AnimationConfig config = CreateAnimationConfig(new AnimationConfigEntry("attack", null, CreateYawTrajectory()));
+        ActionPlayer player = CreatePlayerWithAnimationConfig(out GameObject owner, config);
+
+        try
+        {
+            LogAssert.Expect(
+                LogType.Warning,
+                "Action 播放失败：SelfRotationClip 区间重叠 [0, 2) 与 [1, 3)。");
+
+            player.BeginAction(action);
+
+            Assert.IsNull(player.CurrentAction);
+        }
+        finally
+        {
+            Object.DestroyImmediate(owner);
+            Object.DestroyImmediate(action);
+            Object.DestroyImmediate(config);
+        }
+    }
+
+    [Test]
     public void LoopSequence_RestartsWithoutExecutingNewFrameZeroInSameTick()
     {
         ActionAsset action = CreateSequenceAction(
@@ -667,6 +758,22 @@ public sealed class ActionPlayerSequenceIntegrationTests
         return trajectory;
     }
 
+    private static RootMotionTrajectory CreateYawTrajectory()
+    {
+        var clip = new AnimationClip();
+        var trajectory = new RootMotionTrajectory();
+        trajectory.EditorSetData(
+            clip,
+            60,
+            1f,
+            1,
+            "test-hash",
+            new[] { 0f, 1f },
+            new[] { Vector3.zero, Vector3.zero },
+            new[] { Quaternion.identity, Quaternion.Euler(0f, 90f, 0f) });
+        return trajectory;
+    }
+
     private static ProbeTrackDefinition FindTrack(ActionAsset action, ActionSequenceClipPhase phase)
     {
         for (int i = 0; i < action.SequenceData.EditorTracks.Count; i++)
@@ -686,6 +793,7 @@ public sealed class ActionPlayerSequenceIntegrationTests
             typeof(PoseRefreshProbeClipDefinition),
             typeof(ActionSequenceAnimationPoseClipDefinition),
             typeof(ActionSequenceRootMotionClipDefinition),
+            typeof(ActionSequenceSelfRotationClipDefinition),
         };
         private readonly ActionSequenceClipPhase _phase;
 

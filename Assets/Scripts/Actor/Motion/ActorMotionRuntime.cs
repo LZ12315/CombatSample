@@ -36,6 +36,7 @@ public sealed class ActorMotionRuntime
     private readonly MotionChannels _channels = new();
     private readonly GroundingRuntime _grounding = new();
     private readonly RootMotionBuffer _rootMotion = new();
+    private readonly SelfRotationBuffer _selfRotation = new();
     private readonly VelocityReadout _velocity = new();
 
     private bool _pendingForceUnground;
@@ -63,6 +64,8 @@ public sealed class ActorMotionRuntime
     public int JumpCount => _grounding.JumpCount;
 
     public MotionChannels Channels => _channels;
+    public bool HasSelfRotationTick => _selfRotation.HasTickOwner;
+    public Quaternion SelfRotationLocalYawDelta => _selfRotation.TickLocalYawDelta;
 
     /// <summary>
     /// 当前 RootMotion 策略允许 ActorMotor 应用的根旋转。
@@ -121,6 +124,7 @@ public sealed class ActorMotionRuntime
     {
         _forceUngroundedThisTick = false;
         _rootMotion.BeginMotorTick();
+        _selfRotation.BeginMotorTick();
     }
 
     public void EndMotorTick()
@@ -358,6 +362,25 @@ public sealed class ActorMotionRuntime
     public void EndTrajectoryRootMotion(MotionOwner owner)
     {
         _rootMotion.EndTrajectory(owner);
+    }
+
+    #endregion
+
+    #region === SelfRotationBuffer 门面 ===
+
+    public bool TryBeginSelfRotation(out MotionOwner owner)
+    {
+        return _selfRotation.TryBegin(out owner);
+    }
+
+    public bool SubmitSelfRotation(MotionOwner owner, Quaternion localYawDelta)
+    {
+        return _selfRotation.Submit(owner, localYawDelta);
+    }
+
+    public bool EndSelfRotation(MotionOwner owner)
+    {
+        return _selfRotation.End(owner);
     }
 
     #endregion

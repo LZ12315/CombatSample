@@ -153,6 +153,22 @@ public class ActorMotor : MonoBehaviour, ICharacterController
         MotionRuntime.EndTrajectoryRootMotion(owner);
     }
 
+    public bool TryBeginSelfRotation(out MotionOwner owner)
+    {
+        return MotionRuntime.TryBeginSelfRotation(out owner);
+    }
+
+    public bool SubmitSelfRotation(MotionOwner owner, Quaternion localYawDelta)
+    {
+        return MotionRuntime.SubmitSelfRotation(owner, localYawDelta);
+    }
+
+    public void EndSelfRotation(MotionOwner owner)
+    {
+        if (MotionRuntime.EndSelfRotation(owner))
+            SyncFacingToCurrentRotation();
+    }
+
     public void AddHorizontalImpulse(Vector3 velocity)
     {
         MotionRuntime.AddHorizontalImpulse(velocity);
@@ -389,6 +405,12 @@ public class ActorMotor : MonoBehaviour, ICharacterController
 
     public void UpdateRotation(ref Quaternion currentRotation, float deltaTime)
     {
+        if (MotionRuntime.HasSelfRotationTick)
+        {
+            currentRotation = _motorFrameStartWorldRotation * MotionRuntime.SelfRotationLocalYawDelta;
+            return;
+        }
+
         currentRotation = _facing.PendingRotation;
 
         var rootMotionRotation = MotionRuntime.AppliedRootMotionRotation;
@@ -523,6 +545,12 @@ public class ActorMotor : MonoBehaviour, ICharacterController
     private void RefreshMovementTimeScale()
     {
         MotionRuntime.SetMovementTimeScale(_baseMovementTimeScale * _movementTimeScaleModifiers.Value);
+    }
+
+    private void SyncFacingToCurrentRotation()
+    {
+        Quaternion rotation = Motor != null ? Motor.TransientRotation : transform.rotation;
+        _facing.SyncTo(rotation);
     }
 
     private static float SanitizeMovementTimeScale(float scale)

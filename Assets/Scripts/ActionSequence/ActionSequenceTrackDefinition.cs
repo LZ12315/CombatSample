@@ -159,6 +159,7 @@ public sealed class ActionSequenceMotionTrack : ActionSequenceTrackDefinition
     private static readonly Type[] ClipTypes =
     {
         typeof(ActionSequenceRootMotionClipDefinition),
+        typeof(ActionSequenceSelfRotationClipDefinition),
         typeof(ActionSequenceImpulseClipDefinition),
     };
 

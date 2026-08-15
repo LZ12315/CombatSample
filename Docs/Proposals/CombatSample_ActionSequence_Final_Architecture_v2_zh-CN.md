@@ -391,6 +391,8 @@ RootMotionClip 不读取 AnimationPoseClip，也不自动与其对齐。即使�
 
 `SelfRotationClip` 位于 MotionTrack，只负责 Actor 绕自身 Up 轴的左右转身。第一版不应用 Pitch/Roll。
 
+当前已落地 D2.1：只实现 Authored 来源，即从 AnimationConfig key 对应的 `RootMotionTrajectory` 提取烘焙 Yaw，并通过 ActorMotor/KCC 改变 Actor 朝向。Target、Direction、Snap/RotateBySpeed 仍是 D2.2 之后的 staged work。
+
 旋转来源：
 
 | Source | 行为 |
@@ -742,11 +744,11 @@ Physics.SyncTransforms
 | ASM 的 Locomotion start context、Action `facingOnStart` 与相关 Condition 仍从 ActorMotor 读取 Intent | ActorLogicInput 停止推 Motor 时必须一起改读其最新保存值 |
 | ASM 在 LateUpdate 仲裁并立即 BeginAction | 尚未改为请求排队、BeginTick 提交 |
 | CancelRule 只有 Specific/Tag/Any，没有 Conditions 或 Locomotion target | Locomotion 取消合同尚未实现 |
-| `AnimationConfig`、Entry、Actor 可选引用、大小写敏感 key 查询与 Editor-only Bake Context 已实现 | Stage D1 已接入 AnimationPoseClip/RootMotionClip 运行时 key 查询；Actor Prefab 仍需逐角色配置具体 AnimationConfig 引用 |
-| `RootMotionTrajectory` 已保存累计 XYZ、完整 Quaternion 与基础 metadata，并提供 Sample/Extract/SE(3) 数学 | Stage D1 已实现 XZ displacement 消费；Root Y、Yaw/Pitch/Roll gameplay 消费仍未实现 |
+| `AnimationConfig`、Entry、Actor 可选引用、大小写敏感 key 查询与 Editor-only Bake Context 已实现 | Stage D1/D2.1 已接入 AnimationPoseClip、RootMotionClip 和 Authored SelfRotationClip 运行时 key 查询；Actor Prefab 仍需逐角色配置具体 AnimationConfig 引用 |
+| `RootMotionTrajectory` 已保存累计 XYZ、完整 Quaternion 与基础 metadata，并提供 Sample/Extract/SE(3) 数学 | Stage D1 已实现 XZ displacement 消费；D2.1 已实现 Authored Yaw 消费；Root Y、Pitch/Roll gameplay 消费仍未实现 |
 | AnimationConfig 内置 Bake Context、唯一 AnimationClip resolver、Manual PlayableGraph Baker、独立 Oracle Validator、Entry 内嵌 trajectory、Inspector Bake/Rebake/Bake All 与 DependencyHash/stale 已实现 | 运行时对 missing/stale trajectory 的 Action 启动阻断要随消费 Clip 在 Stage D 接入 |
 | RootMotionBuffer 已分离 Legacy Animator delta 与 Sequence trajectory owner | Animator RootMotion 兼容路径仍保留；trajectory 当前只消费 XZ 位移，不消费 Y 或旋转 |
-| Sequence RootMotionClip 使用 trajectory `Extract(t0,t1)`，提交 local XZ 给 ActorMotor | SelfRotation、Root Y、Motion Warp、RM+LocomotionInput 同时主导仍未实现 |
+| Sequence RootMotionClip 使用 trajectory `Extract(t0,t1)`，提交 local XZ 给 ActorMotor | Authored SelfRotation 已落地；Root Y、Target/Direction SelfRotation、Motion Warp、RM+LocomotionInput 同时主导仍未实现 |
 | ActorMotor 在普通 Update 计算 Locomotion/Facing | 权威计算尚未进入 PreWorldMotion |
 | HitBox Clip 已在 KCC、Resolver 与 SyncTransforms 后的 Sequence PostWorld 中 Query | 仍是 Query 后立即 TakeDamage；HitIntent 收集、稳定排序与两阶段 Resolve 尚未实现 |
 | ActionMotionConfig 仍由 ActionInstance OnEnter/Exit 整招应用 | 尚未迁移到域规则与具体 Clip |
@@ -824,7 +826,8 @@ Legacy Timeline 当前也没有保证“编辑器标记的第 N 帧 Pose → Ani
 - 已完成 D1：Sequence session 在第一次 Pose Evaluate 前压制 Animator RootMotion relay，并支持 Frame 0 Animation-only baseline。
 - 已完成 D1：实现 RootMotionClip，通过 AnimationConfig key 查询内嵌 RootMotionTrajectory，按 `[startFrame,endFrame)` 映射 Extract 并只提交 local XZ 位移。
 - 已完成 D1：局部升级 RootMotionBuffer、ActorMotionRuntime、ActorMotor，新增 trajectory owner/source gating；trajectory 位移不再乘 MovementTimeScale，并与水平 impulse/vertical channels 按 v1 合同合成。
-- 未完成 D2：SelfRotationClip、Facing handoff、RootYaw/Target/Direction 旋转合同。
+- 已完成 D2.1：实现 Authored SelfRotationClip，通过 AnimationConfig key 查询 trajectory，按整数 Gameplay Frame 提取 local Up Yaw；ActorMotor 新增独立 SelfRotation owner/channel，SelfRotation 活跃时以 `tickStartRotation * localYawDelta` 接管 KCC rotation，并在退出/取消时同步 Facing baseline。
+- 未完成 D2.2：Target/Direction SelfRotation、Snap/RotateBySpeed 和更完整的旋转作者工具。
 - 验证同帧 Pose、位移、旋转、KCC 和 HitBox。
 - 固化 `[startFrame,endFrame)`、Frame 0 activation/freeze、最后一帧 PostWorld 后清理的测试。
 

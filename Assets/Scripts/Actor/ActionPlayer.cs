@@ -364,6 +364,7 @@ public class ActionPlayer : MonoBehaviour
 
         AnimationConfig config = _actor != null ? _actor.AnimationConfig : null;
         var rootMotionIntervals = new List<ActionSequenceRootMotionClipDefinition>();
+        var selfRotationIntervals = new List<ActionSequenceSelfRotationClipDefinition>();
 
         IReadOnlyList<ActionSequenceTrackDefinition> tracks = sequenceData.Tracks;
         for (int trackIndex = 0; tracks != null && trackIndex < tracks.Count; trackIndex++)
@@ -372,11 +373,11 @@ public class ActionPlayer : MonoBehaviour
             if (track == null || track.muted)
                 continue;
 
-            if (!TryValidateSequenceClips(track.Clips, config, rootMotionIntervals, out warning))
+            if (!TryValidateSequenceClips(track.Clips, config, rootMotionIntervals, selfRotationIntervals, out warning))
                 return false;
         }
 
-        if (!TryValidateSequenceClips(sequenceData.LegacyClips, config, rootMotionIntervals, out warning))
+        if (!TryValidateSequenceClips(sequenceData.LegacyClips, config, rootMotionIntervals, selfRotationIntervals, out warning))
             return false;
 
         for (int i = 0; i < rootMotionIntervals.Count; i++)
@@ -394,6 +395,21 @@ public class ActionPlayer : MonoBehaviour
             }
         }
 
+        for (int i = 0; i < selfRotationIntervals.Count; i++)
+        {
+            ActionSequenceSelfRotationClipDefinition a = selfRotationIntervals[i];
+            for (int j = i + 1; j < selfRotationIntervals.Count; j++)
+            {
+                ActionSequenceSelfRotationClipDefinition b = selfRotationIntervals[j];
+                if (a.StartFrame < b.EndFrame && b.StartFrame < a.EndFrame)
+                {
+                    warning =
+                        $"Action 播放失败：SelfRotationClip 区间重叠 [{a.StartFrame}, {a.EndFrame}) 与 [{b.StartFrame}, {b.EndFrame})。";
+                    return false;
+                }
+            }
+        }
+
         return true;
     }
 
@@ -401,6 +417,7 @@ public class ActionPlayer : MonoBehaviour
         IReadOnlyList<ActionSequenceClipDefinition> clips,
         AnimationConfig config,
         List<ActionSequenceRootMotionClipDefinition> rootMotionIntervals,
+        List<ActionSequenceSelfRotationClipDefinition> selfRotationIntervals,
         out string warning)
     {
         warning = null;
@@ -446,6 +463,61 @@ public class ActionPlayer : MonoBehaviour
                 }
 
                 rootMotionIntervals?.Add(rootMotionClip);
+            }
+            else if (clip is ActionSequenceSelfRotationClipDefinition selfRotationClip)
+            {
+                if (config == null)
+                {
+                    warning = "Action 播放失败：SelfRotationClip 需要 Actor.AnimationConfig。";
+                    return false;
+                }
+
+                if (!config.TryGetTrajectory(selfRotationClip.AnimationKey, out RootMotionTrajectory trajectory)
+                    || trajectory == null)
+                {
+                    warning = $"Action 播放失败：AnimationConfig 找不到动画 key '{selfRotationClip.AnimationKey}' 的 RootMotionTrajectory。";
+                    return false;
+                }
+
+                RootMotionTrajectoryValidationResult validation = trajectory.ValidateData();
+                if (!validation.IsValid)
+                {
+                    warning = $"Action 播放失败：动画 key '{selfRotationClip.AnimationKey}' 的 RootMotionTrajectory 数据无效。";
+                    return false;
+                }
+
+                if (!TryValidateSelfRotationExtraction(selfRotationClip, trajectory))
+                {
+                    warning = $"Action 播放失败：SelfRotationClip 无法从动画 key '{selfRotationClip.AnimationKey}' 提取有效 Yaw。";
+                    return false;
+                }
+
+                selfRotationIntervals?.Add(selfRotationClip);
+            }
+        }
+
+        return true;
+    }
+
+    private static bool TryValidateSelfRotationExtraction(
+        ActionSequenceSelfRotationClipDefinition clip,
+        RootMotionTrajectory trajectory)
+    {
+        if (clip == null || trajectory == null)
+            return false;
+
+        int frameRate = 60;
+        for (int frame = clip.StartFrame; frame < clip.EndFrame; frame++)
+        {
+            float localFrame = frame - clip.StartFrame;
+            float speed = Mathf.Max(0f, clip.playbackSpeed);
+            float startTime = Mathf.Max(0f, clip.startOffsetSeconds) + localFrame / frameRate * speed;
+            float endTime = Mathf.Max(0f, clip.startOffsetSeconds) + (localFrame + 1f) / frameRate * speed;
+
+            if (!trajectory.TryExtract(startTime, endTime, out RootMotionTransform delta)
+                || !RootMotionYawUtility.TryExtractLocalYaw(delta.Rotation, out _))
+            {
+                return false;
             }
         }
 
