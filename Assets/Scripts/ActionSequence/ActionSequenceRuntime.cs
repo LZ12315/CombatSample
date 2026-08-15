@@ -153,10 +153,12 @@ public sealed class ActionSequenceRuntime
         _poseBaselineApplied = true;
 
         context.Frame = 0;
+        context.PoseFrame = 0f;
         context.FrameRate = FrameRate;
         context.DeltaTime = 0f;
         context.SpeedScale = 0f;
         context.IsPoseBaseline = true;
+        context.IsPoseRefresh = false;
 
         try
         {
@@ -173,6 +175,42 @@ public sealed class ActionSequenceRuntime
         finally
         {
             context.IsPoseBaseline = false;
+            context.IsPoseRefresh = false;
+        }
+
+        return true;
+    }
+
+    public bool RefreshPose(ActionSequenceContext context, float poseFrame)
+    {
+        if (context == null)
+            throw new ArgumentNullException(nameof(context));
+
+        EnsureNoOpenFrame(nameof(RefreshPose));
+
+        if (!IsPlaying || IsComplete || Data == null || DurationFrames <= 0)
+            return false;
+
+        poseFrame = Mathf.Max(0f, poseFrame);
+
+        context.Frame = Mathf.Max(0, Mathf.FloorToInt(poseFrame));
+        context.PoseFrame = poseFrame;
+        context.FrameRate = FrameRate;
+        context.DeltaTime = 0f;
+        context.SpeedScale = 0f;
+        context.IsPoseBaseline = false;
+        context.IsPoseRefresh = true;
+
+        try
+        {
+            TickActiveClips(
+                context,
+                ActionSequenceClipPhase.Animation,
+                ActionSequenceClipPhase.Animation);
+        }
+        finally
+        {
+            context.IsPoseRefresh = false;
         }
 
         return true;
@@ -205,10 +243,12 @@ public sealed class ActionSequenceRuntime
         FrameTransactionState = ActionSequenceFrameTransactionState.Begun;
 
         context.Frame = nextFrame;
+        context.PoseFrame = nextFrame + 1f;
         context.FrameRate = FrameRate;
         context.DeltaTime = deltaTime;
         context.SpeedScale = speedScale;
         context.IsPoseBaseline = false;
+        context.IsPoseRefresh = false;
 
         EnterClipsStartingAt(nextFrame, context);
         return true;

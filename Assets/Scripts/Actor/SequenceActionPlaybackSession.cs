@@ -55,9 +55,15 @@ internal sealed class SequenceActionPlaybackSession : IFixedActionPlaybackSessio
         _sequenceContext.Actor = _actor;
         _runtime.ApplyPoseBaseline(_sequenceContext);
 
+        if (_speed <= 0.0)
+            return false;
+
         _frameAccumulator += deltaSeconds * _speed * _runtime.FrameRate;
         if (_frameAccumulator < 1.0)
+        {
+            _runtime.RefreshPose(_sequenceContext, GetCurrentPoseFrame());
             return false;
+        }
 
         _frameAccumulator -= 1.0;
         return _runtime.BeginFrame(
@@ -160,6 +166,12 @@ internal sealed class SequenceActionPlaybackSession : IFixedActionPlaybackSessio
         _frameAccumulator = 0.0;
         _sequenceContext.Actor = _actor;
         _sequenceContext.EventContext = _eventContext;
+    }
+
+    private float GetCurrentPoseFrame()
+    {
+        int currentFrame = _runtime != null ? _runtime.CurrentFrame : -1;
+        return currentFrame + 1f + (float)_frameAccumulator;
     }
 
     private void SetAnimatorRootMotionSuppressed(bool suppressed)

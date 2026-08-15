@@ -455,7 +455,7 @@ Session activation 与 Gameplay Frame Advance 是两个明确步骤：
 1. `Activate` 在 BeginTick 只建立 Action 域、Action 自身的 SelfTags，并让 Frame 0 的 Pose source 在左边界 `t = 0` 建立可显示的起始 Pose；不调用 Gameplay Clip `OnEnter/OnTick`，不取得 Motion owner，不写 Impulse/ForceUnground，也不 Query HitBox。
 2. Sequence accumulator 初值为 0；每个 Combat Tick 加入当 Tick 的 Sequence speed。累计值达到 1 才提交一个 Gameplay frame 并减 1。
 3. 提交 frame `f` 时，`startFrame == f` 的 Clip 才正式 `OnEnter`，随后执行该 frame 的 PreWorld/PostWorld；因此 1 倍速在激活 Tick 提交 Frame 0，0.5 倍速通常在第二个 Tick 提交 Frame 0，0 倍速保持在 activation baseline。
-4. 未提交 Gameplay frame 的 Tick 只保持 Action 域、SelfTags 和起始/上次 Pose；不会重复执行 Sequence Clip 生命周期或 Gameplay 输出。
+4. 未提交 Gameplay frame 的 Tick 只保持 Action 域、SelfTags 和起始/上次 Gameplay Frame；当 Sequence speed 在 `(0, 1)` 时，可以执行 Animation-only PoseRefresh，以 fractional `PoseFrame` 平滑刷新视觉 Pose，但不得触发 State/Motion/HitBox/Cleanup、Clip enter/exit 或任何 Gameplay 输出。
 
 `Advance` 和 `Seek` 必须分开：
 
@@ -647,9 +647,9 @@ WorldMotionCommit
 PostWorld：HitBox → Cleanup/结果
 ```
 
-中间不能推进到下一 Sequence Frame，也不能重新 Evaluate 不同 Pose。
+中间不能推进到下一 Sequence Frame，也不能为同一 Gameplay Frame 改用另一个命中 Pose。
 
-如果该 Actor 本 Tick 的 Sequence 累加器没有跨过一个 Gameplay Frame，则不执行该 Actor 的 Sequence State/Pose/Motion/HitBox `OnTick`，也不重复查询同一骨骼帧。已经存在于 Motor 内的 Velocity owner、Impulse、Gravity 等状态仍按它们当前规则运行。
+如果该 Actor 本 Tick 的 Sequence 累加器没有跨过一个 Gameplay Frame，则不执行该 Actor 的 Sequence State/Motion/HitBox `OnTick`，也不重复查询同一骨骼帧。Animation phase 可以在 `0 < speed < 1` 时执行 PoseRefresh，只刷新已 active 的 AnimationPoseClip，不 enter/exit Clip，不推进 CurrentFrame 或 normalized time。已经存在于 Motor 内的 Velocity owner、Impulse、Gravity 等状态仍按它们当前规则运行。
 
 Clip 生命周期也必须跨过完整屏障：`startFrame == f` 的 Clip 在 frame `f` 的 PreWorld 前进入；`endFrame == f + 1` 的 Clip 保持到 frame `f` 的 Hit Query/Resolve 完成，再在 EndTick 退出。当前 frame 是 Action 最后一帧时，`Complete → ExitAll → ActionFinished` 同样延迟到该 frame 的 EndTick commit。若取消请求在 BeginTick 被正式接受，则在本 frame PreWorld 之前清理并且不再执行被取消 Action 的任何输出。
 
@@ -663,7 +663,7 @@ Combat Fixed Tick、KCC 和 Gameplay Sequence 统一为 60 Hz。Unity `Fixed Tim
 
 第一版 Sequence 全局运行速度只支持 `0..1`。每个 Combat Tick 最多推进一个 Gameplay Frame：
 
-- 低于 1 倍速时使用固定帧累加器，未跨帧的 Tick 不产生新的 Sequence Gameplay 输出；
+- 低于 1 倍速时使用固定帧累加器，未跨帧的 Tick 不产生新的 Sequence Gameplay 输出，但可以用 fractional PoseFrame 做 Animation-only PoseRefresh；
 - HitStop 为 0 时不跨帧；
 - 渲染掉帧由 Unity 在 fixed catch-up 预算内连续执行多个完整 Fixed Tick 追赶，每个 Tick 都包含完整的 Pose → Motion → KCC → HitBox；超过 Unity `Maximum Allowed Timestep` 的部分让世界时间变慢，也不能折叠到一次 KCC；
 - 禁止在一次 KCC commit 前用 `while` 折叠多个 Gameplay Frame；
@@ -730,6 +730,7 @@ Physics.SyncTransforms
 | `ActionPlayer.Update()` 只继续轮询 Legacy Timeline；正式 Sequence 由 ActorSimulationRuntime 在 Driver 固定 Tick 推进 | Sequence 已脱离 Update；ASM/Action.OnEnter 仍保持当前提交时机 |
 | Sequence `Start()` 只创建 Runtime；固定 Tick 中会先建立 Frame 0 Animation-only baseline，再按累加器决定是否提交 Gameplay Frame | 速度为 0 时只允许 Pose baseline，不进入 State/Motion/HitBox |
 | `ActionSequenceRuntime` 的 `BeginFrame → ExecutePreWorld → ExecutePostWorld → EndFrame` 已接到 KCC world solve 两侧 | `CurrentFrame` 只在 EndFrame 提交；最后一帧在同一 EndFrame 完成 Action |
+| `ActionSequenceRuntime.RefreshPose` 已支持未跨 Gameplay Frame 时的 Animation-only fractional pose refresh | 仅刷新已 active 的 AnimationPoseClip；State/Motion/HitBox/Clip lifecycle 与 RootMotion 不跟随 fractional time |
 | `ActionSequenceRuntime.Tick()` 仍可在一次调用中 while 补多帧 | 仅供 ActionSequenceRunner 等非权威预览入口；正式 Action Session 每个世界 Tick 最多一帧 |
 | Unity Fixed Timestep 已为 `1 / 60`，Sequence 默认 60 Hz | 世界固定时钟与正式播放启动门禁已统一；编辑器资产 Validator 提示尚未落实 |
 | 正式 Sequence 启动时拒绝非 60 Hz 数据，Session 拒绝 `speed > 1` 并中断非法 Action | 运行时门禁已落实；编辑器 Validator 提示仍待补充 |
@@ -803,6 +804,7 @@ Legacy Timeline 当前也没有保证“编辑器标记的第 N 帧 Pose → Ani
 - 已完成：ActorCollisionResolver、SyncTransforms 和 Sequence Pre/Post 屏障接入；HitBox 只在 PostWorld Tick。
 - 已完成：把 Fixed Timestep 统一到 60 Hz。
 - 已完成（运行时）：Gameplay Sequence 启动入口拒绝非 60 Hz 数据，Sequence Session 拒绝大于 1 的速度；编辑器 Validator 提示待补。
+- 已完成 B2.3：Sequence 在 `0 < speed < 1` 且未跨整数 Gameplay Frame 时执行 Animation-only fractional PoseRefresh，修复非 0 HitStop/慢速下 Pose 抽帧；RootMotion、HitBox 和 Motion 输出仍只跟整数 frame。
 
 ### Stage C：AnimationConfig 与 Baker
 
@@ -894,7 +896,7 @@ Legacy Timeline 当前也没有保证“编辑器标记的第 N 帧 Pose → Ani
 - Physics Auto Sync 关闭时仍能查询到本 Tick 正确 Collider 位置。
 - KCC interpolation 开/关不改变 Gameplay 命中结果。
 - 渲染掉帧时，每个补做的 Gameplay Frame 都经历完整 world commit。
-- 0.5 倍速未进帧的 Tick 不重复 Pose/HitBox OnTick；HitStop 不跳事件、不重复 Impulse、不补偿冻结时间。
+- 0.5 倍速未进帧的 Tick 只允许 Animation-only fractional PoseRefresh，不重复 HitBox/Motion/State Gameplay OnTick；HitStop 不跳事件、不重复 Impulse、不补偿冻结时间。
 - Action 在 HitStop 或低速未进帧时只建立 activation baseline；Impulse/ForceUnground 直到 Frame 0 真正提交才调用，提前取消不会残留副作用。
 - 最后一帧 HitBox 在 Action Complete/ExitAll 前完成。
 - HitIntent 使用稳定键结算，同 Tick 结果不依赖 Actor 注册或容器遍历顺序；死亡/相杀遵循显式 Resolve policy。

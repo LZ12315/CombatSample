@@ -85,7 +85,7 @@ public sealed class ActionSequenceAnimationPoseClipDefinition : ActionSequenceCl
             if (_state == null || context.Actor == null || context.Actor.animancer == null)
                 return;
 
-            float sampleTime = ActionSequenceAnimationTimeUtility.GetFrameEndTime(
+            float sampleTime = ActionSequenceAnimationTimeUtility.GetPoseSampleTime(
                 context,
                 _definition.StartFrame,
                 _definition.startOffsetSeconds,

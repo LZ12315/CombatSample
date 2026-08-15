@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Globalization;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using NUnit.Framework;
@@ -222,6 +223,61 @@ public sealed class ActionPlayerSequenceIntegrationTests
     }
 
     [Test]
+    public void HalfSpeed_RefreshesAnimationPoseBeforeFirstGameplayFrame()
+    {
+        ActionAsset action = CreateSequenceAction(
+            2,
+            new PoseRefreshProbeClipDefinition("A", ActionSequenceClipPhase.Animation, 0, 2),
+            new ProbeClipDefinition("S", ActionSequenceClipPhase.State, 0, 2),
+            new ProbeClipDefinition("M", ActionSequenceClipPhase.Motion, 0, 2),
+            new ProbeClipDefinition("H", ActionSequenceClipPhase.HitBox, 0, 2));
+        ActionPlayer player = CreatePlayer(out GameObject owner);
+
+        try
+        {
+            player.SetBaseSpeed(0.5);
+            player.BeginAction(action);
+
+            ExecuteFixedTick(player);
+
+            CollectionAssert.AreEqual(
+                new[]
+                {
+                    "A:enter:0:0:baseline",
+                    "A:tick:0:0:baseline",
+                    "A:tick:0:0.5:refresh",
+                },
+                ProbeClipDefinition.Events);
+            Assert.AreEqual(0, player.CurrentFrame);
+            Assert.AreEqual(0f, player.CurrentAction.RuntimeData.normalizedTime);
+
+            ExecuteFixedTick(player);
+
+            CollectionAssert.AreEqual(
+                new[]
+                {
+                    "A:enter:0:0:baseline",
+                    "A:tick:0:0:baseline",
+                    "A:tick:0:0.5:refresh",
+                    "S:enter:0",
+                    "M:enter:0",
+                    "H:enter:0",
+                    "S:tick:0",
+                    "A:tick:0:1:frame",
+                    "M:tick:0",
+                    "H:tick:0",
+                },
+                ProbeClipDefinition.Events);
+            Assert.Greater(player.CurrentAction.RuntimeData.normalizedTime, 0f);
+        }
+        finally
+        {
+            Object.DestroyImmediate(owner);
+            Object.DestroyImmediate(action);
+        }
+    }
+
+    [Test]
     public void ZeroSpeed_DoesNotEnterFrameZero()
     {
         ActionAsset action = CreateSequenceAction(
@@ -239,6 +295,40 @@ public sealed class ActionPlayerSequenceIntegrationTests
 
             Assert.AreEqual(0, ProbeClipDefinition.Events.Count);
             Assert.IsNotNull(player.CurrentAction);
+        }
+        finally
+        {
+            Object.DestroyImmediate(owner);
+            Object.DestroyImmediate(action);
+        }
+    }
+
+    [Test]
+    public void ZeroSpeed_AppliesOnlyPoseBaselineWithoutFractionalRefresh()
+    {
+        ActionAsset action = CreateSequenceAction(
+            2,
+            new PoseRefreshProbeClipDefinition("A", ActionSequenceClipPhase.Animation, 0, 2),
+            new ProbeClipDefinition("S", ActionSequenceClipPhase.State, 0, 2));
+        ActionPlayer player = CreatePlayer(out GameObject owner);
+
+        try
+        {
+            player.SetBaseSpeed(0.0);
+            player.BeginAction(action);
+
+            ExecuteFixedTick(player);
+            ExecuteFixedTick(player);
+
+            CollectionAssert.AreEqual(
+                new[]
+                {
+                    "A:enter:0:0:baseline",
+                    "A:tick:0:0:baseline",
+                },
+                ProbeClipDefinition.Events);
+            Assert.IsNotNull(player.CurrentAction);
+            Assert.AreEqual(0f, player.CurrentAction.RuntimeData.normalizedTime);
         }
         finally
         {
@@ -266,6 +356,33 @@ public sealed class ActionPlayerSequenceIntegrationTests
             player.Resume();
             ExecuteFixedTick(player);
             CollectionAssert.AreEqual(new[] { "A:enter:0", "A:tick:0" }, ProbeClipDefinition.Events);
+        }
+        finally
+        {
+            Object.DestroyImmediate(owner);
+            Object.DestroyImmediate(action);
+        }
+    }
+
+    [Test]
+    public void Pause_DoesNotRefreshFractionalPose()
+    {
+        ActionAsset action = CreateSequenceAction(
+            2,
+            new PoseRefreshProbeClipDefinition("A", ActionSequenceClipPhase.Animation, 0, 2));
+        ActionPlayer player = CreatePlayer(out GameObject owner);
+
+        try
+        {
+            player.SetBaseSpeed(0.5);
+            player.BeginAction(action);
+            player.Pause();
+
+            ExecuteFixedTick(player);
+            ExecuteFixedTick(player);
+
+            Assert.AreEqual(0, ProbeClipDefinition.Events.Count);
+            Assert.IsNotNull(player.CurrentAction);
         }
         finally
         {
@@ -566,6 +683,7 @@ public sealed class ActionPlayerSequenceIntegrationTests
         private static readonly System.Type[] ClipTypes =
         {
             typeof(ProbeClipDefinition),
+            typeof(PoseRefreshProbeClipDefinition),
             typeof(ActionSequenceAnimationPoseClipDefinition),
             typeof(ActionSequenceRootMotionClipDefinition),
         };
@@ -623,6 +741,59 @@ public sealed class ActionPlayerSequenceIntegrationTests
             public override void OnExit(ActionSequenceContext context, bool completed)
             {
                 Events.Add($"{_id}:exit:{context.Frame}:{completed}");
+            }
+        }
+    }
+
+    private sealed class PoseRefreshProbeClipDefinition : ActionSequenceClipDefinition
+    {
+        private readonly string _id;
+        private readonly ActionSequenceClipPhase _phase;
+
+        public PoseRefreshProbeClipDefinition(string id, ActionSequenceClipPhase phase, int start, int end)
+        {
+            _id = id;
+            _phase = phase;
+            startFrame = start;
+            endFrame = end;
+        }
+
+        public override ActionSequenceClipPhase Phase => _phase;
+
+        public override ActionSequenceClipRuntime CreateRuntime()
+        {
+            return new Runtime(_id);
+        }
+
+        private sealed class Runtime : ActionSequenceClipRuntime
+        {
+            private readonly string _id;
+
+            public Runtime(string id)
+            {
+                _id = id;
+            }
+
+            public override void OnEnter(ActionSequenceContext context)
+            {
+                ProbeClipDefinition.Events.Add($"{_id}:enter:{context.Frame}:{FormatPoseFrame(context)}:{State(context)}");
+            }
+
+            public override void OnTick(ActionSequenceContext context)
+            {
+                ProbeClipDefinition.Events.Add($"{_id}:tick:{context.Frame}:{FormatPoseFrame(context)}:{State(context)}");
+            }
+
+            private static string State(ActionSequenceContext context)
+            {
+                if (context.IsPoseBaseline)
+                    return "baseline";
+                return context.IsPoseRefresh ? "refresh" : "frame";
+            }
+
+            private static string FormatPoseFrame(ActionSequenceContext context)
+            {
+                return context.PoseFrame.ToString("0.###", CultureInfo.InvariantCulture);
             }
         }
     }

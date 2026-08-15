@@ -412,6 +412,36 @@ public sealed class ActionSequenceRuntimeTests
     }
 
     [Test]
+    public void RefreshPose_OnlyTicksActiveAnimationClipsWithoutAdvancingGameplayFrame()
+    {
+        ActionSequenceAsset asset = CreateAsset(
+            3,
+            new PoseRefreshProbeClipDefinition("S", ActionSequenceClipPhase.State, 0, 2),
+            new PoseRefreshProbeClipDefinition("A", ActionSequenceClipPhase.Animation, 0, 2),
+            new PoseRefreshProbeClipDefinition("M", ActionSequenceClipPhase.Motion, 0, 2),
+            new PoseRefreshProbeClipDefinition("H", ActionSequenceClipPhase.HitBox, 0, 2));
+        var runtime = new ActionSequenceRuntime(asset);
+        var events = new List<string>();
+        var context = new ActionSequenceContext { UserData = events };
+
+        Assert.IsTrue(runtime.ApplyPoseBaseline(context));
+        Assert.IsTrue(runtime.RefreshPose(context, 0.5f));
+
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                "A:enter:0:0:baseline",
+                "A:tick:0:0:baseline",
+                "A:tick:0:0.5:refresh",
+            },
+            events);
+        Assert.AreEqual(-1, runtime.CurrentFrame);
+        Assert.AreEqual(0f, runtime.NormalizedTime);
+        Assert.IsFalse(runtime.HasOpenFrame);
+        Assert.IsFalse(runtime.IsComplete);
+    }
+
+    [Test]
     public void Track_TryAddClipRejectsInvalidClipType()
     {
         var animationTrack = new ActionSequenceAnimationTrack();
@@ -599,6 +629,7 @@ public sealed class ActionSequenceRuntimeTests
         {
             typeof(ProbeClipDefinition),
             typeof(BaselineProbeClipDefinition),
+            typeof(PoseRefreshProbeClipDefinition),
             typeof(NullRuntimeClipDefinition),
         };
 
@@ -712,6 +743,64 @@ public sealed class ActionSequenceRuntimeTests
             private static string BaselineState(ActionSequenceContext context)
             {
                 return context.IsPoseBaseline ? "baseline" : "frame";
+            }
+        }
+    }
+
+    private sealed class PoseRefreshProbeClipDefinition : ActionSequenceClipDefinition
+    {
+        private readonly string _id;
+        private readonly ActionSequenceClipPhase _phase;
+
+        public PoseRefreshProbeClipDefinition(string id, ActionSequenceClipPhase phase, int start, int end)
+        {
+            _id = id;
+            _phase = phase;
+            startFrame = start;
+            endFrame = end;
+        }
+
+        public override ActionSequenceClipPhase Phase => _phase;
+
+        public override ActionSequenceClipRuntime CreateRuntime()
+        {
+            return new Runtime(_id);
+        }
+
+        private sealed class Runtime : ActionSequenceClipRuntime
+        {
+            private readonly string _id;
+
+            public Runtime(string id)
+            {
+                _id = id;
+            }
+
+            public override void OnEnter(ActionSequenceContext context)
+            {
+                Events(context).Add($"{_id}:enter:{context.Frame}:{FormatPoseFrame(context)}:{State(context)}");
+            }
+
+            public override void OnTick(ActionSequenceContext context)
+            {
+                Events(context).Add($"{_id}:tick:{context.Frame}:{FormatPoseFrame(context)}:{State(context)}");
+            }
+
+            private static List<string> Events(ActionSequenceContext context)
+            {
+                return (List<string>)context.UserData;
+            }
+
+            private static string State(ActionSequenceContext context)
+            {
+                if (context.IsPoseBaseline)
+                    return "baseline";
+                return context.IsPoseRefresh ? "refresh" : "frame";
+            }
+
+            private static string FormatPoseFrame(ActionSequenceContext context)
+            {
+                return context.PoseFrame.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
             }
         }
     }

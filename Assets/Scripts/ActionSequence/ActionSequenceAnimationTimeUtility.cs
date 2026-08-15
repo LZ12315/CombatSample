@@ -28,4 +28,19 @@ public static class ActionSequenceAnimationTimeUtility
         return Mathf.Max(0f, startOffsetSeconds) +
                (localFrame + 1) / (float)Mathf.Max(1, context.FrameRate) * speed;
     }
+
+    public static float GetPoseSampleTime(
+        ActionSequenceContext context,
+        int clipStartFrame,
+        float startOffsetSeconds,
+        float playbackSpeed)
+    {
+        if (context.IsPoseBaseline)
+            return Mathf.Max(0f, startOffsetSeconds);
+
+        float localPoseFrame = Mathf.Max(0f, context.PoseFrame - clipStartFrame);
+        float speed = Mathf.Max(0f, playbackSpeed);
+        return Mathf.Max(0f, startOffsetSeconds) +
+               localPoseFrame / (float)Mathf.Max(1, context.FrameRate) * speed;
+    }
 }
