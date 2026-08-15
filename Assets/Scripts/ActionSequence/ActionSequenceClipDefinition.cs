@@ -56,6 +56,7 @@ public abstract class ActionSequenceClipDefinition
     public bool ContainsFrame(int frame) => frame >= StartFrame && frame < EndFrame;
 
     public abstract ActionSequenceClipPhase Phase { get; }
+    public virtual ActionContextFieldMask RequiredContextFields => ActionContextFieldMask.None;
 
     public virtual string GetDisplayName()
     {

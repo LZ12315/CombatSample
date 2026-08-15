@@ -1,5 +1,7 @@
 using NUnit.Framework;
+using System.Reflection;
 using UnityEngine;
+using UnityEngine.TestTools;
 
 public sealed class ActionSequenceRootMotionRuntimeTests
 {
@@ -181,6 +183,16 @@ public sealed class ActionSequenceRootMotionRuntimeTests
     }
 
     [Test]
+    public void SelfRotationClip_DefaultsToRootRotationSnapForExistingAssets()
+    {
+        var clip = new ActionSequenceSelfRotationClipDefinition();
+
+        Assert.AreEqual(SelfRotationSource.RootRotation, clip.Source);
+        Assert.AreEqual(SelfRotationMode.Snap, clip.Mode);
+        Assert.AreEqual(ActionContextFieldMask.None, clip.RequiredContextFields);
+    }
+
+    [Test]
     public void TrajectoryRootMotion_UsesTickStartRotationAndDoesNotUseMovementTimeScale()
     {
         var runtime = new ActorMotionRuntime();
@@ -266,6 +278,213 @@ public sealed class ActionSequenceRootMotionRuntimeTests
         Assert.That(velocity.x, Is.EqualTo(0f).Within(0.0001f));
         Assert.That(velocity.y, Is.EqualTo(0f).Within(0.0001f));
         Assert.That(velocity.z, Is.EqualTo(60f).Within(0.0001f));
+    }
+
+    [Test]
+    public void SelfRotationClip_RootRotationRotateBySpeedRetainsUnfinishedAngleUntilExit()
+    {
+        var actorObject = new GameObject("SelfRotation RootRotation Actor");
+        var clip = new ActionSequenceSelfRotationClipDefinition { startFrame = 0, endFrame = 2 };
+        var config = ScriptableObject.CreateInstance<AnimationConfig>();
+        try
+        {
+            Actor actor = actorObject.AddComponent<Actor>();
+            ActorMotor motor = actorObject.AddComponent<ActorMotor>();
+            actor.actorMotor = motor;
+            config.EditorSetEntries(new AnimationConfigEntry("turn", null, CreateYawTrajectory(0f, 90f, 180f)));
+            SetPrivateField(actor, "animationConfig", config);
+            SetPrivateField(clip, "animationKey", "turn");
+            SetPrivateField(clip, "mode", SelfRotationMode.RotateBySpeed);
+            SetPrivateField(clip, "angularSpeedDegrees", 600f);
+
+            ActionSequenceClipRuntime runtime = clip.CreateRuntime();
+            var context = CreateContext(actor);
+            runtime.OnEnter(context);
+
+            SetContextFrame(context, 0);
+            runtime.OnTick(context);
+            Quaternion first = ConsumeSelfRotation(actorObject, motor);
+            AssertQuaternion(Quaternion.Euler(0f, 10f, 0f), first);
+
+            actorObject.transform.rotation = first;
+            SetContextFrame(context, 1);
+            runtime.OnTick(context);
+            Quaternion second = ConsumeSelfRotation(actorObject, motor);
+            AssertQuaternion(Quaternion.Euler(0f, 20f, 0f), second);
+
+            actorObject.transform.rotation = second;
+            runtime.OnExit(context, true);
+            motor.BeforeCharacterUpdate(DeltaTime);
+            Quaternion afterExit = Quaternion.identity;
+            motor.UpdateRotation(ref afterExit, DeltaTime);
+            AssertQuaternion(second, afterExit);
+        }
+        finally
+        {
+            Object.DestroyImmediate(config);
+            Object.DestroyImmediate(actorObject);
+        }
+    }
+
+    [Test]
+    public void SelfRotationClip_PresetLocalFreezesWorldDirectionAtEnter()
+    {
+        var actorObject = new GameObject("SelfRotation PresetLocal Actor");
+        var clip = new ActionSequenceSelfRotationClipDefinition { startFrame = 0, endFrame = 2 };
+        try
+        {
+            Actor actor = actorObject.AddComponent<Actor>();
+            ActorMotor motor = actorObject.AddComponent<ActorMotor>();
+            actor.actorMotor = motor;
+            SetPrivateField(clip, "source", SelfRotationSource.Direction);
+            SetPrivateField(clip, "directionSource", SelfRotationDirectionSource.PresetLocal);
+            SetPrivateField(clip, "presetLocalDirection", Vector3.right);
+
+            ActionSequenceClipRuntime runtime = clip.CreateRuntime();
+            var context = CreateContext(actor);
+            runtime.OnEnter(context);
+
+            SetContextFrame(context, 0);
+            runtime.OnTick(context);
+            Quaternion first = ConsumeSelfRotation(actorObject, motor);
+            AssertQuaternion(Quaternion.Euler(0f, 90f, 0f), first);
+
+            actorObject.transform.rotation = Quaternion.Euler(0f, 45f, 0f);
+            SetContextFrame(context, 1);
+            runtime.OnTick(context);
+            Quaternion second = ConsumeSelfRotation(actorObject, motor);
+            AssertQuaternion(Quaternion.Euler(0f, 90f, 0f), second);
+        }
+        finally
+        {
+            Object.DestroyImmediate(actorObject);
+        }
+    }
+
+    [Test]
+    public void SelfRotationClip_TargetMissingHoldsCurrentYawAndWarnsOnce()
+    {
+        var actorObject = new GameObject("SelfRotation MissingTarget Actor");
+        var clip = new ActionSequenceSelfRotationClipDefinition { startFrame = 0, endFrame = 2 };
+        try
+        {
+            Actor actor = actorObject.AddComponent<Actor>();
+            ActorMotor motor = actorObject.AddComponent<ActorMotor>();
+            actor.actorMotor = motor;
+            actorObject.transform.rotation = Quaternion.Euler(0f, 35f, 0f);
+            SetPrivateField(clip, "source", SelfRotationSource.Target);
+            SetPrivateField(clip, "targetSource", SelfRotationTargetSource.ContextTarget);
+
+            ActionSequenceClipRuntime runtime = clip.CreateRuntime();
+            var context = CreateContext(actor);
+            runtime.OnEnter(context);
+
+            LogAssert.Expect(
+                LogType.Warning,
+                "SelfRotationClip target source ContextTarget cannot rotate because target is missing.");
+
+            SetContextFrame(context, 0);
+            runtime.OnTick(context);
+            Quaternion first = ConsumeSelfRotation(actorObject, motor);
+            AssertQuaternion(Quaternion.Euler(0f, 35f, 0f), first);
+
+            actorObject.transform.rotation = first;
+            SetContextFrame(context, 1);
+            runtime.OnTick(context);
+            Quaternion second = ConsumeSelfRotation(actorObject, motor);
+            AssertQuaternion(first, second);
+        }
+        finally
+        {
+            Object.DestroyImmediate(actorObject);
+        }
+    }
+
+    [Test]
+    public void SelfRotationClip_RequiredContextFieldsFollowSelectedSource()
+    {
+        var clip = new ActionSequenceSelfRotationClipDefinition();
+
+        SetPrivateField(clip, "source", SelfRotationSource.Target);
+        SetPrivateField(clip, "targetSource", SelfRotationTargetSource.ContextInstigator);
+        Assert.AreEqual(ActionContextFieldMask.Instigator, clip.RequiredContextFields);
+
+        SetPrivateField(clip, "targetSource", SelfRotationTargetSource.ContextTarget);
+        Assert.AreEqual(ActionContextFieldMask.Target, clip.RequiredContextFields);
+
+        SetPrivateField(clip, "source", SelfRotationSource.Direction);
+        SetPrivateField(clip, "directionSource", SelfRotationDirectionSource.ContextDirection);
+        Assert.AreEqual(ActionContextFieldMask.Direction, clip.RequiredContextFields);
+
+        SetPrivateField(clip, "directionSource", SelfRotationDirectionSource.PresetLocal);
+        Assert.AreEqual(ActionContextFieldMask.None, clip.RequiredContextFields);
+    }
+
+    private static ActionSequenceContext CreateContext(Actor actor)
+    {
+        var context = new ActionSequenceContext
+        {
+            Actor = actor,
+            Context = ActionContext.None,
+        };
+        SetContextFrameRate(context, 60);
+        return context;
+    }
+
+    private static Quaternion ConsumeSelfRotation(GameObject actorObject, ActorMotor motor)
+    {
+        motor.BeforeCharacterUpdate(DeltaTime);
+        Quaternion rotation = actorObject.transform.rotation;
+        motor.UpdateRotation(ref rotation, DeltaTime);
+        return rotation;
+    }
+
+    private static RootMotionTrajectory CreateYawTrajectory(params float[] yawDegrees)
+    {
+        var clip = new AnimationClip();
+        int count = yawDegrees != null ? yawDegrees.Length : 0;
+        float[] times = new float[count];
+        Vector3[] positions = new Vector3[count];
+        Quaternion[] rotations = new Quaternion[count];
+        for (int i = 0; i < count; i++)
+        {
+            times[i] = i / 60f;
+            positions[i] = Vector3.zero;
+            rotations[i] = Quaternion.Euler(0f, yawDegrees[i], 0f);
+        }
+
+        var trajectory = new RootMotionTrajectory();
+        trajectory.EditorSetData(
+            clip,
+            60,
+            Mathf.Max(1, count - 1) / 60f,
+            1,
+            "test-hash",
+            times,
+            positions,
+            rotations);
+        return trajectory;
+    }
+
+    private static void SetPrivateField(object target, string fieldName, object value)
+    {
+        target.GetType()
+            .GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic)
+            .SetValue(target, value);
+    }
+
+    private static void SetContextFrame(ActionSequenceContext context, int frame)
+    {
+        typeof(ActionSequenceContext)
+            .GetProperty(nameof(ActionSequenceContext.Frame), BindingFlags.Instance | BindingFlags.Public)
+            .SetValue(context, frame);
+    }
+
+    private static void SetContextFrameRate(ActionSequenceContext context, int frameRate)
+    {
+        typeof(ActionSequenceContext)
+            .GetProperty(nameof(ActionSequenceContext.FrameRate), BindingFlags.Instance | BindingFlags.Public)
+            .SetValue(context, frameRate);
     }
 
     private static void AssertQuaternion(Quaternion expected, Quaternion actual)

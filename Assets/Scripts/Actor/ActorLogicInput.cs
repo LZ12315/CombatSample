@@ -19,6 +19,9 @@ public class ActorLogicInput : MonoBehaviour
     private Vector2 _lookInput = Vector2.zero;
     public Vector2 LookInput => _lookInput;
 
+    private LocomotionIntent _latestLocomotionIntent = LocomotionIntent.Idle;
+    public LocomotionIntent LatestLocomotionIntent => _latestLocomotionIntent;
+
 
     private void Awake()
     {
@@ -119,14 +122,14 @@ public class ActorLogicInput : MonoBehaviour
 
     private void PushLocomotionIntent()
     {
-        if (actor == null || actor.actorMotor == null)
+        if (actor == null)
             return;
 
         Vector2 move = Vector2.ClampMagnitude(_moveInput, 1f);
 
         if (move.sqrMagnitude <= 0.01f)
         {
-            actor.actorMotor.SetLocomotionIntent(LocomotionIntent.Idle);
+            SetLatestLocomotionIntent(LocomotionIntent.Idle);
             return;
         }
 
@@ -134,21 +137,26 @@ public class ActorLogicInput : MonoBehaviour
 
         if (worldDir.sqrMagnitude < 0.0001f)
         {
-            actor.actorMotor.SetLocomotionIntent(LocomotionIntent.Idle);
+            SetLatestLocomotionIntent(LocomotionIntent.Idle);
             return;
         }
 
         worldDir.y = 0f;
         worldDir.Normalize();
 
-        var intent = new LocomotionIntent
+        SetLatestLocomotionIntent(new LocomotionIntent
         {
             WorldMoveDirection = worldDir,
             MoveStrength = move.magnitude,
             FacingDirection = Vector3.zero
-        };
+        });
+    }
 
-        actor.actorMotor.SetLocomotionIntent(intent);
+    private void SetLatestLocomotionIntent(in LocomotionIntent intent)
+    {
+        _latestLocomotionIntent = intent;
+        if (actor != null && actor.actorMotor != null)
+            actor.actorMotor.SetLocomotionIntent(intent);
     }
 
     private Vector3 ResolveWorldMoveDirection(Vector2 move)

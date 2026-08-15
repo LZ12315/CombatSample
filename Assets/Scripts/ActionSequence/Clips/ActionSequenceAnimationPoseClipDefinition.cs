@@ -119,8 +119,8 @@ public sealed class ActionSequenceAnimationPoseClipDefinition : ActionSequenceCl
                 switch (_definition.parameterMode)
                 {
                     case AnimancerParameterMode.ContextMagnitude:
-                        mixer1D.Parameter = Mathf.Abs(context.EventContext.Magnitude) > 0.001f
-                            ? context.EventContext.Magnitude
+                        mixer1D.Parameter = context.Context.HasMagnitude && Mathf.Abs(context.Context.Magnitude) > 0.001f
+                            ? context.Context.Magnitude
                             : _definition.fallbackFloat;
                         break;
                     case AnimancerParameterMode.SerializedFallback:
@@ -137,7 +137,7 @@ public sealed class ActionSequenceAnimationPoseClipDefinition : ActionSequenceCl
             if (actor == null)
                 return false;
 
-            Vector3 direction = context.EventContext.Direction;
+            Vector3 direction = context.Context.Direction;
             direction.y = 0f;
             if (direction.sqrMagnitude <= 0.0001f)
                 return false;

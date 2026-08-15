@@ -4,7 +4,7 @@ using UnityEngine;
 internal sealed class SequenceActionPlaybackSession : IFixedActionPlaybackSession
 {
     private readonly Actor _actor;
-    private readonly ActionEventContext _eventContext;
+    private readonly ActionContext _context;
     private readonly ActionSequenceContext _sequenceContext = new ActionSequenceContext();
     private ActionSequenceRuntime _runtime;
     private bool _paused;
@@ -13,11 +13,11 @@ internal sealed class SequenceActionPlaybackSession : IFixedActionPlaybackSessio
     private double _speed = 1.0;
     private double _frameAccumulator;
 
-    public SequenceActionPlaybackSession(ActionInstance action, Actor actor, ActionEventContext eventContext)
+    public SequenceActionPlaybackSession(ActionInstance action, Actor actor, ActionContext context)
     {
         Action = action ?? throw new ArgumentNullException(nameof(action));
         _actor = actor;
-        _eventContext = eventContext;
+        _context = context;
     }
 
     public ActionInstance Action { get; }
@@ -165,7 +165,7 @@ internal sealed class SequenceActionPlaybackSession : IFixedActionPlaybackSessio
         _runtime = new ActionSequenceRuntime(Action.Config.SequenceData);
         _frameAccumulator = 0.0;
         _sequenceContext.Actor = _actor;
-        _sequenceContext.EventContext = _eventContext;
+        _sequenceContext.Context = _context;
     }
 
     private float GetCurrentPoseFrame()

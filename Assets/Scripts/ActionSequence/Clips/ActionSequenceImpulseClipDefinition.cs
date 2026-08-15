@@ -74,7 +74,7 @@ public sealed class ActionSequenceImpulseClipDefinition : ActionSequenceClipDefi
             switch (config.directionMode)
             {
                 case ImpulseDirectionMode.FromContext:
-                    direction = context.EventContext.Direction;
+                    direction = context.Context.Direction;
                     break;
                 case ImpulseDirectionMode.LocalHorizontal:
                     Vector3 local = new Vector3(config.localHorizontalDirection.x, 0f, config.localHorizontalDirection.z);

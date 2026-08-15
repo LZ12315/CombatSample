@@ -342,16 +342,18 @@ public class ActorCombater : MonoBehaviour, IDamageable
 
         if (_asm != null)
         {
-            var context = new ActionEventContext
+            var context = ActionContext
+                .ForParticipants(attackData.Attacker != null ? attackData.Attacker.gameObject : null, gameObject)
+                .WithPoint(attackData.HitPoint)
+                .WithMagnitude(attackData.Damage);
+
+            if (attackData.Attacker != null)
             {
-                Instigator = attackData.Attacker != null ? attackData.Attacker.gameObject : null,
-                Target     = gameObject,
-                HitPoint   = attackData.HitPoint,
-                Direction  = attackData.Attacker != null
-                    ? (transform.position - attackData.Attacker.transform.position).normalized
-                    : Vector3.zero,
-                Magnitude  = attackData.Damage
-            };
+                Vector3 direction = transform.position - attackData.Attacker.transform.position;
+                if (direction.sqrMagnitude > 0.0001f)
+                    context = context.WithDirection(direction);
+            }
+
             _asm.SendEvent(attackData.HitEventTag, context);
             return true;
         }

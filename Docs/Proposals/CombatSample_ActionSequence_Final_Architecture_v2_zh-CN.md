@@ -151,6 +151,8 @@ Action 和 Locomotion 的 Priority 不跨域比较：
 
 `ActorLogicInput` 继续在普通 `Update` 中采集输入、维护输入缓冲并计算最新 `LocomotionIntent`，但只把结果保存在自己身上，不再直接调用 ActorMotor。
 
+过渡期实现允许 `ActorLogicInput` 同时保存 latest intent 并继续推送给 ActorMotor，以保持现有 Locomotion 行为。`ActionContext` 与 ASM 已改读 latest intent；等 `LocomotionController` 接管 Locomotion 域后，再移除直接推 Motor 的兼容路径。
+
 `LocomotionController` 在需要时通过：
 
 ```csharp
@@ -221,6 +223,42 @@ Priority
 `CancelTargetKind.Locomotion` 打开整个 Locomotion 域，不在 CancelRule 中指定具体 Mode。最终 Mode 由各自 EntryConditions 和 Priority 选择。合法配置下 Fallback 保证有候选；如果 Fallback 缺失或失效导致无人中标，取消失败、当前 Action 继续，并报告配置错误。
 
 Conditions 按需检查，不注册到全局 Tick，也不拥有自己的 Update。只有最终成功的转换才能消费输入或执行其他 `OnClaim` 副作用；成功后同时对胜选 CancelRule 的 Conditions 与胜选 Action/Mode 的 EntryConditions 执行 `OnClaim`。
+
+### 4.6 ActionContext 与 ActionCandidate
+
+`ActionContext` 是每次 Action 启动时冻结的一份只读快照，不是 Motion 或 Rotation 专用数据。它只表达本次 Action 调用的基础关系和主方向/主位置/主数值：
+
+```text
+Instigator
+Target
+Point
+Direction
+Magnitude
+```
+
+`Direction`、`Point`、`Magnitude` 使用显式 presence flag；`Instigator`、`Target` 的 presence 由对象引用是否非空自动体现。对象引用用 null 表达缺失。`Direction` 存世界空间归一化 3D 方向，零向量或非有限值是非法输入。`Point` 与 `Magnitude` 只要求有限，不做范围解释。
+
+Context 的来源规则：
+
+- Poll Action 根据 `StartContextMode` 在候选创建时冻结 Context。
+- `StartContextMode.None` 创建 self/self 参与者。
+- `StartContextMode.LocomotionIntent` 从 `ActorLogicInput.LatestLocomotionIntent` 读取方向与强度；缺少 `ActorLogicInput` 是配置错误，候选无效。
+- Event 与 External Request 必须显式携带 Context。
+- Loop 重播复用本次 Action 最初的 Context。
+
+ASM 内部不再把三类来源都压扁成 `ActionAsset` 列表，而是在仲裁期间使用 `ActionCandidate`：
+
+```text
+ActionAsset
+ActionContext
+Origin(Poll/Event/External)
+SubmissionOrder
+ExternalRequest(optional)
+```
+
+Priority 仍只来自 ActionAsset；来源不额外加权。相同优先级按真实提交/创建顺序稳定选择。多个 External 请求即使指向同一个 Action，也按具体 request 实例回调：只有胜选的那一个返回 true。
+
+Conditions 可以读取 Candidate Context；`OnClaim` 仍只接收 Actor，因为 Context 本身不可消费。Clip 可以声明 required context fields；缺字段的 Candidate 在 Claim 和 Action 启动前被拒绝。
 
 ---
 
@@ -391,15 +429,15 @@ RootMotionClip 不读取 AnimationPoseClip，也不自动与其对齐。即使�
 
 `SelfRotationClip` 位于 MotionTrack，只负责 Actor 绕自身 Up 轴的左右转身。第一版不应用 Pitch/Roll。
 
-当前已落地 D2.1：只实现 Authored 来源，即从 AnimationConfig key 对应的 `RootMotionTrajectory` 提取烘焙 Yaw，并通过 ActorMotor/KCC 改变 Actor 朝向。Target、Direction、Snap/RotateBySpeed 仍是 D2.2 之后的 staged work。
+当前已落地 D2.2：SelfRotationClip 具有两个主要配置维度：`Rotation Source = RootRotation / Target / Direction`，`Rotation Mode = Snap / RotateBySpeed`。所有来源先在整数 Gameplay Frame 计算目标 Yaw，再通过现有 SelfRotation owner 提交给 ActorMotor/KCC。
 
 旋转来源：
 
 | Source | 行为 |
 | --- | --- |
-| Authored | 使用自己 key 对应 trajectory 的烘焙 Yaw delta |
+| RootRotation | 使用自己 key 对应 trajectory 的烘焙 Yaw 累计目标 |
 | Target | 每个 Sequence Gameplay Frame 朝当前目标方向计算 |
-| Direction | 朝 Context、输入快照或配置方向计算 |
+| Direction | 朝 Context 启动快照方向或配置方向计算 |
 
 Target/Direction 先把目标世界方向投影到 Tick 起始 `CharacterUp` 的平面，再计算它相对 Tick 起始 forward 的 signed yaw。`Snap` 使用完整 signed yaw；`RotateBySpeed` 把它钳制到本 frame 允许的最大角度。两者最终都转换为 local `Quaternion.AngleAxis(deltaYaw, Vector3.up)`，而不是向 Motor 提交另一种“绝对旋转”命令。
 
@@ -408,7 +446,13 @@ Target 和 Direction 支持：
 - `Snap`：跨到该 Gameplay Frame 时一次提交到目标 Yaw 所需的 local delta；
 - `RotateBySpeed`：每跨一个 Gameplay Frame，最多旋转 `angularSpeed / 60` 度来接近该帧目标。
 
-Authored 来源对 trajectory 区间执行 `Extract(t0, t1)`，再从相对 Quaternion 中以 swing-twist decomposition 提取绕 local `Vector3.up` 的 twist；不能直接相减 Euler Y。具体算法固定为：把 Quaternion 向量部投影到 Up 轴，与原 `w` 组成并归一化 twist，再选择与 Identity 同半球的短弧。twist 范数接近零或采样间连续性不成立时，Validator 阻断启用该 Authored Clip，运行时也 fail-fast，禁止静默当成 Identity。Pitch/Roll 的 swing 只保留在 Pose，不进入 Gameplay rotation。
+RootRotation 来源对 trajectory 区间执行 `Extract(t0, t1)`，再从相对 Quaternion 中以 swing-twist decomposition 提取绕 local `Vector3.up` 的 twist；不能直接相减 Euler Y。具体算法固定为：把 Quaternion 向量部投影到 Up 轴，与原 `w` 组成并归一化 twist，再选择与 Identity 同半球的短弧。twist 范数接近零或采样间连续性不成立时，Validator 阻断启用该 RootRotation Clip，运行时也 fail-fast，禁止静默当成 Identity。Pitch/Roll 的 swing 只保留在 Pose，不进入 Gameplay rotation。
+
+RootRotation 的 `RotateBySpeed` 不会逐帧丢失被钳制的角度：Clip 进入时以当前 KCC 朝向建立基准，每个整数 Gameplay Frame 将烘焙 yaw delta 累计成 authored 目标朝向，再从当前实际朝向按角速度追赶该累计目标。Clip 退出时丢弃剩余未追上的角度，不在动作结束后补偿。
+
+Target 支持 `CombatTarget`、`ContextInstigator`、`ContextTarget`。`CombatTarget` 每个 Gameplay Frame 重新读取 ActorCombater 的当前目标；Context 引用在 Action 启动时冻结，但每帧读取该对象的当前位置。目标缺失、销毁或水平距离退化时，该帧提交零旋转、保持当前朝向并只诊断一次；目标恢复后继续追踪。
+
+Direction 支持 `PresetLocal` 和 `ContextDirection`。`PresetLocal` 在 Clip 进入时用当前 simulation rotation 转成固定世界方向，避免随 Actor 自身旋转而无限转动；`ContextDirection` 使用 Action 启动时冻结的世界方向。
 
 三种来源最终都在 Sequence Gameplay Frame 推进时形成一次有限旋转请求：
 
@@ -744,11 +788,11 @@ Physics.SyncTransforms
 | ASM 的 Locomotion start context、Action `facingOnStart` 与相关 Condition 仍从 ActorMotor 读取 Intent | ActorLogicInput 停止推 Motor 时必须一起改读其最新保存值 |
 | ASM 在 LateUpdate 仲裁并立即 BeginAction | 尚未改为请求排队、BeginTick 提交 |
 | CancelRule 只有 Specific/Tag/Any，没有 Conditions 或 Locomotion target | Locomotion 取消合同尚未实现 |
-| `AnimationConfig`、Entry、Actor 可选引用、大小写敏感 key 查询与 Editor-only Bake Context 已实现 | Stage D1/D2.1 已接入 AnimationPoseClip、RootMotionClip 和 Authored SelfRotationClip 运行时 key 查询；Actor Prefab 仍需逐角色配置具体 AnimationConfig 引用 |
-| `RootMotionTrajectory` 已保存累计 XYZ、完整 Quaternion 与基础 metadata，并提供 Sample/Extract/SE(3) 数学 | Stage D1 已实现 XZ displacement 消费；D2.1 已实现 Authored Yaw 消费；Root Y、Pitch/Roll gameplay 消费仍未实现 |
+| `AnimationConfig`、Entry、Actor 可选引用、大小写敏感 key 查询与 Editor-only Bake Context 已实现 | Stage D1/D2.1 已接入 AnimationPoseClip、RootMotionClip 和 RootRotation SelfRotationClip 运行时 key 查询；Actor Prefab 仍需逐角色配置具体 AnimationConfig 引用 |
+| `RootMotionTrajectory` 已保存累计 XYZ、完整 Quaternion 与基础 metadata，并提供 Sample/Extract/SE(3) 数学 | Stage D1 已实现 XZ displacement 消费；D2.1 已实现 RootRotation Yaw 消费；Root Y、Pitch/Roll gameplay 消费仍未实现 |
 | AnimationConfig 内置 Bake Context、唯一 AnimationClip resolver、Manual PlayableGraph Baker、独立 Oracle Validator、Entry 内嵌 trajectory、Inspector Bake/Rebake/Bake All 与 DependencyHash/stale 已实现 | 运行时对 missing/stale trajectory 的 Action 启动阻断要随消费 Clip 在 Stage D 接入 |
 | RootMotionBuffer 已分离 Legacy Animator delta 与 Sequence trajectory owner | Animator RootMotion 兼容路径仍保留；trajectory 当前只消费 XZ 位移，不消费 Y 或旋转 |
-| Sequence RootMotionClip 使用 trajectory `Extract(t0,t1)`，提交 local XZ 给 ActorMotor | Authored SelfRotation 已落地；Root Y、Target/Direction SelfRotation、Motion Warp、RM+LocomotionInput 同时主导仍未实现 |
+| Sequence RootMotionClip 使用 trajectory `Extract(t0,t1)`，提交 local XZ 给 ActorMotor | SelfRotation 的 RootRotation/Target/Direction 已落地；Root Y、Motion Warp、RM+LocomotionInput 同时主导仍未实现 |
 | ActorMotor 在普通 Update 计算 Locomotion/Facing | 权威计算尚未进入 PreWorldMotion |
 | HitBox Clip 已在 KCC、Resolver 与 SyncTransforms 后的 Sequence PostWorld 中 Query | 仍是 Query 后立即 TakeDamage；HitIntent 收集、稳定排序与两阶段 Resolve 尚未实现 |
 | ActionMotionConfig 仍由 ActionInstance OnEnter/Exit 整招应用 | 尚未迁移到域规则与具体 Clip |
@@ -826,15 +870,18 @@ Legacy Timeline 当前也没有保证“编辑器标记的第 N 帧 Pose → Ani
 - 已完成 D1：Sequence session 在第一次 Pose Evaluate 前压制 Animator RootMotion relay，并支持 Frame 0 Animation-only baseline。
 - 已完成 D1：实现 RootMotionClip，通过 AnimationConfig key 查询内嵌 RootMotionTrajectory，按 `[startFrame,endFrame)` 映射 Extract 并只提交 local XZ 位移。
 - 已完成 D1：局部升级 RootMotionBuffer、ActorMotionRuntime、ActorMotor，新增 trajectory owner/source gating；trajectory 位移不再乘 MovementTimeScale，并与水平 impulse/vertical channels 按 v1 合同合成。
-- 已完成 D2.1：实现 Authored SelfRotationClip，通过 AnimationConfig key 查询 trajectory，按整数 Gameplay Frame 提取 local Up Yaw；ActorMotor 新增独立 SelfRotation owner/channel，SelfRotation 活跃时以 `tickStartRotation * localYawDelta` 接管 KCC rotation，并在退出/取消时同步 Facing baseline。
-- 未完成 D2.2：Target/Direction SelfRotation、Snap/RotateBySpeed 和更完整的旋转作者工具。
+- 已完成 D2.1：实现 RootRotation SelfRotationClip，通过 AnimationConfig key 查询 trajectory，按整数 Gameplay Frame 提取 local Up Yaw；ActorMotor 新增独立 SelfRotation owner/channel，SelfRotation 活跃时以 `tickStartRotation * localYawDelta` 接管 KCC rotation，并在退出/取消时同步 Facing baseline。
+- 已完成 D2.2：SelfRotationClip 支持 `RootRotation / Target / Direction` 来源与 `Snap / RotateBySpeed` 旋转方式；Target/Direction 不依赖 AnimationConfig，Context 需求在 Action 启动前校验。
 - 验证同帧 Pose、位移、旋转、KCC 和 HitBox。
 - 固化 `[startFrame,endFrame)`、Frame 0 activation/freeze、最后一帧 PostWorld 后清理的测试。
 
 ### Stage E：Locomotion 与 ASM
 
-- ActorLogicInput 改为只保存 Intent。
-- ASM start context、Direction Condition 和 Legacy facing fallback 一并改读 ActorLogicInput 的最新 Intent。
+- 已完成 E0：`ActionEventContext` 重命名并收敛为不可变 `ActionContext`；ASM 使用 `ActionCandidate` 携带 Context、来源、提交顺序和精确 External Request。
+- 已完成 E0：Poll/Event/External/direct BeginAction 都显式携带启动 Context；Event 不再使用全局 pending context，External 回调绑定到胜选 request。
+- 已完成 E0：Entry/Exit Condition 可读取 Context，`OnClaim` 保持 Actor-only；Sequence Clip 可声明 required context fields，缺字段会在 Claim 前阻断。
+- 已完成 E0（兼容期）：ActorLogicInput 保存 `LatestLocomotionIntent`，ASM start context 和 Legacy facing fallback 改读它；正式 LocomotionController 前仍继续向 ActorMotor 推送 intent。
+- ActorLogicInput 改为只保存 Intent，移除直接推 Motor 的兼容路径。
 - 实现 LocomotionController / LocomotionModeAsset / Fallback。
 - ASM 增加 StateKind、BeginTick 提交、CancelRule Conditions 和 Locomotion target。
 - Tag 改为按 owner 释放，并在 Action/Mode 域切换时事务式提交。
@@ -883,7 +930,7 @@ Legacy Timeline 当前也没有保证“编辑器标记的第 N 帧 Pose → Ani
 
 - Pose Clip、RootMotionClip、SelfRotationClip 可独立使用不同 key 和范围。
 - RootMotion 只影响 XZ，SelfRotation 只影响 Yaw，垂直通道保持现有行为。
-- Authored SelfRotation 从 Quaternion 稳定提取 Yaw；同 Tick XZ 使用 tick-start rotation，不被本 Tick Yaw 提前旋转。
+- RootRotation SelfRotation 从 Quaternion 稳定提取 Yaw；Target/Direction 投影到 CharacterUp 平面求 signed yaw；同 Tick XZ 使用 tick-start rotation，不被本 Tick Yaw 提前旋转。
 - RootMotion + HorizontalImpulse、HorizontalVelocityOverride、Gravity、VerticalImpulse 的固定合成规则通过测试。
 - 零位移 RootMotion frame 仍保持 owner；VelocityOverride 覆盖期间不会积欠 RootMotion delta。
 - Animator Root Motion 与 trajectory 永不双应用。

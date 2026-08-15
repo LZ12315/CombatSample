@@ -9,7 +9,7 @@ public class ActionInstance
     public ActionData RuntimeData { get; private set; }
 
     /// <summary>本次 Action 开始时的上下文快照；无快照需求时为 default。</summary>
-    public ActionEventContext EventContext { get; private set; }
+    public ActionContext Context { get; private set; }
 
     /// <summary>当前持有此 ActionInstance 的 Actor，OnEnter 时赋值，OnExit 时清空。</summary>
     public Actor Actor { get; private set; }
@@ -20,10 +20,10 @@ public class ActionInstance
         ResetRuntimeData();
     }
 
-    public void OnEnter(Actor actor, ActionEventContext context = default)
+    public void OnEnter(Actor actor, ActionContext context)
     {
         Actor = actor;
-        EventContext = context;
+        Context = context;
 
         // 应用运动策略（必须在 Tag 之前，因为压制需要立即生效）
         ApplyMotionConfig(context);
@@ -61,7 +61,7 @@ public class ActionInstance
         RestoreMotionConfig();
 
         Actor = null;
-        EventContext = default;
+        Context = default;
     }
 
     public void UpdateNormalizedTime(double normalizedTime)
@@ -81,7 +81,7 @@ public class ActionInstance
 
     #region === 运动策略 ===
 
-    private void ApplyMotionConfig(ActionEventContext context)
+    private void ApplyMotionConfig(ActionContext context)
     {
         if (Actor?.actorMotor == null) return;
         var motion = Config.MotionConfig;
@@ -108,7 +108,7 @@ public class ActionInstance
         motor.SetGravityScale(1f);
     }
 
-    private void ApplyFacingOnStart(ActionFacingOnStart mode, ActionEventContext context)
+    private void ApplyFacingOnStart(ActionFacingOnStart mode, ActionContext context)
     {
         if (mode == ActionFacingOnStart.None) return;
         Vector3 dir = Vector3.zero;
@@ -127,18 +127,30 @@ public class ActionInstance
                 dir = context.Direction;
             // context 也没有 → 用当前移动意图
             if (dir.sqrMagnitude < 0.001f)
-                dir = Actor.actorMotor.LocomotionIntent.WorldMoveDirection;
+                dir = ResolveLatestLocomotionDirection();
         }
         else if (mode == ActionFacingOnStart.SnapToInput)
         {
             dir = context.Direction;
             if (dir.sqrMagnitude < 0.001f)
-                dir = Actor.actorMotor.LocomotionIntent.WorldMoveDirection;
+                dir = ResolveLatestLocomotionDirection();
         }
 
         dir.y = 0f;
         if (dir.sqrMagnitude > 0.001f)
             Actor.actorMotor.SnapFacing(dir.normalized);
+    }
+
+    private Vector3 ResolveLatestLocomotionDirection()
+    {
+        if (Actor == null)
+            return Vector3.zero;
+
+        ActorLogicInput logicInput = Actor.GetComponent<ActorLogicInput>();
+        if (logicInput != null)
+            return logicInput.LatestLocomotionIntent.WorldMoveDirection;
+
+        return Actor.actorMotor != null ? Actor.actorMotor.LocomotionIntent.WorldMoveDirection : Vector3.zero;
     }
 
     #endregion

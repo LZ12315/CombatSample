@@ -7,7 +7,7 @@ using UnityEngine;
 /// </summary>
 public enum MotionDirectionMode
 {
-    /// <summary>Use ActionEventContext.Direction captured when the action starts.</summary>
+    /// <summary>Use ActionContext.Direction captured when the action starts.</summary>
     FromContext = 0,
 
     /// <summary>Use an actor-local horizontal vector. X = right, Z = forward.</summary>
@@ -33,7 +33,7 @@ public static class MotionDirectionResolver
         {
             case MotionDirectionMode.FromContext:
                 if (actionInstance != null)
-                    dir = actionInstance.EventContext.Direction;
+                    dir = actionInstance.Context.Direction;
                 break;
 
             case MotionDirectionMode.LocalHorizontal:

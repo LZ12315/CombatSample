@@ -68,7 +68,7 @@ public class ActionPlayer : MonoBehaviour
     public int TotalFrames { get; private set; }
 
     /// <summary>当前播放 Action 的启动上下文快照，供 Loop 重播时保留。</summary>
-    private ActionEventContext _currentContext;
+    private ActionContext _currentContext;
 
     /// <summary>动作正常结束且已完成 OnExit / 清 transient / 释放播放载体后触发。Loop 重播不会触发。</summary>
     public event Action<ActionInstance> OnActionFinished;
@@ -103,12 +103,19 @@ public class ActionPlayer : MonoBehaviour
     }
 
     /// <summary>播放指定动作：先 StopAction，再按配置绑定 Timeline 或 Sequence。</summary>
-    public void BeginAction(ActionAsset actionAsset, ActionEventContext context = default)
+    public void BeginAction(ActionAsset actionAsset, ActionContext context)
     {
         StopAction();
         _currentContext = context;
 
         if (!TryValidateActionAsset(actionAsset, out string warning))
+        {
+            Debug.LogWarning(warning, this);
+            ResetPublicPlaybackState();
+            return;
+        }
+
+        if (!actionAsset.CheckContextRequirements(_currentContext, out warning))
         {
             Debug.LogWarning(warning, this);
             ResetPublicPlaybackState();
@@ -466,9 +473,29 @@ public class ActionPlayer : MonoBehaviour
             }
             else if (clip is ActionSequenceSelfRotationClipDefinition selfRotationClip)
             {
+                if (!selfRotationClip.HasValidAngularSpeed())
+                {
+                    warning = "Action 播放失败：SelfRotationClip RotateBySpeed 需要 Angular Speed > 0。";
+                    return false;
+                }
+
+                if (selfRotationClip.Source == SelfRotationSource.Direction
+                    && selfRotationClip.DirectionSource == SelfRotationDirectionSource.PresetLocal
+                    && !selfRotationClip.HasValidPresetLocalDirection())
+                {
+                    warning = "Action 播放失败：SelfRotationClip PresetLocal 方向无效。";
+                    return false;
+                }
+
+                if (selfRotationClip.Source != SelfRotationSource.RootRotation)
+                {
+                    selfRotationIntervals?.Add(selfRotationClip);
+                    continue;
+                }
+
                 if (config == null)
                 {
-                    warning = "Action 播放失败：SelfRotationClip 需要 Actor.AnimationConfig。";
+                    warning = "Action 播放失败：RootRotation SelfRotationClip 需要 Actor.AnimationConfig。";
                     return false;
                 }
 
@@ -524,7 +551,7 @@ public class ActionPlayer : MonoBehaviour
         return true;
     }
 
-    private IActionPlaybackSession CreateSession(ActionInstance action, ActionEventContext context)
+    private IActionPlaybackSession CreateSession(ActionInstance action, ActionContext context)
     {
         if (action.Config.UsesTimeline)
             return new TimelineActionPlaybackSession(action, _director);

@@ -4,7 +4,7 @@ using UnityEngine.Serialization;
 
 public enum ImpulseDirectionMode
 {
-    /// <summary>Use ActionEventContext.Direction captured when the action starts.</summary>
+    /// <summary>Use ActionContext.Direction captured when the action starts.</summary>
     FromContext = 0,
 
     /// <summary>Use an actor-local horizontal vector. X = right, Z = forward.</summary>

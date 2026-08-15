@@ -3,7 +3,7 @@ using UnityEngine;
 public sealed class ActionSequenceContext
 {
     public Actor Actor { get; set; }
-    public ActionEventContext EventContext { get; set; }
+    public ActionContext Context { get; set; }
     public int Frame { get; internal set; }
     public float PoseFrame { get; internal set; }
     public int FrameRate { get; internal set; } = 60;

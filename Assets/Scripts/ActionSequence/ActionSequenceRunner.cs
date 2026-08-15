@@ -47,22 +47,34 @@ public sealed class ActionSequenceRunner : MonoBehaviour
         _runtime.Tick(_context, Time.fixedDeltaTime, speedScale);
     }
 
-    public void Play(ActionSequenceAsset asset, ActionEventContext eventContext = default)
+    public void Play(ActionSequenceAsset asset)
+    {
+        Actor resolvedActor = ResolveActor();
+        Play(asset, ActionContext.ForSelf(resolvedActor));
+    }
+
+    public void Play(ActionSequenceAsset asset, ActionContext context)
     {
         sequence = asset;
         _runtime = sequence != null ? new ActionSequenceRuntime(sequence) : null;
 
         _context.Actor = ResolveActor();
-        _context.EventContext = eventContext;
+        _context.Context = context;
 
         ActionSequenceRuntimeDiagnostics diagnostics = _runtime?.Diagnostics;
         if (diagnostics != null && diagnostics.HasIssues)
             Debug.LogWarning(diagnostics.ToSummary("ActionSequenceRunner runtime diagnostics"), this);
     }
 
-    public void Replay(ActionEventContext eventContext = default)
+    public void Replay()
     {
-        Play(sequence, eventContext);
+        Actor resolvedActor = ResolveActor();
+        Replay(ActionContext.ForSelf(resolvedActor));
+    }
+
+    public void Replay(ActionContext context)
+    {
+        Play(sequence, context);
     }
 
     public void Cancel()

@@ -303,7 +303,7 @@ public sealed class CombatSimulationDriverPlayModeTests
         KinematicCharacterSystem.Settings.Interpolate = true;
         int previousObservationCount = observation.Count;
 
-        player.BeginAction(_sequenceAction);
+        player.BeginAction(_sequenceAction, ActionContext.None);
         Assert.AreEqual(0, phaseEvents.Count, "Frame 0 must wait for the fixed simulation tick.");
 
         yield return WaitForObservation(observation, previousObservationCount);
@@ -317,7 +317,7 @@ public sealed class CombatSimulationDriverPlayModeTests
         phaseEvents.Clear();
         KinematicCharacterSystem.Settings.Interpolate = false;
         previousObservationCount = observation.Count;
-        player.BeginAction(_sequenceAction);
+        player.BeginAction(_sequenceAction, ActionContext.None);
 
         yield return WaitForObservation(observation, previousObservationCount);
         AssertSequencePhaseOrder(phaseEvents);

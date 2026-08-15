@@ -317,6 +317,13 @@ internal sealed class ActionSequenceInspectorV2Builder : IDisposable
 
     private void DrawClipConfigFields(VisualElement parent, SerializedProperty clipProperty, string trackId, string clipId)
     {
+        if (clipProperty.managedReferenceValue is ActionSequenceSelfRotationClipDefinition)
+        {
+            DrawSelfRotationClipConfigFields(parent, clipProperty);
+            parent.RegisterCallback<SerializedPropertyChangeEvent>(_ => QueueContentChanged(trackId, clipId));
+            return;
+        }
+
         SerializedProperty iterator = clipProperty.Copy();
         SerializedProperty end = iterator.GetEndProperty();
         bool enterChildren = true;
@@ -333,6 +340,83 @@ internal sealed class ActionSequenceInspectorV2Builder : IDisposable
         }
 
         parent.RegisterCallback<SerializedPropertyChangeEvent>(_ => QueueContentChanged(trackId, clipId));
+    }
+
+    private void DrawSelfRotationClipConfigFields(VisualElement parent, SerializedProperty clipProperty)
+    {
+        AddManagedReferenceProperty(parent, clipProperty, "displayName");
+
+        SerializedProperty source = clipProperty.FindPropertyRelative("source");
+        SerializedProperty mode = clipProperty.FindPropertyRelative("mode");
+        SerializedProperty directionSource = clipProperty.FindPropertyRelative("directionSource");
+
+        AddManagedReferenceProperty(parent, clipProperty, "source");
+        AddManagedReferenceProperty(parent, clipProperty, "mode");
+
+        VisualElement rootRotationAnimationKey = AddManagedReferenceProperty(parent, clipProperty, "animationKey", "Animation Key");
+        VisualElement rootRotationStartOffset = AddManagedReferenceProperty(parent, clipProperty, "startOffsetSeconds", "Source Start Time (s)");
+        VisualElement rootRotationPlaybackSpeed = AddManagedReferenceProperty(parent, clipProperty, "playbackSpeed", "Playback Speed");
+        VisualElement targetSource = AddManagedReferenceProperty(parent, clipProperty, "targetSource", "Target Source");
+        VisualElement directionSourceField = AddManagedReferenceProperty(parent, clipProperty, "directionSource", "Direction Source");
+        VisualElement presetLocalDirection = AddManagedReferenceProperty(parent, clipProperty, "presetLocalDirection", "Preset Local Direction");
+        VisualElement angularSpeed = AddManagedReferenceProperty(parent, clipProperty, "angularSpeedDegrees", "Angular Speed");
+
+        void RefreshVisibility()
+        {
+            SelfRotationSource sourceValue = source != null
+                ? (SelfRotationSource)source.enumValueIndex
+                : SelfRotationSource.RootRotation;
+            SelfRotationMode modeValue = mode != null
+                ? (SelfRotationMode)mode.enumValueIndex
+                : SelfRotationMode.Snap;
+            SelfRotationDirectionSource directionSourceValue = directionSource != null
+                ? (SelfRotationDirectionSource)directionSource.enumValueIndex
+                : SelfRotationDirectionSource.PresetLocal;
+
+            bool showRootRotation = sourceValue == SelfRotationSource.RootRotation;
+            bool showTarget = sourceValue == SelfRotationSource.Target;
+            bool showDirection = sourceValue == SelfRotationSource.Direction;
+            bool showPreset = showDirection && directionSourceValue == SelfRotationDirectionSource.PresetLocal;
+
+            SetVisible(rootRotationAnimationKey, showRootRotation);
+            SetVisible(rootRotationStartOffset, showRootRotation);
+            SetVisible(rootRotationPlaybackSpeed, showRootRotation);
+            SetVisible(targetSource, showTarget);
+            SetVisible(directionSourceField, showDirection);
+            SetVisible(presetLocalDirection, showPreset);
+            SetVisible(angularSpeed, modeValue == SelfRotationMode.RotateBySpeed);
+        }
+
+        RefreshVisibility();
+        if (source != null)
+            parent.TrackPropertyValue(source, _ => RefreshVisibility());
+        if (mode != null)
+            parent.TrackPropertyValue(mode, _ => RefreshVisibility());
+        if (directionSource != null)
+            parent.TrackPropertyValue(directionSource, _ => RefreshVisibility());
+    }
+
+    private static VisualElement AddManagedReferenceProperty(
+        VisualElement parent,
+        SerializedProperty rootProperty,
+        string propertyName,
+        string label = null)
+    {
+        SerializedProperty property = rootProperty.FindPropertyRelative(propertyName);
+        if (property == null)
+            return null;
+
+        var field = string.IsNullOrEmpty(label)
+            ? new PropertyField(property.Copy())
+            : new PropertyField(property.Copy(), label);
+        parent.Add(field);
+        return field;
+    }
+
+    private static void SetVisible(VisualElement element, bool visible)
+    {
+        if (element != null)
+            element.style.display = visible ? DisplayStyle.Flex : DisplayStyle.None;
     }
 
     private static SerializedProperty GetClipProperty(SerializedObject serializedObject, int trackIndex, int clipIndex)

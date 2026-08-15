@@ -25,7 +25,7 @@ public sealed class ActionPlayerSequenceIntegrationTests
 
         try
         {
-            player.BeginAction(action);
+            player.BeginAction(action, ActionContext.None);
 
             Assert.AreEqual(0, ProbeClipDefinition.Events.Count);
             Assert.AreSame(action, player.CurrentAction.Config);
@@ -61,7 +61,7 @@ public sealed class ActionPlayerSequenceIntegrationTests
 
         try
         {
-            player.BeginAction(action);
+            player.BeginAction(action, ActionContext.None);
 
             Assert.AreEqual(0, finishedCount);
             Assert.IsNotNull(player.CurrentAction);
@@ -100,7 +100,7 @@ public sealed class ActionPlayerSequenceIntegrationTests
 
         try
         {
-            player.BeginAction(action);
+            player.BeginAction(action, ActionContext.None);
             player.StopAction();
 
             Assert.AreEqual(0, ProbeClipDefinition.Events.Count);
@@ -128,7 +128,7 @@ public sealed class ActionPlayerSequenceIntegrationTests
 
         try
         {
-            player.BeginAction(action);
+            player.BeginAction(action, ActionContext.None);
             InvokePrivate(player, "ExecuteSimulationPreWorld", 1f / 60f);
             player.StopAction();
 
@@ -166,7 +166,7 @@ public sealed class ActionPlayerSequenceIntegrationTests
 
         try
         {
-            player.BeginAction(action);
+            player.BeginAction(action, ActionContext.None);
             InvokePrivate(player, "ExecuteSimulationPreWorld", 1f / 60f);
 
             CollectionAssert.AreEqual(
@@ -199,7 +199,7 @@ public sealed class ActionPlayerSequenceIntegrationTests
         try
         {
             player.SetBaseSpeed(0.5);
-            player.BeginAction(action);
+            player.BeginAction(action, ActionContext.None);
 
             ExecuteFixedTick(player);
             Assert.AreEqual(0, ProbeClipDefinition.Events.Count);
@@ -236,7 +236,7 @@ public sealed class ActionPlayerSequenceIntegrationTests
         try
         {
             player.SetBaseSpeed(0.5);
-            player.BeginAction(action);
+            player.BeginAction(action, ActionContext.None);
 
             ExecuteFixedTick(player);
 
@@ -292,7 +292,7 @@ public sealed class ActionPlayerSequenceIntegrationTests
         try
         {
             player.SetBaseSpeed(0.5);
-            player.BeginAction(action);
+            player.BeginAction(action, ActionContext.None);
 
             ExecuteFixedTick(player);
 
@@ -325,7 +325,7 @@ public sealed class ActionPlayerSequenceIntegrationTests
         try
         {
             player.SetBaseSpeed(0.0);
-            player.BeginAction(action);
+            player.BeginAction(action, ActionContext.None);
 
             ExecuteFixedTick(player);
             ExecuteFixedTick(player);
@@ -352,7 +352,7 @@ public sealed class ActionPlayerSequenceIntegrationTests
         try
         {
             player.SetBaseSpeed(0.0);
-            player.BeginAction(action);
+            player.BeginAction(action, ActionContext.None);
 
             ExecuteFixedTick(player);
             ExecuteFixedTick(player);
@@ -384,7 +384,7 @@ public sealed class ActionPlayerSequenceIntegrationTests
 
         try
         {
-            player.BeginAction(action);
+            player.BeginAction(action, ActionContext.None);
             player.Pause();
             ExecuteFixedTick(player);
             ExecuteFixedTick(player);
@@ -412,7 +412,7 @@ public sealed class ActionPlayerSequenceIntegrationTests
         try
         {
             player.SetBaseSpeed(0.5);
-            player.BeginAction(action);
+            player.BeginAction(action, ActionContext.None);
             player.Pause();
 
             ExecuteFixedTick(player);
@@ -438,7 +438,7 @@ public sealed class ActionPlayerSequenceIntegrationTests
 
         try
         {
-            player.BeginAction(action);
+            player.BeginAction(action, ActionContext.None);
             LogAssert.Expect(
                 LogType.Exception,
                 new Regex("ArgumentOutOfRangeException: Gameplay Sequence speed must be within"));
@@ -468,7 +468,7 @@ public sealed class ActionPlayerSequenceIntegrationTests
                 LogType.Warning,
                 "Action 播放失败：Gameplay Sequence 必须使用 60 Hz，当前为 30 Hz。");
 
-            player.BeginAction(action);
+            player.BeginAction(action, ActionContext.None);
 
             Assert.IsNull(player.CurrentAction);
             Assert.AreEqual(0, ProbeClipDefinition.Events.Count);
@@ -494,7 +494,7 @@ public sealed class ActionPlayerSequenceIntegrationTests
                 LogType.Warning,
                 "Action 播放失败：Sequence 动画 Clip 需要 Actor.AnimationConfig。");
 
-            player.BeginAction(action);
+            player.BeginAction(action, ActionContext.None);
 
             Assert.IsNull(player.CurrentAction);
         }
@@ -519,7 +519,7 @@ public sealed class ActionPlayerSequenceIntegrationTests
                 LogType.Warning,
                 "Action 播放失败：AnimationConfig 找不到动画 key 'missing' 的 Transition。");
 
-            player.BeginAction(action);
+            player.BeginAction(action, ActionContext.None);
 
             Assert.IsNull(player.CurrentAction);
         }
@@ -544,7 +544,7 @@ public sealed class ActionPlayerSequenceIntegrationTests
                 LogType.Warning,
                 "Action 播放失败：AnimationConfig 找不到动画 key 'missing' 的 RootMotionTrajectory。");
 
-            player.BeginAction(action);
+            player.BeginAction(action, ActionContext.None);
 
             Assert.IsNull(player.CurrentAction);
         }
@@ -572,7 +572,7 @@ public sealed class ActionPlayerSequenceIntegrationTests
                 LogType.Warning,
                 "Action 播放失败：RootMotionClip 区间重叠 [0, 2) 与 [1, 3)。");
 
-            player.BeginAction(action);
+            player.BeginAction(action, ActionContext.None);
 
             Assert.IsNull(player.CurrentAction);
         }
@@ -597,7 +597,85 @@ public sealed class ActionPlayerSequenceIntegrationTests
                 LogType.Warning,
                 "Action 播放失败：AnimationConfig 找不到动画 key 'missing' 的 RootMotionTrajectory。");
 
-            player.BeginAction(action);
+            player.BeginAction(action, ActionContext.None);
+
+            Assert.IsNull(player.CurrentAction);
+        }
+        finally
+        {
+            Object.DestroyImmediate(owner);
+            Object.DestroyImmediate(action);
+        }
+    }
+
+    [Test]
+    public void SequenceSelfRotationClip_TargetSourceDoesNotRequireAnimationConfig()
+    {
+        var selfRotationClip = new ActionSequenceSelfRotationClipDefinition { startFrame = 0, endFrame = 1 };
+        SetPrivateField(selfRotationClip, "source", SelfRotationSource.Target);
+        SetPrivateField(selfRotationClip, "targetSource", SelfRotationTargetSource.ContextTarget);
+        ActionAsset action = CreateSequenceAction(1, selfRotationClip);
+        ActionPlayer player = CreatePlayer(out GameObject owner);
+        var target = new GameObject("SelfRotation Context Target");
+
+        try
+        {
+            player.BeginAction(action, ActionContext.ForParticipants(null, target));
+
+            Assert.IsNotNull(player.CurrentAction);
+        }
+        finally
+        {
+            Object.DestroyImmediate(target);
+            Object.DestroyImmediate(owner);
+            Object.DestroyImmediate(action);
+        }
+    }
+
+    [Test]
+    public void SequenceSelfRotationClip_ContextTargetMissingContext_IsRejectedBeforeActionEnter()
+    {
+        var selfRotationClip = new ActionSequenceSelfRotationClipDefinition { startFrame = 0, endFrame = 1 };
+        SetPrivateField(selfRotationClip, "source", SelfRotationSource.Target);
+        SetPrivateField(selfRotationClip, "targetSource", SelfRotationTargetSource.ContextTarget);
+        ActionAsset action = CreateSequenceAction(1, selfRotationClip);
+        action.name = "SelfRotation Requires Target";
+        ActionPlayer player = CreatePlayer(out GameObject owner);
+
+        try
+        {
+            LogAssert.Expect(
+                LogType.Warning,
+                "Action 'SelfRotation Requires Target' requires context fields Target but the candidate context does not provide them.");
+
+            player.BeginAction(action, ActionContext.None);
+
+            Assert.IsNull(player.CurrentAction);
+        }
+        finally
+        {
+            Object.DestroyImmediate(owner);
+            Object.DestroyImmediate(action);
+        }
+    }
+
+    [Test]
+    public void SequenceSelfRotationClip_InvalidPresetLocal_IsRejectedBeforeActionEnter()
+    {
+        var selfRotationClip = new ActionSequenceSelfRotationClipDefinition { startFrame = 0, endFrame = 1 };
+        SetPrivateField(selfRotationClip, "source", SelfRotationSource.Direction);
+        SetPrivateField(selfRotationClip, "directionSource", SelfRotationDirectionSource.PresetLocal);
+        SetPrivateField(selfRotationClip, "presetLocalDirection", Vector3.zero);
+        ActionAsset action = CreateSequenceAction(1, selfRotationClip);
+        ActionPlayer player = CreatePlayer(out GameObject owner);
+
+        try
+        {
+            LogAssert.Expect(
+                LogType.Warning,
+                "Action 播放失败：SelfRotationClip PresetLocal 方向无效。");
+
+            player.BeginAction(action, ActionContext.None);
 
             Assert.IsNull(player.CurrentAction);
         }
@@ -625,7 +703,7 @@ public sealed class ActionPlayerSequenceIntegrationTests
                 LogType.Warning,
                 "Action 播放失败：SelfRotationClip 区间重叠 [0, 2) 与 [1, 3)。");
 
-            player.BeginAction(action);
+            player.BeginAction(action, ActionContext.None);
 
             Assert.IsNull(player.CurrentAction);
         }
@@ -648,7 +726,7 @@ public sealed class ActionPlayerSequenceIntegrationTests
 
         try
         {
-            player.BeginAction(action);
+            player.BeginAction(action, ActionContext.None);
             ExecuteFixedTick(player);
 
             CollectionAssert.AreEqual(

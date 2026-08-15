@@ -142,7 +142,7 @@ public class AnimancerBehaviour : ActionBehaviourBase
         if (actionInstance == null || actor == null)
             return false;
 
-        Vector3 direction = actionInstance.EventContext.Direction;
+        Vector3 direction = actionInstance.Context.Direction;
         direction.y = 0f;
         if (direction.sqrMagnitude <= 0.0001f)
             return false;
@@ -162,7 +162,7 @@ public class AnimancerBehaviour : ActionBehaviourBase
         if (actionInstance == null)
             return false;
 
-        magnitude = actionInstance.EventContext.Magnitude;
+        magnitude = actionInstance.Context.Magnitude;
         return Mathf.Abs(magnitude) > 0.001f;
     }
 

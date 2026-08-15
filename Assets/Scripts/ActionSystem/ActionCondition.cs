@@ -15,10 +15,15 @@ public abstract class ActionCondition
     /// </summary>
     public bool Check(Actor actor)
     {
+        return Check(actor, ActionContext.ForSelf(actor));
+    }
+
+    public bool Check(Actor actor, ActionContext context)
+    {
         if (actor == null) return false;
 
         // 1. 传入 actor，获取子类真实的检测结果
-        bool rawResult = OnCheck(actor);
+        bool rawResult = OnCheck(actor, context);
 
         // 2. 根据反转配置返回最终结果
         return invertResult ? !rawResult : rawResult;
@@ -28,6 +33,11 @@ public abstract class ActionCondition
     /// 子类必须实现的具体检测逻辑
     /// </summary>
     protected abstract bool OnCheck(Actor actor);
+
+    protected virtual bool OnCheck(Actor actor, ActionContext context)
+    {
+        return OnCheck(actor);
+    }
 
     /// <summary>
     /// 胜选后回调：用于带有"消费型"语义的条件（例如 InputSequenceCondition 要把命中的输入标记为已消费），

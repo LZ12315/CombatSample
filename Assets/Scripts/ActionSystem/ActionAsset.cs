@@ -141,6 +141,11 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
     /// </summary>
     public bool CheckEntry(Actor actor)
     {
+        return CheckEntry(actor, ActionContext.ForSelf(actor));
+    }
+
+    public bool CheckEntry(Actor actor, ActionContext context)
+    {
         if (_entryConditions == null || _entryConditions.Count == 0)
             return false;
 
@@ -151,7 +156,7 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
         {
             var cond = _entryConditions[i];
 
-            bool isMet = cond.Check(actor);
+            bool isMet = cond.Check(actor, context);
 
             if (cond.overrideAll)
             {
@@ -180,6 +185,11 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
     /// </summary>
     public bool CheckEntryForEvent(Actor actor)
     {
+        return CheckEntryForEvent(actor, ActionContext.ForSelf(actor));
+    }
+
+    public bool CheckEntryForEvent(Actor actor, ActionContext context)
+    {
         if (_entryConditions == null || _entryConditions.Count == 0)
             return true; // 事件 Action 无条件时默认通过（与 Poll 不同）
 
@@ -194,7 +204,7 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
             if (cond is InputStateCondition || cond is InputSequenceCondition)
                 continue;
 
-            bool isMet = cond.Check(actor);
+            bool isMet = cond.Check(actor, context);
 
             if (cond.overrideAll)
             {
@@ -228,6 +238,11 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
     /// </summary>
     public bool CheckExit(Actor actor)
     {
+        return CheckExit(actor, ActionContext.ForSelf(actor));
+    }
+
+    public bool CheckExit(Actor actor, ActionContext context)
+    {
         if (_exitConditions == null || _exitConditions.Count == 0)
             return false;
 
@@ -239,7 +254,7 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
             var cond = _exitConditions[i];
             if (cond == null) continue;
 
-            bool isMet = cond.Check(actor);
+            bool isMet = cond.Check(actor, context);
 
             if (cond.overrideAll)
             {
@@ -260,6 +275,18 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
         return false;
     }
 
+    public bool CheckContextRequirements(ActionContext context, out string warning)
+    {
+        warning = null;
+        ActionContextFieldMask required = GetRequiredContextFields();
+        ActionContextFieldMask missing = required & ~context.Fields;
+        if (missing == ActionContextFieldMask.None)
+            return true;
+
+        warning = $"Action '{name}' requires context fields {missing} but the candidate context does not provide them.";
+        return false;
+    }
+
     /// <summary>
     /// 胜选回调：当 ActionStateManager 选中此 Action 并决定真正进入时调用。
     /// 遍历所有 EntryCondition 触发 OnClaim，让带有"消费型"语义的条件（例如 InputSequenceCondition）
@@ -277,6 +304,43 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
         }
     }
     #endregion
+
+    private ActionContextFieldMask GetRequiredContextFields()
+    {
+        if (!UsesSequence || _sequenceData == null)
+            return ActionContextFieldMask.None;
+
+        ActionContextFieldMask fields = ActionContextFieldMask.None;
+        AccumulateRequiredContextFields(_sequenceData.Tracks, ref fields);
+        AccumulateRequiredContextFields(_sequenceData.LegacyClips, ref fields);
+        return fields;
+    }
+
+    private static void AccumulateRequiredContextFields(
+        IReadOnlyList<ActionSequenceTrackDefinition> tracks,
+        ref ActionContextFieldMask fields)
+    {
+        for (int i = 0; tracks != null && i < tracks.Count; i++)
+        {
+            ActionSequenceTrackDefinition track = tracks[i];
+            if (track == null || track.muted)
+                continue;
+
+            AccumulateRequiredContextFields(track.Clips, ref fields);
+        }
+    }
+
+    private static void AccumulateRequiredContextFields(
+        IReadOnlyList<ActionSequenceClipDefinition> clips,
+        ref ActionContextFieldMask fields)
+    {
+        for (int i = 0; clips != null && i < clips.Count; i++)
+        {
+            ActionSequenceClipDefinition clip = clips[i];
+            if (clip != null)
+                fields |= clip.RequiredContextFields;
+        }
+    }
 
     #region 生命周期和序列化
 

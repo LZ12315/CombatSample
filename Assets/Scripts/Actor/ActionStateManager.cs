@@ -12,10 +12,42 @@ using DeiveEx.TagTree;
 [RequireComponent(typeof(Actor))]
 public class ActionStateManager : MonoBehaviour
 {
+    private enum ActionCandidateOrigin
+    {
+        Poll = 0,
+        Event = 1,
+        External = 2,
+    }
+
     private sealed class ExternalActionRequest
     {
         public ActionAsset Action;
+        public ActionContext Context;
         public Action<bool> Callback;
+        public int Order;
+    }
+
+    private readonly struct ActionCandidate
+    {
+        public readonly ActionAsset Action;
+        public readonly ActionContext Context;
+        public readonly ActionCandidateOrigin Origin;
+        public readonly int Order;
+        public readonly ExternalActionRequest ExternalRequest;
+
+        public ActionCandidate(
+            ActionAsset action,
+            ActionContext context,
+            ActionCandidateOrigin origin,
+            int order,
+            ExternalActionRequest externalRequest = null)
+        {
+            Action = action;
+            Context = context;
+            Origin = origin;
+            Order = order;
+            ExternalRequest = externalRequest;
+        }
     }
 
     [Header("References")]
@@ -25,13 +57,12 @@ public class ActionStateManager : MonoBehaviour
     [Header("Settings")]
     [SerializeField] private ActionAssetList _actionList;
 
-    private readonly List<ActionAsset> _validCandidatesCache = new List<ActionAsset>(10);
+    private readonly List<ActionCandidate> _validCandidatesCache = new List<ActionCandidate>(10);
     private readonly List<ExternalActionRequest> _externalRequestsThisFrame = new List<ExternalActionRequest>(4);
 
-    // ── 事件触发路径 ──
     private Dictionary<int, List<ActionAsset>> _eventActionMap;
-    private readonly List<ActionAsset> _eventCandidatesThisFrame = new List<ActionAsset>(4);
-    private ActionEventContext _pendingEventContext;
+    private readonly List<ActionCandidate> _eventCandidatesThisFrame = new List<ActionCandidate>(4);
+    private int _nextCandidateOrder;
 
     /// <summary>当前正在播放的 Action 配置；无当前动作时为 null。供 NodeCanvas 等查询。</summary>
     public ActionAsset CurrentActionAsset => _actionPlayer != null
@@ -40,37 +71,46 @@ public class ActionStateManager : MonoBehaviour
 
     private void Awake()
     {
+        ResolveActor();
         BuildEventMap();
     }
 
     private void OnEnable()
     {
-        _actionPlayer.OnActionFinished += HandleActionFinished;
+        ResolveActor();
+        if (_actionPlayer != null)
+            _actionPlayer.OnActionFinished += HandleActionFinished;
     }
 
     private void OnDisable()
     {
-        _actionPlayer.OnActionFinished -= HandleActionFinished;
+        ResolveActor();
+        if (_actionPlayer != null)
+            _actionPlayer.OnActionFinished -= HandleActionFinished;
     }
 
     /// <summary>
     /// 登记本帧 External 播放请求（例如 AI / NodeCanvas）。不做即时判定，不播放；
     /// 在 <see cref="LateUpdate"/> 中与 Neutral/Cancel/Event 候选统一仲裁。
     /// </summary>
-    public void RequestExternalAction(ActionAsset action, Action<bool> callback)
+    public void RequestExternalAction(ActionAsset action, ActionContext context, Action<bool> callback)
     {
         _externalRequestsThisFrame.Add(new ExternalActionRequest
         {
             Action = action,
+            Context = context,
             Callback = callback,
+            Order = AllocateCandidateOrder(),
         });
     }
 
     private void LateUpdate()
     {
-        // 自愿退出：停掉之后本帧仍可继续选新 Action
+        if (_actionPlayer == null)
+            return;
+
         var currentInst = _actionPlayer.CurrentAction;
-        if (currentInst != null && currentInst.Config.CheckExit(_actor))
+        if (currentInst != null && currentInst.Config.CheckExit(_actor, currentInst.Context))
             _actionPlayer.StopAction();
 
         currentInst = _actionPlayer.CurrentAction;
@@ -80,17 +120,16 @@ public class ActionStateManager : MonoBehaviour
         CollectNormalCandidates(currentInst);
         CollectEventCandidatesIntoPool();
 
-        ActionAsset chosen = _validCandidatesCache.Count > 0
+        ActionCandidate? chosen = _validCandidatesCache.Count > 0
             ? SelectHighestPriorityAction(_validCandidatesCache)
             : null;
 
-        ActionAsset startedAction = TryPlayChosenAction(chosen);
+        ActionCandidate? startedCandidate = TryPlayChosenAction(chosen);
 
-        ResolveExternalRequestResults(startedAction);
+        ResolveExternalRequestResults(startedCandidate);
 
         _externalRequestsThisFrame.Clear();
         _eventCandidatesThisFrame.Clear();
-        _pendingEventContext = default;
     }
 
     private void CollectNormalCandidates(ActionInstance currentInst)
@@ -107,7 +146,6 @@ public class ActionStateManager : MonoBehaviour
         CollectExternalNeutralCandidates();
     }
 
-    /// <summary>无当前 Action：扫 ActionList，跳过 Event。</summary>
     private void CollectActionListNeutralCandidates()
     {
         if (_actionList == null) return;
@@ -115,13 +153,13 @@ public class ActionStateManager : MonoBehaviour
         var allActions = _actionList.GetAllAvailableActions();
         for (int i = 0; i < allActions.Count; i++)
         {
-            if (allActions[i] != null && allActions[i].TriggerMode == ActionTriggerMode.Event)
+            var action = allActions[i];
+            if (action != null && action.TriggerMode == ActionTriggerMode.Event)
                 continue;
-            TryAddCandidate(allActions[i]);
+            TryAddPollCandidate(action);
         }
     }
 
-    /// <summary>无当前 Action：External 只需通过目标自身的 EntryCondition。</summary>
     private void CollectExternalNeutralCandidates()
     {
         for (int i = 0; i < _externalRequestsThisFrame.Count; i++)
@@ -131,8 +169,12 @@ public class ActionStateManager : MonoBehaviour
             if (!IsValidExternalAction(action))
                 continue;
 
-            if (action.CheckEntry(_actor))
-                TryAddCandidate(action);
+            TryAddCandidate(new ActionCandidate(
+                action,
+                request.Context,
+                ActionCandidateOrigin.External,
+                request.Order,
+                request));
         }
     }
 
@@ -142,7 +184,6 @@ public class ActionStateManager : MonoBehaviour
         CollectExternalCancelCandidates(currentInst);
     }
 
-    /// <summary>有当前 Action：按 CancelRule 自动展开候选（Specific / AnyWithTag / Any）。</summary>
     private void CollectCancelRuleCandidates(ActionInstance currentInstance)
     {
         var rules = currentInstance.Config.CancelRules;
@@ -160,7 +201,7 @@ public class ActionStateManager : MonoBehaviour
             switch (rule.targetKind)
             {
                 case CancelTargetKind.SpecificAction:
-                    TryAddCandidate(rule.specificTarget);
+                    TryAddPollCandidate(rule.specificTarget);
                     break;
 
                 case CancelTargetKind.AnyWithTag:
@@ -173,7 +214,7 @@ public class ActionStateManager : MonoBehaviour
                             if (candidate == null || candidate.TriggerMode == ActionTriggerMode.Event)
                                 continue;
                             if (ActionHasSelfTagMatchingRule(candidate, rule.targetTag))
-                                TryAddCandidate(candidate);
+                                TryAddPollCandidate(candidate);
                         }
                     }
                     break;
@@ -186,7 +227,7 @@ public class ActionStateManager : MonoBehaviour
                         {
                             if (allActions[j] != null && allActions[j].TriggerMode == ActionTriggerMode.Event)
                                 continue;
-                            TryAddCandidate(allActions[j]);
+                            TryAddPollCandidate(allActions[j]);
                         }
                     }
                     break;
@@ -194,10 +235,6 @@ public class ActionStateManager : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// 有当前 Action：External 指定目标必须先匹配当前帧某条打开的 CancelRule，再通过 EntryCondition。
-    /// 不展开候选，只验证“请求的这一招”是否合法。
-    /// </summary>
     private void CollectExternalCancelCandidates(ActionInstance currentInst)
     {
         for (int i = 0; i < _externalRequestsThisFrame.Count; i++)
@@ -210,8 +247,12 @@ public class ActionStateManager : MonoBehaviour
             if (!CanCancelTo(currentInst, action))
                 continue;
 
-            if (action.CheckEntry(_actor))
-                TryAddCandidate(action);
+            TryAddCandidate(new ActionCandidate(
+                action,
+                request.Context,
+                ActionCandidateOrigin.External,
+                request.Order,
+                request));
         }
     }
 
@@ -220,9 +261,6 @@ public class ActionStateManager : MonoBehaviour
         return action != null && action.TriggerMode != ActionTriggerMode.Event;
     }
 
-    /// <summary>
-    /// 当前动作在当帧取消窗口内，是否允许取消到 <paramref name="requestedAction"/>。
-    /// </summary>
     private bool CanCancelTo(ActionInstance currentInst, ActionAsset requestedAction)
     {
         if (currentInst == null || requestedAction == null)
@@ -261,7 +299,6 @@ public class ActionStateManager : MonoBehaviour
         return false;
     }
 
-    /// <summary>目标 Action 的 SelfTags 中是否有任意标签匹配规则标签（含层级：子匹配父）。</summary>
     private static bool ActionHasSelfTagMatchingRule(ActionAsset action, TagReference ruleTagRef)
     {
         if (action == null || ruleTagRef == null)
@@ -287,81 +324,91 @@ public class ActionStateManager : MonoBehaviour
         return false;
     }
 
-    /// <summary>
-    /// 将本帧 <see cref="SendEvent"/> 产生的 Event 候选并入仲裁池（不受 CancelRule 限制）。
-    /// </summary>
     private void CollectEventCandidatesIntoPool()
     {
         for (int i = 0; i < _eventCandidatesThisFrame.Count; i++)
             TryAddCandidate(_eventCandidatesThisFrame[i]);
     }
 
-    private ActionAsset TryPlayChosenAction(ActionAsset chosen)
+    private ActionCandidate? TryPlayChosenAction(ActionCandidate? chosen)
     {
-        if (chosen == null)
+        if (!chosen.HasValue)
+            return null;
+
+        ActionCandidate candidate = chosen.Value;
+        ActionAsset action = candidate.Action;
+        if (action == null)
             return null;
 
         bool sameAsCurrent = _actionPlayer.CurrentAction != null &&
-                             _actionPlayer.CurrentAction.Config == chosen;
-        if (sameAsCurrent && !chosen.AllowReenterWhilePlaying)
+                             _actionPlayer.CurrentAction.Config == action;
+        if (sameAsCurrent && !action.AllowReenterWhilePlaying)
             return null;
 
-        chosen.ClaimEntry(_actor);
-        ActionEventContext startContext = ResolveStartContext(chosen);
-        PlayNewAction(chosen, startContext);
-        return chosen;
+        action.ClaimEntry(_actor);
+        PlayNewAction(action, candidate.Context);
+        return candidate;
     }
 
-    private void ResolveExternalRequestResults(ActionAsset startedAction)
+    private void ResolveExternalRequestResults(ActionCandidate? startedCandidate)
     {
         for (int i = 0; i < _externalRequestsThisFrame.Count; i++)
         {
             var request = _externalRequestsThisFrame[i];
-            bool started = request.Action != null
-                           && startedAction != null
-                           && request.Action == startedAction;
+            bool started = startedCandidate.HasValue
+                           && ReferenceEquals(startedCandidate.Value.ExternalRequest, request);
             request.Callback?.Invoke(started);
         }
     }
 
-    private void PlayNewAction(ActionAsset actionToPlay, ActionEventContext startContext)
+    private void PlayNewAction(ActionAsset actionToPlay, ActionContext startContext)
     {
         _actionPlayer.BeginAction(actionToPlay, startContext);
     }
 
-    private ActionEventContext ResolveStartContext(ActionAsset actionToPlay)
+    private bool TryBuildPollContext(ActionAsset action, out ActionContext context)
     {
-        if (actionToPlay == null)
-            return default;
+        context = ActionContext.ForSelf(_actor);
+        if (action == null)
+            return false;
 
-        if (actionToPlay.TriggerMode == ActionTriggerMode.Event)
-            return _pendingEventContext;
-
-        return actionToPlay.StartContextMode switch
+        switch (action.StartContextMode)
         {
-            ActionStartContextMode.LocomotionIntent => BuildContextFromLocomotionIntent(),
-            _ => default
-        };
+            case ActionStartContextMode.None:
+                return true;
+
+            case ActionStartContextMode.LocomotionIntent:
+                return TryBuildContextFromLocomotionIntent(action, out context);
+
+            default:
+                return true;
+        }
     }
 
-    private ActionEventContext BuildContextFromLocomotionIntent()
+    private bool TryBuildContextFromLocomotionIntent(ActionAsset action, out ActionContext context)
     {
-        if (_actor == null || _actor.actorMotor == null)
-            return default;
+        context = ActionContext.ForSelf(_actor);
+        if (_actor == null)
+            return false;
 
-        var intent = _actor.actorMotor.LocomotionIntent;
-        var direction = intent.WorldMoveDirection;
+        ActorLogicInput logicInput = _actor.GetComponent<ActorLogicInput>();
+        if (logicInput == null)
+        {
+            Debug.LogError(
+                $"Action '{action.name}' uses StartContextMode.LocomotionIntent but Actor '{_actor.name}' has no ActorLogicInput.",
+                this);
+            return false;
+        }
+
+        LocomotionIntent intent = logicInput.LatestLocomotionIntent;
+        context = context.WithMagnitude(Mathf.Clamp01(intent.MoveStrength));
+
+        Vector3 direction = intent.WorldMoveDirection;
         direction.y = 0f;
         if (direction.sqrMagnitude > 0.0001f)
-            direction.Normalize();
-        else
-            direction = Vector3.zero;
+            context = context.WithDirection(direction);
 
-        return new ActionEventContext
-        {
-            Direction = direction,
-            Magnitude = Mathf.Clamp01(intent.MoveStrength),
-        };
+        return true;
     }
 
     private void HandleActionFinished(ActionInstance _)
@@ -369,7 +416,6 @@ public class ActionStateManager : MonoBehaviour
         // Action 正常结束，ActionInstance.OnExit 已恢复 ActorMotor 运动策略。
     }
 
-    #region 事件触发
     private void BuildEventMap()
     {
         _eventActionMap = new Dictionary<int, List<ActionAsset>>();
@@ -398,66 +444,127 @@ public class ActionStateManager : MonoBehaviour
     /// <summary>
     /// 外部调用入口：发送事件，将匹配的 Action 加入本帧事件候选列表。
     /// </summary>
-    public void SendEvent(Tag eventTag, ActionEventContext context = default)
+    public void SendEvent(Tag eventTag, ActionContext context)
     {
         if (eventTag == null) return;
         if (_eventActionMap == null || !_eventActionMap.TryGetValue(eventTag.Id, out var actions))
             return;
 
-        _pendingEventContext = context;
+        int order = AllocateCandidateOrder();
         for (int i = 0; i < actions.Count; i++)
         {
             var action = actions[i];
-            if (action.CheckEntryForEvent(_actor))
-            {
-                if (!_eventCandidatesThisFrame.Contains(action))
-                    _eventCandidatesThisFrame.Add(action);
-            }
+            var candidate = new ActionCandidate(
+                action,
+                context,
+                ActionCandidateOrigin.Event,
+                order);
+            _eventCandidatesThisFrame.Add(candidate);
         }
     }
-    #endregion
 
-    #region 候选
-    private void TryAddCandidate(ActionAsset action)
+    private void TryAddPollCandidate(ActionAsset action)
     {
         if (action == null || _actor == null) return;
+        if (!TryBuildPollContext(action, out ActionContext context))
+            return;
 
-        bool passed = action.TriggerMode == ActionTriggerMode.Event
-            ? action.CheckEntryForEvent(_actor)
-            : action.CheckEntry(_actor);
-
-        if (!passed) return;
-        if (!_validCandidatesCache.Contains(action))
-            _validCandidatesCache.Add(action);
+        TryAddCandidate(new ActionCandidate(
+            action,
+            context,
+            ActionCandidateOrigin.Poll,
+            AllocateCandidateOrder()));
     }
 
-    private ActionAsset SelectHighestPriorityAction(List<ActionAsset> actions)
+    private void TryAddCandidate(ActionCandidate candidate)
     {
-        if (actions == null || actions.Count == 0) return null;
+        if (candidate.Action == null || _actor == null) return;
+        if (!CandidatePassesEntry(candidate)) return;
+        if (ContainsEquivalentCandidate(candidate)) return;
+        _validCandidatesCache.Add(candidate);
+    }
+
+    private bool CandidatePassesEntry(ActionCandidate candidate)
+    {
+        ActionAsset action = candidate.Action;
+        if (action == null)
+            return false;
+
+        if (!action.CheckContextRequirements(candidate.Context, out string warning))
+        {
+            Debug.LogError(warning, this);
+            return false;
+        }
+
+        return candidate.Origin == ActionCandidateOrigin.Event
+            ? action.CheckEntryForEvent(_actor, candidate.Context)
+            : action.CheckEntry(_actor, candidate.Context);
+    }
+
+    private bool ContainsEquivalentCandidate(ActionCandidate candidate)
+    {
+        for (int i = 0; i < _validCandidatesCache.Count; i++)
+        {
+            ActionCandidate existing = _validCandidatesCache[i];
+            if (existing.Action != candidate.Action)
+                continue;
+
+            if (existing.ExternalRequest != null || candidate.ExternalRequest != null)
+                return ReferenceEquals(existing.ExternalRequest, candidate.ExternalRequest);
+
+            if (existing.Origin == ActionCandidateOrigin.Poll &&
+                candidate.Origin == ActionCandidateOrigin.Poll)
+                return true;
+        }
+
+        return false;
+    }
+
+    private ActionCandidate SelectHighestPriorityAction(List<ActionCandidate> actions)
+    {
+        if (actions == null || actions.Count == 0) return default;
         if (actions.Count == 1) return actions[0];
 
-        int bestLayerInt = (int)actions[0].PriorityLayer;
+        int bestLayerInt = (int)actions[0].Action.PriorityLayer;
         for (int i = 1; i < actions.Count; i++)
         {
-            int layer = (int)actions[i].PriorityLayer;
+            int layer = (int)actions[i].Action.PriorityLayer;
             if (layer > bestLayerInt)
                 bestLayerInt = layer;
         }
 
-        ActionAsset best = null;
+        ActionCandidate best = default;
+        bool hasBest = false;
         int bestValue = int.MinValue;
+        int bestOrder = int.MaxValue;
         for (int i = 0; i < actions.Count; i++)
         {
-            var a = actions[i];
-            if ((int)a.PriorityLayer != bestLayerInt) continue;
-            if (best == null || a.PriorityValue > bestValue)
+            var candidate = actions[i];
+            var action = candidate.Action;
+            if ((int)action.PriorityLayer != bestLayerInt) continue;
+
+            bool betterPriority = action.PriorityValue > bestValue;
+            bool samePriorityEarlier = action.PriorityValue == bestValue && candidate.Order < bestOrder;
+            if (!hasBest || betterPriority || samePriorityEarlier)
             {
-                best = a;
-                bestValue = a.PriorityValue;
+                best = candidate;
+                hasBest = true;
+                bestValue = action.PriorityValue;
+                bestOrder = candidate.Order;
             }
         }
 
-        return best ?? actions[0];
+        return hasBest ? best : actions[0];
     }
-    #endregion
+
+    private int AllocateCandidateOrder()
+    {
+        return _nextCandidateOrder++;
+    }
+
+    private void ResolveActor()
+    {
+        if (_actor == null)
+            _actor = GetComponent<Actor>();
+    }
 }

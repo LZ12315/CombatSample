@@ -78,7 +78,10 @@ namespace NodeCanvas.Tasks.Actions
             }
 
             _waitingForResult = true;
-            actorValue.actionManager.RequestExternalAction(actionValue, HandleRequestResult);
+            actorValue.actionManager.RequestExternalAction(
+                actionValue,
+                ActionContext.ForSelf(actorValue),
+                HandleRequestResult);
         }
 
         private void HandleRequestResult(bool started)
