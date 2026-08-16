@@ -13,6 +13,20 @@ MonoBehaviour:
   m_Name: Jaeger_RetreatAttack
   m_EditorClassIdentifier: 
   _timelineAsset: {fileID: 11400000, guid: ac6043455a49f7746ac3d768e31be2c0, type: 2}
+  _playbackBackend: 1
+  _sequenceData:
+    frameRate: 60
+    durationMode: 1
+    durationFrames: 60
+    tracks:
+    - rid: 6973414238253744145
+    - rid: 6973414238253744138
+    - rid: 6973414238253744140
+    - rid: 6973414256443654144
+    - rid: 6973414275370975232
+    - rid: 6973414238253744142
+    clips: []
+    defaultTracksInitialized: 0
   _priorityLayer: 1
   _priorityValue: 3
   _cancelRules: []
@@ -39,6 +53,210 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
+    - rid: 6973414238253744138
+      type: {class: ActionSequenceAnimationTrack, ns: , asm: Assembly-CSharp}
+      data:
+        editorId: 15f6e5dd002f46dcb8ad25e0124f41cf
+        displayName: 
+        muted: 0
+        locked: 0
+        collapsed: 0
+        clips:
+        - rid: 6973414238253744139
+    - rid: 6973414238253744139
+      type: {class: ActionSequenceAnimationPoseClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId: 1724cb4220e64a87b2d005b926be7e91
+        displayName: 
+        startFrame: 0
+        endFrame: 142
+        animationKey: retreat_attack
+        parameterMode: 0
+        fallbackVector2: {x: 0, y: 0}
+        fallbackFloat: 0
+        startOffsetSeconds: 0
+        playbackSpeed: 1
+    - rid: 6973414238253744140
+      type: {class: ActionSequenceMotionTrack, ns: , asm: Assembly-CSharp}
+      data:
+        editorId: 2170ef1865ab47c69f368e9fce65df98
+        displayName: 
+        muted: 0
+        locked: 0
+        collapsed: 0
+        clips:
+        - rid: 6973414238253744141
+    - rid: 6973414238253744141
+      type: {class: ActionSequenceRootMotionClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId: c8426e8fd79842978147d52c2f41bcb3
+        displayName: 
+        startFrame: 0
+        endFrame: 142
+        animationKey: retreat_attack
+        startOffsetSeconds: 0
+        playbackSpeed: 1
+    - rid: 6973414238253744142
+      type: {class: ActionSequenceHitBoxTrack, ns: , asm: Assembly-CSharp}
+      data:
+        editorId: 9766199fec7b40cb959083ceb8e7bce0
+        displayName: 
+        muted: 0
+        locked: 0
+        collapsed: 0
+        clips:
+        - rid: 6973414238253744143
+    - rid: 6973414238253744143
+      type: {class: ActionSequenceHitBoxClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId: 13bd300353ba49ad86ea511371997afc
+        displayName: 
+        startFrame: 16
+        endFrame: 35
+        boneReference:
+          mode: 2
+          humanBone: 0
+          bonePath: ModelRoot
+        hitboxConfig:
+          center: {x: 0, y: 0.4, z: 0}
+          rotation: {x: 0, y: 0, z: 0, w: 1}
+          height: 1.3
+          radius: 2
+        dataConfig:
+          targetLayers:
+            serializedVersion: 2
+            m_Bits: 128
+          _baseDamage: 20
+          hitEventTag:
+            TagId: -1300321786
+        effects:
+        - rid: 6973414238253744144
+    - rid: 6973414238253744144
+      type: {class: SpeedEffectConfig, ns: , asm: Assembly-CSharp}
+      data:
+        enabled: 1
+        duration: 0.5
+        speedScale: 0.3
+        affectBothParties: 1
+    - rid: 6973414238253744145
+      type: {class: ActionSequenceStateTrack, ns: , asm: Assembly-CSharp}
+      data:
+        editorId: d4f869ea7d814b1bbdff9d338fd4a4c7
+        displayName: 
+        muted: 0
+        locked: 0
+        collapsed: 0
+        clips:
+        - rid: 6973414238253744146
+    - rid: 6973414238253744146
+      type: {class: ActionSequenceTagClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId: 418231cc579a4dd28045b31b73444e0a
+        displayName: 
+        startFrame: 0
+        endFrame: 142
+        tag:
+          TagId: -1070838861
+        targetContainer: 0
+    - rid: 6973414256443654144
+      type: {class: ActionSequenceMotionTrack, ns: , asm: Assembly-CSharp}
+      data:
+        editorId: 246f0fe0788544839d83bcca168ff2ca
+        displayName: 
+        muted: 0
+        locked: 0
+        collapsed: 0
+        clips:
+        - rid: 6973414256443654145
+    - rid: 6973414256443654145
+      type: {class: ActionSequenceSelfRotationClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId: e8255b2159c04dfcb7cf68808294d38b
+        displayName: 
+        startFrame: 0
+        endFrame: 142
+        source: 2
+        mode: 1
+        targetSource: 0
+        directionSource: 0
+        presetLocalDirection: {x: 0, y: 0, z: 1}
+        angularSpeedDegrees: 720
+        animationKey: retreat_attack
+        startOffsetSeconds: 0
+        playbackSpeed: 1
+    - rid: 6973414275370975232
+      type: {class: ActionSequenceMotionTrack, ns: , asm: Assembly-CSharp}
+      data:
+        editorId: c2e7cacd00a348e58dfad8edf7f86ff0
+        displayName: 
+        muted: 0
+        locked: 0
+        collapsed: 0
+        clips:
+        - rid: 6973414275370975233
+    - rid: 6973414275370975233
+      type: {class: ActionSequenceVelocityOverrideClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId: be99d50e584742b6b1f6fff50a6db78a
+        displayName: 
+        startFrame: 0
+        endFrame: 108
+        config:
+          directionMode: 0
+          localHorizontalDirection: {x: 0, y: 0, z: 1}
+          useHorizontalVelocity: 0
+          horizontalSpeed: 0
+          useVerticalVelocity: 1
+          verticalSpeed: 100
+          horizontalCurve:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          verticalCurve:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          debugLog: 0
     - rid: 8665091256741265418
       type: {class: GroundStateCondition, ns: , asm: Assembly-CSharp}
       data:
