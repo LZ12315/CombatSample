@@ -521,6 +521,26 @@ public class ActionPlayer : MonoBehaviour
 
                 selfRotationIntervals?.Add(selfRotationClip);
             }
+            else if (clip is ActionSequenceVelocityOverrideClipDefinition velocityClip)
+            {
+                if (!velocityClip.HasAnyAxis)
+                {
+                    warning = "Action 播放失败：VelocityOverrideClip 至少需要启用一个速度轴。";
+                    return false;
+                }
+
+                if (!velocityClip.HasFiniteSpeeds())
+                {
+                    warning = "Action 播放失败：VelocityOverrideClip 速度必须是有限数值。";
+                    return false;
+                }
+
+                if (!velocityClip.HasValidPresetLocalDirection())
+                {
+                    warning = "Action 播放失败：VelocityOverrideClip PresetLocal 方向无效。";
+                    return false;
+                }
+            }
         }
 
         return true;

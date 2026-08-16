@@ -17,7 +17,7 @@
 
 ## Proposals
 
-- [CombatSample ActionSequence 最终架构 v2](Proposals/CombatSample_ActionSequence_Final_Architecture_v2_zh-CN.md) — approved implementation baseline, now partially implemented: the project-side KCC Driver, 60 Hz fixed world clock, Sequence phasing, fractional PoseRefresh, AnimationConfig/Baker, Stage D1 Pose + XZ RootMotion, and D2.1 Authored SelfRotation have landed; Target/Direction SelfRotation, LocomotionController, Timeline migration, and two-stage Hit resolve remain staged work.
+- [CombatSample ActionSequence 最终架构 v2](Proposals/CombatSample_ActionSequence_Final_Architecture_v2_zh-CN.md) — approved implementation baseline, now partially implemented: the project-side KCC Driver, 60 Hz fixed world clock, Sequence phasing, fractional PoseRefresh, AnimationConfig/Baker, Stage D1 Pose + XZ RootMotion, D2 SelfRotation, and D3 VelocityOverride have landed; LocomotionController, Timeline migration, and two-stage Hit resolve remain staged work.
 - [帧表迁移完整落地方案（历史草案）](Proposals/帧表迁移完整落地方案_历史草案.md) — not approved and not executable as written. Requires a new go/no-go decision and redesign against the current Timeline-based action system.
 
 ## Archive

@@ -1,6 +1,6 @@
 # CombatSample ActionSequence 最终架构 v2
 
-> 状态：已批准的实施基线，分阶段实施中；Stage B 固定接线与 Stage C1–C2.4 AnimationConfig/Baker 作者工作流已落地
+> 状态：已批准的实施基线，分阶段实施中；Stage B 固定接线、Stage C1–C2.4 AnimationConfig/Baker 作者工作流、Stage D1–D3 Pose/Motion 基础 Clip 已落地
 >
 > 日期：2026-08-10
 >
@@ -513,10 +513,22 @@ Session activation 与 Gameplay Frame Advance 是两个明确步骤：
 
 ### 6.5 其他 Motion Clip
 
-现有 Impulse、Gravity、VelocityOwner 和 MotionChannels 语义不在本轮重新设计。
+当前已落地 D3：`VelocityOverrideClip` 位于 MotionTrack，复用 Timeline 的 `VelocityConfig`，按区间对水平和/或垂直速度取得 owner。轴开关是唯一 authority 声明；开启后速度为 0 仍取得该轴控制权。两个轴都未开启是无效配置，Action 启动前阻断。
+
+VelocityOverrideClip 的水平方向支持：
+
+- `PresetLocal`：每个整数 Gameplay Frame 使用 Tick 起始 KCC 朝向把本地方向转换到世界方向；同 Tick SelfRotation 不会提前旋转本帧 Velocity；
+- `ContextDirection`：使用 Action 启动时冻结的世界方向，并声明 `ActionContextFieldMask.Direction`。
+
+速度曲线只在整数 Gameplay Frame 采样并更新缓存。第一帧采样 0，最后一帧采样 1，单帧 Clip 采样 0。未推进 Gameplay Frame、fractional PoseRefresh、Pause 和完整 HitStop 帧不更新曲线；Motor 继续使用该 owner 上一次缓存的速度。配置速度单位保持 m/s，Clip 不自行乘 Sequence speed，MovementTimeScale 仍由 Motor 在输出端统一应用。
+
+`MotionChannels` 的水平/垂直 VelocityOwner 已升级为两个独立覆盖栈：后进入者覆盖，退出后恢复下层 owner 的当前缓存值。隐藏 owner 的 `SetVelocity` 仍更新自己的缓存；旧 token 的提交和释放不能影响当前栈顶；`ClearVelocityOwners` 清空两个轴。Sequence 同帧多个同轴 VelocityOverride 按现有稳定排序执行，后 Track、后 Clip 最后取得 owner 并获胜。不同轴互不竞争。
+
+RootMotion 与水平 VelocityOverride 可以重叠，不报错；Velocity 覆盖期间当帧提取出的 RootMotion XZ delta 直接丢弃，退出后不补偿。HorizontalImpulse 在被遮住期间继续按现有规则衰减，覆盖结束后残余重新参与。VerticalVelocityOverride 活跃时 Gravity 暂停累计；VerticalImpulse 继续按现有阻力、落地和撞顶规则演化。
+
+现有 Impulse、Gravity 和 MotionChannels 的非 VelocityOwner 语义不在本轮重新设计。
 
 - Sequence ImpulseClip 在自己首个参与的已提交 Gameplay frame 的 PreWorld 中调用 `AddImpulse/ForceUnground` 一次；activation baseline 不调用它，因此不需要新增 Motor pending-impulse staging buffer。
-- Timeline VelocityClip 的 Sequence 版本留到真正迁移该功能时单独设计。
 - GravityScale 如果以后需要时间区间控制，应使用明确的 MotionTrack Clip，不再放回整招 ActionMotionConfig。
 - 第一版不为未来 Motion Clip 创建通用命令图、两套作者可见时钟或每 Clip HitStop 开关。
 
@@ -530,7 +542,7 @@ Session activation 与 Gameplay Frame Advance 是两个明确步骤：
 
 - `ActorMotor` 作为唯一 KCC `ICharacterController` 入口；
 - `ActorMotionRuntime` 作为纯 C# 状态根；
-- `MotionChannels` 的水平/垂直 VelocityOwner token；
+- `MotionChannels` 的水平/垂直 VelocityOwner token 与可恢复覆盖栈；
 - HorizontalImpulse、VerticalImpulse、Gravity、Drag 和 GroundingRuntime；
 - `RootMotionBuffer` 的 pending → tick snapshot 生命周期；
 - KCC 请求速度与最终实际速度分离。
@@ -792,7 +804,7 @@ Physics.SyncTransforms
 | `RootMotionTrajectory` 已保存累计 XYZ、完整 Quaternion 与基础 metadata，并提供 Sample/Extract/SE(3) 数学 | Stage D1 已实现 XZ displacement 消费；D2.1 已实现 RootRotation Yaw 消费；Root Y、Pitch/Roll gameplay 消费仍未实现 |
 | AnimationConfig 内置 Bake Context、唯一 AnimationClip resolver、Manual PlayableGraph Baker、独立 Oracle Validator、Entry 内嵌 trajectory、Inspector Bake/Rebake/Bake All 与 DependencyHash/stale 已实现 | 运行时对 missing/stale trajectory 的 Action 启动阻断要随消费 Clip 在 Stage D 接入 |
 | RootMotionBuffer 已分离 Legacy Animator delta 与 Sequence trajectory owner | Animator RootMotion 兼容路径仍保留；trajectory 当前只消费 XZ 位移，不消费 Y 或旋转 |
-| Sequence RootMotionClip 使用 trajectory `Extract(t0,t1)`，提交 local XZ 给 ActorMotor | SelfRotation 的 RootRotation/Target/Direction 已落地；Root Y、Motion Warp、RM+LocomotionInput 同时主导仍未实现 |
+| Sequence RootMotionClip 使用 trajectory `Extract(t0,t1)`，提交 local XZ 给 ActorMotor | SelfRotation 的 RootRotation/Target/Direction 已落地；VelocityOverrideClip 已落地；Root Y、Motion Warp、RM+LocomotionInput 同时主导仍未实现 |
 | ActorMotor 在普通 Update 计算 Locomotion/Facing | 权威计算尚未进入 PreWorldMotion |
 | HitBox Clip 已在 KCC、Resolver 与 SyncTransforms 后的 Sequence PostWorld 中 Query | 仍是 Query 后立即 TakeDamage；HitIntent 收集、稳定排序与两阶段 Resolve 尚未实现 |
 | ActionMotionConfig 仍由 ActionInstance OnEnter/Exit 整招应用 | 尚未迁移到域规则与具体 Clip |
@@ -800,7 +812,7 @@ Physics.SyncTransforms
 
 仓库目前已有 70 个 ActionAsset；其中仅 3 个显式选择 Sequence backend，67 个仍按 Legacy Timeline 路径运行。`Assets/Create/ActionAssets` 下 68 个 Action 都仍保存 Timeline 引用。因此不能先删除 Legacy 字段、PlayableDirector 或 Timeline Session。
 
-当前已有一组 ActionSequence/ActionPlayer Editor 测试，主要覆盖编辑器、固定帧 Runtime 和 ActionPlayer 生命周期；单帧 Runtime、固定 Session、Driver 屏障、AnimationConfig 歧义处理、Trajectory 刚体数学、Baker、独立 Oracle Validator 与内嵌写盘工作流均有聚焦测试。Bake 工作流测试覆盖 Config 内持久化、无 Generated 资产、Clip/Rig/设置依赖 stale、失败不覆盖、Clear Data 和 Bake All/Pose-only 跳过。Baker 与 Oracle 已在仓库 Kiana Humanoid Avatar 上验证同一份非零 Root Motion；synthetic fixture 覆盖 Translation+Rotation、in-place、Root Y 与快速转身。当前仓库 Generic FBX 的 `motionNodeName` 均为空，因此两条独立路径按 Unity Importer 语义都得到 Identity，不从名为 `root` 的骨骼猜运动。仓库仍缺少一份明确配置非零 Root Motion Node 的 Generic fixture；在不修改现有 FBX Import Settings 的约束下，本阶段如实记录该缺口，不伪造非零 Generic 结论。Stage D1 增加了 trajectory XZ 与 Motor 合成聚焦测试；完整场景 RootMotion/HitBox/HitStop 手动回归仍未完成。
+当前已有一组 ActionSequence/ActionPlayer Editor 测试，主要覆盖编辑器、固定帧 Runtime 和 ActionPlayer 生命周期；单帧 Runtime、固定 Session、Driver 屏障、AnimationConfig 歧义处理、Trajectory 刚体数学、Baker、独立 Oracle Validator 与内嵌写盘工作流均有聚焦测试。Bake 工作流测试覆盖 Config 内持久化、无 Generated 资产、Clip/Rig/设置依赖 stale、失败不覆盖、Clear Data 和 Bake All/Pose-only 跳过。Baker 与 Oracle 已在仓库 Kiana Humanoid Avatar 上验证同一份非零 Root Motion；synthetic fixture 覆盖 Translation+Rotation、in-place、Root Y 与快速转身。当前仓库 Generic FBX 的 `motionNodeName` 均为空，因此两条独立路径按 Unity Importer 语义都得到 Identity，不从名为 `root` 的骨骼猜运动。仓库仍缺少一份明确配置非零 Root Motion Node 的 Generic fixture；在不修改现有 FBX Import Settings 的约束下，本阶段如实记录该缺口，不伪造非零 Generic 结论。Stage D1 增加了 trajectory XZ 与 Motor 合成聚焦测试；Stage D3 增加了 VelocityOwner 栈恢复、VelocityOverrideClip 曲线采样、Context/Preset 方向和 RootMotion 覆盖语义的聚焦测试；完整场景 RootMotion/Velocity/HitBox/HitStop 手动回归仍未完成。
 
 关键证据入口：
 
@@ -827,7 +839,7 @@ Physics.SyncTransforms
 9. 逐资产验证 Pose、Tag、HitBox、运动、取消、HitStop、结束和中断清理后，再切换 backend。
 10. 所有引用完成迁移后，统一删除 backend enum、Timeline 字段、Timeline Session、PlayableDirector 强依赖、Timeline Playable tracks/clips、编辑器 helper 以及旧创建/打开入口。
 
-现有 Sequence 尚未覆盖 Timeline 的全部能力；Velocity、Magnetism、Effect、ContinuousAnimancer 和 Cleanup 等内容需要先有明确的 Sequence 对应物或人工迁移方案。
+现有 Sequence 尚未覆盖 Timeline 的全部能力；Velocity 已有 Sequence VelocityOverrideClip，对应迁移仍需逐资产验证。Magnetism、Effect、ContinuousAnimancer 和 Cleanup 等内容需要先有明确的 Sequence 对应物或人工迁移方案。
 
 Legacy Timeline 当前也没有保证“编辑器标记的第 N 帧 Pose → Animator Root Motion → KCC → Trigger HitBox”严格发生在同一个固定 Tick：Director/Animancer 多为自然时间推进，Animator delta 由下一次 Motor Tick 消费，HitBox 依赖独立 Update/Physics 生命周期。因此迁移目标是保持作者可观察的动作语义，不复刻旧后端偶然形成的延迟或顺序 bug。一帧 Clip、TimeScale 大于 1、掉帧、撞墙和中断必须逐项人工回归。
 
@@ -872,6 +884,7 @@ Legacy Timeline 当前也没有保证“编辑器标记的第 N 帧 Pose → Ani
 - 已完成 D1：局部升级 RootMotionBuffer、ActorMotionRuntime、ActorMotor，新增 trajectory owner/source gating；trajectory 位移不再乘 MovementTimeScale，并与水平 impulse/vertical channels 按 v1 合同合成。
 - 已完成 D2.1：实现 RootRotation SelfRotationClip，通过 AnimationConfig key 查询 trajectory，按整数 Gameplay Frame 提取 local Up Yaw；ActorMotor 新增独立 SelfRotation owner/channel，SelfRotation 活跃时以 `tickStartRotation * localYawDelta` 接管 KCC rotation，并在退出/取消时同步 Facing baseline。
 - 已完成 D2.2：SelfRotationClip 支持 `RootRotation / Target / Direction` 来源与 `Snap / RotateBySpeed` 旋转方式；Target/Direction 不依赖 AnimationConfig，Context 需求在 Action 启动前校验。
+- 已完成 D3：实现 Sequence VelocityOverrideClip，复用 VelocityConfig，支持水平/垂直轴覆盖、PresetLocal/ContextDirection、整数 Gameplay Frame 曲线采样，以及 MotionChannels 每轴可恢复覆盖栈；Velocity/Velocity 和 RootMotion/HorizontalVelocity 重叠合法。
 - 验证同帧 Pose、位移、旋转、KCC 和 HitBox。
 - 固化 `[startFrame,endFrame)`、Frame 0 activation/freeze、最后一帧 PostWorld 后清理的测试。
 

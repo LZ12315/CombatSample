@@ -324,6 +324,13 @@ internal sealed class ActionSequenceInspectorV2Builder : IDisposable
             return;
         }
 
+        if (clipProperty.managedReferenceValue is ActionSequenceVelocityOverrideClipDefinition)
+        {
+            DrawVelocityOverrideClipConfigFields(parent, clipProperty);
+            parent.RegisterCallback<SerializedPropertyChangeEvent>(_ => QueueContentChanged(trackId, clipId));
+            return;
+        }
+
         SerializedProperty iterator = clipProperty.Copy();
         SerializedProperty end = iterator.GetEndProperty();
         bool enterChildren = true;
@@ -394,6 +401,56 @@ internal sealed class ActionSequenceInspectorV2Builder : IDisposable
             parent.TrackPropertyValue(mode, _ => RefreshVisibility());
         if (directionSource != null)
             parent.TrackPropertyValue(directionSource, _ => RefreshVisibility());
+    }
+
+    private void DrawVelocityOverrideClipConfigFields(VisualElement parent, SerializedProperty clipProperty)
+    {
+        AddManagedReferenceProperty(parent, clipProperty, "displayName");
+
+        SerializedProperty config = clipProperty.FindPropertyRelative("config");
+        if (config == null)
+            return;
+
+        SerializedProperty useHorizontal = config.FindPropertyRelative("useHorizontalVelocity");
+        SerializedProperty directionMode = config.FindPropertyRelative("directionMode");
+        SerializedProperty useVertical = config.FindPropertyRelative("useVerticalVelocity");
+
+        VisualElement horizontalToggle = AddManagedReferenceProperty(parent, config, "useHorizontalVelocity", "Use Horizontal Velocity");
+        VisualElement directionModeField = AddManagedReferenceProperty(parent, config, "directionMode", "Direction Source");
+        VisualElement localDirection = AddManagedReferenceProperty(parent, config, "localHorizontalDirection", "Preset Local Direction");
+        VisualElement horizontalSpeed = AddManagedReferenceProperty(parent, config, "horizontalSpeed", "Horizontal Speed");
+        VisualElement horizontalCurve = AddManagedReferenceProperty(parent, config, "horizontalCurve", "Horizontal Curve");
+        VisualElement verticalToggle = AddManagedReferenceProperty(parent, config, "useVerticalVelocity", "Use Vertical Velocity");
+        VisualElement verticalSpeed = AddManagedReferenceProperty(parent, config, "verticalSpeed", "Vertical Speed");
+        VisualElement verticalCurve = AddManagedReferenceProperty(parent, config, "verticalCurve", "Vertical Curve");
+        VisualElement debugLog = AddManagedReferenceProperty(parent, config, "debugLog", "Debug Log");
+
+        void RefreshVisibility()
+        {
+            bool showHorizontal = useHorizontal != null && useHorizontal.boolValue;
+            bool showVertical = useVertical != null && useVertical.boolValue;
+            MotionDirectionMode directionValue = directionMode != null
+                ? (MotionDirectionMode)directionMode.intValue
+                : MotionDirectionMode.LocalHorizontal;
+
+            SetVisible(horizontalToggle, true);
+            SetVisible(directionModeField, showHorizontal);
+            SetVisible(localDirection, showHorizontal && directionValue == MotionDirectionMode.LocalHorizontal);
+            SetVisible(horizontalSpeed, showHorizontal);
+            SetVisible(horizontalCurve, showHorizontal);
+            SetVisible(verticalToggle, true);
+            SetVisible(verticalSpeed, showVertical);
+            SetVisible(verticalCurve, showVertical);
+            SetVisible(debugLog, true);
+        }
+
+        RefreshVisibility();
+        if (useHorizontal != null)
+            parent.TrackPropertyValue(useHorizontal, _ => RefreshVisibility());
+        if (directionMode != null)
+            parent.TrackPropertyValue(directionMode, _ => RefreshVisibility());
+        if (useVertical != null)
+            parent.TrackPropertyValue(useVertical, _ => RefreshVisibility());
     }
 
     private static VisualElement AddManagedReferenceProperty(

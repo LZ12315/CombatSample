@@ -1,5 +1,6 @@
 #if UNITY_EDITOR
 using System.Collections.Generic;
+using UnityEditor;
 
 public enum ActionSequenceEditorValidationSeverity
 {
@@ -25,6 +26,7 @@ public enum ActionSequenceEditorValidationCode
     InvalidFixedDuration,
     LegacyClip,
     TrackPhaseOrder,
+    InvalidVelocityConfig,
 }
 
 public sealed class ActionSequenceEditorValidationIssue
@@ -237,6 +239,40 @@ public static class ActionSequenceValidator
         if (sequence.DurationMode == ActionSequenceDurationMode.FixedFrames && clip.EndFrame > sequence.FixedDurationFrames)
         {
             result.Add(NewIssue(ActionSequenceEditorValidationSeverity.Error, ActionSequenceEditorValidationCode.ClipExceedsFixedDuration, "Clip exceeds fixed duration.", kind, clip.EditorId, clip.TrackIndex, clip.ClipIndex, clip.LegacyClipIndex, clip.ManagedReferenceId));
+        }
+
+        ValidateClipSpecificConfig(document, result, clip, kind);
+    }
+
+    private static void ValidateClipSpecificConfig(
+        ActionSequenceSerializedDocument document,
+        ActionSequenceEditorValidationResult result,
+        ActionSequenceClipSnapshot clip,
+        ActionSequenceEditorDocumentItemKind kind)
+    {
+        if (clip.Type != typeof(ActionSequenceVelocityOverrideClipDefinition))
+            return;
+
+        SerializedProperty property = clip.IsLegacy
+            ? document.GetLegacyClipProperty(clip.LegacyClipIndex)
+            : document.GetClipProperty(clip.TrackIndex, clip.ClipIndex);
+
+        if (property?.managedReferenceValue is not ActionSequenceVelocityOverrideClipDefinition velocityClip)
+            return;
+
+        if (!velocityClip.HasAnyAxis)
+        {
+            result.Add(NewIssue(ActionSequenceEditorValidationSeverity.Error, ActionSequenceEditorValidationCode.InvalidVelocityConfig, "VelocityOverrideClip must enable at least one axis.", kind, clip.EditorId, clip.TrackIndex, clip.ClipIndex, clip.LegacyClipIndex, clip.ManagedReferenceId));
+        }
+
+        if (!velocityClip.HasFiniteSpeeds())
+        {
+            result.Add(NewIssue(ActionSequenceEditorValidationSeverity.Error, ActionSequenceEditorValidationCode.InvalidVelocityConfig, "VelocityOverrideClip speeds must be finite.", kind, clip.EditorId, clip.TrackIndex, clip.ClipIndex, clip.LegacyClipIndex, clip.ManagedReferenceId));
+        }
+
+        if (!velocityClip.HasValidPresetLocalDirection())
+        {
+            result.Add(NewIssue(ActionSequenceEditorValidationSeverity.Error, ActionSequenceEditorValidationCode.InvalidVelocityConfig, "VelocityOverrideClip PresetLocal direction is invalid.", kind, clip.EditorId, clip.TrackIndex, clip.ClipIndex, clip.LegacyClipIndex, clip.ManagedReferenceId));
         }
     }
 

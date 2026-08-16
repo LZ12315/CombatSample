@@ -9,20 +9,20 @@ using UnityEngine.Serialization;
 [Serializable]
 public class VelocityConfig
 {
-    [Tooltip("Horizontal direction source for this velocity.")]
+    [Tooltip("Horizontal direction source. PresetLocal follows the actor heading when sampled; ContextDirection uses ActionContext.Direction.")]
     public MotionDirectionMode directionMode = MotionDirectionMode.LocalHorizontal;
 
     [FormerlySerializedAs("fixedLocalDirection")]
     [Tooltip("Actor-local horizontal direction. X = right, Z = forward. Y is ignored.")]
     public Vector3 localHorizontalDirection = Vector3.forward;
 
-    [Tooltip("Take ownership of horizontal velocity. When enabled, even zero speed overrides locomotion.")]
+    [Tooltip("Take ownership of horizontal velocity. When enabled, even zero speed overrides locomotion and Sequence RootMotion XZ; covered RootMotion delta is discarded.")]
     public bool useHorizontalVelocity = false;
 
     [Tooltip("Horizontal velocity (m/s) along the resolved direction.")]
     public float horizontalSpeed = 0f;
 
-    [Tooltip("Take ownership of vertical velocity. When enabled, even zero speed overrides gravity and vertical impulse.")]
+    [Tooltip("Take ownership of vertical velocity. When enabled, even zero speed overrides gravity and vertical impulse while this owner is on top.")]
     public bool useVerticalVelocity = false;
 
     [Tooltip("Vertical velocity (m/s), positive = up.")]

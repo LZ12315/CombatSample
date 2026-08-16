@@ -8,9 +8,11 @@ using UnityEngine;
 public enum MotionDirectionMode
 {
     /// <summary>Use ActionContext.Direction captured when the action starts.</summary>
+    [InspectorName("ContextDirection")]
     FromContext = 0,
 
     /// <summary>Use an actor-local horizontal vector. X = right, Z = forward.</summary>
+    [InspectorName("PresetLocal")]
     LocalHorizontal = 4,
 }
 

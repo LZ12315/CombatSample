@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 /// <summary>
 /// 轻量级运动控制所有权标识。
@@ -27,10 +28,8 @@ public readonly struct MotionOwner
 /// 通道分类：
 /// - Locomotion：调用方提供的基础水平速度。
 /// - Impulse：可叠加的水平动量，以及 launch/slam 语义的垂直意图。
-/// - Velocity owner：Action/Timeline 对单轴速度的单槽强覆盖。
+/// - Velocity owner：Action/Timeline 对单轴速度的可恢复覆盖栈。
 /// - Gravity accumulator：没有垂直 owner 时的内部垂直演化状态。
-///
-/// Velocity owner 每个轴只有一个槽位，没有栈，也不会恢复旧 owner。
 /// </summary>
 public sealed class MotionChannels
 {
@@ -45,20 +44,20 @@ public sealed class MotionChannels
     private float _gravityAccumulator;
     private float _verticalImpulseVelocity;
 
-    private MotionOwner _horizontalVelocityOwner;
-    private Vector3 _horizontalVelocity = Vector3.zero;
+    private readonly List<HorizontalVelocityOwnerState> _horizontalVelocityOwners = new();
 
-    private MotionOwner _verticalVelocityOwner;
-    private float _verticalVelocity;
+    private readonly List<VerticalVelocityOwnerState> _verticalVelocityOwners = new();
 
-    public bool HasHorizontalVelocityOwner => _horizontalVelocityOwner.IsValid;
-    public bool HasVerticalVelocityOwner => _verticalVelocityOwner.IsValid;
+    public bool HasHorizontalVelocityOwner => _horizontalVelocityOwners.Count > 0;
+    public bool HasVerticalVelocityOwner => _verticalVelocityOwners.Count > 0;
 
     public Vector3 DebugHorizontalImpulse => _horizontalImpulseVelocity;
     public float DebugVerticalImpulse => _verticalImpulseVelocity;
     public float DebugGravityAccumulator => _gravityAccumulator;
-    public Vector3 DebugOwnerHorizontalVelocity => _horizontalVelocity;
-    public float DebugOwnerVerticalVelocity => _verticalVelocity;
+    public Vector3 DebugOwnerHorizontalVelocity => TryGetTopHorizontal(out HorizontalVelocityOwnerState horizontal) ? horizontal.Velocity : Vector3.zero;
+    public float DebugOwnerVerticalVelocity => TryGetTopVertical(out VerticalVelocityOwnerState vertical) ? vertical.Velocity : 0f;
+    public int DebugHorizontalVelocityOwnerCount => _horizontalVelocityOwners.Count;
+    public int DebugVerticalVelocityOwnerCount => _verticalVelocityOwners.Count;
     public Vector3 HorizontalImpulseVelocity => _horizontalImpulseVelocity;
 
     #endregion
@@ -71,72 +70,63 @@ public sealed class MotionChannels
     /// </summary>
     public void ClearVelocityOwners()
     {
-        _horizontalVelocityOwner = default;
-        _horizontalVelocity = Vector3.zero;
-        _verticalVelocityOwner = default;
-        _verticalVelocity = 0f;
+        _horizontalVelocityOwners.Clear();
+        _verticalVelocityOwners.Clear();
     }
 
     public MotionOwner BeginHorizontalVelocity()
     {
-        if (_horizontalVelocityOwner.IsValid)
-        {
-            Debug.LogWarning($"[MotionChannels] Replacing active horizontal owner id={_horizontalVelocityOwner.Id}. " +
-                             "Velocity owner is single-slot; old owner will not regain control automatically.");
-        }
-
-        _horizontalVelocityOwner = NewOwner();
-        _horizontalVelocity = Vector3.zero;
-        return _horizontalVelocityOwner;
+        MotionOwner owner = NewOwner();
+        _horizontalVelocityOwners.Add(new HorizontalVelocityOwnerState(owner, Vector3.zero));
+        return owner;
     }
 
     public void SetHorizontalVelocity(MotionOwner owner, Vector3 velocity)
     {
-        if (!IsCurrent(owner, _horizontalVelocityOwner))
+        int index = FindHorizontalOwnerIndex(owner);
+        if (index < 0)
             return;
 
         velocity.y = 0f;
-        _horizontalVelocity = velocity;
+        _horizontalVelocityOwners[index] = new HorizontalVelocityOwnerState(owner, velocity);
     }
 
     public void EndHorizontalVelocity(MotionOwner owner)
     {
-        if (!IsCurrent(owner, _horizontalVelocityOwner))
-            return;
-
-        _horizontalVelocityOwner = default;
-        _horizontalVelocity = Vector3.zero;
+        int index = FindHorizontalOwnerIndex(owner);
+        if (index >= 0)
+            _horizontalVelocityOwners.RemoveAt(index);
     }
 
     public MotionOwner BeginVerticalVelocity()
     {
-        if (_verticalVelocityOwner.IsValid)
-        {
-            Debug.LogWarning($"[MotionChannels] Replacing active vertical owner id={_verticalVelocityOwner.Id}. " +
-                             "Velocity owner is single-slot; old owner will not regain control automatically.");
-        }
-
-        _verticalVelocityOwner = NewOwner();
-        _verticalVelocity = 0f;
-        return _verticalVelocityOwner;
+        MotionOwner owner = NewOwner();
+        _verticalVelocityOwners.Add(new VerticalVelocityOwnerState(owner, 0f));
+        return owner;
     }
 
     public bool SetVerticalVelocity(MotionOwner owner, float velocity)
     {
-        if (!IsCurrent(owner, _verticalVelocityOwner))
+        int index = FindVerticalOwnerIndex(owner);
+        if (index < 0)
             return false;
 
-        _verticalVelocity = velocity;
+        _verticalVelocityOwners[index] = new VerticalVelocityOwnerState(owner, velocity);
         return true;
+    }
+
+    public bool IsTopVerticalVelocityOwner(MotionOwner owner)
+    {
+        return owner.IsValid
+            && TryGetTopVertical(out VerticalVelocityOwnerState current)
+            && current.Owner.Id == owner.Id;
     }
 
     public void EndVerticalVelocity(MotionOwner owner)
     {
-        if (!IsCurrent(owner, _verticalVelocityOwner))
-            return;
-
-        _verticalVelocityOwner = default;
-        _verticalVelocity = 0f;
+        int index = FindVerticalOwnerIndex(owner);
+        if (index >= 0)
+            _verticalVelocityOwners.RemoveAt(index);
     }
 
     #endregion
@@ -208,7 +198,7 @@ public sealed class MotionChannels
     /// </summary>
     public void StepGravity(float dt, bool isGrounded, float gravityScale)
     {
-        if (_verticalVelocityOwner.IsValid)
+        if (HasVerticalVelocityOwner)
             return;
 
         if (isGrounded)
@@ -275,8 +265,8 @@ public sealed class MotionChannels
     /// </summary>
     public Vector3 ComposeHorizontal(Vector3 locomotionVelocity, float timeScale)
     {
-        if (_horizontalVelocityOwner.IsValid)
-            return _horizontalVelocity * timeScale;
+        if (TryGetTopHorizontal(out HorizontalVelocityOwnerState owner))
+            return owner.Velocity * timeScale;
 
         Vector3 horizontal = locomotionVelocity + _horizontalImpulseVelocity;
         horizontal.y = 0f;
@@ -285,13 +275,13 @@ public sealed class MotionChannels
 
     public bool TryComposeHorizontalVelocityOwner(float timeScale, out Vector3 velocity)
     {
-        if (!_horizontalVelocityOwner.IsValid)
+        if (!TryGetTopHorizontal(out HorizontalVelocityOwnerState owner))
         {
             velocity = Vector3.zero;
             return false;
         }
 
-        velocity = _horizontalVelocity * timeScale;
+        velocity = owner.Velocity * timeScale;
         return true;
     }
 
@@ -302,8 +292,8 @@ public sealed class MotionChannels
     /// </summary>
     public float ComposeVertical(float timeScale)
     {
-        if (_verticalVelocityOwner.IsValid)
-            return _verticalVelocity * timeScale;
+        if (TryGetTopVertical(out VerticalVelocityOwnerState owner))
+            return owner.Velocity * timeScale;
 
         return (_gravityAccumulator + _verticalImpulseVelocity) * timeScale;
     }
@@ -320,9 +310,80 @@ public sealed class MotionChannels
         return new MotionOwner(_nextOwnerId++);
     }
 
-    private static bool IsCurrent(MotionOwner owner, MotionOwner current)
+    private int FindHorizontalOwnerIndex(MotionOwner owner)
     {
-        return owner.IsValid && owner.Id == current.Id;
+        if (!owner.IsValid)
+            return -1;
+
+        for (int i = _horizontalVelocityOwners.Count - 1; i >= 0; i--)
+        {
+            if (_horizontalVelocityOwners[i].Owner.Id == owner.Id)
+                return i;
+        }
+
+        return -1;
+    }
+
+    private int FindVerticalOwnerIndex(MotionOwner owner)
+    {
+        if (!owner.IsValid)
+            return -1;
+
+        for (int i = _verticalVelocityOwners.Count - 1; i >= 0; i--)
+        {
+            if (_verticalVelocityOwners[i].Owner.Id == owner.Id)
+                return i;
+        }
+
+        return -1;
+    }
+
+    private bool TryGetTopHorizontal(out HorizontalVelocityOwnerState owner)
+    {
+        if (_horizontalVelocityOwners.Count == 0)
+        {
+            owner = default;
+            return false;
+        }
+
+        owner = _horizontalVelocityOwners[_horizontalVelocityOwners.Count - 1];
+        return true;
+    }
+
+    private bool TryGetTopVertical(out VerticalVelocityOwnerState owner)
+    {
+        if (_verticalVelocityOwners.Count == 0)
+        {
+            owner = default;
+            return false;
+        }
+
+        owner = _verticalVelocityOwners[_verticalVelocityOwners.Count - 1];
+        return true;
+    }
+
+    private readonly struct HorizontalVelocityOwnerState
+    {
+        public readonly MotionOwner Owner;
+        public readonly Vector3 Velocity;
+
+        public HorizontalVelocityOwnerState(MotionOwner owner, Vector3 velocity)
+        {
+            Owner = owner;
+            Velocity = velocity;
+        }
+    }
+
+    private readonly struct VerticalVelocityOwnerState
+    {
+        public readonly MotionOwner Owner;
+        public readonly float Velocity;
+
+        public VerticalVelocityOwnerState(MotionOwner owner, float velocity)
+        {
+            Owner = owner;
+            Velocity = velocity;
+        }
     }
 
     #endregion
