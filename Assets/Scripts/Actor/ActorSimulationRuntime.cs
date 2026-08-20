@@ -9,6 +9,8 @@ internal sealed class ActorSimulationRuntime
 {
     private readonly Actor _actor;
     private ActionPlayer _actionPlayer;
+    private ActionPlayer _tickActionPlayer;
+    private bool _tickClosed;
 
     public ActorSimulationRuntime(Actor actor)
     {
@@ -20,25 +22,39 @@ internal sealed class ActorSimulationRuntime
 
     public void ExecutePreWorld(float deltaSeconds)
     {
+        _tickActionPlayer = null;
+        _tickClosed = false;
+
         if (!IsActive)
             return;
 
-        ResolveActionPlayer()?.ExecuteSimulationPreWorld(deltaSeconds);
+        _tickActionPlayer = ResolveActionPlayer();
+        _tickActionPlayer?.ExecuteSimulationPreWorld(deltaSeconds);
     }
 
-    public void ExecutePostWorld()
+    public void ExecutePostWorld(ICombatHitIntentSink hitIntentSink)
     {
-        ResolveActionPlayer()?.ExecuteSimulationPostWorld();
+        _tickActionPlayer?.ExecuteSimulationPostWorldWithHitSink(hitIntentSink);
     }
 
     public void EndSimulationTick()
     {
-        ResolveActionPlayer()?.EndSimulationTick();
+        if (_tickClosed)
+            return;
+
+        _tickClosed = true;
+        _tickActionPlayer?.EndSimulationTick();
+        _tickActionPlayer = null;
     }
 
     public void AbortSimulationTick()
     {
-        ResolveActionPlayer()?.AbortSimulationTick();
+        if (_tickClosed)
+            return;
+
+        _tickClosed = true;
+        (_tickActionPlayer ?? ResolveActionPlayer())?.AbortSimulationTick();
+        _tickActionPlayer = null;
     }
 
     private ActionPlayer ResolveActionPlayer()

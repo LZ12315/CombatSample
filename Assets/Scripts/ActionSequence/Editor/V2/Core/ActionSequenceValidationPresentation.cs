@@ -188,30 +188,34 @@ public sealed class ActionSequenceValidationPresentation
 
     private static string GetTrackKey(ActionSequenceTrackSnapshot track)
     {
-        if (!string.IsNullOrEmpty(track.EditorId))
-            return "id:" + track.EditorId;
-        return "track:" + track.TrackIndex + ":" + track.ManagedReferenceId;
+        return GetTrackIndexKey(track.TrackIndex);
     }
 
     private static string GetClipKey(ActionSequenceClipSnapshot clip)
     {
-        if (!string.IsNullOrEmpty(clip.EditorId))
-            return "id:" + clip.EditorId;
-        return "clip:" + clip.TrackIndex + ":" + clip.ClipIndex + ":" + clip.LegacyClipIndex + ":" + clip.ManagedReferenceId;
+        return GetClipIndexKey(clip.TrackIndex, clip.ClipIndex, clip.LegacyClipIndex);
     }
 
     private static string GetIssueTrackKey(ActionSequenceEditorValidationIssue issue)
     {
-        if (!string.IsNullOrEmpty(issue.EditorId))
-            return "id:" + issue.EditorId;
-        return "track:" + issue.TrackIndex + ":" + issue.ManagedReferenceId;
+        return GetTrackIndexKey(issue.TrackIndex);
     }
 
     private static string GetIssueClipKey(ActionSequenceEditorValidationIssue issue)
     {
-        if (!string.IsNullOrEmpty(issue.EditorId))
-            return "id:" + issue.EditorId;
-        return "clip:" + issue.TrackIndex + ":" + issue.ClipIndex + ":" + issue.LegacyClipIndex + ":" + issue.ManagedReferenceId;
+        return GetClipIndexKey(issue.TrackIndex, issue.ClipIndex, issue.LegacyClipIndex);
+    }
+
+    private static string GetTrackIndexKey(int trackIndex)
+    {
+        return trackIndex >= 0 ? "track:" + trackIndex : null;
+    }
+
+    private static string GetClipIndexKey(int trackIndex, int clipIndex, int legacyClipIndex)
+    {
+        if (legacyClipIndex >= 0)
+            return "legacy:" + legacyClipIndex;
+        return trackIndex >= 0 && clipIndex >= 0 ? "clip:" + trackIndex + ":" + clipIndex : null;
     }
 }
 #endif

@@ -978,3 +978,15 @@ Legacy Timeline 当前也没有保证“编辑器标记的第 N 帧 Pose → Ani
 ## 16. 最终一句话
 
 > AnimationConfig 告诉角色有哪些 Pose 和烘焙运动；ActionSequence 决定当前 Gameplay Frame；Pose、位移和自身旋转由独立 Clip 明确提交；CombatSimulationDriver 先让 ActorMotor/KCC 得到最终世界状态，再用同一 Pose 做 HitBox；没有 Action 时，LocomotionController 独立接管角色。
+
+---
+
+## 17. Stage D4 落地记录：60 Hz 与 CombatHitIntent
+
+Stage D4 将 Gameplay ActionSequence 的时间基准固定为项目常量 `CombatSimulationTiming.FrameRate = 60`、`FixedDeltaTime = 1/60`。`ActionSequenceData.frameRate` 暂时继续保留为隐藏序列化字段，用于识别和修复旧资产或损坏数据；作者 UI 不再提供可编辑 FPS，Validator 对 `<= 0` 和正数非 60 分别报错，并统一修复为 60。
+
+HitBox 不再在 PostWorld 查询阶段直接调用 `TakeDamage`。生产 HitBox Clip 在 `CombatSimulationDriver` 提供的显式 `ICombatHitIntentSink` 中写入强类型 `CombatHitIntent`；Driver 在所有 PostWorld 查询完成、所有 EndFrame 之前统一 Resolve。独立 Runner 或无权威 sink 的预览路径不会回退成立即伤害，只输出诊断并跳过权威命中。
+
+第一版 Resolve 顺序固定为 `Tick -> AttackerStableId -> ClipStableId(StringComparer.Ordinal) -> TargetStableId`。已收集的 intent 不因攻击者在同 tick 后续死亡而失效，因此允许相杀；目标第一次死亡之后，后续指向该目标的 intent 跳过，不重复扣血、受击、Impact 或死亡。
+
+HitBox Runtime 现在区分 `_pendingTargets` 与 `_hitTargets`：同一 `IDamageable` 的多 collider 每帧只 enqueue 一次，代表 collider 选择离查询中心最近者，平局按 collider instance id。Resolver 回执 `ImpactAllowed` 时才提交到 `_hitTargets`；无敌、拒绝 impact、死亡跳过或 abort 只清 pending，允许后续 gameplay frame 重试。

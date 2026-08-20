@@ -262,13 +262,18 @@ public class ActionPlayer : MonoBehaviour
 
     internal void ExecuteSimulationPostWorld()
     {
+        ExecuteSimulationPostWorldWithHitSink(null);
+    }
+
+    internal void ExecuteSimulationPostWorldWithHitSink(ICombatHitIntentSink hitIntentSink)
+    {
         IFixedActionPlaybackSession fixedSession = _fixedTickSession;
         if (fixedSession == null || !fixedSession.HasOpenFrame)
             return;
 
         try
         {
-            fixedSession.ExecutePostWorld();
+            fixedSession.ExecutePostWorld(hitIntentSink);
         }
         catch (Exception exception)
         {
@@ -345,10 +350,10 @@ public class ActionPlayer : MonoBehaviour
                 return false;
             }
 
-            if (actionAsset.SequenceData.FrameRate != 60)
+            if (!CombatSimulationTiming.IsGameplayFrameRate(actionAsset.SequenceData.FrameRate))
             {
                 warning =
-                    $"Action 播放失败：Gameplay Sequence 必须使用 60 Hz，当前为 {actionAsset.SequenceData.FrameRate} Hz。";
+                    $"Action 播放失败：Gameplay Sequence 必须使用 {CombatSimulationTiming.FrameRate} Hz，当前为 {actionAsset.SequenceData.FrameRate} Hz。";
                 return false;
             }
 
@@ -553,7 +558,7 @@ public class ActionPlayer : MonoBehaviour
         if (clip == null || trajectory == null)
             return false;
 
-        int frameRate = 60;
+        int frameRate = CombatSimulationTiming.FrameRate;
         for (int frame = clip.StartFrame; frame < clip.EndFrame; frame++)
         {
             float localFrame = frame - clip.StartFrame;

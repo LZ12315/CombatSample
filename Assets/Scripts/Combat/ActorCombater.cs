@@ -5,6 +5,7 @@ using UnityEngine;
 
 public interface IDamageable
 {
+    bool IsDead { get; }
     HitResolveResult TakeDamage(AttackHitData attackData);
 }
 
@@ -284,6 +285,9 @@ public class ActorCombater : MonoBehaviour, IDamageable
 
     public HitResolveResult TakeDamage(AttackHitData attackData)
     {
+        if (IsDead)
+            return HitResolveResult.AlreadyDead();
+
         if (HasInvincibility())
         {
             if (_debugLog)
@@ -306,14 +310,15 @@ public class ActorCombater : MonoBehaviour, IDamageable
                      $"剩余生命: {_currentHealth}/{_maxHealth}");
         }
 
-        if (_currentHealth <= 0)
+        bool targetKilled = previousHealth > 0f && _currentHealth <= 0f;
+        if (targetKilled)
         {
             Die(attackData);
         }
 
         return HasSuperArmor()
-            ? HitResolveResult.SuperArmor()
-            : HitResolveResult.Normal(hitReactionApplied);
+            ? HitResolveResult.SuperArmor(targetKilled)
+            : HitResolveResult.Normal(hitReactionApplied, targetKilled);
     }
 
     private void Die(AttackHitData attackData)

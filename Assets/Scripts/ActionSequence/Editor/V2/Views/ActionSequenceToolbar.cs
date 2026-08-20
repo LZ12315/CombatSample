@@ -52,7 +52,7 @@ internal sealed class ActionSequenceToolbar
         currentFrameField.tooltip = "Current Frame";
         currentFrameField.isDelayed = false;
         fitButton.text = "Fit";
-        fpsLabel.tooltip = "Frame Rate";
+        fpsLabel.tooltip = "Project Fixed Gameplay Frame Rate";
         durationLabel.tooltip = "Sequence Duration";
 
         targetField.RegisterValueChangedCallback(evt =>
@@ -115,8 +115,8 @@ internal sealed class ActionSequenceToolbar
         }
 
         ActionSequenceSnapshot sequence = state.Document.Sequence;
-        fpsLabel.text = $"{sequence.FrameRate} FPS";
-        fpsLabel.tooltip = $"Frame Rate: {sequence.FrameRate}";
+        fpsLabel.text = $"{CombatSimulationTiming.FrameRate} FPS (Project Fixed)";
+        fpsLabel.tooltip = $"{CombatSimulationTiming.FrameRate} FPS (Project Fixed)";
         if (sequence.DurationMode == ActionSequenceDurationMode.FixedFrames)
         {
             durationLabel.text = $"Fixed {sequence.FixedDurationFrames}";

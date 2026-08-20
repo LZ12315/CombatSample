@@ -76,16 +76,16 @@ public static class ActionSequenceEditorCommands
 
     public static ActionSequenceEditorCommandResult SetFrameRate(Object target, int frameRate)
     {
-        if (frameRate <= 0)
-            return Fail(ActionSequenceEditorCommandStatus.InvalidArgument, "Frame rate must be greater than zero.");
+        if (!CombatSimulationTiming.IsGameplayFrameRate(frameRate))
+            return Fail(ActionSequenceEditorCommandStatus.InvalidArgument, $"Gameplay ActionSequence frame rate is fixed at {CombatSimulationTiming.FrameRate} Hz.");
 
-        return RunSequenceCommand(target, "Set Action Sequence Frame Rate", ActionSequenceEditorChangeFlags.Timing | ActionSequenceEditorChangeFlags.Validation, root =>
+        return RunSequenceCommand(target, "Set Gameplay Action Sequence Frame Rate", ActionSequenceEditorChangeFlags.Timing | ActionSequenceEditorChangeFlags.Validation, root =>
         {
             SerializedProperty property = root.FindPropertyRelative("frameRate");
-            if (property.intValue == frameRate)
+            if (property.intValue == CombatSimulationTiming.FrameRate)
                 return false;
 
-            property.intValue = frameRate;
+            property.intValue = CombatSimulationTiming.FrameRate;
             return true;
         });
     }

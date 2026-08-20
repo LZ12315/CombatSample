@@ -43,6 +43,15 @@ public sealed class ActionSequenceRunner : MonoBehaviour
         if (_runtime == null || !_runtime.IsPlaying)
             return;
 
+        if (!CombatSimulationTiming.IsGameplayFixedDeltaTime(Time.fixedDeltaTime))
+        {
+            Debug.LogError(
+                $"ActionSequenceRunner requires Time.fixedDeltaTime to be {CombatSimulationTiming.FixedDeltaTime:R} ({CombatSimulationTiming.FrameRate} Hz), but it was {Time.fixedDeltaTime:R}.",
+                this);
+            Cancel();
+            return;
+        }
+
         _context.Actor = ResolveActor();
         _runtime.Tick(_context, Time.fixedDeltaTime, speedScale);
     }
@@ -56,6 +65,15 @@ public sealed class ActionSequenceRunner : MonoBehaviour
     public void Play(ActionSequenceAsset asset, ActionContext context)
     {
         sequence = asset;
+        if (sequence != null && !CombatSimulationTiming.IsGameplayFrameRate(sequence.FrameRate))
+        {
+            Debug.LogError(
+                $"ActionSequenceRunner rejected '{sequence.name}' because Gameplay ActionSequence frame rate must be {CombatSimulationTiming.FrameRate} Hz, but data uses {sequence.FrameRate} Hz.",
+                this);
+            _runtime = null;
+            return;
+        }
+
         _runtime = sequence != null ? new ActionSequenceRuntime(sequence) : null;
 
         _context.Actor = ResolveActor();

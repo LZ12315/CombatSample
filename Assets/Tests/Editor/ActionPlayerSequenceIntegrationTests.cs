@@ -459,14 +459,14 @@ public sealed class ActionPlayerSequenceIntegrationTests
     public void SequenceFrameRateOtherThanSixty_IsRejectedBeforeActionEnter()
     {
         ActionAsset action = CreateSequenceAction(2);
-        action.SequenceData.EditorSetTiming(30, 2);
+        SetPrivateField(action.SequenceData, "frameRate", 30);
         ActionPlayer player = CreatePlayer(out GameObject owner);
 
         try
         {
             LogAssert.Expect(
                 LogType.Warning,
-                "Action 播放失败：Gameplay Sequence 必须使用 60 Hz，当前为 30 Hz。");
+                new Regex("Gameplay Sequence .*60 Hz.*30 Hz"));
 
             player.BeginAction(action, ActionContext.None);
 

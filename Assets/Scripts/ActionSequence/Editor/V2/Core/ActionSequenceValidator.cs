@@ -23,6 +23,7 @@ public enum ActionSequenceEditorValidationCode
     InvalidEndFrame,
     ClipExceedsFixedDuration,
     InvalidFrameRate,
+    UnsupportedGameplayFrameRate,
     InvalidFixedDuration,
     LegacyClip,
     TrackPhaseOrder,
@@ -91,6 +92,7 @@ public static class ActionSequenceValidator
     public const string RepairInvalidIdsCommandId = "RepairInvalidIds";
     public const string MigrateLegacyClipsCommandId = "MigrateLegacyClips";
     public const string RepairTrackPhaseOrderCommandId = "RepairTrackPhaseOrder";
+    public const string SetGameplayRateCommandId = "SetGameplayRateTo60";
 
     public static ActionSequenceEditorValidationResult Validate(UnityEngine.Object target)
     {
@@ -125,7 +127,22 @@ public static class ActionSequenceValidator
                 -1,
                 -1,
                 -1,
-                0));
+                0,
+                SetGameplayRateCommandId));
+        }
+        else if (!CombatSimulationTiming.IsGameplayFrameRate(sequence.FrameRate))
+        {
+            result.Add(new ActionSequenceEditorValidationIssue(
+                ActionSequenceEditorValidationSeverity.Error,
+                ActionSequenceEditorValidationCode.UnsupportedGameplayFrameRate,
+                $"Gameplay ActionSequence frame rate must be {CombatSimulationTiming.FrameRate} Hz.",
+                ActionSequenceEditorDocumentItemKind.Sequence,
+                null,
+                -1,
+                -1,
+                -1,
+                0,
+                SetGameplayRateCommandId));
         }
 
         if (sequence.DurationMode == ActionSequenceDurationMode.FixedFrames && sequence.FixedDurationFrames <= 0)

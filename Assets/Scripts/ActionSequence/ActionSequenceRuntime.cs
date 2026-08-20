@@ -40,7 +40,7 @@ public sealed class ActionSequenceRuntime
     public ActionSequenceRuntimeDiagnostics Diagnostics { get; } = new ActionSequenceRuntimeDiagnostics();
 
     public int DurationFrames => Data != null ? Data.DurationFrames : 0;
-    public int FrameRate => Data != null ? Data.FrameRate : 60;
+    public int FrameRate => Data != null ? Data.FrameRate : CombatSimulationTiming.FrameRate;
     public float NormalizedTime => DurationFrames > 0 ? Mathf.Clamp01((CurrentFrame + 1f) / DurationFrames) : 0f;
     public bool HasOpenFrame => FrameTransactionState != ActionSequenceFrameTransactionState.Idle;
     public int PendingFrame => HasOpenFrame ? _pendingFrame : -1;
@@ -77,6 +77,16 @@ public sealed class ActionSequenceRuntime
 
         if (data == null)
             return;
+
+        if (!CombatSimulationTiming.IsGameplayFrameRate(data.FrameRate))
+        {
+            Diagnostics.Add(new ActionSequenceRuntimeDiagnostic(
+                ActionSequenceRuntimeDiagnosticCode.UnsupportedGameplayFrameRate,
+                $"Gameplay ActionSequence frame rate must be {CombatSimulationTiming.FrameRate} Hz, but data uses {data.FrameRate} Hz."));
+            IsPlaying = false;
+            IsComplete = true;
+            return;
+        }
 
         IReadOnlyList<ActionSequenceTrackDefinition> tracks = data.Tracks;
         if (tracks != null)
@@ -128,7 +138,7 @@ public sealed class ActionSequenceRuntime
         while (_frameAccumulator >= 1f && !IsComplete)
         {
             _frameAccumulator -= 1f;
-            StepFrame(context, 1f / FrameRate, speedScale);
+            StepFrame(context, CombatSimulationTiming.FixedDeltaTime, speedScale);
             processedFrames++;
         }
 
@@ -137,7 +147,7 @@ public sealed class ActionSequenceRuntime
 
     public bool StepFrame(ActionSequenceContext context)
     {
-        return StepFrame(context, 1f / FrameRate, 1f);
+        return StepFrame(context, CombatSimulationTiming.FixedDeltaTime, 1f);
     }
 
     public bool ApplyPoseBaseline(ActionSequenceContext context)
@@ -218,7 +228,7 @@ public sealed class ActionSequenceRuntime
 
     public bool BeginFrame(ActionSequenceContext context)
     {
-        return BeginFrame(context, 1f / FrameRate, 1f);
+        return BeginFrame(context, CombatSimulationTiming.FixedDeltaTime, 1f);
     }
 
     public bool BeginFrame(ActionSequenceContext context, float deltaTime, float speedScale)
@@ -266,12 +276,25 @@ public sealed class ActionSequenceRuntime
 
     public void ExecutePostWorld()
     {
+        ExecutePostWorld(null);
+    }
+
+    internal void ExecutePostWorld(ICombatHitIntentSink hitIntentSink)
+    {
         RequireFrameState(ActionSequenceFrameTransactionState.PreWorldComplete, nameof(ExecutePostWorld));
-        TickActiveClips(
-            _frameContext,
-            ActionSequenceClipPhase.HitBox,
-            ActionSequenceClipPhase.Cleanup);
-        FrameTransactionState = ActionSequenceFrameTransactionState.PostWorldComplete;
+        _frameContext.HitIntentSink = hitIntentSink;
+        try
+        {
+            TickActiveClips(
+                _frameContext,
+                ActionSequenceClipPhase.HitBox,
+                ActionSequenceClipPhase.Cleanup);
+            FrameTransactionState = ActionSequenceFrameTransactionState.PostWorldComplete;
+        }
+        finally
+        {
+            _frameContext.HitIntentSink = null;
+        }
     }
 
     public void EndFrame()

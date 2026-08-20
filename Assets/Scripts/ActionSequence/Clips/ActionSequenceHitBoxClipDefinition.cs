@@ -25,7 +25,11 @@ public sealed class ActionSequenceHitBoxClipDefinition : ActionSequenceClipDefin
 
         private readonly ActionSequenceHitBoxClipDefinition _definition;
         private readonly HashSet<IDamageable> _hitTargets = new HashSet<IDamageable>();
+        private readonly HashSet<IDamageable> _pendingTargets = new HashSet<IDamageable>();
+        private readonly Dictionary<IDamageable, HitCandidate> _candidates =
+            new Dictionary<IDamageable, HitCandidate>(16);
         private Transform _resolvedBone;
+        private bool _reportedMissingSink;
 
         public Runtime(ActionSequenceHitBoxClipDefinition definition)
         {
@@ -35,6 +39,8 @@ public sealed class ActionSequenceHitBoxClipDefinition : ActionSequenceClipDefin
         public override void OnEnter(ActionSequenceContext context)
         {
             _hitTargets.Clear();
+            _pendingTargets.Clear();
+            _candidates.Clear();
             _resolvedBone = context.Actor != null ? _definition.boneReference.Resolve(context.Actor) : null;
         }
 
@@ -45,7 +51,22 @@ public sealed class ActionSequenceHitBoxClipDefinition : ActionSequenceClipDefin
             if (actor == null || actor.combater == null || _resolvedBone == null || dataConfig == null)
                 return;
 
+            ICombatHitIntentSink sink = context.HitIntentSink;
+            if (sink == null)
+            {
+                if (!_reportedMissingSink)
+                {
+                    Debug.LogWarning(
+                        "[ActionSequenceHitBox] No CombatHitIntent sink is available. Authoritative hit query and damage are skipped.",
+                        actor);
+                    _reportedMissingSink = true;
+                }
+
+                return;
+            }
+
             BuildCapsule(out Vector3 pointA, out Vector3 pointB, out float radius);
+            Vector3 queryCenter = (pointA + pointB) * 0.5f;
 
             int hitCount = Physics.OverlapCapsuleNonAlloc(
                 pointA,
@@ -55,6 +76,7 @@ public sealed class ActionSequenceHitBoxClipDefinition : ActionSequenceClipDefin
                 dataConfig.targetLayers,
                 QueryTriggerInteraction.Collide);
 
+            _candidates.Clear();
             for (int i = 0; i < hitCount; i++)
             {
                 Collider targetCollider = OverlapResults[i];
@@ -62,33 +84,56 @@ public sealed class ActionSequenceHitBoxClipDefinition : ActionSequenceClipDefin
                     continue;
 
                 IDamageable damageable = ResolveDamageable(targetCollider);
-                if (damageable == null || _hitTargets.Contains(damageable))
+                if (damageable == null || _hitTargets.Contains(damageable) || _pendingTargets.Contains(damageable))
                     continue;
 
-                Vector3 hitPoint = targetCollider.ClosestPoint((pointA + pointB) * 0.5f);
+                Vector3 hitPoint = targetCollider.ClosestPoint(queryCenter);
+                float distanceSq = (hitPoint - queryCenter).sqrMagnitude;
+                int colliderId = targetCollider.GetInstanceID();
+                if (_candidates.TryGetValue(damageable, out HitCandidate existing)
+                    && !IsBetterRepresentative(distanceSq, colliderId, existing.DistanceSq, existing.ColliderId))
+                {
+                    continue;
+                }
+
                 Component damageableComponent = damageable as Component;
                 GameObject target = damageableComponent != null ? damageableComponent.gameObject : targetCollider.gameObject;
+                _candidates[damageable] = new HitCandidate(targetCollider, target, hitPoint, distanceSq, colliderId);
+            }
 
+            foreach (KeyValuePair<IDamageable, HitCandidate> pair in _candidates)
+            {
+                IDamageable damageable = pair.Key;
+                HitCandidate candidate = pair.Value;
                 AttackHitData hitData = new AttackHitData(
                     dataConfig._baseDamage,
                     actor.combater,
-                    target,
-                    targetCollider,
-                    hitPoint,
+                    candidate.Target,
+                    candidate.Collider,
+                    candidate.HitPoint,
                     ResolveHitEventTag(dataConfig));
 
-                HitResolveResult hitResult = damageable.TakeDamage(hitData);
-                if (!hitResult.ImpactAllowed)
-                    continue;
+                var intent = new CombatHitIntent(
+                    sink.TickId,
+                    actor.GetInstanceID(),
+                    _definition.Guid,
+                    GetStableTargetId(damageable, candidate.Collider),
+                    hitData,
+                    damageable,
+                    candidate.Collider,
+                    _definition.effects,
+                    new Receipt(this, damageable));
 
-                _hitTargets.Add(damageable);
-                TriggerImpactEffect(hitData);
+                if (sink.TryEnqueue(intent))
+                    _pendingTargets.Add(damageable);
             }
         }
 
         public override void OnExit(ActionSequenceContext context, bool completed)
         {
+            _pendingTargets.Clear();
             _hitTargets.Clear();
+            _candidates.Clear();
             _resolvedBone = null;
         }
 
@@ -106,25 +151,14 @@ public sealed class ActionSequenceHitBoxClipDefinition : ActionSequenceClipDefin
             pointB = center - axis;
         }
 
-        private void TriggerImpactEffect(AttackHitData hitData)
+        private void ResolvePending(IDamageable damageable, in HitResolveResult result)
         {
-            if (_definition.effects == null || _definition.effects.Count == 0)
+            if (damageable == null)
                 return;
 
-            ImpactSystem.EnsureExists();
-            if (ImpactSystem.Instance == null)
-                return;
-
-            ImpactData impactData = ImpactData.FromAttackHit(hitData);
-            impactData.VfxSpawnPoint = hitData.HitPoint;
-            impactData.FacingReferenceWorldPosition = HitVfxFacingUtility.ResolveFacingWorldPosition(
-                impactData.TargetReceiver != null ? impactData.TargetReceiver.HitFacingTargetOverride : null,
-                hitData.Attacker);
-
-            Vector3 attackerReference = HitVfxAnchorUtility.GetDefaultAttackerRayOrigin(hitData.Attacker);
-            impactData.PopulateDirectionalReferences(attackerReference);
-
-            ImpactSystem.Instance.ApplyImpact(impactData, _definition.effects);
+            _pendingTargets.Remove(damageable);
+            if (result.ImpactAllowed)
+                _hitTargets.Add(damageable);
         }
 
         private static bool IsOwnCollider(Actor actor, Collider collider)
@@ -150,6 +184,66 @@ public sealed class ActionSequenceHitBoxClipDefinition : ActionSequenceClipDefin
         private static Tag ResolveHitEventTag(AttackDataConfig dataConfig)
         {
             return dataConfig != null && dataConfig.hitEventTag != null ? dataConfig.hitEventTag.GetTag() : null;
+        }
+
+        private static bool IsBetterRepresentative(float distanceSq, int colliderId, float existingDistanceSq, int existingColliderId)
+        {
+            if (!Mathf.Approximately(distanceSq, existingDistanceSq))
+                return distanceSq < existingDistanceSq;
+
+            return colliderId < existingColliderId;
+        }
+
+        private static int GetStableTargetId(IDamageable damageable, Collider collider)
+        {
+            if (damageable is Component component)
+                return component.GetInstanceID();
+
+            return collider != null ? collider.GetInstanceID() : 0;
+        }
+
+        private readonly struct HitCandidate
+        {
+            public HitCandidate(Collider collider, GameObject target, Vector3 hitPoint, float distanceSq, int colliderId)
+            {
+                Collider = collider;
+                Target = target;
+                HitPoint = hitPoint;
+                DistanceSq = distanceSq;
+                ColliderId = colliderId;
+            }
+
+            public Collider Collider { get; }
+            public GameObject Target { get; }
+            public Vector3 HitPoint { get; }
+            public float DistanceSq { get; }
+            public int ColliderId { get; }
+        }
+
+        private sealed class Receipt : ICombatHitIntentReceipt
+        {
+            private Runtime _runtime;
+            private readonly IDamageable _damageable;
+
+            public Receipt(Runtime runtime, IDamageable damageable)
+            {
+                _runtime = runtime;
+                _damageable = damageable;
+            }
+
+            public void OnResolved(in HitResolveResult result)
+            {
+                Runtime runtime = _runtime;
+                _runtime = null;
+                runtime?.ResolvePending(_damageable, result);
+            }
+
+            public void OnAborted()
+            {
+                Runtime runtime = _runtime;
+                _runtime = null;
+                runtime?._pendingTargets.Remove(_damageable);
+            }
         }
     }
 }

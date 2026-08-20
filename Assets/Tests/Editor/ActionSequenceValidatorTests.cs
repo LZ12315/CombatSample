@@ -1,5 +1,7 @@
 #if UNITY_EDITOR
+using System;
 using System.Linq;
+using System.Reflection;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
@@ -93,9 +95,45 @@ public sealed class ActionSequenceValidatorTests
         Assert.AreEqual(ActionSequenceValidator.RepairTrackPhaseOrderCommandId, result.Issues.First(i => i.Code == ActionSequenceEditorValidationCode.TrackPhaseOrder).RepairCommandId);
     }
 
+    [Test]
+    public void EditorSetTiming_RejectsNonGameplayFrameRate()
+    {
+        ActionSequenceAsset asset = ScriptableObject.CreateInstance<ActionSequenceAsset>();
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => asset.EditorSetTiming(30, 3));
+        asset.EditorSetTiming(CombatSimulationTiming.FrameRate, 3);
+
+        Assert.AreEqual(CombatSimulationTiming.FrameRate, asset.FrameRate);
+    }
+
+    [Test]
+    public void Validate_ReportsUnsupportedGameplayFrameRateAndRepairCommand()
+    {
+        ActionSequenceAsset asset = ScriptableObject.CreateInstance<ActionSequenceAsset>();
+        SetPrivateField(asset.Data, "frameRate", 30);
+
+        ActionSequenceEditorValidationResult result = ActionSequenceValidator.Validate(asset);
+        ActionSequenceEditorValidationIssue issue = result.Issues.First(i => i.Code == ActionSequenceEditorValidationCode.UnsupportedGameplayFrameRate);
+
+        Assert.AreEqual(ActionSequenceEditorValidationSeverity.Error, issue.Severity);
+        Assert.AreEqual(ActionSequenceValidator.SetGameplayRateCommandId, issue.RepairCommandId);
+
+        ActionSequenceEditorCommandResult repair = ActionSequenceEditorCommands.SetFrameRate(asset, CombatSimulationTiming.FrameRate);
+
+        Assert.AreEqual(ActionSequenceEditorCommandStatus.Success, repair.Status);
+        Assert.AreEqual(CombatSimulationTiming.FrameRate, asset.FrameRate);
+    }
+
     private static void AssertIssue(ActionSequenceEditorValidationResult result, ActionSequenceEditorValidationCode code)
     {
         Assert.IsTrue(result.Issues.Any(issue => issue.Code == code), code.ToString());
+    }
+
+    private static void SetPrivateField(object target, string fieldName, object value)
+    {
+        FieldInfo field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(field, fieldName);
+        field.SetValue(target, value);
     }
 }
 #endif

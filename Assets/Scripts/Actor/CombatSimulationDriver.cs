@@ -30,6 +30,8 @@ public sealed class CombatSimulationDriver : MonoBehaviour
     private bool _hasPreviousAutoSimulation;
     private bool _previousAutoSimulation;
     private bool _reportedAutoSimulationOverride;
+    private readonly CombatTickTransaction _tickTransaction = new CombatTickTransaction();
+    private int _nextTickId;
 
     public bool IsSimulationOwner => _ownsSimulation;
     public bool IsSimulationFaulted => _simulationFaulted;
@@ -103,6 +105,8 @@ public sealed class CombatSimulationDriver : MonoBehaviour
 
         if (deltaTime <= 0f || float.IsNaN(deltaTime) || float.IsInfinity(deltaTime))
             throw new ArgumentOutOfRangeException(nameof(deltaTime), deltaTime, "Simulation delta time must be finite and positive.");
+        if (!CombatSimulationTiming.IsGameplayFixedDeltaTime(deltaTime))
+            throw new InvalidOperationException($"CombatSimulationDriver requires Time.fixedDeltaTime to be {CombatSimulationTiming.FixedDeltaTime:R} ({CombatSimulationTiming.FrameRate} Hz), but it was {deltaTime:R}.");
 
         KCCSettings settings = KinematicCharacterSystem.Settings;
         if (settings == null)
@@ -117,6 +121,8 @@ public sealed class CombatSimulationDriver : MonoBehaviour
 
         try
         {
+            _tickTransaction.Begin(++_nextTickId);
+
             if (interpolateThisStep)
             {
                 KinematicCharacterSystem.PreSimulationInterpolationUpdate(deltaTime);
@@ -135,7 +141,9 @@ public sealed class CombatSimulationDriver : MonoBehaviour
             Physics.SyncTransforms();
 
             for (int i = 0; i < _tickActors.Count; i++)
-                _tickActors[i].ExecutePostWorld();
+                _tickActors[i].ExecutePostWorld(_tickTransaction.HitIntentSink);
+
+            _tickTransaction.ResolveHits();
 
             for (int i = 0; i < _tickActors.Count; i++)
                 _tickActors[i].EndSimulationTick();
@@ -168,6 +176,7 @@ public sealed class CombatSimulationDriver : MonoBehaviour
             }
 
             _tickActors.Clear();
+            _tickTransaction.Close();
         }
 
         if (simulationException != null)

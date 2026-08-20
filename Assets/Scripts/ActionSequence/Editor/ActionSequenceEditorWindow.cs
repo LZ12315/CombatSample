@@ -30,7 +30,7 @@ public sealed class ActionSequenceEditorWindow : EditorWindow
     private ObjectField _targetField;
     private ToolbarMenu _addTrackMenu;
     private ToolbarButton _playPauseButton;
-    private IntegerField _frameRateField;
+    private Label _frameRateField;
     private EnumField _durationModeField;
     private IntegerField _durationFramesField;
     private IntegerField _currentFrameField;
@@ -140,12 +140,10 @@ public sealed class ActionSequenceEditorWindow : EditorWindow
             RefreshTimelineOnly();
         }) { text = "Stop" });
 
-        _frameRateField = new IntegerField("FPS");
-        _frameRateField.style.width = 78f;
-        _frameRateField.RegisterValueChangedCallback(evt =>
-        {
-            SetIntProperty("frameRate", Mathf.Max(1, evt.newValue), "Edit Action Sequence Frame Rate");
-        });
+        _frameRateField = new Label($"{CombatSimulationTiming.FrameRate} FPS (Project Fixed)");
+        _frameRateField.tooltip = "Gameplay ActionSequence frame rate is fixed by project timing.";
+        _frameRateField.style.width = 150f;
+        _frameRateField.style.unityTextAlign = TextAnchor.MiddleLeft;
         toolbar.Add(_frameRateField);
 
         _durationModeField = new EnumField("Mode", ActionSequenceDurationMode.FixedFrames);
@@ -250,7 +248,7 @@ public sealed class ActionSequenceEditorWindow : EditorWindow
         if (!hasSequence)
             return;
 
-        _frameRateField.SetValueWithoutNotify(_sequenceData.FrameRate);
+        _frameRateField.text = $"{CombatSimulationTiming.FrameRate} FPS (Project Fixed)";
         _durationModeField.SetValueWithoutNotify(_sequenceData.DurationMode);
         _durationFramesField.SetValueWithoutNotify(_sequenceData.FixedDurationFrames);
         _durationFramesField.SetEnabled(_sequenceData.DurationMode == ActionSequenceDurationMode.FixedFrames);
@@ -759,7 +757,7 @@ public sealed class ActionSequenceEditorWindow : EditorWindow
 
         double now = EditorApplication.timeSinceStartup;
         double elapsed = now - _lastPlaybackEditorTime;
-        int frameRate = Mathf.Max(1, _sequenceData.FrameRate);
+        int frameRate = CombatSimulationTiming.FrameRate;
         int frameDelta = Mathf.FloorToInt((float)(elapsed * frameRate));
         if (frameDelta <= 0)
             return;

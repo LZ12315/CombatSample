@@ -7,7 +7,7 @@ public sealed class ActionSequenceData
 {
     private const int MinimumAutoDurationFrames = 1;
 
-    [SerializeField, Min(1)]
+    [SerializeField, HideInInspector]
     private int frameRate = 60;
 
     [SerializeField]
@@ -25,7 +25,7 @@ public sealed class ActionSequenceData
     [SerializeField, HideInInspector]
     private bool defaultTracksInitialized;
 
-    public int FrameRate => Mathf.Max(1, frameRate);
+    public int FrameRate => frameRate;
     public ActionSequenceDurationMode DurationMode => durationMode;
     public int FixedDurationFrames => Mathf.Max(1, durationFrames);
     public int DurationFrames => durationMode == ActionSequenceDurationMode.AutoFromClips
@@ -84,6 +84,8 @@ public sealed class ActionSequenceData
 
         if (frameRate <= 0)
             issues.Add(ActionSequenceValidationIssue.Error("Frame rate must be greater than zero."));
+        else if (!CombatSimulationTiming.IsGameplayFrameRate(frameRate))
+            issues.Add(ActionSequenceValidationIssue.Error($"Gameplay ActionSequence frame rate must be {CombatSimulationTiming.FrameRate} Hz."));
         if (durationMode == ActionSequenceDurationMode.FixedFrames && durationFrames <= 0)
             issues.Add(ActionSequenceValidationIssue.Error("Duration frames must be greater than zero."));
 
@@ -142,7 +144,6 @@ public sealed class ActionSequenceData
 
     public void Normalize()
     {
-        frameRate = Mathf.Max(1, frameRate);
         durationFrames = Mathf.Max(1, durationFrames);
 
         if (tracks == null)
@@ -154,6 +155,7 @@ public sealed class ActionSequenceData
     public void InitializeNewSequenceDefaults()
     {
         Normalize();
+        frameRate = CombatSimulationTiming.FrameRate;
         durationMode = ActionSequenceDurationMode.AutoFromClips;
         if (tracks.Count == 0)
             CreateDefaultTracks();
@@ -166,7 +168,16 @@ public sealed class ActionSequenceData
 
     public void EditorSetTiming(int newFrameRate, int newDurationFrames)
     {
-        frameRate = Mathf.Max(1, newFrameRate);
+        if (!CombatSimulationTiming.IsGameplayFrameRate(newFrameRate))
+            throw new ArgumentOutOfRangeException(nameof(newFrameRate), newFrameRate, $"Gameplay ActionSequence frame rate must be {CombatSimulationTiming.FrameRate} Hz.");
+
+        frameRate = CombatSimulationTiming.FrameRate;
+        durationFrames = Mathf.Max(1, newDurationFrames);
+        Normalize();
+    }
+
+    public void EditorSetDurationFrames(int newDurationFrames)
+    {
         durationFrames = Mathf.Max(1, newDurationFrames);
         Normalize();
     }

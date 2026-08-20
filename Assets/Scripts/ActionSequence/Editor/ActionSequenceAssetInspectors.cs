@@ -226,10 +226,7 @@ internal sealed class ActionSequenceInspectorV2Builder : IDisposable
         foldout.Add(openButton);
 
         ActionSequenceSnapshot sequence = document.Sequence;
-        var frameRate = new IntegerField("Frame Rate");
-        frameRate.SetValueWithoutNotify(sequence.FrameRate);
-        frameRate.RegisterValueChangedCallback(evt => Execute(ActionSequenceEditorCommands.SetFrameRate(target, evt.newValue)));
-        foldout.Add(frameRate);
+        foldout.Add(ReadOnly("Frame Rate", $"{CombatSimulationTiming.FrameRate} FPS (Project Fixed)"));
 
         var durationMode = new EnumField("Duration Mode", sequence.DurationMode);
         durationMode.RegisterValueChangedCallback(evt =>

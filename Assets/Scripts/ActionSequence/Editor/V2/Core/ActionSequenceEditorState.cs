@@ -182,6 +182,12 @@ public sealed class ActionSequenceEditorState : IDisposable
             return false;
         }
 
+        if (!CombatSimulationTiming.IsGameplayFrameRate(document.Sequence.FrameRate))
+        {
+            reason = $"Gameplay ActionSequence frame rate must be {CombatSimulationTiming.FrameRate} Hz.";
+            return false;
+        }
+
         return true;
     }
 
@@ -220,11 +226,11 @@ public sealed class ActionSequenceEditorState : IDisposable
             return false;
 
         double delta = Math.Max(0d, timestamp - LastPlaybackTimestamp);
-        int frameDelta = Mathf.FloorToInt((float)(delta * document.Sequence.FrameRate));
+        int frameDelta = Mathf.FloorToInt((float)(delta * CombatSimulationTiming.FrameRate));
         if (frameDelta <= 0)
             return false;
 
-        LastPlaybackTimestamp += frameDelta / (double)document.Sequence.FrameRate;
+        LastPlaybackTimestamp += frameDelta / (double)CombatSimulationTiming.FrameRate;
         int duration = Mathf.Max(1, CalculateSequenceDurationFrames());
         CurrentFrame = Mathf.Min(duration, CurrentFrame + frameDelta);
         if (CurrentFrame >= duration)
@@ -577,7 +583,11 @@ public sealed class ActionSequenceEditorState : IDisposable
         for (int i = 0; i < document.LegacyClips.Count; i++)
             maxClipEndWithPadding = Mathf.Max(maxClipEndWithPadding, CalculateSafeEndFrame(document.LegacyClips[i]) + 8);
 
-        return Mathf.Max(MinimumViewEndFrame, sequenceDuration, maxClipEndWithPadding);
+        int minimumWorkspaceEndWithPadding = document.Sequence.DurationMode == ActionSequenceDurationMode.AutoFromClips
+            ? document.Sequence.FixedDurationFrames + 8
+            : 1;
+
+        return Mathf.Max(MinimumViewEndFrame, sequenceDuration, maxClipEndWithPadding, minimumWorkspaceEndWithPadding);
     }
 
     private void UpdateTransform()

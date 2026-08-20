@@ -9,7 +9,7 @@ public class ActionSequenceAsset : ScriptableObject
     private ActionSequenceData data = new ActionSequenceData();
 
     public ActionSequenceData Data => data;
-    public int FrameRate => data != null ? data.FrameRate : 60;
+    public int FrameRate => data != null ? data.FrameRate : CombatSimulationTiming.FrameRate;
     public ActionSequenceDurationMode DurationMode => data != null ? data.DurationMode : ActionSequenceDurationMode.FixedFrames;
     public int DurationFrames => data != null ? data.DurationFrames : 1;
     public IReadOnlyList<ActionSequenceClipDefinition> Clips => data != null ? data.Clips : Array.Empty<ActionSequenceClipDefinition>();
@@ -22,6 +22,13 @@ public class ActionSequenceAsset : ScriptableObject
     {
         EnsureData();
         data.EditorSetTiming(newFrameRate, newDurationFrames);
+        OnValidate();
+    }
+
+    public void EditorSetDurationFrames(int newDurationFrames)
+    {
+        EnsureData();
+        data.EditorSetDurationFrames(newDurationFrames);
         OnValidate();
     }
 

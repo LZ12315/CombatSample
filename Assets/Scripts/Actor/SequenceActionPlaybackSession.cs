@@ -58,7 +58,7 @@ internal sealed class SequenceActionPlaybackSession : IFixedActionPlaybackSessio
         if (_speed <= 0.0)
             return false;
 
-        _frameAccumulator += deltaSeconds * _speed * _runtime.FrameRate;
+        _frameAccumulator += deltaSeconds * _speed * CombatSimulationTiming.FrameRate;
         if (_frameAccumulator < 1.0)
         {
             _runtime.RefreshPose(_sequenceContext, GetCurrentPoseFrame());
@@ -68,7 +68,7 @@ internal sealed class SequenceActionPlaybackSession : IFixedActionPlaybackSessio
         _frameAccumulator -= 1.0;
         return _runtime.BeginFrame(
             _sequenceContext,
-            1f / _runtime.FrameRate,
+            CombatSimulationTiming.FixedDeltaTime,
             (float)_speed);
     }
 
@@ -82,10 +82,15 @@ internal sealed class SequenceActionPlaybackSession : IFixedActionPlaybackSessio
 
     public void ExecutePostWorld()
     {
+        ExecutePostWorld(null);
+    }
+
+    public void ExecutePostWorld(ICombatHitIntentSink hitIntentSink)
+    {
         if (!HasOpenFrame)
             return;
 
-        _runtime.ExecutePostWorld();
+        _runtime.ExecutePostWorld(hitIntentSink);
     }
 
     public void EndFrame()

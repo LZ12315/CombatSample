@@ -30,27 +30,34 @@ public readonly struct HitResolveResult
     public bool DamageApplied { get; }
     public bool HitReactionApplied { get; }
     public bool ImpactAllowed { get; }
+    public bool TargetKilled { get; }
 
-    private HitResolveResult(bool damageApplied, bool hitReactionApplied, bool impactAllowed)
+    private HitResolveResult(bool damageApplied, bool hitReactionApplied, bool impactAllowed, bool targetKilled)
     {
         DamageApplied = damageApplied;
         HitReactionApplied = hitReactionApplied;
         ImpactAllowed = impactAllowed;
+        TargetKilled = targetKilled;
     }
 
-    public static HitResolveResult Normal(bool hitReactionApplied)
+    public static HitResolveResult Normal(bool hitReactionApplied, bool targetKilled = false)
     {
-        return new HitResolveResult(true, hitReactionApplied, true);
+        return new HitResolveResult(true, hitReactionApplied, true, targetKilled);
     }
 
-    public static HitResolveResult SuperArmor()
+    public static HitResolveResult SuperArmor(bool targetKilled = false)
     {
-        return new HitResolveResult(true, false, true);
+        return new HitResolveResult(true, false, true, targetKilled);
     }
 
     public static HitResolveResult Invincible()
     {
-        return new HitResolveResult(false, false, false);
+        return new HitResolveResult(false, false, false, false);
+    }
+
+    public static HitResolveResult AlreadyDead()
+    {
+        return new HitResolveResult(false, false, false, false);
     }
 }
 

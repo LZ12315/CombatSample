@@ -13,6 +13,7 @@ public enum ActionSequenceRuntimeDiagnosticCode
     FixedDurationClipTruncated,
     LegacyClipProjection,
     NullClipRuntime,
+    UnsupportedGameplayFrameRate,
 }
 
 public readonly struct ActionSequenceRuntimeDiagnostic

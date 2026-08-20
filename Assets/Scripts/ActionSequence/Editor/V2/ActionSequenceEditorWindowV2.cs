@@ -314,6 +314,9 @@ public sealed class ActionSequenceEditorWindowV2 : EditorWindow
             case ActionSequenceValidator.RepairTrackPhaseOrderCommandId:
                 ExecuteCommand(() => ActionSequenceEditorCommands.RepairTrackPhaseOrder(_targetObject));
                 break;
+            case ActionSequenceValidator.SetGameplayRateCommandId:
+                ExecuteCommand(() => ActionSequenceEditorCommands.SetFrameRate(_targetObject, CombatSimulationTiming.FrameRate));
+                break;
             default:
                 editorRoot?.SetStatusMessage("Unknown repair command: " + commandId);
                 break;
