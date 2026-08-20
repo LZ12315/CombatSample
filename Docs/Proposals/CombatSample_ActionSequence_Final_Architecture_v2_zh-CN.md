@@ -990,3 +990,13 @@ HitBox 不再在 PostWorld 查询阶段直接调用 `TakeDamage`。生产 HitBox
 第一版 Resolve 顺序固定为 `Tick -> AttackerStableId -> ClipStableId(StringComparer.Ordinal) -> TargetStableId`。已收集的 intent 不因攻击者在同 tick 后续死亡而失效，因此允许相杀；目标第一次死亡之后，后续指向该目标的 intent 跳过，不重复扣血、受击、Impact 或死亡。
 
 HitBox Runtime 现在区分 `_pendingTargets` 与 `_hitTargets`：同一 `IDamageable` 的多 collider 每帧只 enqueue 一次，代表 collider 选择离查询中心最近者，平局按 collider instance id。Resolver 回执 `ImpactAllowed` 时才提交到 `_hitTargets`；无敌、拒绝 impact、死亡跳过或 abort 只清 pending，允许后续 gameplay frame 重试。
+
+### 17.1 Stage D4.1 验收补充
+
+Stage D4.1 补齐了 `CombatHitIntent` 与固定帧路径的自动化验收。纯 Resolver 测试覆盖 Resolve 前 Abort、部分 Resolve 后异常、Resolve 期间重入 Enqueue、多个致死 Hit 的唯一 `TargetKilled` 归属，以及稳定排序不依赖 enqueue 顺序。
+
+HitBox 集成测试覆盖同一 `IDamageable` 多 Collider 去重、代表 Collider 的最近/InstanceId 平局规则、无敌或拒绝 Impact 后下一 Gameplay Frame 可重试、生产 HitBox Runtime 在 Resolve 前退出时已冻结 Intent 仍结算、两个不同 HitBox Clip 可分别命中同一目标，以及最后一帧 `Query -> Resolve -> Exit/Complete` 顺序。
+
+真实固定帧验收不再集中到单个大型 synthetic PlayMode fixture。现有 `CombatSimulationDriverPlayModeTests` 已覆盖真实 `FixedUpdate`、Driver 接管 KCC、插值配对、Sequence PreWorld/PostWorld 屏障与 fault 停止；D4.1 新增测试聚焦在 Resolver 与 HitBox/Intent 生命周期。RootMotion、SelfRotation、VelocityOverride、0.5 倍速、HitStop、撞墙、最后一帧和相杀的完整内容路径继续由 Jaeger 手动回归确认。
+
+这些测试仍只声明单次运行内稳定性，不扩展到跨机器、rollback 或 bitwise replay；新增自动测试使用内存 Sequence/HitBox 与测试局部 Damageable，不依赖 Jaeger 或项目内容资产。
