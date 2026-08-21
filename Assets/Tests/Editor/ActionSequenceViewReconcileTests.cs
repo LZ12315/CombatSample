@@ -66,7 +66,7 @@ public sealed class ActionSequenceViewReconcileTests
         header.Reconcile(state.DisplayTracks);
 
         Assert.AreSame(stateRow, header.GetRow(state.DisplayTracks[0].RenderKey));
-        Assert.AreEqual(ActionSequenceClipPhase.State, state.DisplayTracks[0].Snapshot.Phase);
+        Assert.AreEqual(ActionSequenceTrackKind.State, state.DisplayTracks[0].Snapshot.Kind);
     }
 
     [Test]

@@ -5,95 +5,63 @@ using UnityEngine;
 public sealed class ActionSequenceRuntimeTests
 {
     [Test]
-    public void FrameTransaction_SeparatesPreWorldPostWorldAndEndFrame()
+    public void PlayFrame_EntersAndTicksClipsBeforeFinishFrame()
     {
         ActionSequenceAsset asset = CreateAsset(
             1,
-            new ProbeClipDefinition("M", ActionSequenceClipPhase.Motion, 0, 1),
-            new ProbeClipDefinition("C", ActionSequenceClipPhase.Cleanup, 0, 1),
-            new ProbeClipDefinition("H", ActionSequenceClipPhase.HitBox, 0, 1),
-            new ProbeClipDefinition("A", ActionSequenceClipPhase.Animation, 0, 1),
-            new ProbeClipDefinition("S", ActionSequenceClipPhase.State, 0, 1));
+            new ProbeClipDefinition("M", ActionSequenceTrackKind.Motion, 0, 1),
+            new ProbeClipDefinition("C", ActionSequenceTrackKind.Cleanup, 0, 1),
+            new ProbeClipDefinition("H", ActionSequenceTrackKind.HitBox, 0, 1),
+            new ProbeClipDefinition("A", ActionSequenceTrackKind.Animation, 0, 1),
+            new ProbeClipDefinition("S", ActionSequenceTrackKind.State, 0, 1));
         var runtime = new ActionSequenceRuntime(asset);
         var events = new List<string>();
         var context = new ActionSequenceContext { UserData = events };
 
-        Assert.IsTrue(runtime.BeginFrame(context, 0.02f, 0.5f));
+        Assert.IsTrue(runtime.PlayFrame(context, 0.02f, 0.5f));
 
         CollectionAssert.AreEqual(
             new[]
             {
-                "S:enter:0",
-                "A:enter:0",
                 "M:enter:0",
-                "H:enter:0",
                 "C:enter:0",
+                "H:enter:0",
+                "A:enter:0",
+                "S:enter:0",
+                "M:tick:0",
+                "C:tick:0",
+                "H:tick:0",
+                "A:tick:0",
+                "S:tick:0",
             },
             events);
-        Assert.AreEqual(ActionSequenceFrameTransactionState.Begun, runtime.FrameTransactionState);
+        Assert.AreEqual(ActionSequenceFrameTransactionState.Open, runtime.FrameTransactionState);
         Assert.AreEqual(-1, runtime.CurrentFrame);
         Assert.AreEqual(0, runtime.PendingFrame);
         Assert.AreEqual(0.02f, context.DeltaTime);
         Assert.AreEqual(0.5f, context.SpeedScale);
-
-        runtime.ExecutePreWorld();
-
-        CollectionAssert.AreEqual(
-            new[]
-            {
-                "S:enter:0",
-                "A:enter:0",
-                "M:enter:0",
-                "H:enter:0",
-                "C:enter:0",
-                "S:tick:0",
-                "A:tick:0",
-                "M:tick:0",
-            },
-            events);
-        Assert.AreEqual(ActionSequenceFrameTransactionState.PreWorldComplete, runtime.FrameTransactionState);
         Assert.IsFalse(runtime.IsComplete);
 
-        runtime.ExecutePostWorld();
+        runtime.FinishFrame();
 
         CollectionAssert.AreEqual(
             new[]
             {
-                "S:enter:0",
-                "A:enter:0",
                 "M:enter:0",
-                "H:enter:0",
                 "C:enter:0",
-                "S:tick:0",
-                "A:tick:0",
-                "M:tick:0",
-                "H:tick:0",
-                "C:tick:0",
-            },
-            events);
-        Assert.AreEqual(ActionSequenceFrameTransactionState.PostWorldComplete, runtime.FrameTransactionState);
-        Assert.IsFalse(runtime.IsComplete);
-
-        runtime.EndFrame();
-
-        CollectionAssert.AreEqual(
-            new[]
-            {
-                "S:enter:0",
+                "H:enter:0",
                 "A:enter:0",
-                "M:enter:0",
-                "H:enter:0",
-                "C:enter:0",
-                "S:tick:0",
-                "A:tick:0",
+                "S:enter:0",
                 "M:tick:0",
-                "H:tick:0",
                 "C:tick:0",
-                "C:exit:1:True",
-                "H:exit:1:True",
-                "M:exit:1:True",
-                "A:exit:1:True",
+                "H:tick:0",
+                "A:tick:0",
+                "S:tick:0",
                 "S:exit:1:True",
+                "A:exit:1:True",
+                "H:exit:1:True",
+                "C:exit:1:True",
+                "M:exit:1:True",
             },
             events);
         Assert.AreEqual(ActionSequenceFrameTransactionState.Idle, runtime.FrameTransactionState);
@@ -103,24 +71,18 @@ public sealed class ActionSequenceRuntimeTests
     }
 
     [Test]
-    public void FrameTransaction_RejectsOutOfOrderOrCompetingAdvance()
+    public void OpenFrame_RejectsCompetingAdvanceUntilFinish()
     {
         ActionSequenceAsset asset = CreateAsset(1);
         var runtime = new ActionSequenceRuntime(asset);
         var context = new ActionSequenceContext();
 
-        Assert.Throws<System.InvalidOperationException>(() => runtime.ExecutePreWorld());
-        Assert.IsTrue(runtime.BeginFrame(context));
-        Assert.Throws<System.InvalidOperationException>(() => runtime.BeginFrame(context));
+        Assert.Throws<System.InvalidOperationException>(() => runtime.FinishFrame());
+        Assert.IsTrue(runtime.PlayFrame(context));
+        Assert.Throws<System.InvalidOperationException>(() => runtime.PlayFrame(context));
         Assert.Throws<System.InvalidOperationException>(() => runtime.Tick(context, 1f / 60f));
         Assert.Throws<System.InvalidOperationException>(() => runtime.StepFrame(context));
-        Assert.Throws<System.InvalidOperationException>(() => runtime.ExecutePostWorld());
-
-        runtime.ExecutePreWorld();
-        Assert.Throws<System.InvalidOperationException>(() => runtime.EndFrame());
-
-        runtime.ExecutePostWorld();
-        runtime.EndFrame();
+        runtime.FinishFrame();
     }
 
     [Test]
@@ -128,24 +90,24 @@ public sealed class ActionSequenceRuntimeTests
     {
         ActionSequenceAsset asset = CreateAsset(
             2,
-            new ProbeClipDefinition("H", ActionSequenceClipPhase.HitBox, 0, 2),
-            new ProbeClipDefinition("S", ActionSequenceClipPhase.State, 0, 2));
+            new ProbeClipDefinition("H", ActionSequenceTrackKind.HitBox, 0, 2),
+            new ProbeClipDefinition("S", ActionSequenceTrackKind.State, 0, 2));
         var runtime = new ActionSequenceRuntime(asset);
         var events = new List<string>();
         var context = new ActionSequenceContext { UserData = events };
 
-        runtime.BeginFrame(context);
-        runtime.ExecutePreWorld();
+        runtime.PlayFrame(context);
         runtime.Cancel(context);
 
         CollectionAssert.AreEqual(
             new[]
             {
-                "S:enter:0",
                 "H:enter:0",
+                "S:enter:0",
+                "H:tick:0",
                 "S:tick:0",
-                "H:exit:0:False",
                 "S:exit:0:False",
+                "H:exit:0:False",
             },
             events);
         Assert.AreEqual(-1, runtime.CurrentFrame);
@@ -159,7 +121,7 @@ public sealed class ActionSequenceRuntimeTests
     {
         ActionSequenceAsset asset = CreateAsset(
             3,
-            new ProbeClipDefinition("A", ActionSequenceClipPhase.State, 0, 1));
+            new ProbeClipDefinition("A", ActionSequenceTrackKind.State, 0, 1));
         var runtime = new ActionSequenceRuntime(asset);
         var events = new List<string>();
         var context = new ActionSequenceContext { UserData = events };
@@ -183,7 +145,7 @@ public sealed class ActionSequenceRuntimeTests
     {
         ActionSequenceAsset asset = CreateAsset(
             3,
-            new ProbeClipDefinition("A", ActionSequenceClipPhase.State, 0, 2));
+            new ProbeClipDefinition("A", ActionSequenceTrackKind.State, 0, 2));
         var runtime = new ActionSequenceRuntime(asset);
         var events = new List<string>();
         var context = new ActionSequenceContext { UserData = events };
@@ -204,13 +166,13 @@ public sealed class ActionSequenceRuntimeTests
     }
 
     [Test]
-    public void StepFrame_OrdersSameFrameClipsByPhase()
+    public void StepFrame_OrdersSameFrameClipsByTrackOrder()
     {
         ActionSequenceAsset asset = CreateAsset(
             1,
-            new ProbeClipDefinition("M", ActionSequenceClipPhase.Motion, 0, 1),
-            new ProbeClipDefinition("H", ActionSequenceClipPhase.HitBox, 0, 1),
-            new ProbeClipDefinition("S", ActionSequenceClipPhase.State, 0, 1));
+            new ProbeClipDefinition("M", ActionSequenceTrackKind.Motion, 0, 1),
+            new ProbeClipDefinition("H", ActionSequenceTrackKind.HitBox, 0, 1),
+            new ProbeClipDefinition("S", ActionSequenceTrackKind.State, 0, 1));
         var runtime = new ActionSequenceRuntime(asset);
         var events = new List<string>();
         var context = new ActionSequenceContext { UserData = events };
@@ -220,15 +182,15 @@ public sealed class ActionSequenceRuntimeTests
         CollectionAssert.AreEqual(
             new[]
             {
-                "S:enter:0",
                 "M:enter:0",
                 "H:enter:0",
-                "S:tick:0",
+                "S:enter:0",
                 "M:tick:0",
                 "H:tick:0",
+                "S:tick:0",
+                "S:exit:1:True",
                 "H:exit:1:True",
                 "M:exit:1:True",
-                "S:exit:1:True",
             },
             events);
     }
@@ -238,7 +200,7 @@ public sealed class ActionSequenceRuntimeTests
     {
         ActionSequenceAsset asset = CreateAsset(
             5,
-            new ProbeClipDefinition("A", ActionSequenceClipPhase.State, 1, 2));
+            new ProbeClipDefinition("A", ActionSequenceTrackKind.State, 1, 2));
         var runtime = new ActionSequenceRuntime(asset);
         var events = new List<string>();
         var context = new ActionSequenceContext { UserData = events };
@@ -262,7 +224,7 @@ public sealed class ActionSequenceRuntimeTests
     {
         ActionSequenceAsset asset = CreateAsset(
             5,
-            new ProbeClipDefinition("A", ActionSequenceClipPhase.State, 0, 5));
+            new ProbeClipDefinition("A", ActionSequenceTrackKind.State, 0, 5));
         var runtime = new ActionSequenceRuntime(asset);
         var events = new List<string>();
         var context = new ActionSequenceContext { UserData = events };
@@ -287,7 +249,7 @@ public sealed class ActionSequenceRuntimeTests
     {
         ActionSequenceAsset asset = CreateAsset(
             2,
-            new ProbeClipDefinition("A", ActionSequenceClipPhase.State, 0, 2));
+            new ProbeClipDefinition("A", ActionSequenceTrackKind.State, 0, 2));
         var first = new ActionSequenceRuntime(asset);
         var second = new ActionSequenceRuntime(asset);
         var firstEvents = new List<string>();
@@ -374,10 +336,10 @@ public sealed class ActionSequenceRuntimeTests
     {
         ActionSequenceAsset asset = CreateAsset(
             2,
-            new BaselineProbeClipDefinition("S", ActionSequenceClipPhase.State, 0, 2),
-            new BaselineProbeClipDefinition("A", ActionSequenceClipPhase.Animation, 0, 2),
-            new BaselineProbeClipDefinition("M", ActionSequenceClipPhase.Motion, 0, 2),
-            new BaselineProbeClipDefinition("H", ActionSequenceClipPhase.HitBox, 0, 2));
+            new BaselineProbeClipDefinition("S", ActionSequenceTrackKind.State, 0, 2),
+            new BaselineProbeClipDefinition("A", ActionSequenceTrackKind.Animation, 0, 2),
+            new BaselineProbeClipDefinition("M", ActionSequenceTrackKind.Motion, 0, 2),
+            new BaselineProbeClipDefinition("H", ActionSequenceTrackKind.HitBox, 0, 2));
         var runtime = new ActionSequenceRuntime(asset);
         var events = new List<string>();
         var context = new ActionSequenceContext { UserData = events };
@@ -394,8 +356,7 @@ public sealed class ActionSequenceRuntimeTests
         Assert.AreEqual(-1, runtime.CurrentFrame);
         Assert.IsFalse(runtime.HasOpenFrame);
 
-        Assert.IsTrue(runtime.BeginFrame(context));
-        runtime.ExecutePreWorld();
+        Assert.IsTrue(runtime.PlayFrame(context));
 
         CollectionAssert.AreEqual(
             new[]
@@ -408,6 +369,7 @@ public sealed class ActionSequenceRuntimeTests
                 "S:tick:0:frame",
                 "A:tick:0:frame",
                 "M:tick:0:frame",
+                "H:tick:0:frame",
             },
             events);
     }
@@ -417,10 +379,10 @@ public sealed class ActionSequenceRuntimeTests
     {
         ActionSequenceAsset asset = CreateAsset(
             3,
-            new PoseRefreshProbeClipDefinition("S", ActionSequenceClipPhase.State, 0, 2),
-            new PoseRefreshProbeClipDefinition("A", ActionSequenceClipPhase.Animation, 0, 2),
-            new PoseRefreshProbeClipDefinition("M", ActionSequenceClipPhase.Motion, 0, 2),
-            new PoseRefreshProbeClipDefinition("H", ActionSequenceClipPhase.HitBox, 0, 2));
+            new PoseRefreshProbeClipDefinition("S", ActionSequenceTrackKind.State, 0, 2),
+            new PoseRefreshProbeClipDefinition("A", ActionSequenceTrackKind.Animation, 0, 2),
+            new PoseRefreshProbeClipDefinition("M", ActionSequenceTrackKind.Motion, 0, 2),
+            new PoseRefreshProbeClipDefinition("H", ActionSequenceTrackKind.HitBox, 0, 2));
         var runtime = new ActionSequenceRuntime(asset);
         var events = new List<string>();
         var context = new ActionSequenceContext { UserData = events };
@@ -480,18 +442,18 @@ public sealed class ActionSequenceRuntimeTests
     }
 
     [Test]
-    public void Runtime_OrdersSamePhaseByTrackOrderBeforeStartFrame()
+    public void Runtime_OrdersSameKindByTrackOrderBeforeStartFrame()
     {
         ActionSequenceAsset asset = ScriptableObject.CreateInstance<ActionSequenceAsset>();
         asset.EditorSetTiming(60, 1);
         asset.EditorTracks.Clear();
 
         asset.EditorTracks.Add(new ProbeTrackDefinition(
-            ActionSequenceClipPhase.State,
-            new ProbeClipDefinition("B", ActionSequenceClipPhase.State, 0, 1)));
+            ActionSequenceTrackKind.State,
+            new ProbeClipDefinition("B", ActionSequenceTrackKind.State, 0, 1)));
         asset.EditorTracks.Add(new ProbeTrackDefinition(
-            ActionSequenceClipPhase.State,
-            new ProbeClipDefinition("A", ActionSequenceClipPhase.State, 0, 1)));
+            ActionSequenceTrackKind.State,
+            new ProbeClipDefinition("A", ActionSequenceTrackKind.State, 0, 1)));
 
         var runtime = new ActionSequenceRuntime(asset);
         var events = new List<string>();
@@ -518,8 +480,8 @@ public sealed class ActionSequenceRuntimeTests
         asset.EditorSetTiming(60, 2);
         asset.EditorTracks.Clear();
         asset.EditorTracks.Add(new ProbeTrackDefinition(
-            ActionSequenceClipPhase.State,
-            new ProbeClipDefinition("A", ActionSequenceClipPhase.State, 0, 2))
+            ActionSequenceTrackKind.State,
+            new ProbeClipDefinition("A", ActionSequenceTrackKind.State, 0, 2))
         {
             muted = true
         });
@@ -538,8 +500,8 @@ public sealed class ActionSequenceRuntimeTests
         ActionSequenceAsset asset = ScriptableObject.CreateInstance<ActionSequenceAsset>();
         asset.EditorSetTiming(60, 3);
         asset.EditorTracks.Clear();
-        var clip = new ProbeClipDefinition("A", ActionSequenceClipPhase.State, -5, 20);
-        asset.EditorTracks.Add(new ProbeTrackDefinition(ActionSequenceClipPhase.State, clip));
+        var clip = new ProbeClipDefinition("A", ActionSequenceTrackKind.State, -5, 20);
+        asset.EditorTracks.Add(new ProbeTrackDefinition(ActionSequenceTrackKind.State, clip));
 
         _ = new ActionSequenceRuntime(asset);
 
@@ -553,15 +515,15 @@ public sealed class ActionSequenceRuntimeTests
         ActionSequenceAsset asset = ScriptableObject.CreateInstance<ActionSequenceAsset>();
         asset.EditorSetTiming(60, 3);
         asset.EditorTracks.Clear();
-        var adjusted = new ProbeClipDefinition("A", ActionSequenceClipPhase.State, -2, 10);
-        var skipped = new ProbeClipDefinition("B", ActionSequenceClipPhase.State, 5, 8);
+        var adjusted = new ProbeClipDefinition("A", ActionSequenceTrackKind.State, -2, 10);
+        var skipped = new ProbeClipDefinition("B", ActionSequenceTrackKind.State, 5, 8);
         var nullRuntime = new NullRuntimeClipDefinition(0, 1);
         var disallowed = new DisallowedStateClipDefinition(0, 1);
-        var track = new ProbeTrackDefinition(ActionSequenceClipPhase.State, adjusted, skipped);
+        var track = new ProbeTrackDefinition(ActionSequenceTrackKind.State, adjusted, skipped);
         track.EditorClips.Add(nullRuntime);
         track.EditorClips.Add(disallowed);
         asset.EditorTracks.Add(track);
-        asset.EditorClips.Add(new ProbeClipDefinition("Legacy", ActionSequenceClipPhase.State, 0, 1));
+        asset.EditorClips.Add(new ProbeClipDefinition("Legacy", ActionSequenceTrackKind.State, 0, 1));
 
         var runtime = new ActionSequenceRuntime(asset);
 
@@ -588,10 +550,10 @@ public sealed class ActionSequenceRuntimeTests
         for (int i = 0; i < clips.Length; i++)
         {
             ActionSequenceClipDefinition clip = clips[i];
-            ProbeTrackDefinition track = FindProbeTrack(asset, clip.Phase);
+            ProbeTrackDefinition track = FindProbeTrack(asset, clip.Kind);
             if (track == null)
             {
-                track = new ProbeTrackDefinition(clip.Phase);
+                track = new ProbeTrackDefinition(clip.Kind);
                 asset.EditorTracks.Add(track);
             }
 
@@ -601,11 +563,11 @@ public sealed class ActionSequenceRuntimeTests
         return asset;
     }
 
-    private static ProbeTrackDefinition FindProbeTrack(ActionSequenceAsset asset, ActionSequenceClipPhase phase)
+    private static ProbeTrackDefinition FindProbeTrack(ActionSequenceAsset asset, ActionSequenceTrackKind phase)
     {
         for (int i = 0; i < asset.EditorTracks.Count; i++)
         {
-            if (asset.EditorTracks[i] is ProbeTrackDefinition track && track.Phase == phase)
+            if (asset.EditorTracks[i] is ProbeTrackDefinition track && track.Kind == phase)
                 return track;
         }
 
@@ -625,7 +587,7 @@ public sealed class ActionSequenceRuntimeTests
 
     private sealed class ProbeTrackDefinition : ActionSequenceTrackDefinition
     {
-        private readonly ActionSequenceClipPhase _phase;
+        private readonly ActionSequenceTrackKind _phase;
         private static readonly System.Type[] ClipTypes =
         {
             typeof(ProbeClipDefinition),
@@ -634,23 +596,23 @@ public sealed class ActionSequenceRuntimeTests
             typeof(NullRuntimeClipDefinition),
         };
 
-        public ProbeTrackDefinition(ActionSequenceClipPhase phase, params ActionSequenceClipDefinition[] clips)
+        public ProbeTrackDefinition(ActionSequenceTrackKind phase, params ActionSequenceClipDefinition[] clips)
         {
             _phase = phase;
             for (int i = 0; i < clips.Length; i++)
                 AddClip(clips[i]);
         }
 
-        public override ActionSequenceClipPhase Phase => _phase;
+        public override ActionSequenceTrackKind Kind => _phase;
         public override System.Type[] AllowedClipTypes => ClipTypes;
     }
 
     private sealed class ProbeClipDefinition : ActionSequenceClipDefinition
     {
         private readonly string _id;
-        private readonly ActionSequenceClipPhase _phase;
+        private readonly ActionSequenceTrackKind _phase;
 
-        public ProbeClipDefinition(string id, ActionSequenceClipPhase phase, int start, int end)
+        public ProbeClipDefinition(string id, ActionSequenceTrackKind phase, int start, int end)
         {
             _id = id;
             _phase = phase;
@@ -658,7 +620,7 @@ public sealed class ActionSequenceRuntimeTests
             endFrame = end;
         }
 
-        public override ActionSequenceClipPhase Phase => _phase;
+        public override ActionSequenceTrackKind Kind => _phase;
 
         public override ActionSequenceClipRuntime CreateRuntime()
         {
@@ -700,9 +662,9 @@ public sealed class ActionSequenceRuntimeTests
     private sealed class BaselineProbeClipDefinition : ActionSequenceClipDefinition
     {
         private readonly string _id;
-        private readonly ActionSequenceClipPhase _phase;
+        private readonly ActionSequenceTrackKind _phase;
 
-        public BaselineProbeClipDefinition(string id, ActionSequenceClipPhase phase, int start, int end)
+        public BaselineProbeClipDefinition(string id, ActionSequenceTrackKind phase, int start, int end)
         {
             _id = id;
             _phase = phase;
@@ -710,7 +672,7 @@ public sealed class ActionSequenceRuntimeTests
             endFrame = end;
         }
 
-        public override ActionSequenceClipPhase Phase => _phase;
+        public override ActionSequenceTrackKind Kind => _phase;
 
         public override ActionSequenceClipRuntime CreateRuntime()
         {
@@ -751,9 +713,9 @@ public sealed class ActionSequenceRuntimeTests
     private sealed class PoseRefreshProbeClipDefinition : ActionSequenceClipDefinition
     {
         private readonly string _id;
-        private readonly ActionSequenceClipPhase _phase;
+        private readonly ActionSequenceTrackKind _phase;
 
-        public PoseRefreshProbeClipDefinition(string id, ActionSequenceClipPhase phase, int start, int end)
+        public PoseRefreshProbeClipDefinition(string id, ActionSequenceTrackKind phase, int start, int end)
         {
             _id = id;
             _phase = phase;
@@ -761,7 +723,7 @@ public sealed class ActionSequenceRuntimeTests
             endFrame = end;
         }
 
-        public override ActionSequenceClipPhase Phase => _phase;
+        public override ActionSequenceTrackKind Kind => _phase;
 
         public override ActionSequenceClipRuntime CreateRuntime()
         {
@@ -814,7 +776,7 @@ public sealed class ActionSequenceRuntimeTests
             endFrame = end;
         }
 
-        public override ActionSequenceClipPhase Phase => ActionSequenceClipPhase.State;
+        public override ActionSequenceTrackKind Kind => ActionSequenceTrackKind.State;
 
         public override ActionSequenceClipRuntime CreateRuntime()
         {
@@ -834,7 +796,7 @@ public sealed class ActionSequenceRuntimeTests
             endFrame = end;
         }
 
-        public override ActionSequenceClipPhase Phase => ActionSequenceClipPhase.State;
+        public override ActionSequenceTrackKind Kind => ActionSequenceTrackKind.State;
 
         public override ActionSequenceClipRuntime CreateRuntime()
         {

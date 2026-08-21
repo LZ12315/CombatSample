@@ -278,7 +278,7 @@ public sealed class ActionSequenceSerializedDocument : IDisposable
             trackIndex,
             editorId,
             type,
-            track != null ? track.Phase : default,
+            track != null ? track.Kind : default,
             ReadString(trackProperty?.FindPropertyRelative("displayName")),
             ReadBool(trackProperty?.FindPropertyRelative("muted")),
             ReadBool(trackProperty?.FindPropertyRelative("locked")),
@@ -316,7 +316,7 @@ public sealed class ActionSequenceSerializedDocument : IDisposable
         bool missingType = clipProperty != null && clipProperty.managedReferenceValue == null && !string.IsNullOrEmpty(clipProperty.managedReferenceFullTypename);
 
         bool allowedByTrack = isLegacy || owningTrack == null || clip == null || owningTrack.AllowsClipType(type);
-        bool phaseMatchesTrack = isLegacy || owningTrack == null || clip == null || clip.Phase == owningTrack.Phase;
+        bool phaseMatchesTrack = isLegacy || owningTrack == null || clip == null || clip.Kind == owningTrack.Kind;
 
         return new ActionSequenceClipSnapshot(
             trackIndex,
@@ -324,7 +324,7 @@ public sealed class ActionSequenceSerializedDocument : IDisposable
             isLegacy ? clipOrLegacyIndex : -1,
             ReadString(clipProperty?.FindPropertyRelative("editorId")),
             type,
-            clip != null ? clip.Phase : default,
+            clip != null ? clip.Kind : default,
             ReadString(clipProperty?.FindPropertyRelative("displayName")),
             ReadInt(clipProperty?.FindPropertyRelative("startFrame"), 0),
             ReadInt(clipProperty?.FindPropertyRelative("endFrame"), 0),
@@ -428,7 +428,7 @@ public sealed class ActionSequenceSerializedDocument : IDisposable
         {
             ActionSequenceTrackSnapshot track = tracks[i];
             builder.Append('T').Append(track.TrackIndex).Append(':');
-            AppendCommon(builder, track.EditorId, track.Type, track.Phase, track.DisplayName, track.IsNull, track.MissingType, track.ManagedReferenceId, track.MissingTypeInfo);
+            AppendCommon(builder, track.EditorId, track.Type, track.Kind, track.DisplayName, track.IsNull, track.MissingType, track.ManagedReferenceId, track.MissingTypeInfo);
             builder.Append(track.Muted).Append(':').Append(track.Locked).Append(':').Append(track.Collapsed).Append(':');
             builder.Append(track.Clips.Count).Append('|');
 
@@ -447,16 +447,16 @@ public sealed class ActionSequenceSerializedDocument : IDisposable
     private static void AppendClip(StringBuilder builder, ActionSequenceClipSnapshot clip)
     {
         builder.Append('C').Append(clip.TrackIndex).Append(':').Append(clip.ClipIndex).Append(':').Append(clip.LegacyClipIndex).Append(':');
-        AppendCommon(builder, clip.EditorId, clip.Type, clip.Phase, clip.DisplayName, clip.IsNull, clip.MissingType, clip.ManagedReferenceId, clip.MissingTypeInfo);
+        AppendCommon(builder, clip.EditorId, clip.Type, clip.Kind, clip.DisplayName, clip.IsNull, clip.MissingType, clip.ManagedReferenceId, clip.MissingTypeInfo);
         builder.Append(clip.StartFrame).Append(':').Append(clip.EndFrame).Append(':');
-        builder.Append(clip.IsLegacy).Append(':').Append(clip.AllowedByTrack).Append(':').Append(clip.PhaseMatchesTrack).Append('|');
+        builder.Append(clip.IsLegacy).Append(':').Append(clip.AllowedByTrack).Append(':').Append(clip.KindMatchesTrack).Append('|');
     }
 
     private static void AppendCommon(
         StringBuilder builder,
         string editorId,
         Type type,
-        ActionSequenceClipPhase phase,
+        ActionSequenceTrackKind phase,
         string displayName,
         bool isNull,
         bool missingType,
@@ -584,7 +584,7 @@ public sealed class ActionSequenceTrackSnapshot
         int trackIndex,
         string editorId,
         Type type,
-        ActionSequenceClipPhase phase,
+        ActionSequenceTrackKind phase,
         string displayName,
         bool muted,
         bool locked,
@@ -597,7 +597,7 @@ public sealed class ActionSequenceTrackSnapshot
         TrackIndex = trackIndex;
         EditorId = editorId;
         Type = type;
-        Phase = phase;
+        Kind = phase;
         DisplayName = displayName;
         Muted = muted;
         Locked = locked;
@@ -611,7 +611,7 @@ public sealed class ActionSequenceTrackSnapshot
     public int TrackIndex { get; }
     public string EditorId { get; }
     public Type Type { get; }
-    public ActionSequenceClipPhase Phase { get; }
+    public ActionSequenceTrackKind Kind { get; }
     public string DisplayName { get; }
     public bool Muted { get; }
     public bool Locked { get; }
@@ -636,7 +636,7 @@ public sealed class ActionSequenceClipSnapshot
         int legacyClipIndex,
         string editorId,
         Type type,
-        ActionSequenceClipPhase phase,
+        ActionSequenceTrackKind phase,
         string displayName,
         int startFrame,
         int endFrame,
@@ -653,7 +653,7 @@ public sealed class ActionSequenceClipSnapshot
         LegacyClipIndex = legacyClipIndex;
         EditorId = editorId;
         Type = type;
-        Phase = phase;
+        Kind = phase;
         DisplayName = displayName;
         StartFrame = startFrame;
         EndFrame = endFrame;
@@ -661,7 +661,7 @@ public sealed class ActionSequenceClipSnapshot
         IsNull = isNull;
         MissingType = missingType;
         AllowedByTrack = allowedByTrack;
-        PhaseMatchesTrack = phaseMatchesTrack;
+        KindMatchesTrack = phaseMatchesTrack;
         ManagedReferenceId = managedReferenceId;
         MissingTypeInfo = missingTypeInfo;
     }
@@ -671,7 +671,7 @@ public sealed class ActionSequenceClipSnapshot
     public int LegacyClipIndex { get; }
     public string EditorId { get; }
     public Type Type { get; }
-    public ActionSequenceClipPhase Phase { get; }
+    public ActionSequenceTrackKind Kind { get; }
     public string DisplayName { get; }
     public int StartFrame { get; }
     public int EndFrame { get; }
@@ -679,7 +679,7 @@ public sealed class ActionSequenceClipSnapshot
     public bool IsNull { get; }
     public bool MissingType { get; }
     public bool AllowedByTrack { get; }
-    public bool PhaseMatchesTrack { get; }
+    public bool KindMatchesTrack { get; }
     public long ManagedReferenceId { get; }
     public ActionSequenceMissingManagedReferenceInfo MissingTypeInfo { get; }
 }

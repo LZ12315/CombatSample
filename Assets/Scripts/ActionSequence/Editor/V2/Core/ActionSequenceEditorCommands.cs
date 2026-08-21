@@ -15,7 +15,7 @@ public enum ActionSequenceEditorCommandStatus
     AmbiguousIdentity,
     Locked,
     DisallowedType,
-    PhaseMismatch,
+    KindMismatch,
     InvalidTiming,
     ConfirmationRequired,
 }
@@ -134,7 +134,7 @@ public static class ActionSequenceEditorCommands
             return Fail(ActionSequenceEditorCommandStatus.InvalidArgument, "Track type could not be constructed.");
 
         ActionSequenceEditorIdentity.AssignNewIdToCreatedItem(target, track);
-        int index = GetPhaseGroupEndIndex(document, track.Phase);
+        int index = GetKindGroupEndIndex(document, track.Kind);
 
         return Commit(document, "Add Action Sequence Track", ActionSequenceEditorChangeFlags.Structure | ActionSequenceEditorChangeFlags.Validation, changeSet =>
         {
@@ -203,10 +203,10 @@ public static class ActionSequenceEditorCommands
         return SetTrackBool(target, trackId, "collapsed", collapsed, "Set Action Sequence Track Collapse", ActionSequenceEditorChangeFlags.Content, allowWhenLocked: false);
     }
 
-    public static ActionSequenceEditorCommandResult ReorderTrackWithinPhase(Object target, string trackId, int phaseLocalIndex)
+    public static ActionSequenceEditorCommandResult ReorderTrackWithinKind(Object target, string trackId, int kindLocalIndex)
     {
-        if (phaseLocalIndex < 0)
-            return Fail(ActionSequenceEditorCommandStatus.InvalidArgument, "Phase-local index must be non-negative.");
+        if (kindLocalIndex < 0)
+            return Fail(ActionSequenceEditorCommandStatus.InvalidArgument, "Kind-local index must be non-negative.");
 
         using ActionSequenceSerializedDocument document = ActionSequenceSerializedDocument.Open(target);
         if (!TryResolveTrack(document, trackId, out int trackIndex, out ActionSequenceEditorCommandResult failure))
@@ -216,9 +216,9 @@ public static class ActionSequenceEditorCommands
         if (track.Locked)
             return Fail(ActionSequenceEditorCommandStatus.Locked, "Track is locked.");
 
-        int targetIndex = GetIndexForPhaseLocalPosition(document, track.Phase, phaseLocalIndex);
+        int targetIndex = GetIndexForKindLocalPosition(document, track.Kind, kindLocalIndex);
         if (targetIndex < 0)
-            return Fail(ActionSequenceEditorCommandStatus.InvalidArgument, "Phase-local index is out of range.");
+            return Fail(ActionSequenceEditorCommandStatus.InvalidArgument, "Kind-local index is out of range.");
         if (targetIndex == trackIndex)
             return Fail(ActionSequenceEditorCommandStatus.NoChange, "Track is already at that position.");
 
@@ -247,8 +247,8 @@ public static class ActionSequenceEditorCommands
             return Fail(ActionSequenceEditorCommandStatus.InvalidArgument, "Clip type could not be constructed for the track.");
         if (!track.AllowsClipType(clipType))
             return Fail(ActionSequenceEditorCommandStatus.DisallowedType, "Track does not accept this clip type.");
-        if (clip.Phase != track.Phase)
-            return Fail(ActionSequenceEditorCommandStatus.PhaseMismatch, "Clip phase does not match track phase.");
+        if (clip.Kind != track.Kind)
+            return Fail(ActionSequenceEditorCommandStatus.KindMismatch, "Clip kind does not match track kind.");
         if (!IsValidTiming(document.Sequence, startFrame, endFrame))
             return Fail(ActionSequenceEditorCommandStatus.InvalidTiming, "Clip timing is invalid.");
 
@@ -346,7 +346,7 @@ public static class ActionSequenceEditorCommands
         });
     }
 
-    public static ActionSequenceEditorCommandResult RepairTrackPhaseOrder(Object target)
+    public static ActionSequenceEditorCommandResult RepairTrackKindOrder(Object target)
     {
         using ActionSequenceSerializedDocument document = ActionSequenceSerializedDocument.Open(target);
         if (!document.IsSupported)
@@ -362,14 +362,14 @@ public static class ActionSequenceEditorCommands
             {
                 changed = true;
                 if (sorted[i].Locked)
-                    return Fail(ActionSequenceEditorCommandStatus.Locked, "Repairing phase order would move a locked track.");
+                    return Fail(ActionSequenceEditorCommandStatus.Locked, "Repairing kind order would move a locked track.");
             }
         }
 
         if (!changed)
-            return Fail(ActionSequenceEditorCommandStatus.NoChange, "Track phase order is already valid.");
+            return Fail(ActionSequenceEditorCommandStatus.NoChange, "Track kind order is already valid.");
 
-        return CommitDirect(document, "Repair Action Sequence Track Phase Order", ActionSequenceEditorChangeFlags.Structure | ActionSequenceEditorChangeFlags.Validation, changeSet =>
+        return CommitDirect(document, "Repair Action Sequence Track Kind Order", ActionSequenceEditorChangeFlags.Structure | ActionSequenceEditorChangeFlags.Validation, changeSet =>
         {
             List<ActionSequenceTrackDefinition> tracks = GetData(target).EditorTracks;
             var indexedTracks = new List<IndexedTrack>(tracks.Count);
@@ -381,15 +381,15 @@ public static class ActionSequenceEditorCommands
             for (int i = 0; i < indexedTracks.Count; i++)
                 tracks.Add(indexedTracks[i].Track);
 
-            return Success(document, changeSet, "Track phase order repaired.");
+            return Success(document, changeSet, "Track kind order repaired.");
         });
     }
 
     private static int CompareTrackSnapshotsStable(ActionSequenceTrackSnapshot a, ActionSequenceTrackSnapshot b)
     {
-        int phaseCompare = a.Phase.CompareTo(b.Phase);
-        if (phaseCompare != 0)
-            return phaseCompare;
+        int kindCompare = a.Kind.CompareTo(b.Kind);
+        if (kindCompare != 0)
+            return kindCompare;
 
         return a.TrackIndex.CompareTo(b.TrackIndex);
     }
@@ -403,9 +403,9 @@ public static class ActionSequenceEditorCommands
         if (b.Track == null)
             return -1;
 
-        int phaseCompare = a.Track.Phase.CompareTo(b.Track.Phase);
-        if (phaseCompare != 0)
-            return phaseCompare;
+        int kindCompare = a.Track.Kind.CompareTo(b.Track.Kind);
+        if (kindCompare != 0)
+            return kindCompare;
 
         return a.OriginalIndex.CompareTo(b.OriginalIndex);
     }
@@ -609,7 +609,7 @@ public static class ActionSequenceEditorCommands
         return sequence.DurationMode != ActionSequenceDurationMode.FixedFrames || endFrame <= sequence.FixedDurationFrames;
     }
 
-    private static int GetPhaseGroupEndIndex(ActionSequenceSerializedDocument document, ActionSequenceClipPhase phase)
+    private static int GetKindGroupEndIndex(ActionSequenceSerializedDocument document, ActionSequenceTrackKind phase)
     {
         int insertIndex = document.Tracks.Count;
         for (int i = 0; i < document.Tracks.Count; i++)
@@ -617,33 +617,33 @@ public static class ActionSequenceEditorCommands
             ActionSequenceTrackSnapshot track = document.Tracks[i];
             if (track.IsNull || track.MissingType)
                 continue;
-            if (track.Phase.CompareTo(phase) > 0)
+            if (track.Kind.CompareTo(phase) > 0)
                 return i;
-            if (track.Phase == phase)
+            if (track.Kind == phase)
                 insertIndex = i + 1;
         }
 
         return insertIndex;
     }
 
-    private static int GetIndexForPhaseLocalPosition(ActionSequenceSerializedDocument document, ActionSequenceClipPhase phase, int phaseLocalIndex)
+    private static int GetIndexForKindLocalPosition(ActionSequenceSerializedDocument document, ActionSequenceTrackKind phase, int kindLocalIndex)
     {
-        int countInPhase = 0;
-        int lastPhaseIndex = -1;
+        int countInKind = 0;
+        int lastKindIndex = -1;
         for (int i = 0; i < document.Tracks.Count; i++)
         {
             ActionSequenceTrackSnapshot track = document.Tracks[i];
-            if (track.IsNull || track.MissingType || track.Phase != phase)
+            if (track.IsNull || track.MissingType || track.Kind != phase)
                 continue;
 
-            if (countInPhase == phaseLocalIndex)
+            if (countInKind == kindLocalIndex)
                 return i;
 
-            countInPhase++;
-            lastPhaseIndex = i;
+            countInKind++;
+            lastKindIndex = i;
         }
 
-        return phaseLocalIndex == countInPhase && lastPhaseIndex >= 0 ? lastPhaseIndex : -1;
+        return kindLocalIndex == countInKind && lastKindIndex >= 0 ? lastKindIndex : -1;
     }
 
     private static string GetAdjacentTrackId(ActionSequenceSerializedDocument document, int deletedTrackIndex)

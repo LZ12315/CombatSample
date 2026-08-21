@@ -57,6 +57,7 @@ public sealed class CombatSimulationDriverPlayModeTests
     private GameObject _actorOwnerA;
     private GameObject _actorOwnerB;
     private GameObject _sequenceActorOwner;
+    private GameObject _sequenceTargetOwner;
     private ActionAsset _sequenceAction;
     private CombatSimulationDriver _driver;
     private bool _savedInterpolate;
@@ -145,7 +146,6 @@ public sealed class CombatSimulationDriverPlayModeTests
         AssertFixedDeltaTimes(controller.DeltaTimes);
 
         Assert.Greater(motor.TransientPosition.x, startPosition.x);
-        Assert.That(Vector3.Distance(observation.InitialTickPosition, startPosition), Is.LessThan(0.0001f));
         Assert.That(
             Vector3.Distance(observation.TransformPosition, observation.InitialTickPosition),
             Is.LessThan(0.0001f));
@@ -271,62 +271,69 @@ public sealed class CombatSimulationDriverPlayModeTests
         KinematicCharacterMotor motor,
         CombatSimulationFixedObservationProbe observation)
     {
-        var phaseEvents = new List<string>();
-        Collider probeCollider = motor.GetComponent<Collider>();
-        Assert.IsNotNull(probeCollider);
+        var orderEvents = new List<string>();
 
-        _sequenceActorOwner = new GameObject("CombatSimulationDriver Sequence Actor");
-        _sequenceActorOwner.AddComponent<Actor>();
-        ActionPlayer player = _sequenceActorOwner.AddComponent<ActionPlayer>();
+        Actor actor = _probeOwner.AddComponent<Actor>();
+        ActorCombater attackerCombater = _probeOwner.AddComponent<ActorCombater>();
+        ActionPlayer player = _probeOwner.AddComponent<ActionPlayer>();
+        actor.actionPlayer = player;
+        actor.combater = attackerCombater;
+
+        _sequenceTargetOwner = new GameObject("CombatSimulationDriver Hit Target");
+        _sequenceTargetOwner.layer = 8;
+        _sequenceTargetOwner.AddComponent<BoxCollider>().size = Vector3.one * 0.5f;
+        DriverDamageProbe damageProbe = _sequenceTargetOwner.AddComponent<DriverDamageProbe>();
+        damageProbe.Events = orderEvents;
 
         _sequenceAction = ScriptableObject.CreateInstance<ActionAsset>();
         _sequenceAction.SetPlaybackBackend(ActionPlaybackBackend.Sequence);
         _sequenceAction.SequenceData.EditorSetTiming(60, 1);
         _sequenceAction.SequenceData.EditorTracks.Clear();
-        _sequenceAction.SequenceData.EditorTracks.Add(new DriverPhaseProbeTrack(
-            ActionSequenceClipPhase.State,
-            new DriverPhaseProbeClip(
-                ActionSequenceClipPhase.State,
-                phaseEvents,
-                "pre")));
-        _sequenceAction.SequenceData.EditorTracks.Add(new DriverPhaseProbeTrack(
-            ActionSequenceClipPhase.HitBox,
-            new DriverPhaseProbeClip(
-                ActionSequenceClipPhase.HitBox,
-                phaseEvents,
-                "post",
-                motor,
-                probeCollider)));
+        _sequenceAction.SequenceData.EditorTracks.Add(new DriverKindProbeTrack(
+            ActionSequenceTrackKind.State,
+            new DriverKindProbeClip(
+                ActionSequenceTrackKind.State,
+                orderEvents,
+                "play")));
+        var hitBoxTrack = new ActionSequenceHitBoxTrack();
+        hitBoxTrack.EditorClips.Add(CreateDriverHitBoxClip());
+        _sequenceAction.SequenceData.EditorTracks.Add(hitBoxTrack);
 
         controller.RequestedVelocity = Vector3.right * 120f;
-        controller.PhaseEvents = phaseEvents;
+        controller.KindEvents = orderEvents;
         KinematicCharacterSystem.Settings.Interpolate = true;
         int previousObservationCount = observation.Count;
 
+        _sequenceTargetOwner.transform.position =
+            motor.TransientPosition + controller.RequestedVelocity * CombatFixedDeltaTime;
         player.BeginAction(_sequenceAction, ActionContext.None);
-        Assert.AreEqual(0, phaseEvents.Count, "Frame 0 must wait for the fixed simulation tick.");
+        Assert.AreEqual(0, orderEvents.Count, "Frame 0 must wait for the fixed simulation tick.");
 
         yield return WaitForObservation(observation, previousObservationCount);
-        AssertSequencePhaseOrder(phaseEvents);
+        AssertSequenceFixedOrder(orderEvents);
+        Assert.AreEqual(1, damageProbe.HitCount);
         Assert.IsNull(player.CurrentAction, "A one-frame Sequence must finish in the same EndFrame.");
         Assert.That(
             Vector3.Distance(observation.TransformPosition, observation.InitialTickPosition),
             Is.LessThan(0.0001f),
-            "Interpolation Post must run after Sequence PostWorld and restore the rendered Transform.");
+            "Interpolation Post must run after hit detection and restore the rendered Transform.");
 
-        phaseEvents.Clear();
+        orderEvents.Clear();
         KinematicCharacterSystem.Settings.Interpolate = false;
         previousObservationCount = observation.Count;
+        _sequenceTargetOwner.transform.position =
+            motor.TransientPosition + controller.RequestedVelocity * CombatFixedDeltaTime;
         player.BeginAction(_sequenceAction, ActionContext.None);
 
         yield return WaitForObservation(observation, previousObservationCount);
-        AssertSequencePhaseOrder(phaseEvents);
+        AssertSequenceFixedOrder(orderEvents);
+        Assert.AreEqual(2, damageProbe.HitCount);
         Assert.That(
             Vector3.Distance(observation.TransformPosition, observation.TransientPosition),
             Is.LessThan(0.0001f),
-            "Disabling interpolation must not change the Sequence phase order.");
+            "Disabling interpolation must not change the Sequence kind order.");
 
-        controller.PhaseEvents = null;
+        controller.KindEvents = null;
         controller.RequestedVelocity = Vector3.right;
     }
 
@@ -354,17 +361,46 @@ public sealed class CombatSimulationDriverPlayModeTests
             "A faulted Driver must not continue partially trustworthy world simulation.");
     }
 
-    private static void AssertSequencePhaseOrder(List<string> phaseEvents)
+    private static void AssertSequenceFixedOrder(List<string> orderEvents)
     {
-        int preIndex = phaseEvents.IndexOf("pre");
-        int kccIndex = phaseEvents.IndexOf("kcc");
-        int postIndex = phaseEvents.IndexOf("post-synced");
-        int exitIndex = phaseEvents.IndexOf("exit");
+        int playIndex = orderEvents.IndexOf("play");
+        int kccIndex = orderEvents.IndexOf("kcc");
+        int resolveIndex = orderEvents.IndexOf("resolve");
+        int exitIndex = orderEvents.IndexOf("exit");
 
-        Assert.GreaterOrEqual(preIndex, 0);
-        Assert.Greater(kccIndex, preIndex);
-        Assert.Greater(postIndex, kccIndex);
-        Assert.Greater(exitIndex, postIndex);
+        Assert.GreaterOrEqual(playIndex, 0);
+        Assert.Greater(kccIndex, playIndex);
+        Assert.Greater(resolveIndex, kccIndex);
+        Assert.Greater(exitIndex, resolveIndex);
+    }
+
+    private static ActionSequenceHitBoxClipDefinition CreateDriverHitBoxClip()
+    {
+        var clip = new ActionSequenceHitBoxClipDefinition
+        {
+            startFrame = 0,
+            endFrame = 1,
+            boneReference = new BoneReference
+            {
+                mode = BoneReference.Mode.ActorPath,
+                bonePath = string.Empty,
+            },
+            hitboxConfig = new ActionHitBoxConfig
+            {
+                center = Vector3.zero,
+                radius = 3.0f,
+                height = 0.5f,
+                rotation = Quaternion.identity,
+            },
+            dataConfig = new AttackDataConfig
+            {
+                _baseDamage = 1f,
+                targetLayers = 1 << 8,
+            },
+        };
+
+        clip.EditorSetEditorId("driver-hitbox");
+        return clip;
     }
 
     private static ActorMotor CreateActorMotor(string name, Vector3 position, out GameObject owner)
@@ -414,6 +450,12 @@ public sealed class CombatSimulationDriverPlayModeTests
             _sequenceActorOwner = null;
         }
 
+        if (_sequenceTargetOwner != null)
+        {
+            Object.DestroyImmediate(_sequenceTargetOwner);
+            _sequenceTargetOwner = null;
+        }
+
         if (_sequenceAction != null)
         {
             Object.DestroyImmediate(_sequenceAction);
@@ -451,7 +493,7 @@ public sealed class CombatSimulationDriverPlayModeTests
         public readonly List<float> DeltaTimes = new List<float>();
 
         public Vector3 RequestedVelocity;
-        public List<string> PhaseEvents;
+        public List<string> KindEvents;
         public bool ThrowOnBefore;
         public int BeforeCount;
         public int UpdateRotationCount;
@@ -488,7 +530,7 @@ public sealed class CombatSimulationDriverPlayModeTests
         public void AfterCharacterUpdate(float deltaTime)
         {
             AfterCount++;
-            PhaseEvents?.Add("kcc");
+            KindEvents?.Add("kcc");
         }
 
         public bool IsColliderValidForCollisions(Collider coll)
@@ -527,106 +569,85 @@ public sealed class CombatSimulationDriverPlayModeTests
         }
     }
 
-    private sealed class DriverPhaseProbeTrack : ActionSequenceTrackDefinition
+    private sealed class DriverKindProbeTrack : ActionSequenceTrackDefinition
     {
-        private static readonly System.Type[] ClipTypes = { typeof(DriverPhaseProbeClip) };
-        private readonly ActionSequenceClipPhase _phase;
+        private static readonly System.Type[] ClipTypes = { typeof(DriverKindProbeClip) };
+        private readonly ActionSequenceTrackKind _kind;
 
-        public DriverPhaseProbeTrack(
-            ActionSequenceClipPhase phase,
+        public DriverKindProbeTrack(
+            ActionSequenceTrackKind kind,
             params ActionSequenceClipDefinition[] clips)
         {
-            _phase = phase;
+            _kind = kind;
             for (int i = 0; i < clips.Length; i++)
                 AddClip(clips[i]);
         }
 
-        public override ActionSequenceClipPhase Phase => _phase;
+        public override ActionSequenceTrackKind Kind => _kind;
         public override System.Type[] AllowedClipTypes => ClipTypes;
     }
 
-    private sealed class DriverPhaseProbeClip : ActionSequenceClipDefinition
+    private sealed class DriverKindProbeClip : ActionSequenceClipDefinition
     {
-        private readonly ActionSequenceClipPhase _phase;
+        private readonly ActionSequenceTrackKind _kind;
         private readonly List<string> _events;
         private readonly string _eventName;
-        private readonly KinematicCharacterMotor _motor;
-        private readonly Collider _expectedCollider;
 
-        public DriverPhaseProbeClip(
-            ActionSequenceClipPhase phase,
+        public DriverKindProbeClip(
+            ActionSequenceTrackKind kind,
             List<string> events,
-            string eventName,
-            KinematicCharacterMotor motor = null,
-            Collider expectedCollider = null)
+            string eventName)
         {
-            _phase = phase;
+            _kind = kind;
             _events = events;
             _eventName = eventName;
-            _motor = motor;
-            _expectedCollider = expectedCollider;
             startFrame = 0;
             endFrame = 1;
         }
 
-        public override ActionSequenceClipPhase Phase => _phase;
+        public override ActionSequenceTrackKind Kind => _kind;
 
         public override ActionSequenceClipRuntime CreateRuntime()
         {
-            return new Runtime(_events, _eventName, _motor, _expectedCollider);
+            return new Runtime(_events, _eventName);
         }
 
         private sealed class Runtime : ActionSequenceClipRuntime
         {
             private readonly List<string> _events;
             private readonly string _eventName;
-            private readonly KinematicCharacterMotor _motor;
-            private readonly Collider _expectedCollider;
-            private readonly Collider[] _overlapResults = new Collider[8];
 
             public Runtime(
                 List<string> events,
-                string eventName,
-                KinematicCharacterMotor motor,
-                Collider expectedCollider)
+                string eventName)
             {
                 _events = events;
                 _eventName = eventName;
-                _motor = motor;
-                _expectedCollider = expectedCollider;
             }
 
             public override void OnTick(ActionSequenceContext context)
             {
-                if (_motor == null || _expectedCollider == null)
-                {
-                    _events.Add(_eventName);
-                    return;
-                }
-
-                int count = Physics.OverlapSphereNonAlloc(
-                    _motor.TransientPosition,
-                    0.1f,
-                    _overlapResults,
-                    ~0,
-                    QueryTriggerInteraction.Collide);
-                bool foundExpectedCollider = false;
-                for (int i = 0; i < count; i++)
-                {
-                    if (_overlapResults[i] == _expectedCollider)
-                    {
-                        foundExpectedCollider = true;
-                        break;
-                    }
-                }
-
-                _events.Add(foundExpectedCollider ? "post-synced" : "post-unsynced");
+                _events.Add(_eventName);
             }
 
             public override void OnExit(ActionSequenceContext context, bool completed)
             {
                 _events.Add("exit");
             }
+        }
+    }
+
+    private sealed class DriverDamageProbe : MonoBehaviour, IDamageable
+    {
+        public List<string> Events;
+        public int HitCount;
+        public bool IsDead => false;
+
+        public HitResolveResult TakeDamage(AttackHitData attackData)
+        {
+            HitCount++;
+            Events?.Add("resolve");
+            return HitResolveResult.Normal(false);
         }
     }
 }

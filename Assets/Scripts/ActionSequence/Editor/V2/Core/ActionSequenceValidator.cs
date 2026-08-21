@@ -18,7 +18,7 @@ public enum ActionSequenceEditorValidationCode
     NullClip,
     MissingManagedReferenceType,
     DisallowedClipType,
-    PhaseMismatch,
+    KindMismatch,
     InvalidStartFrame,
     InvalidEndFrame,
     ClipExceedsFixedDuration,
@@ -26,7 +26,7 @@ public enum ActionSequenceEditorValidationCode
     UnsupportedGameplayFrameRate,
     InvalidFixedDuration,
     LegacyClip,
-    TrackPhaseOrder,
+    TrackKindOrder,
     InvalidVelocityConfig,
 }
 
@@ -91,7 +91,7 @@ public static class ActionSequenceValidator
 {
     public const string RepairInvalidIdsCommandId = "RepairInvalidIds";
     public const string MigrateLegacyClipsCommandId = "MigrateLegacyClips";
-    public const string RepairTrackPhaseOrderCommandId = "RepairTrackPhaseOrder";
+    public const string RepairTrackKindOrderCommandId = "RepairTrackKindOrder";
     public const string SetGameplayRateCommandId = "SetGameplayRateTo60";
 
     public static ActionSequenceEditorValidationResult Validate(UnityEngine.Object target)
@@ -109,7 +109,7 @@ public static class ActionSequenceValidator
         ValidateSequence(document, result);
         ValidateTracks(document, result);
         ValidateLegacyClips(document, result);
-        ValidatePhaseOrder(document, result);
+        ValidateKindOrder(document, result);
         return result;
     }
 
@@ -237,9 +237,9 @@ public static class ActionSequenceValidator
             result.Add(NewIssue(ActionSequenceEditorValidationSeverity.Error, ActionSequenceEditorValidationCode.DisallowedClipType, "Track does not accept this clip type.", kind, clip.EditorId, clip.TrackIndex, clip.ClipIndex, clip.LegacyClipIndex, clip.ManagedReferenceId));
         }
 
-        if (!clip.PhaseMatchesTrack)
+        if (!clip.KindMatchesTrack)
         {
-            result.Add(NewIssue(ActionSequenceEditorValidationSeverity.Error, ActionSequenceEditorValidationCode.PhaseMismatch, "Clip phase does not match track phase.", kind, clip.EditorId, clip.TrackIndex, clip.ClipIndex, clip.LegacyClipIndex, clip.ManagedReferenceId));
+            result.Add(NewIssue(ActionSequenceEditorValidationSeverity.Error, ActionSequenceEditorValidationCode.KindMismatch, "Clip kind does not match track kind.", kind, clip.EditorId, clip.TrackIndex, clip.ClipIndex, clip.LegacyClipIndex, clip.ManagedReferenceId));
         }
 
         if (clip.StartFrame < 0)
@@ -321,10 +321,10 @@ public static class ActionSequenceValidator
         }
     }
 
-    private static void ValidatePhaseOrder(ActionSequenceSerializedDocument document, ActionSequenceEditorValidationResult result)
+    private static void ValidateKindOrder(ActionSequenceSerializedDocument document, ActionSequenceEditorValidationResult result)
     {
         IReadOnlyList<ActionSequenceTrackSnapshot> tracks = document.Tracks;
-        ActionSequenceClipPhase previous = default;
+        ActionSequenceTrackKind previous = default;
         bool hasPrevious = false;
 
         for (int i = 0; i < tracks.Count; i++)
@@ -333,22 +333,22 @@ public static class ActionSequenceValidator
             if (track.IsNull || track.MissingType)
                 continue;
 
-            if (hasPrevious && track.Phase.CompareTo(previous) < 0)
+            if (hasPrevious && track.Kind.CompareTo(previous) < 0)
             {
                 result.Add(NewIssue(
                     ActionSequenceEditorValidationSeverity.Warning,
-                    ActionSequenceEditorValidationCode.TrackPhaseOrder,
-                    "Track phase order differs from V2 display and execution order.",
+                    ActionSequenceEditorValidationCode.TrackKindOrder,
+                    "Track kind order differs from V2 display and execution order.",
                     ActionSequenceEditorDocumentItemKind.Track,
                     track.EditorId,
                     track.TrackIndex,
                     -1,
                     -1,
                     track.ManagedReferenceId,
-                    RepairTrackPhaseOrderCommandId));
+                    RepairTrackKindOrderCommandId));
             }
 
-            previous = track.Phase;
+            previous = track.Kind;
             hasPrevious = true;
         }
     }

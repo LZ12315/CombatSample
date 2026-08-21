@@ -1,8 +1,8 @@
 # CombatSample ActionSequence 最终架构 v2
 
-> 状态：已批准的实施基线，分阶段实施中；Stage B 固定接线、Stage C1–C2.4 AnimationConfig/Baker 作者工作流、Stage D1–D3 Pose/Motion 基础 Clip 已落地
+> 状态：已批准的实施基线，分阶段实施中；Stage D4/D4.1 已落地，Stage D5 固定帧架构简化已完成并通过 focused tests、命令行编译、Unity Test Runner 全量 EditMode/PlayMode 与 Jaeger 手动回归；下一阶段为 Stage E1
 >
-> 日期：2026-08-10
+> 日期：2026-08-22
 >
 > 范围：ActionSequence、AnimationConfig、Root Motion、Locomotion、ActorMotor/KCC 与 HitBox 固定模拟顺序
 
@@ -11,6 +11,8 @@
 原 v1 文档中的 Baker、Trajectory 数据和刚体变换数学继续有效；当两份文档的运行时职责发生冲突时，以本文档为准。最重要的变化是：Root Motion 的位移和旋转不再由同一个 Sequence Clip 承担，Locomotion 也不再伪装成 Action。
 
 本文档描述的是完整目标架构，不代表所有阶段都已经实现。第 11 节单独记录当前代码与目标之间的差异及已落地切片。
+
+Stage D5 的具体迁移步骤、文件边界和验收清单见 [`CombatSample_ActionSequence_Stage_D5_Simplification_zh-CN.md`](CombatSample_ActionSequence_Stage_D5_Simplification_zh-CN.md)。本文档仍是长期架构的唯一权威；D5 文档只描述从当前 D4.1 实现走向本文目标的实施过程。
 
 ---
 
@@ -27,7 +29,10 @@
 | 垂直运动 | Root Motion Y 第一版不用；继续由 Gravity、VerticalImpulse、VerticalVelocity 负责 |
 | 世界运动 | 所有请求进入 `ActorMotor`，由 KCC 决定实际位置；其他系统不直接改 Gameplay Transform |
 | 固定模拟 | 项目侧 `CombatSimulationDriver` 是 Tick 调度者；KCC 是世界运动求解屏障，不是业务调度器 |
-| HitBox | 使用同一 Sequence Frame 的骨骼 Pose，但必须在 KCC 与 Actor 互推完成后查询 |
+| Actor 入口 | 每个 Actor 只以一个 `ActorSimulationRuntime` 参加固定 Tick；其他子系统不向 Driver 注册阶段回调 |
+| Sequence | 只解释 Gameplay Frame，并以普通 `Enter / Tick / Exit` 驱动 Clip；不理解移动前后、Physics 或 Hit Resolve |
+| HitBox | HitBoxClip 只控制攻击窗口；`ActorHitBoxRuntime` 在 KCC 与 Actor 互推后统一查询 |
+| 命中 | 每 Tick 使用一个强类型 `CombatHitBuffer` 先收集、后稳定排序结算；不建立通用 Intent Pool |
 | 动量交接 | Action 进入时不再按比例清除旧动量；Motor 已有 Impulse、Gravity 状态自然延续 |
 | Legacy Timeline | 只作为现有资产迁移期兼容，不发展成第二种长期 Action 后端 |
 
@@ -44,24 +49,28 @@ Update
 
 CombatSimulationDriver.FixedUpdate（60 Hz）
 │
-├─ BeginTick：提交上一阶段排队的 Action / Locomotion 域切换
+├─ KCC PreSimulationInterpolationUpdate（若启用）
 │
-├─ PreWorldMotion
-│  ├─ Locomotion 域：LocomotionController 仲裁 Mode 并提交 Motor 移动请求
-│  └─ Action 域：ActionSequence 至多推进一个 Gameplay Frame
-│     ├─ State / Tag
-│     ├─ AnimationPoseClip → Animancer Pose
-│     ├─ RootMotionClip → XZ 位移请求
-│     └─ SelfRotationClip → 自身旋转请求
+├─ Decide Actions（Stage E1 接入；此前保留 ASM 兼容入口）
 │
-├─ WorldMotionCommit
+├─ Play Action Frames
+│  └─ 每个 ActionSequence 至多推进一个 Gameplay Frame
+│     └─ Active Clips：OnEnter / OnTick
+│
+├─ Move Actors
+│  ├─ Locomotion / RootMotion / SelfRotation / Velocity 等请求已交给 ActorMotor
 │  ├─ KCC Simulate
 │  ├─ ActorCollisionResolver
 │  └─ Physics.SyncTransforms（全局一次）
 │
-├─ PostWorldMotion
-│  ├─ 使用同一 Pose 和最终 Actor Root 查询 HitBox
-│  └─ 统一结算命中；由命中产生的状态切换和运动排到下一 Tick
+├─ Detect Hits
+│  └─ 每个 ActorHitBoxRuntime 使用同一 Pose 和最终 Actor Root，把 PendingHit 写入 CombatHitBuffer
+│
+├─ Resolve Hits
+│  └─ 稳定排序后统一结算；命中产生的普通 Action 请求留给下一 Tick Decide
+│
+├─ Finish Action Frames
+│  └─ 本帧到期 Clip OnExit，必要时 Action Complete
 │
 └─ KCC PostSimulationInterpolationUpdate
 ```
@@ -86,6 +95,7 @@ Pose Clip、位移 Clip 和旋转 Clip 彼此不引用，也不要求相同 key�
 | 领域 | 权威 |
 | --- | --- |
 | 固定 Tick 顺序 | `CombatSimulationDriver` |
+| 单个 Actor 的固定 Tick 入口 | `ActorSimulationRuntime` |
 | Actor 当前处于 Action 还是 Locomotion | `ActionStateManager` |
 | Action Gameplay Frame | `ActionSequence` |
 | 骨骼 Pose | Animancer |
@@ -93,6 +103,8 @@ Pose Clip、位移 Clip 和旋转 Clip 彼此不引用，也不要求相同 key�
 | Locomotion 模式、自然动画和移动输入解释 | `LocomotionController` |
 | 运动通道合成 | `ActorMotor / ActorMotionRuntime` |
 | 碰撞允许后的实际世界位置 | KCC + `ActorCollisionResolver` |
+| 激活中的攻击窗口与 Physics Query | `ActorHitBoxRuntime` |
+| 本 Tick 命中排序与结算 | `CombatHitBuffer` |
 
 永久约束：
 
@@ -482,7 +494,7 @@ clip-local animation time
 
 映射逻辑不能分别复制在三个 Clip Runtime 中。
 
-Gameplay Track 统一使用零起点半开区间 `[startFrame, endFrame)`，其中一个 frame 表示一个 60 Hz 模拟区间。提交 Gameplay frame `f` 时，从边界 `f` Advance 到 `f + 1`，Pose、authored XZ 和 authored Yaw 都使用同一个右边界结果。完成该 frame 的 PostWorld HitBox/Resolve 后，才退出 `endFrame == f + 1` 的 Clip。
+Gameplay Track 统一使用零起点半开区间 `[startFrame, endFrame)`，其中一个 frame 表示一个 60 Hz 模拟区间。提交 Gameplay frame `f` 时，从边界 `f` Advance 到 `f + 1`，Pose、authored XZ 和 authored Yaw 都使用同一个右边界结果。完成该 frame 的移动、Hit Query 和 Resolve 后，才在 `FinishActionFrame` 退出 `endFrame == f + 1` 的 Clip。
 
 例如 `[0, 3)`：
 
@@ -491,17 +503,17 @@ Session activation pose baseline: t = 0
 Frame 0: 0/60 → 1/60
 Frame 1: 1/60 → 2/60
 Frame 2: 2/60 → 3/60
-PostWorld(Frame 2) 之后 Exit
+ResolveHits(Frame 2) 之后 Exit
 ```
 
 这一定义避免首段或末段 trajectory 少算一帧，也确保最后一帧 HitBox 不会因 Action 提前 Complete 而丢失。
 
 Session activation 与 Gameplay Frame Advance 是两个明确步骤：
 
-1. `Activate` 在 BeginTick 只建立 Action 域、Action 自身的 SelfTags，并让 Frame 0 的 Pose source 在左边界 `t = 0` 建立可显示的起始 Pose；不调用 Gameplay Clip `OnEnter/OnTick`，不取得 Motion owner，不写 Impulse/ForceUnground，也不 Query HitBox。
+1. Action 激活时只建立 Action 域、Action 自身的 SelfTags，并让 Frame 0 的 Pose source 在左边界 `t = 0` 建立可显示的起始 Pose；不调用 Gameplay Clip `OnEnter/OnTick`，不取得 Motion owner，不写 Impulse/ForceUnground，也不 Query HitBox。
 2. Sequence accumulator 初值为 0；每个 Combat Tick 加入当 Tick 的 Sequence speed。累计值达到 1 才提交一个 Gameplay frame 并减 1。
-3. 提交 frame `f` 时，`startFrame == f` 的 Clip 才正式 `OnEnter`，随后执行该 frame 的 PreWorld/PostWorld；因此 1 倍速在激活 Tick 提交 Frame 0，0.5 倍速通常在第二个 Tick 提交 Frame 0，0 倍速保持在 activation baseline。
-4. 未提交 Gameplay frame 的 Tick 只保持 Action 域、SelfTags 和起始/上次 Gameplay Frame；当 Sequence speed 在 `(0, 1)` 时，可以执行 Animation-only PoseRefresh，以 fractional `PoseFrame` 平滑刷新视觉 Pose，但不得触发 State/Motion/HitBox/Cleanup、Clip enter/exit 或任何 Gameplay 输出。
+3. 提交 frame `f` 时，`startFrame == f` 的 Clip 才正式 `OnEnter`，所有 active Clip 随后各执行一次 `OnTick`；因此 1 倍速在激活 Tick 提交 Frame 0，0.5 倍速通常在第二个 Tick 提交 Frame 0，0 倍速保持在 activation baseline。
+4. 未提交 Gameplay frame 的 Tick 只保持 Action 域、SelfTags 和起始/上次 Gameplay Frame；当 Sequence speed 在 `(0, 1)` 时，可以执行 Animation-only PoseRefresh，以 fractional `PoseFrame` 平滑刷新视觉 Pose，但不得触发 Gameplay Clip enter/tick/exit、运动请求或 Hit Query。
 
 `Advance` 和 `Seek` 必须分开：
 
@@ -528,7 +540,7 @@ RootMotion 与水平 VelocityOverride 可以重叠，不报错；Velocity 覆盖
 
 现有 Impulse、Gravity 和 MotionChannels 的非 VelocityOwner 语义不在本轮重新设计。
 
-- Sequence ImpulseClip 在自己首个参与的已提交 Gameplay frame 的 PreWorld 中调用 `AddImpulse/ForceUnground` 一次；activation baseline 不调用它，因此不需要新增 Motor pending-impulse staging buffer。
+- Sequence ImpulseClip 在自己首个参与的已提交 Gameplay frame 的 `PlayActionFrame` 中调用 `AddImpulse/ForceUnground` 一次；activation baseline 不调用它，因此不需要新增 Motor pending-impulse staging buffer。
 - GravityScale 如果以后需要时间区间控制，应使用明确的 MotionTrack Clip，不再放回整招 ActionMotionConfig。
 - 第一版不为未来 Motion Clip 创建通用命令图、两套作者可见时钟或每 Clip HitStop 开关。
 
@@ -665,59 +677,70 @@ PostSimulationInterpolationUpdate
 ```text
 1. 建立本 Tick actor 快照；注册/注销延迟到安全边界
 2. 若 KCC Settings.Interpolate：KCC.PreSimulationInterpolationUpdate，并记录本 Tick 已执行
-3. 所有 Actor BeginTick
-   - 提交上一 Tick 排队的 Action / Locomotion 切换
-   - 锁定本 Tick StateKind、CurrentAction 和 Sequence Frame
-4. 所有 Actor PreWorldMotion
-   - State / Tag
-   - Pose Evaluate
-   - RootMotion / SelfRotation / Impulse 等请求
+3. 所有 Actor DecideAction（Stage E1 接入）
+4. 所有 Actor PlayActionFrame
+   - ActionPlayer 判断本 Tick 是否推进 Gameplay Frame
+   - 若推进，Sequence 对本帧 Clip 执行 OnEnter / OnTick
+   - Pose、RootMotion、SelfRotation、Velocity 和其他动作请求在这里提交
 5. KinematicCharacterSystem.Simulate
 6. ActorCollisionResolver.Resolve
 7. Finalize 最终世界位移/速度 readout；Grounding 仍由 KCC callback 发布
 8. Physics.SyncTransforms（项目当前 Auto Sync 关闭，因此集中一次）
-9. 所有 Actor PostWorldMotion
-   - 保持同一 Sequence Frame 和 Pose
-   - HitBox Query
-10. 统一 Hit Resolve / Impact
-11. 所有 Actor EndTick
+9. 所有 Actor DetectHits
+   - 仅本 Tick 真正推进 Gameplay Frame 的 Actor 参与
+   - ActorHitBoxRuntime 查询当前 active hitboxes，并把 PendingHit 写入 CombatHitBuffer
+10. CombatHitBuffer.Resolve
+11. 所有 Actor FinishActionFrame
+   - 退出本帧到期 Clip
+   - 必要时完成 Action
 12. 仅当第 2 步确实执行过 Pre：在 finally 中执行匹配的 KCC.PostSimulationInterpolationUpdate
 ```
 
 HitBox 必须发生在第 12 步之前，因为 KCC PostSimulationInterpolationUpdate 会把 Transform 暂时还原到 Tick 起点用于渲染插值。
 
-Driver 使用一个最外层 transaction guard。成功路径对每个已 Begin 的 Actor 恰好调用一次 EndTick。任一 PreWorld、KCC、Resolver、Query 或 Resolve 阶段抛异常时：
+Driver 使用普通的 `try/catch/finally` 保护 KCC interpolation 配对和 Actor 清理，不建立通用 Gameplay Transaction。成功路径对每个已播放 Gameplay Frame 的 Actor 恰好调用一次 `FinishActionFrame`。任一播放、KCC、Resolver、Query 或 Resolve 阶段抛异常时：
 
-1. 丢弃尚未提交的 HitIntent、状态切换和延迟运动；
-2. 对本 Tick 已 Begin 的 Actor 逐个执行 exactly-once `AbortTick/ExitAll`，释放 Action/Locomotion owner、清除 trajectory pending、HitBox dedup 和未消费的 action-scoped 状态；
+1. 清空尚未结算的 `CombatHitBuffer`；已经发生的移动、伤害或外部副作用不回滚；
+2. 对本 Tick actor 快照逐个调用幂等 `CancelAction`，释放 Action owner、trajectory pending 和 active hitboxes；
 3. 如果本 Tick 执行过 interpolation Pre，执行匹配的 Post；
-4. 最后处理延迟注册/注销，记录完整诊断并禁用 Driver，避免在部分 world solve 后继续运行一个已不可置信的模拟。
+4. 记录完整诊断并禁用 Driver，避免在部分 world solve 后继续运行一个已不可置信的模拟。
 
 已经在异常前提交到外部对象的副作用不尝试回滚，因此异常属于 fail-fast 配置/程序错误，不是正常 Gameplay 分支。
 
-### 8.4 PreWorld 与 PostWorld
+### 8.4 Actor、Sequence 与世界屏障
 
-当前 Sequence 的 Phase 排序不足以形成物理屏障。目标 Runtime 必须把同一 Gameplay Frame 拆成两部分：
+物理屏障属于 Driver，不属于 Sequence。Sequence 只解释当前 Gameplay Frame：
 
 ```text
-PreWorld：State → Animation → Motion
-WorldMotionCommit
-PostWorld：HitBox → Cleanup/结果
+ActionPlayer.PlayActionFrame
+    ↓
+ActionSequence.PlayFrame
+    ├─ startFrame == frame：Clip.OnEnter
+    └─ active clips：Clip.OnTick
+
+Driver.MoveActors
+Driver.DetectHits
+Driver.ResolveHits
+
+ActionPlayer.FinishActionFrame
+    ↓
+ActionSequence.FinishFrame
+    └─ endFrame == frame + 1：Clip.OnExit
 ```
 
-中间不能推进到下一 Sequence Frame，也不能为同一 Gameplay Frame 改用另一个命中 Pose。
+Sequence 不认识 `PreWorld`、`PostWorld`、KCC、Physics 或 Hit Resolve，也不通过 Phase scheduler 决定 Clip 执行时机。Track 的 Kind 只用于作者界面分类和 Clip 类型约束；Gameplay Clip 按资产中的 Track/Clip 顺序稳定执行。
 
-如果该 Actor 本 Tick 的 Sequence 累加器没有跨过一个 Gameplay Frame，则不执行该 Actor 的 Sequence State/Motion/HitBox `OnTick`，也不重复查询同一骨骼帧。Animation phase 可以在 `0 < speed < 1` 时执行 PoseRefresh，只刷新已 active 的 AnimationPoseClip，不 enter/exit Clip，不推进 CurrentFrame 或 normalized time。已经存在于 Motor 内的 Velocity owner、Impulse、Gravity 等状态仍按它们当前规则运行。
+如果该 Actor 本 Tick 的 Sequence 累加器没有跨过一个 Gameplay Frame，则不执行 Gameplay Clip `OnEnter/OnTick/OnExit`，也不调用该 Actor 的 `DetectHits`。`0 < speed < 1` 时可以执行 Animation-only PoseRefresh，只刷新已 active 的 AnimationPoseClip，不推进 CurrentFrame 或 normalized time。已经存在于 Motor 内的 Velocity owner、Impulse、Gravity 等状态仍按它们当前规则运行。
 
-Clip 生命周期也必须跨过完整屏障：`startFrame == f` 的 Clip 在 frame `f` 的 PreWorld 前进入；`endFrame == f + 1` 的 Clip 保持到 frame `f` 的 Hit Query/Resolve 完成，再在 EndTick 退出。当前 frame 是 Action 最后一帧时，`Complete → ExitAll → ActionFinished` 同样延迟到该 frame 的 EndTick commit。若取消请求在 BeginTick 被正式接受，则在本 frame PreWorld 之前清理并且不再执行被取消 Action 的任何输出。
+Clip 生命周期跨过完整世界屏障：`startFrame == f` 的 Clip 在 `PlayActionFrame(f)` 进入；`endFrame == f + 1` 的 Clip 保持到该帧 Hit Query/Resolve 完成，再在 `FinishActionFrame(f)` 退出。当前帧是 Action 最后一帧时，`ExitAll → ActionFinished` 同样延迟到 Finish。若取消请求在下一 Tick 的 `DecideAction` 被接受，则在新帧播放前取消旧 Action。
 
-所有预先编排的 RootMotion、SelfRotation、Velocity 和 Impulse 在 PreWorld 提交。HitBox 命中后产生的目标 Impulse、受击 Action、死亡或其他状态变更，从下一 BeginTick 生效；第一版不为此做同 Tick 第二次 KCC solve。
+HitBoxClip 只是普通 Clip：`OnEnter` 向本 Actor 的 `ActorHitBoxRuntime` 激活攻击窗口，`OnExit` 关闭该窗口，`OnTick` 通常为空。实际 Physics Query 只由 Driver 在移动完成后通过 `ActorSimulationRuntime.DetectHits` 触发。Sequence Context 不再持有每 Tick Hit Sink，HitBox 也不通过静态全局对象取得 Buffer。
 
-命中处理采用 Query 与 Resolve 分离：先让所有 HitBox 基于同一个已提交世界状态生成 `HitIntent`，再按稳定键（Tick、attacker stable id、clip/hitbox stable id、target stable id）排序结算。这样结果不依赖 Actor 注册或容器遍历顺序；“死亡是否取消同 Tick 后续命中、是否允许相杀”仍是明确的 Gameplay Resolve policy，不能只靠 Query/Resolve 分离暗中决定。
+命中处理继续采用 Query 与 Resolve 分离：所有 `ActorHitBoxRuntime` 先基于同一个已提交世界状态生成 `PendingHit`，再按稳定键（attacker stable id、clip/hitbox stable id、target stable id）排序结算。已经收集的 Hit 不因攻击者随后死亡而失效，因此允许同 Tick 相杀；目标死亡后的后续 Hit 跳过。
 
 ### 8.5 60 Hz 与掉帧
 
-Combat Fixed Tick、KCC 和 Gameplay Sequence 统一为 60 Hz。Unity `Fixed Timestep` 已迁移为 `1 / 60`，不再使用 50 Hz KCC 配 60 Hz Sequence。Gameplay Sequence 的 Validator 与启动校验仍需在后续阶段落实 `frameRate == 60` 门禁。
+Combat Fixed Tick、KCC 和 Gameplay Sequence 统一为 60 Hz。Unity `Fixed Timestep` 已迁移为 `1 / 60`，不再使用 50 Hz KCC 配 60 Hz Sequence。Gameplay Sequence 的 Validator 与启动入口都已落实 `frameRate == 60` 门禁。
 
 第一版 Sequence 全局运行速度只支持 `0..1`。每个 Combat Tick 最多推进一个 Gameplay Frame：
 
@@ -756,7 +779,7 @@ Physics.SyncTransforms
 - 撞墙时攻击范围跟随 KCC 实际位置，而不是动画期望位置；
 - 开启或关闭 KCC interpolation 都不会改变 Gameplay query 所见的模拟姿态。
 
-每个 HitBox Clip 保留自己的单次目标去重集合。取消、自然完成、Disable 和异常退出都必须清理集合及骨骼引用。
+每个 active HitBox 保留自己的 `AttemptedTargets`。目标一旦成功写入本 Tick `CombatHitBuffer`，本攻击窗口就不再对它重试；无敌或拒绝 Impact 也视为本次挥击已经尝试。不同 HitBox Clip 各自持有集合，因此可以分别命中同一目标。取消、自然完成、Disable 和异常退出都必须清理 active hitbox、集合及骨骼引用。
 
 权威 Combat Physics Query 只允许发生在 Driver 的 `Physics.SyncTransforms` 之后、匹配的 KCC `PostSimulationInterpolationUpdate` 之前。普通 Update/LateUpdate 不得执行依赖“本 Tick 最终 Actor 位置”的 Gameplay 命中查询；渲染插值 Transform 与 physics broadphase 在这一阶段可能有意不同。
 
@@ -780,39 +803,39 @@ Physics.SyncTransforms
 
 ## 11. 当前仓库审计
 
-以下是 2026-08-10 的代码事实，不是尚未落地目标的完成声明：
+以下运行时代码事实更新至 2026-08-22；内容资产数量仍沿用 2026-08-10 审计，D5 不重新统计或迁移内容：
 
 | 当前实现 | 与目标的差异 |
 | --- | --- |
 | `ActionAsset` 同时保存 Timeline、backend enum 和 SequenceData | 仍是迁移期双后端；最终只保留内嵌 SequenceData |
 | `ActionPlayer.Update()` 只继续轮询 Legacy Timeline；正式 Sequence 由 ActorSimulationRuntime 在 Driver 固定 Tick 推进 | Sequence 已脱离 Update；ASM/Action.OnEnter 仍保持当前提交时机 |
 | Sequence `Start()` 只创建 Runtime；固定 Tick 中会先建立 Frame 0 Animation-only baseline，再按累加器决定是否提交 Gameplay Frame | 速度为 0 时只允许 Pose baseline，不进入 State/Motion/HitBox |
-| `ActionSequenceRuntime` 的 `BeginFrame → ExecutePreWorld → ExecutePostWorld → EndFrame` 已接到 KCC world solve 两侧 | `CurrentFrame` 只在 EndFrame 提交；最后一帧在同一 EndFrame 完成 Action |
+| `ActionSequenceRuntime` 已收敛为 `PlayFrame → FinishFrame / Cancel`，不再暴露生产 PreWorld/PostWorld 生命周期 | 世界顺序由 Driver 持有；Sequence 只负责 Action Frame 内的 Clip Enter/Tick/Exit |
 | `ActionSequenceRuntime.RefreshPose` 已支持未跨 Gameplay Frame 时的 Animation-only fractional pose refresh | 仅刷新已 active 的 AnimationPoseClip；State/Motion/HitBox/Clip lifecycle 与 RootMotion 不跟随 fractional time |
 | `ActionSequenceRuntime.Tick()` 仍可在一次调用中 while 补多帧 | 仅供 ActionSequenceRunner 等非权威预览入口；正式 Action Session 每个世界 Tick 最多一帧 |
-| Unity Fixed Timestep 已为 `1 / 60`，Sequence 默认 60 Hz | 世界固定时钟与正式播放启动门禁已统一；编辑器资产 Validator 提示尚未落实 |
-| 正式 Sequence 启动时拒绝非 60 Hz 数据，Session 拒绝 `speed > 1` 并中断非法 Action | 运行时门禁已落实；编辑器 Validator 提示仍待补充 |
-| `CombatSimulationDriver` 唯一接管 KCC，并通过每 Actor 一个纯 C# ActorSimulationRuntime 调用 Sequence phases | Clip/Condition 不注册 Driver；ASM BeginTick、Locomotion 与其他 Actor 子系统尚未接入该入口 |
+| Unity Fixed Timestep、Gameplay Sequence 默认值、Editor Validator 与运行时门禁均固定为 60 Hz | 时间基准已完成，不属于 D5 重构范围 |
+| 正式 Sequence Session 拒绝 `speed > 1` 并中断非法 Action | 第一版速度合同已完成，D5 保持不变 |
+| `CombatSimulationDriver` 唯一接管 KCC，并通过每 Actor 一个纯 C# ActorSimulationRuntime 调用 `PlayActionFrame / DetectHits / FinishActionFrame` | E1 才把 ASM DecideAction 接入该入口 |
 | ActorCollisionResolver 已移除独立 `FixedUpdate`，由 Driver 在 KCC 后、interpolation Post 前显式调用 | Resolver 已进入 WorldMotionCommit；最终速度 readout 后置仍属于后续 Motor 阶段 |
-| Physics `m_AutoSyncTransforms = 0` | Driver 已在 Resolver 后、PostWorld 前全局调用一次 `Physics.SyncTransforms` |
+| Physics `m_AutoSyncTransforms = 0` | Driver 已在 Resolver 后、DetectHits 前全局调用一次 `Physics.SyncTransforms` |
 | `ActionSequenceRunner` 使用独立 FixedUpdate -40 | 只能作为调试/预览入口，不能成为第二套生产权威 |
 | ActorLogicInput 每 Update 直接 `SetLocomotionIntent` 到 Motor | 尚未改为只保存，LocomotionController 尚不存在 |
-| ASM 的 Locomotion start context、Action `facingOnStart` 与相关 Condition 仍从 ActorMotor 读取 Intent | ActorLogicInput 停止推 Motor 时必须一起改读其最新保存值 |
-| ASM 在 LateUpdate 仲裁并立即 BeginAction | 尚未改为请求排队、BeginTick 提交 |
+| ActorLogicInput 已保存 `LatestLocomotionIntent`，ASM start context 与 Legacy facing fallback 已改读该快照 | 输入仍继续直推 Motor，待正式 LocomotionController 接管后移除兼容路径 |
+| ASM 在 LateUpdate 仲裁并立即 BeginAction | E1 才改为请求排队并由 `ActorSimulationRuntime.DecideAction` 在固定 Tick 提交 |
 | CancelRule 只有 Specific/Tag/Any，没有 Conditions 或 Locomotion target | Locomotion 取消合同尚未实现 |
 | `AnimationConfig`、Entry、Actor 可选引用、大小写敏感 key 查询与 Editor-only Bake Context 已实现 | Stage D1/D2.1 已接入 AnimationPoseClip、RootMotionClip 和 RootRotation SelfRotationClip 运行时 key 查询；Actor Prefab 仍需逐角色配置具体 AnimationConfig 引用 |
 | `RootMotionTrajectory` 已保存累计 XYZ、完整 Quaternion 与基础 metadata，并提供 Sample/Extract/SE(3) 数学 | Stage D1 已实现 XZ displacement 消费；D2.1 已实现 RootRotation Yaw 消费；Root Y、Pitch/Roll gameplay 消费仍未实现 |
 | AnimationConfig 内置 Bake Context、唯一 AnimationClip resolver、Manual PlayableGraph Baker、独立 Oracle Validator、Entry 内嵌 trajectory、Inspector Bake/Rebake/Bake All 与 DependencyHash/stale 已实现 | 运行时对 missing/stale trajectory 的 Action 启动阻断要随消费 Clip 在 Stage D 接入 |
 | RootMotionBuffer 已分离 Legacy Animator delta 与 Sequence trajectory owner | Animator RootMotion 兼容路径仍保留；trajectory 当前只消费 XZ 位移，不消费 Y 或旋转 |
 | Sequence RootMotionClip 使用 trajectory `Extract(t0,t1)`，提交 local XZ 给 ActorMotor | SelfRotation 的 RootRotation/Target/Direction 已落地；VelocityOverrideClip 已落地；Root Y、Motion Warp、RM+LocomotionInput 同时主导仍未实现 |
-| ActorMotor 在普通 Update 计算 Locomotion/Facing | 权威计算尚未进入 PreWorldMotion |
-| HitBox Clip 已在 KCC、Resolver 与 SyncTransforms 后的 Sequence PostWorld 中 Query | 仍是 Query 后立即 TakeDamage；HitIntent 收集、稳定排序与两阶段 Resolve 尚未实现 |
+| ActorMotor 在普通 Update 计算 Locomotion/Facing | 权威计算尚未进入 Stage E 的固定 Tick Locomotion 流程 |
+| HitBox Clip 只激活/关闭攻击窗口；`ActorHitBoxRuntime` 在 Driver 移动和 SyncTransforms 后 Query，并写入 `CombatHitBuffer` | D4/D4.1 的移动后 Query、两阶段 Resolve、稳定排序、死亡跳过和相杀合同保留 |
 | ActionMotionConfig 仍由 ActionInstance OnEnter/Exit 整招应用 | 尚未迁移到域规则与具体 Clip |
 | Action 结束时 `ActionPlayer` 调用 `ClearTransientTags()` 全清 | 目标需要按 owner 释放 Action tags，并在域切换事务中原子写入胜选 Mode tags |
 
 仓库目前已有 70 个 ActionAsset；其中仅 3 个显式选择 Sequence backend，67 个仍按 Legacy Timeline 路径运行。`Assets/Create/ActionAssets` 下 68 个 Action 都仍保存 Timeline 引用。因此不能先删除 Legacy 字段、PlayableDirector 或 Timeline Session。
 
-当前已有一组 ActionSequence/ActionPlayer Editor 测试，主要覆盖编辑器、固定帧 Runtime 和 ActionPlayer 生命周期；单帧 Runtime、固定 Session、Driver 屏障、AnimationConfig 歧义处理、Trajectory 刚体数学、Baker、独立 Oracle Validator 与内嵌写盘工作流均有聚焦测试。Bake 工作流测试覆盖 Config 内持久化、无 Generated 资产、Clip/Rig/设置依赖 stale、失败不覆盖、Clear Data 和 Bake All/Pose-only 跳过。Baker 与 Oracle 已在仓库 Kiana Humanoid Avatar 上验证同一份非零 Root Motion；synthetic fixture 覆盖 Translation+Rotation、in-place、Root Y 与快速转身。当前仓库 Generic FBX 的 `motionNodeName` 均为空，因此两条独立路径按 Unity Importer 语义都得到 Identity，不从名为 `root` 的骨骼猜运动。仓库仍缺少一份明确配置非零 Root Motion Node 的 Generic fixture；在不修改现有 FBX Import Settings 的约束下，本阶段如实记录该缺口，不伪造非零 Generic 结论。Stage D1 增加了 trajectory XZ 与 Motor 合成聚焦测试；Stage D3 增加了 VelocityOwner 栈恢复、VelocityOverrideClip 曲线采样、Context/Preset 方向和 RootMotion 覆盖语义的聚焦测试；完整场景 RootMotion/Velocity/HitBox/HitStop 手动回归仍未完成。
+当前已有 ActionSequence/ActionPlayer、Driver、CombatHitBuffer、HitBox、AnimationConfig、Trajectory 与 Baker 聚焦测试。D5 已改写依赖旧 Phase/Sink/Receipt 的结构测试；focused tests、命令行编译、Unity Test Runner 全量 EditMode/PlayMode tests 与生产 runtime 改动后的 Jaeger 手动回归均已通过。
 
 关键证据入口：
 
@@ -864,6 +887,8 @@ Legacy Timeline 当前也没有保证“编辑器标记的第 N 帧 Pose → Ani
 - 已完成（运行时）：Gameplay Sequence 启动入口拒绝非 60 Hz 数据，Sequence Session 拒绝大于 1 的速度；编辑器 Validator 提示待补。
 - 已完成 B2.3：Sequence 在 `0 < speed < 1` 且未跨整数 Gameplay Frame 时执行 Animation-only fractional PoseRefresh，修复非 0 HitStop/慢速下 Pose 抽帧；RootMotion、HitBox 和 Motion 输出仍只跟整数 frame。
 
+Stage B 的 `BeginFrame / PreWorld / PostWorld / EndFrame` 是建立正确物理屏障时采用的首个实现。该行为合同继续有效，但 Sequence 内部的阶段式表达将在 Stage D5 由更简单的 `PlayFrame / FinishFrame / Cancel` 与独立 `ActorHitBoxRuntime` 替代。
+
 ### Stage C：AnimationConfig 与 Baker
 
 - 已完成 C1：实现 AnimationConfig、Entry、Actor 可选引用和稳定 key 查询；重复 key 拒绝解析。
@@ -885,8 +910,19 @@ Legacy Timeline 当前也没有保证“编辑器标记的第 N 帧 Pose → Ani
 - 已完成 D2.1：实现 RootRotation SelfRotationClip，通过 AnimationConfig key 查询 trajectory，按整数 Gameplay Frame 提取 local Up Yaw；ActorMotor 新增独立 SelfRotation owner/channel，SelfRotation 活跃时以 `tickStartRotation * localYawDelta` 接管 KCC rotation，并在退出/取消时同步 Facing baseline。
 - 已完成 D2.2：SelfRotationClip 支持 `RootRotation / Target / Direction` 来源与 `Snap / RotateBySpeed` 旋转方式；Target/Direction 不依赖 AnimationConfig，Context 需求在 Action 启动前校验。
 - 已完成 D3：实现 Sequence VelocityOverrideClip，复用 VelocityConfig，支持水平/垂直轴覆盖、PresetLocal/ContextDirection、整数 Gameplay Frame 曲线采样，以及 MotionChannels 每轴可恢复覆盖栈；Velocity/Velocity 和 RootMotion/HorizontalVelocity 重叠合法。
-- 验证同帧 Pose、位移、旋转、KCC 和 HitBox。
-- 固化 `[startFrame,endFrame)`、Frame 0 activation/freeze、最后一帧 PostWorld 后清理的测试。
+- 已完成 D4：Gameplay 固定 60 Hz；HitBox Query 与伤害 Resolve 分离，稳定排序、死亡跳过和同 Tick 相杀规则落地。
+- 已完成 D4.1：补齐 Resolver、HitBox 生命周期、Driver 固定帧与 Jaeger 手动验收。
+
+### Stage D5：固定帧架构简化（已完成）
+
+- 详细实施计划：[`CombatSample_ActionSequence_Stage_D5_Simplification_zh-CN.md`](CombatSample_ActionSequence_Stage_D5_Simplification_zh-CN.md)。
+- 保留 D4/D4.1 已验证的 60 Hz、KCC 屏障、Query/Resolve、稳定排序、相杀和最后一帧顺序。
+- Driver 改为直接表达 `Play Action Frames → Move Actors → Detect Hits → Resolve Hits → Finish Action Frames`；Stage E1 再在最前面接入 `Decide Actions`。
+- `ActorSimulationRuntime` 继续作为每 Actor 唯一固定 Tick 入口；Clip、ASM、Motor 和 HitBox 不向 Driver 注册阶段回调。
+- Sequence 移除 PreWorld/PostWorld 和运行时 Phase 调度，只保留普通 Gameplay Frame 生命周期与 Animation-only PoseRefresh。
+- HitBoxClip 只控制攻击窗口；Physics Query 移到每 Actor 一个 `ActorHitBoxRuntime`。
+- `CombatHitIntent` 收敛为直接的 `PendingHit + CombatHitBuffer`，删除 Sink、Receipt、pending 回执和 `CombatTickTransaction`。
+- 已重跑固定帧自动化与 Jaeger 手动回归；D5 本身不产生 Scene、Graph、ActionAsset、AnimationConfig 或 ProjectSettings 内容 diff。
 
 ### Stage E：Locomotion 与 ASM
 
@@ -894,9 +930,11 @@ Legacy Timeline 当前也没有保证“编辑器标记的第 N 帧 Pose → Ani
 - 已完成 E0：Poll/Event/External/direct BeginAction 都显式携带启动 Context；Event 不再使用全局 pending context，External 回调绑定到胜选 request。
 - 已完成 E0：Entry/Exit Condition 可读取 Context，`OnClaim` 保持 Actor-only；Sequence Clip 可声明 required context fields，缺字段会在 Claim 前阻断。
 - 已完成 E0（兼容期）：ActorLogicInput 保存 `LatestLocomotionIntent`，ASM start context 和 Legacy facing fallback 改读它；正式 LocomotionController 前仍继续向 ActorMotor 推送 intent。
+- E1 前置条件：Stage D5 完成并通过验收。
+- E1：把 ASM 当前 LateUpdate 仲裁改为请求排队，并由 `ActorSimulationRuntime.DecideAction` 在 Driver 固定 Tick 开头提交；不再伪造空的 Decide 阶段。
 - ActorLogicInput 改为只保存 Intent，移除直接推 Motor 的兼容路径。
 - 实现 LocomotionController / LocomotionModeAsset / Fallback。
-- ASM 增加 StateKind、BeginTick 提交、CancelRule Conditions 和 Locomotion target。
+- ASM 增加 StateKind、CancelRule Conditions 和 Locomotion target。
 - Tag 改为按 owner 释放，并在 Action/Mode 域切换时事务式提交。
 - 移除新 Action 对整招 MotionConfig 和动量继承的依赖。
 
@@ -959,10 +997,10 @@ Legacy Timeline 当前也没有保证“编辑器标记的第 N 帧 Pose → Ani
 - Physics Auto Sync 关闭时仍能查询到本 Tick 正确 Collider 位置。
 - KCC interpolation 开/关不改变 Gameplay 命中结果。
 - 渲染掉帧时，每个补做的 Gameplay Frame 都经历完整 world commit。
-- 0.5 倍速未进帧的 Tick 只允许 Animation-only fractional PoseRefresh，不重复 HitBox/Motion/State Gameplay OnTick；HitStop 不跳事件、不重复 Impulse、不补偿冻结时间。
+- 0.5 倍速未进帧的 Tick 只允许 Animation-only fractional PoseRefresh，不重复 Gameplay Clip、Motion 或 Hit Query；HitStop 不跳事件、不重复 Impulse、不补偿冻结时间。
 - Action 在 HitStop 或低速未进帧时只建立 activation baseline；Impulse/ForceUnground 直到 Frame 0 真正提交才调用，提前取消不会残留副作用。
 - 最后一帧 HitBox 在 Action Complete/ExitAll 前完成。
-- HitIntent 使用稳定键结算，同 Tick 结果不依赖 Actor 注册或容器遍历顺序；死亡/相杀遵循显式 Resolve policy。
+- PendingHit 进入 CombatHitBuffer 后使用稳定键结算，同 Tick 结果不依赖 Actor 注册或容器遍历顺序；死亡/相杀遵循显式 Resolve policy。
 
 ### Action 与 Locomotion
 
@@ -977,26 +1015,62 @@ Legacy Timeline 当前也没有保证“编辑器标记的第 N 帧 Pose → Ani
 
 ## 16. 最终一句话
 
-> AnimationConfig 告诉角色有哪些 Pose 和烘焙运动；ActionSequence 决定当前 Gameplay Frame；Pose、位移和自身旋转由独立 Clip 明确提交；CombatSimulationDriver 先让 ActorMotor/KCC 得到最终世界状态，再用同一 Pose 做 HitBox；没有 Action 时，LocomotionController 独立接管角色。
+> AnimationConfig 告诉角色有哪些 Pose 和烘焙运动；ActionSequence 只决定当前 Gameplay Frame 并驱动普通 Clip；CombatSimulationDriver 先播放动作帧、再让 ActorMotor/KCC 提交世界状态、随后通过 ActorHitBoxRuntime 统一查询和结算命中；没有 Action 时，LocomotionController 独立接管角色。
 
 ---
 
 ## 17. Stage D4 落地记录：60 Hz 与 CombatHitIntent
 
+> 本节保留 D4/D4.1 当时的实现记录。其 `PreWorld/PostWorld`、Sink、Receipt、`_pendingTargets` 与失败后重试属于历史实现手段，已由 Stage D5 替代；60 Hz、移动后 Query、先收集后结算、稳定排序、死亡和相杀等行为合同继续有效。
+
 Stage D4 将 Gameplay ActionSequence 的时间基准固定为项目常量 `CombatSimulationTiming.FrameRate = 60`、`FixedDeltaTime = 1/60`。`ActionSequenceData.frameRate` 暂时继续保留为隐藏序列化字段，用于识别和修复旧资产或损坏数据；作者 UI 不再提供可编辑 FPS，Validator 对 `<= 0` 和正数非 60 分别报错，并统一修复为 60。
 
-HitBox 不再在 PostWorld 查询阶段直接调用 `TakeDamage`。生产 HitBox Clip 在 `CombatSimulationDriver` 提供的显式 `ICombatHitIntentSink` 中写入强类型 `CombatHitIntent`；Driver 在所有 PostWorld 查询完成、所有 EndFrame 之前统一 Resolve。独立 Runner 或无权威 sink 的预览路径不会回退成立即伤害，只输出诊断并跳过权威命中。
+D4/D4.1 首版把生产 HitBox Clip 接入 `CombatSimulationDriver` 提供的显式 Sink，并在所有 PostWorld 查询完成、所有 EndFrame 之前统一 Resolve。D5 后，HitBox Clip 只激活攻击窗口；`ActorHitBoxRuntime` 在 Driver 的移动后 DetectHits 阶段写入 `CombatHitBuffer`，Runner 或无权威 runtime 的预览路径仍不会回退成立即伤害。
 
 第一版 Resolve 顺序固定为 `Tick -> AttackerStableId -> ClipStableId(StringComparer.Ordinal) -> TargetStableId`。已收集的 intent 不因攻击者在同 tick 后续死亡而失效，因此允许相杀；目标第一次死亡之后，后续指向该目标的 intent 跳过，不重复扣血、受击、Impact 或死亡。
 
-HitBox Runtime 现在区分 `_pendingTargets` 与 `_hitTargets`：同一 `IDamageable` 的多 collider 每帧只 enqueue 一次，代表 collider 选择离查询中心最近者，平局按 collider instance id。Resolver 回执 `ImpactAllowed` 时才提交到 `_hitTargets`；无敌、拒绝 impact、死亡跳过或 abort 只清 pending，允许后续 gameplay frame 重试。
+D4/D4.1 版本的 HitBox Runtime 区分 `_pendingTargets` 与 `_hitTargets`，并通过 Resolver 回执决定是否允许后续重试。D5 后，每个 active HitBox 只保留 `AttemptedTargets`：同一 `IDamageable` 的多 collider 每次 Detect 只产生一个 PendingHit，代表 collider 选择离查询中心最近者，平局按 collider instance id；只要成功写入本 Tick `CombatHitBuffer`，该攻击窗口就视为已尝试，包括无敌或拒绝 impact。
 
 ### 17.1 Stage D4.1 验收补充
 
 Stage D4.1 补齐了 `CombatHitIntent` 与固定帧路径的自动化验收。纯 Resolver 测试覆盖 Resolve 前 Abort、部分 Resolve 后异常、Resolve 期间重入 Enqueue、多个致死 Hit 的唯一 `TargetKilled` 归属，以及稳定排序不依赖 enqueue 顺序。
 
-HitBox 集成测试覆盖同一 `IDamageable` 多 Collider 去重、代表 Collider 的最近/InstanceId 平局规则、无敌或拒绝 Impact 后下一 Gameplay Frame 可重试、生产 HitBox Runtime 在 Resolve 前退出时已冻结 Intent 仍结算、两个不同 HitBox Clip 可分别命中同一目标，以及最后一帧 `Query -> Resolve -> Exit/Complete` 顺序。
+HitBox 集成测试覆盖同一 `IDamageable` 多 Collider 去重、代表 Collider 的最近/InstanceId 平局规则、生产 HitBox Runtime 在 Resolve 前退出时已冻结 Intent 仍结算、两个不同 HitBox Clip 可分别命中同一目标，以及最后一帧 `Query -> Resolve -> Exit/Complete` 顺序。D5 后，无敌或拒绝 Impact 也视为当前 active HitBox window 已尝试，不再沿用 D4.1 的失败后重试语义。
 
-真实固定帧验收不再集中到单个大型 synthetic PlayMode fixture。现有 `CombatSimulationDriverPlayModeTests` 已覆盖真实 `FixedUpdate`、Driver 接管 KCC、插值配对、Sequence PreWorld/PostWorld 屏障与 fault 停止；D4.1 新增测试聚焦在 Resolver 与 HitBox/Intent 生命周期。RootMotion、SelfRotation、VelocityOverride、0.5 倍速、HitStop、撞墙、最后一帧和相杀的完整内容路径继续由 Jaeger 手动回归确认。
+真实固定帧验收不再集中到单个大型 synthetic PlayMode fixture。现有 `CombatSimulationDriverPlayModeTests` 已覆盖真实 `FixedUpdate`、Driver 接管 KCC、插值配对、Sequence PlayFrame 到移动后 Detect/Resolve 的屏障与 fault 停止；D4.1/D5 聚焦测试覆盖 Resolver、HitBox/Buffer 生命周期和简化后的 Driver 合同。RootMotion、SelfRotation、VelocityOverride、0.5 倍速、HitStop、撞墙、最后一帧和相杀的完整内容路径继续由 Jaeger 手动回归确认。
 
 这些测试仍只声明单次运行内稳定性，不扩展到跨机器、rollback 或 bitwise replay；新增自动测试使用内存 Sequence/HitBox 与测试局部 Damageable，不依赖 Jaeger 或项目内容资产。
+
+---
+
+## 18. Stage D5 决策记录：简化固定帧架构
+
+Stage D5 是 D4.1 与 E1 之间的必经重构，不建立第二套长期架构。它修正的是职责表达，而不是已验证的世界顺序：物理屏障继续由 Driver 持有，但 Sequence 不再承担移动前后和 Hit Resolve 语义。
+
+最终职责固定为：
+
+```text
+CombatSimulationDriver
+    决定全世界先做什么、后做什么
+
+ActorSimulationRuntime
+    代表一个 Actor 参加固定 Tick
+
+ActionPlayer
+    控制 Action 的开始、速度、帧推进、完成与取消
+
+ActionSequence
+    根据 Gameplay Frame 驱动 Clip Enter / Tick / Exit
+
+ActorHitBoxRuntime
+    保存 active hitboxes，并在移动完成后执行 Physics Query
+
+CombatHitBuffer
+    保存本 Tick PendingHit，并按稳定顺序统一 Resolve
+```
+
+核心控制流不用事件驱动，也不用通用 phase scheduler。事件只用于已经提交的结果，例如 UI、Audio、VFX、Camera 和调试观察；不得用事件间接驱动移动、Hit Query 或伤害 Resolve。
+
+取消不表示回滚。死亡、Disable 或严重异常调用幂等 `CancelAction`，只退出 active clips、关闭 hitboxes、释放 owner 和 session；已经发生的移动、已经冻结到 Buffer 的 Hit 和已经结算的伤害继续保留。普通受击 Action 请求排到下一 Tick 的 `DecideAction`，不在 Resolve 中重入当前动作帧。
+
+Stage D5 的文件级切片、测试迁移、提交边界和有意行为变化，以 [`CombatSample_ActionSequence_Stage_D5_Simplification_zh-CN.md`](CombatSample_ActionSequence_Stage_D5_Simplification_zh-CN.md) 为准；若该实施文档与本文的长期职责冲突，仍以本文为准。

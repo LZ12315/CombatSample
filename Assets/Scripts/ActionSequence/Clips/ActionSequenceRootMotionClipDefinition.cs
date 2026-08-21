@@ -9,7 +9,7 @@ public sealed class ActionSequenceRootMotionClipDefinition : ActionSequenceClipD
 
     public string AnimationKey => animationKey;
 
-    public override ActionSequenceClipPhase Phase => ActionSequenceClipPhase.Motion;
+    public override ActionSequenceTrackKind Kind => ActionSequenceTrackKind.Motion;
 
     public override ActionSequenceClipRuntime CreateRuntime()
     {

@@ -51,15 +51,15 @@ internal static class ActionSequenceViewUtility
         return NicifyTypeName(clip.Type, "Clip", "ActionSequence", "ClipDefinition");
     }
 
-    public static string GetPhaseClass(ActionSequenceClipPhase phase)
+    public static string GetKindClass(ActionSequenceTrackKind phase)
     {
         return phase switch
         {
-            ActionSequenceClipPhase.State => "asv2-phase-state",
-            ActionSequenceClipPhase.Animation => "asv2-phase-animation",
-            ActionSequenceClipPhase.Motion => "asv2-phase-motion",
-            ActionSequenceClipPhase.HitBox => "asv2-phase-hitbox",
-            ActionSequenceClipPhase.Cleanup => "asv2-phase-cleanup",
+            ActionSequenceTrackKind.State => "asv2-phase-state",
+            ActionSequenceTrackKind.Animation => "asv2-phase-animation",
+            ActionSequenceTrackKind.Motion => "asv2-phase-motion",
+            ActionSequenceTrackKind.HitBox => "asv2-phase-hitbox",
+            ActionSequenceTrackKind.Cleanup => "asv2-phase-cleanup",
             _ => "asv2-phase-unknown",
         };
     }

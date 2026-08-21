@@ -604,7 +604,7 @@ public sealed class ActionSequenceEditorState : IDisposable
 
     private static int CompareDisplayTracks(ActionSequenceTrackSnapshot left, ActionSequenceTrackSnapshot right)
     {
-        int phase = left.Phase.CompareTo(right.Phase);
+        int phase = left.Kind.CompareTo(right.Kind);
         if (phase != 0)
             return phase;
 

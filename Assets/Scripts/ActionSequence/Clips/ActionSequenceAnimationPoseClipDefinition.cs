@@ -13,7 +13,7 @@ public sealed class ActionSequenceAnimationPoseClipDefinition : ActionSequenceCl
 
     public string AnimationKey => animationKey;
 
-    public override ActionSequenceClipPhase Phase => ActionSequenceClipPhase.Animation;
+    public override ActionSequenceTrackKind Kind => ActionSequenceTrackKind.Animation;
 
     public override ActionSequenceClipRuntime CreateRuntime()
     {

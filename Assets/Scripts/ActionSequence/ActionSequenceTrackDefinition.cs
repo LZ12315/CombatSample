@@ -29,7 +29,7 @@ public abstract class ActionSequenceTrackDefinition
     }
 #endif
 
-    public abstract ActionSequenceClipPhase Phase { get; }
+    public abstract ActionSequenceTrackKind Kind { get; }
     public abstract Type[] AllowedClipTypes { get; }
 
     public virtual string GetDisplayName()
@@ -58,7 +58,7 @@ public abstract class ActionSequenceTrackDefinition
 
     public bool CanAddClip(ActionSequenceClipDefinition clip)
     {
-        return clip != null && clip.Phase == Phase && AllowsClipType(clip.GetType());
+        return clip != null && clip.Kind == Kind && AllowsClipType(clip.GetType());
     }
 
     public bool TryAddClip(ActionSequenceClipDefinition clip)
@@ -95,7 +95,7 @@ public abstract class ActionSequenceTrackDefinition
             if (clip == null)
                 continue;
 
-            if (clip.Phase != Phase || !AllowsClipType(clip.GetType()))
+            if (clip.Kind != Kind || !AllowsClipType(clip.GetType()))
                 continue;
 
             clip.NormalizeFrames(sequenceDurationFrames);
@@ -137,7 +137,7 @@ public sealed class ActionSequenceStateTrack : ActionSequenceTrackDefinition
         typeof(ActionSequenceTagClipDefinition),
     };
 
-    public override ActionSequenceClipPhase Phase => ActionSequenceClipPhase.State;
+    public override ActionSequenceTrackKind Kind => ActionSequenceTrackKind.State;
     public override Type[] AllowedClipTypes => ClipTypes;
 }
 
@@ -149,7 +149,7 @@ public sealed class ActionSequenceAnimationTrack : ActionSequenceTrackDefinition
         typeof(ActionSequenceAnimationPoseClipDefinition),
     };
 
-    public override ActionSequenceClipPhase Phase => ActionSequenceClipPhase.Animation;
+    public override ActionSequenceTrackKind Kind => ActionSequenceTrackKind.Animation;
     public override Type[] AllowedClipTypes => ClipTypes;
 }
 
@@ -164,7 +164,7 @@ public sealed class ActionSequenceMotionTrack : ActionSequenceTrackDefinition
         typeof(ActionSequenceImpulseClipDefinition),
     };
 
-    public override ActionSequenceClipPhase Phase => ActionSequenceClipPhase.Motion;
+    public override ActionSequenceTrackKind Kind => ActionSequenceTrackKind.Motion;
     public override Type[] AllowedClipTypes => ClipTypes;
 }
 
@@ -176,7 +176,7 @@ public sealed class ActionSequenceHitBoxTrack : ActionSequenceTrackDefinition
         typeof(ActionSequenceHitBoxClipDefinition),
     };
 
-    public override ActionSequenceClipPhase Phase => ActionSequenceClipPhase.HitBox;
+    public override ActionSequenceTrackKind Kind => ActionSequenceTrackKind.HitBox;
     public override Type[] AllowedClipTypes => ClipTypes;
 }
 
@@ -185,6 +185,6 @@ public sealed class ActionSequenceCleanupTrack : ActionSequenceTrackDefinition
 {
     private static readonly Type[] ClipTypes = Array.Empty<Type>();
 
-    public override ActionSequenceClipPhase Phase => ActionSequenceClipPhase.Cleanup;
+    public override ActionSequenceTrackKind Kind => ActionSequenceTrackKind.Cleanup;
     public override Type[] AllowedClipTypes => ClipTypes;
 }

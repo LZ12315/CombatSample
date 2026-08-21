@@ -311,8 +311,8 @@ public sealed class ActionSequenceEditorWindowV2 : EditorWindow
             case ActionSequenceValidator.MigrateLegacyClipsCommandId:
                 ExecuteCommand(() => ActionSequenceEditorCommands.MigrateLegacyClips(_targetObject));
                 break;
-            case ActionSequenceValidator.RepairTrackPhaseOrderCommandId:
-                ExecuteCommand(() => ActionSequenceEditorCommands.RepairTrackPhaseOrder(_targetObject));
+            case ActionSequenceValidator.RepairTrackKindOrderCommandId:
+                ExecuteCommand(() => ActionSequenceEditorCommands.RepairTrackKindOrder(_targetObject));
                 break;
             case ActionSequenceValidator.SetGameplayRateCommandId:
                 ExecuteCommand(() => ActionSequenceEditorCommands.SetFrameRate(_targetObject, CombatSimulationTiming.FrameRate));
@@ -367,7 +367,7 @@ public sealed class ActionSequenceEditorWindowV2 : EditorWindow
         foreach (ActionSequenceEditorTrackTypeInfo typeInfo in ActionSequenceEditorTypeRegistry.TrackTypes)
         {
             ActionSequenceEditorTrackTypeInfo captured = typeInfo;
-            menu.AddItem(new GUIContent($"{captured.Phase}/{captured.DisplayName}"), false, () =>
+            menu.AddItem(new GUIContent($"{captured.Kind}/{captured.DisplayName}"), false, () =>
             {
                 ExecuteCommand(() => ActionSequenceEditorCommands.AddTrack(_targetObject, captured.Type));
             });
@@ -744,37 +744,37 @@ public sealed class ActionSequenceEditorWindowV2 : EditorWindow
 
     private void AddTrackReorderMenuItems(GenericMenu menu, ActionSequenceTrackSnapshot track)
     {
-        int localIndex = GetPhaseLocalIndex(track, out int phaseCount);
+        int localIndex = GetKindLocalIndex(track, out int kindCount);
         if (localIndex > 0)
             menu.AddItem(new GUIContent("Move Up"), false, () =>
-                ExecuteCommand(() => ActionSequenceEditorCommands.ReorderTrackWithinPhase(_targetObject, track.EditorId, localIndex - 1)));
+                ExecuteCommand(() => ActionSequenceEditorCommands.ReorderTrackWithinKind(_targetObject, track.EditorId, localIndex - 1)));
         else
             menu.AddDisabledItem(new GUIContent("Move Up"));
 
-        if (localIndex >= 0 && localIndex < phaseCount - 1)
+        if (localIndex >= 0 && localIndex < kindCount - 1)
             menu.AddItem(new GUIContent("Move Down"), false, () =>
-                ExecuteCommand(() => ActionSequenceEditorCommands.ReorderTrackWithinPhase(_targetObject, track.EditorId, localIndex + 1)));
+                ExecuteCommand(() => ActionSequenceEditorCommands.ReorderTrackWithinKind(_targetObject, track.EditorId, localIndex + 1)));
         else
             menu.AddDisabledItem(new GUIContent("Move Down"));
     }
 
-    private int GetPhaseLocalIndex(ActionSequenceTrackSnapshot track, out int phaseCount)
+    private int GetKindLocalIndex(ActionSequenceTrackSnapshot track, out int kindCount)
     {
         int localIndex = -1;
-        phaseCount = 0;
+        kindCount = 0;
         if (!state.IsSupported || track == null)
             return -1;
 
         for (int i = 0; i < state.Document.Tracks.Count; i++)
         {
             ActionSequenceTrackSnapshot candidate = state.Document.Tracks[i];
-            if (candidate.IsNull || candidate.MissingType || candidate.Phase != track.Phase)
+            if (candidate.IsNull || candidate.MissingType || candidate.Kind != track.Kind)
                 continue;
 
             if (candidate.EditorId == track.EditorId)
-                localIndex = phaseCount;
+                localIndex = kindCount;
 
-            phaseCount++;
+            kindCount++;
         }
 
         return localIndex;

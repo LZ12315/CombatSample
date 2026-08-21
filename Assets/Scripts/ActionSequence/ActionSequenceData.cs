@@ -120,10 +120,10 @@ public sealed class ActionSequenceData
                     continue;
                 }
 
-                if (clip.Phase != track.Phase)
+                if (clip.Kind != track.Kind)
                 {
                     issues.Add(ActionSequenceValidationIssue.Error(
-                        $"Clip phase {clip.Phase} does not match track phase {track.Phase}.",
+                        $"Clip kind {clip.Kind} does not match track kind {track.Kind}.",
                         trackIndex,
                         clipIndex));
                 }
@@ -198,15 +198,15 @@ public sealed class ActionSequenceData
         tracks.Add(new ActionSequenceCleanupTrack());
     }
 
-    public static ActionSequenceTrackDefinition CreateDefaultTrackForPhase(ActionSequenceClipPhase phase)
+    public static ActionSequenceTrackDefinition CreateDefaultTrackForKind(ActionSequenceTrackKind kind)
     {
-        return phase switch
+        return kind switch
         {
-            ActionSequenceClipPhase.State => new ActionSequenceStateTrack(),
-            ActionSequenceClipPhase.Animation => new ActionSequenceAnimationTrack(),
-            ActionSequenceClipPhase.Motion => new ActionSequenceMotionTrack(),
-            ActionSequenceClipPhase.HitBox => new ActionSequenceHitBoxTrack(),
-            ActionSequenceClipPhase.Cleanup => new ActionSequenceCleanupTrack(),
+            ActionSequenceTrackKind.State => new ActionSequenceStateTrack(),
+            ActionSequenceTrackKind.Animation => new ActionSequenceAnimationTrack(),
+            ActionSequenceTrackKind.Motion => new ActionSequenceMotionTrack(),
+            ActionSequenceTrackKind.HitBox => new ActionSequenceHitBoxTrack(),
+            ActionSequenceTrackKind.Cleanup => new ActionSequenceCleanupTrack(),
             _ => new ActionSequenceStateTrack(),
         };
     }
@@ -247,11 +247,11 @@ public sealed class ActionSequenceData
         for (int i = 0; i < tracks.Count; i++)
         {
             ActionSequenceTrackDefinition track = tracks[i];
-            if (track != null && track.Phase == clip.Phase && track.AllowsClipType(clip.GetType()) && (canUseTrack == null || canUseTrack(track)))
+            if (track != null && track.Kind == clip.Kind && track.AllowsClipType(clip.GetType()) && (canUseTrack == null || canUseTrack(track)))
                 return track;
         }
 
-        ActionSequenceTrackDefinition created = CreateDefaultTrackForPhase(clip.Phase);
+        ActionSequenceTrackDefinition created = CreateDefaultTrackForKind(clip.Kind);
         if (created == null || !created.CanAddClip(clip))
             return null;
 

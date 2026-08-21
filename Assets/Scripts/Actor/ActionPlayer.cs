@@ -237,51 +237,31 @@ public class ActionPlayer : MonoBehaviour
         }
     }
 
-    internal void ExecuteSimulationPreWorld(float deltaSeconds)
+    internal bool PlayActionFrame(float deltaSeconds)
     {
         if (_fixedTickSession != null)
-            return;
+            return false;
 
         if (_session is not IFixedActionPlaybackSession fixedSession || CurrentAction == null)
-            return;
+            return false;
 
         try
         {
             fixedSession.SetSpeed(PlaybackSpeed);
-            if (!fixedSession.TryBeginFrame(deltaSeconds))
-                return;
+            if (!fixedSession.TryPlayFrame(deltaSeconds))
+                return false;
 
             _fixedTickSession = fixedSession;
-            fixedSession.ExecutePreWorld();
+            return true;
         }
         catch (Exception exception)
         {
             HandleFixedSessionException(fixedSession, exception);
+            return false;
         }
     }
 
-    internal void ExecuteSimulationPostWorld()
-    {
-        ExecuteSimulationPostWorldWithHitSink(null);
-    }
-
-    internal void ExecuteSimulationPostWorldWithHitSink(ICombatHitIntentSink hitIntentSink)
-    {
-        IFixedActionPlaybackSession fixedSession = _fixedTickSession;
-        if (fixedSession == null || !fixedSession.HasOpenFrame)
-            return;
-
-        try
-        {
-            fixedSession.ExecutePostWorld(hitIntentSink);
-        }
-        catch (Exception exception)
-        {
-            HandleFixedSessionException(fixedSession, exception);
-        }
-    }
-
-    internal void EndSimulationTick()
+    internal void FinishActionFrame()
     {
         IFixedActionPlaybackSession fixedSession = _fixedTickSession;
         _fixedTickSession = null;
@@ -291,7 +271,7 @@ public class ActionPlayer : MonoBehaviour
 
         try
         {
-            fixedSession.EndFrame();
+            fixedSession.FinishFrame();
             if (ReferenceEquals(fixedSession, _session))
                 SyncPublicPlaybackState();
         }
@@ -301,7 +281,7 @@ public class ActionPlayer : MonoBehaviour
         }
     }
 
-    internal void AbortSimulationTick()
+    internal void CancelAction()
     {
         IFixedActionPlaybackSession fixedSession = _fixedTickSession;
         _fixedTickSession = null;
@@ -311,7 +291,7 @@ public class ActionPlayer : MonoBehaviour
 
         try
         {
-            fixedSession.AbortFrame();
+            fixedSession.Cancel();
         }
         catch (Exception exception)
         {

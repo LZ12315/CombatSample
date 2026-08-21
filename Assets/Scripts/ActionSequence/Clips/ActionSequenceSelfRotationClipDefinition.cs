@@ -52,7 +52,7 @@ public sealed class ActionSequenceSelfRotationClipDefinition : ActionSequenceCli
     public float AngularSpeedDegrees => angularSpeedDegrees;
     public string AnimationKey => animationKey;
 
-    public override ActionSequenceClipPhase Phase => ActionSequenceClipPhase.Motion;
+    public override ActionSequenceTrackKind Kind => ActionSequenceTrackKind.Motion;
 
     public override ActionContextFieldMask RequiredContextFields
     {

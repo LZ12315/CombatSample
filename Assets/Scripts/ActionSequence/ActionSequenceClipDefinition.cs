@@ -2,7 +2,7 @@ using System;
 using System.Text;
 using UnityEngine;
 
-public enum ActionSequenceClipPhase
+public enum ActionSequenceTrackKind
 {
     State = 0,
     Animation = 10,
@@ -55,7 +55,7 @@ public abstract class ActionSequenceClipDefinition
     public int DurationFrames => EndFrame - StartFrame;
     public bool ContainsFrame(int frame) => frame >= StartFrame && frame < EndFrame;
 
-    public abstract ActionSequenceClipPhase Phase { get; }
+    public abstract ActionSequenceTrackKind Kind { get; }
     public virtual ActionContextFieldMask RequiredContextFields => ActionContextFieldMask.None;
 
     public virtual string GetDisplayName()

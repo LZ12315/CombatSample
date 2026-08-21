@@ -12,7 +12,7 @@ public sealed class ActionSequenceEditorCommandsTests
     }
 
     [Test]
-    public void AddTrack_InsertsAtPhaseGroupEndAndAssignsId()
+    public void AddTrack_InsertsAtKindGroupEndAndAssignsId()
     {
         ActionSequenceAsset asset = CreateAssetWithStateTrack();
         asset.EditorTracks.Add(new ActionSequenceHitBoxTrack());
@@ -20,7 +20,7 @@ public sealed class ActionSequenceEditorCommandsTests
         ActionSequenceEditorCommandResult result = ActionSequenceEditorCommands.AddTrack(asset, typeof(ActionSequenceMotionTrack));
 
         Assert.AreEqual(ActionSequenceEditorCommandStatus.Success, result.Status);
-        Assert.AreEqual(ActionSequenceClipPhase.Motion, asset.EditorTracks[1].Phase);
+        Assert.AreEqual(ActionSequenceTrackKind.Motion, asset.EditorTracks[1].Kind);
         Assert.IsTrue(ActionSequenceEditorIdentity.IsValidEditorId(asset.EditorTracks[1].EditorId));
         Assert.AreEqual(ActionSequenceEditorDocumentItemKind.Track, result.SelectionSuggestion.Kind);
     }
@@ -133,7 +133,7 @@ public sealed class ActionSequenceEditorCommandsTests
     }
 
     [Test]
-    public void RepairTrackPhaseOrder_RejectsWhenLockedTrackWouldMove()
+    public void RepairTrackKindOrder_RejectsWhenLockedTrackWouldMove()
     {
         ActionSequenceAsset asset = ScriptableObject.CreateInstance<ActionSequenceAsset>();
         asset.EditorTracks.Clear();
@@ -141,7 +141,7 @@ public sealed class ActionSequenceEditorCommandsTests
         asset.EditorTracks.Add(new ActionSequenceStateTrack());
         ActionSequenceEditorIdentity.UpgradeMissingIds(asset);
 
-        ActionSequenceEditorCommandResult result = ActionSequenceEditorCommands.RepairTrackPhaseOrder(asset);
+        ActionSequenceEditorCommandResult result = ActionSequenceEditorCommands.RepairTrackKindOrder(asset);
 
         Assert.AreEqual(ActionSequenceEditorCommandStatus.Locked, result.Status);
     }

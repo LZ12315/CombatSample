@@ -18,6 +18,7 @@ public class Actor : MonoBehaviour
     [Header("Animation")]
     [SerializeField] private AnimationConfig animationConfig;
     public AnimationConfig AnimationConfig => animationConfig;
+    internal ActorHitBoxRuntime HitBoxes => _simulationRuntime?.HitBoxes;
 
     [Header("Camera")]
     [Tooltip("相机观察该 Actor 时使用的目标点。玩家通常指向 CameraPivot；敌人可指向胸口/锁定点。未配置时回退到 Actor Transform。")]
@@ -59,7 +60,7 @@ public class Actor : MonoBehaviour
     {
         if (_simulationRuntime != null)
         {
-            _simulationRuntime.AbortSimulationTick();
+            _simulationRuntime.CancelAction();
             CombatSimulationDriver.UnregisterActor(_simulationRuntime);
         }
 

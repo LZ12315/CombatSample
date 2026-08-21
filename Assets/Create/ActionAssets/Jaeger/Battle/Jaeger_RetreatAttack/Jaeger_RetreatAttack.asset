@@ -189,7 +189,7 @@ MonoBehaviour:
       data:
         editorId: c2e7cacd00a348e58dfad8edf7f86ff0
         displayName: 
-        muted: 0
+        muted: 1
         locked: 0
         collapsed: 0
         clips:

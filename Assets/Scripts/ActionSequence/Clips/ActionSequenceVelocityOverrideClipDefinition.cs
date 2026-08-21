@@ -9,7 +9,7 @@ public sealed class ActionSequenceVelocityOverrideClipDefinition : ActionSequenc
 
     public VelocityConfig config = new VelocityConfig();
 
-    public override ActionSequenceClipPhase Phase => ActionSequenceClipPhase.Motion;
+    public override ActionSequenceTrackKind Kind => ActionSequenceTrackKind.Motion;
 
     public override ActionContextFieldMask RequiredContextFields =>
         UsesContextDirection ? ActionContextFieldMask.Direction : ActionContextFieldMask.None;

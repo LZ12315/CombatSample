@@ -413,19 +413,19 @@ public static class ActionSequenceEditorSelection
 
     private static int CompareTrackTypes(Type a, Type b)
     {
-        int phaseCompare = GetTrackPhaseSortValue(a).CompareTo(GetTrackPhaseSortValue(b));
+        int phaseCompare = GetTrackKindSortValue(a).CompareTo(GetTrackKindSortValue(b));
         if (phaseCompare != 0)
             return phaseCompare;
 
         return string.Compare(GetTrackTypeDisplayName(a), GetTrackTypeDisplayName(b), StringComparison.Ordinal);
     }
 
-    private static int GetTrackPhaseSortValue(Type type)
+    private static int GetTrackKindSortValue(Type type)
     {
         try
         {
             if (Activator.CreateInstance(type) is ActionSequenceTrackDefinition track)
-                return (int)track.Phase;
+                return (int)track.Kind;
         }
         catch
         {

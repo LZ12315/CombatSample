@@ -7,7 +7,7 @@ public sealed class ActionSequenceTagClipDefinition : ActionSequenceClipDefiniti
     public TagReference tag;
     public ActorTagContainerType targetContainer = ActorTagContainerType.Transient;
 
-    public override ActionSequenceClipPhase Phase => ActionSequenceClipPhase.State;
+    public override ActionSequenceTrackKind Kind => ActionSequenceTrackKind.State;
 
     public override ActionSequenceClipRuntime CreateRuntime()
     {

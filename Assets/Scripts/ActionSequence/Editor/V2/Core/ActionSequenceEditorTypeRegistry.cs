@@ -5,30 +5,30 @@ using UnityEditor;
 
 public sealed class ActionSequenceEditorTrackTypeInfo
 {
-    public ActionSequenceEditorTrackTypeInfo(Type type, string displayName, ActionSequenceClipPhase phase)
+    public ActionSequenceEditorTrackTypeInfo(Type type, string displayName, ActionSequenceTrackKind phase)
     {
         Type = type;
         DisplayName = displayName;
-        Phase = phase;
+        Kind = phase;
     }
 
     public Type Type { get; }
     public string DisplayName { get; }
-    public ActionSequenceClipPhase Phase { get; }
+    public ActionSequenceTrackKind Kind { get; }
 }
 
 public sealed class ActionSequenceEditorClipTypeInfo
 {
-    public ActionSequenceEditorClipTypeInfo(Type type, string displayName, ActionSequenceClipPhase phase)
+    public ActionSequenceEditorClipTypeInfo(Type type, string displayName, ActionSequenceTrackKind phase)
     {
         Type = type;
         DisplayName = displayName;
-        Phase = phase;
+        Kind = phase;
     }
 
     public Type Type { get; }
     public string DisplayName { get; }
-    public ActionSequenceClipPhase Phase { get; }
+    public ActionSequenceTrackKind Kind { get; }
 }
 
 public static class ActionSequenceEditorTypeRegistry
@@ -94,10 +94,10 @@ public static class ActionSequenceEditorTypeRegistry
                 continue;
 
             ActionSequenceClipDefinition clip = CreateClip(type);
-            if (clip == null || clip.Phase != track.Phase)
+            if (clip == null || clip.Kind != track.Kind)
                 continue;
 
-            result.Add(new ActionSequenceEditorClipTypeInfo(type, GetClipTypeDisplayName(type), clip.Phase));
+            result.Add(new ActionSequenceEditorClipTypeInfo(type, GetClipTypeDisplayName(type), clip.Kind));
         }
 
         result.Sort((a, b) => string.Compare(a.DisplayName, b.DisplayName, StringComparison.Ordinal));
@@ -146,7 +146,7 @@ public static class ActionSequenceEditorTypeRegistry
             if (track == null)
                 continue;
 
-            result.Add(new ActionSequenceEditorTrackTypeInfo(type, GetTrackTypeDisplayName(type), track.Phase));
+            result.Add(new ActionSequenceEditorTrackTypeInfo(type, GetTrackTypeDisplayName(type), track.Kind));
         }
 
         result.Sort(CompareTrackTypes);
@@ -155,7 +155,7 @@ public static class ActionSequenceEditorTypeRegistry
 
     private static int CompareTrackTypes(ActionSequenceEditorTrackTypeInfo a, ActionSequenceEditorTrackTypeInfo b)
     {
-        int phaseCompare = a.Phase.CompareTo(b.Phase);
+        int phaseCompare = a.Kind.CompareTo(b.Kind);
         if (phaseCompare != 0)
             return phaseCompare;
 

@@ -6,7 +6,7 @@ public enum ActionSequenceRuntimeDiagnosticCode
 {
     NullTrack,
     NullClip,
-    PhaseMismatch,
+    KindMismatch,
     DisallowedClipType,
     TimingAdjusted,
     FixedDurationClipSkipped,

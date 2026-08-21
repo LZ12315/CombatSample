@@ -7,7 +7,7 @@ public sealed class ActionSequenceImpulseClipDefinition : ActionSequenceClipDefi
 
     public ImpulseConfig config = new ImpulseConfig();
 
-    public override ActionSequenceClipPhase Phase => ActionSequenceClipPhase.Motion;
+    public override ActionSequenceTrackKind Kind => ActionSequenceTrackKind.Motion;
 
     public override ActionSequenceClipRuntime CreateRuntime()
     {

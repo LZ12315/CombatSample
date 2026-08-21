@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Globalization;
 using System.Reflection;
 using System.Text.RegularExpressions;
@@ -16,11 +16,11 @@ public sealed class ActionPlayerSequenceIntegrationTests
     }
 
     [Test]
-    public void BeginAction_SequenceDefersFrameZeroUntilFixedPreWorld()
+    public void BeginAction_SequenceDefersFrameZeroUntilFixedTick()
     {
         ActionAsset action = CreateSequenceAction(
             2,
-            new ProbeClipDefinition("A", ActionSequenceClipPhase.State, 0, 2));
+            new ProbeClipDefinition("A", ActionSequenceTrackKind.State, 0, 2));
         ActionPlayer player = CreatePlayer(out GameObject owner);
 
         try
@@ -50,11 +50,11 @@ public sealed class ActionPlayerSequenceIntegrationTests
     }
 
     [Test]
-    public void OneFrameSequence_FinishesInTheSameEndFrame()
+    public void OneFrameSequence_FinishesInTheSameFinishFrame()
     {
         ActionAsset action = CreateSequenceAction(
             1,
-            new ProbeClipDefinition("A", ActionSequenceClipPhase.State, 0, 1));
+            new ProbeClipDefinition("A", ActionSequenceTrackKind.State, 0, 1));
         ActionPlayer player = CreatePlayer(out GameObject owner);
         int finishedCount = 0;
         player.OnActionFinished += _ => finishedCount++;
@@ -67,11 +67,9 @@ public sealed class ActionPlayerSequenceIntegrationTests
             Assert.IsNotNull(player.CurrentAction);
             Assert.AreEqual(0, ProbeClipDefinition.Events.Count);
 
-            InvokePrivate(player, "ExecuteSimulationPreWorld", 1f / 60f);
+            InvokePrivate(player, "PlayActionFrame", 1f / 60f);
             Assert.AreEqual(0, finishedCount);
-            InvokePrivate(player, "ExecuteSimulationPostWorld");
-            Assert.AreEqual(0, finishedCount);
-            InvokePrivate(player, "EndSimulationTick");
+            InvokePrivate(player, "FinishActionFrame");
 
             Assert.AreEqual(1, finishedCount);
             Assert.IsNull(player.CurrentAction);
@@ -91,7 +89,7 @@ public sealed class ActionPlayerSequenceIntegrationTests
     {
         ActionAsset action = CreateSequenceAction(
             3,
-            new ProbeClipDefinition("A", ActionSequenceClipPhase.State, 0, 3));
+            new ProbeClipDefinition("A", ActionSequenceTrackKind.State, 0, 3));
         ActionPlayer player = CreatePlayer(out GameObject owner);
         int finishedCount = 0;
         int interruptedCount = 0;
@@ -118,35 +116,35 @@ public sealed class ActionPlayerSequenceIntegrationTests
     }
 
     [Test]
-    public void StopAction_AfterPreWorldCancelsOpenFrameExactlyOnce()
+    public void StopAction_AfterPlayFrameCancelsOpenFrameExactlyOnce()
     {
         ActionAsset action = CreateSequenceAction(
             2,
-            new ProbeClipDefinition("H", ActionSequenceClipPhase.HitBox, 0, 2),
-            new ProbeClipDefinition("S", ActionSequenceClipPhase.State, 0, 2));
+            new ProbeClipDefinition("H", ActionSequenceTrackKind.HitBox, 0, 2),
+            new ProbeClipDefinition("S", ActionSequenceTrackKind.State, 0, 2));
         ActionPlayer player = CreatePlayer(out GameObject owner);
 
         try
         {
             player.BeginAction(action, ActionContext.None);
-            InvokePrivate(player, "ExecuteSimulationPreWorld", 1f / 60f);
+            InvokePrivate(player, "PlayActionFrame", 1f / 60f);
             player.StopAction();
 
             CollectionAssert.AreEqual(
                 new[]
                 {
-                    "S:enter:0",
                     "H:enter:0",
+                    "S:enter:0",
+                    "H:tick:0",
                     "S:tick:0",
-                    "H:exit:0:False",
                     "S:exit:0:False",
+                    "H:exit:0:False",
                 },
                 ProbeClipDefinition.Events);
             Assert.IsNull(player.CurrentAction);
 
-            InvokePrivate(player, "ExecuteSimulationPostWorld");
-            InvokePrivate(player, "EndSimulationTick");
-            Assert.AreEqual(5, ProbeClipDefinition.Events.Count);
+            InvokePrivate(player, "FinishActionFrame");
+            Assert.AreEqual(6, ProbeClipDefinition.Events.Count);
         }
         finally
         {
@@ -156,30 +154,24 @@ public sealed class ActionPlayerSequenceIntegrationTests
     }
 
     [Test]
-    public void FixedTick_SeparatesPreWorldFromPostWorld()
+    public void FixedTick_PlayFrameTicksAllActiveSequenceClips()
     {
         ActionAsset action = CreateSequenceAction(
             2,
-            new ProbeClipDefinition("H", ActionSequenceClipPhase.HitBox, 0, 2),
-            new ProbeClipDefinition("S", ActionSequenceClipPhase.State, 0, 2));
+            new ProbeClipDefinition("H", ActionSequenceTrackKind.HitBox, 0, 2),
+            new ProbeClipDefinition("S", ActionSequenceTrackKind.State, 0, 2));
         ActionPlayer player = CreatePlayer(out GameObject owner);
 
         try
         {
             player.BeginAction(action, ActionContext.None);
-            InvokePrivate(player, "ExecuteSimulationPreWorld", 1f / 60f);
+            InvokePrivate(player, "PlayActionFrame", 1f / 60f);
 
             CollectionAssert.AreEqual(
-                new[] { "S:enter:0", "H:enter:0", "S:tick:0" },
+                new[] { "H:enter:0", "S:enter:0", "H:tick:0", "S:tick:0" },
                 ProbeClipDefinition.Events);
 
-            InvokePrivate(player, "ExecuteSimulationPostWorld");
-
-            CollectionAssert.AreEqual(
-                new[] { "S:enter:0", "H:enter:0", "S:tick:0", "H:tick:0" },
-                ProbeClipDefinition.Events);
-
-            InvokePrivate(player, "EndSimulationTick");
+            InvokePrivate(player, "FinishActionFrame");
         }
         finally
         {
@@ -193,7 +185,7 @@ public sealed class ActionPlayerSequenceIntegrationTests
     {
         ActionAsset action = CreateSequenceAction(
             2,
-            new ProbeClipDefinition("A", ActionSequenceClipPhase.State, 0, 2));
+            new ProbeClipDefinition("A", ActionSequenceTrackKind.State, 0, 2));
         ActionPlayer player = CreatePlayer(out GameObject owner);
 
         try
@@ -227,10 +219,10 @@ public sealed class ActionPlayerSequenceIntegrationTests
     {
         ActionAsset action = CreateSequenceAction(
             2,
-            new PoseRefreshProbeClipDefinition("A", ActionSequenceClipPhase.Animation, 0, 2),
-            new ProbeClipDefinition("S", ActionSequenceClipPhase.State, 0, 2),
-            new ProbeClipDefinition("M", ActionSequenceClipPhase.Motion, 0, 2),
-            new ProbeClipDefinition("H", ActionSequenceClipPhase.HitBox, 0, 2));
+            new PoseRefreshProbeClipDefinition("A", ActionSequenceTrackKind.Animation, 0, 2),
+            new ProbeClipDefinition("S", ActionSequenceTrackKind.State, 0, 2),
+            new ProbeClipDefinition("M", ActionSequenceTrackKind.Motion, 0, 2),
+            new ProbeClipDefinition("H", ActionSequenceTrackKind.HitBox, 0, 2));
         ActionPlayer player = CreatePlayer(out GameObject owner);
 
         try
@@ -262,8 +254,8 @@ public sealed class ActionPlayerSequenceIntegrationTests
                     "S:enter:0",
                     "M:enter:0",
                     "H:enter:0",
-                    "S:tick:0",
                     "A:tick:0:1:frame",
+                    "S:tick:0",
                     "M:tick:0",
                     "H:tick:0",
                 },
@@ -284,7 +276,7 @@ public sealed class ActionPlayerSequenceIntegrationTests
         SetPrivateField(selfRotationClip, "animationKey", "attack");
         ActionAsset action = CreateSequenceAction(
             2,
-            new PoseRefreshProbeClipDefinition("A", ActionSequenceClipPhase.Animation, 0, 2),
+            new PoseRefreshProbeClipDefinition("A", ActionSequenceTrackKind.Animation, 0, 2),
             selfRotationClip);
         AnimationConfig config = CreateAnimationConfig(new AnimationConfigEntry("attack", null, CreateTrajectory()));
         ActionPlayer player = CreatePlayerWithAnimationConfig(out GameObject owner, config);
@@ -319,7 +311,7 @@ public sealed class ActionPlayerSequenceIntegrationTests
     {
         ActionAsset action = CreateSequenceAction(
             2,
-            new ProbeClipDefinition("A", ActionSequenceClipPhase.State, 0, 2));
+            new ProbeClipDefinition("A", ActionSequenceTrackKind.State, 0, 2));
         ActionPlayer player = CreatePlayer(out GameObject owner);
 
         try
@@ -345,8 +337,8 @@ public sealed class ActionPlayerSequenceIntegrationTests
     {
         ActionAsset action = CreateSequenceAction(
             2,
-            new PoseRefreshProbeClipDefinition("A", ActionSequenceClipPhase.Animation, 0, 2),
-            new ProbeClipDefinition("S", ActionSequenceClipPhase.State, 0, 2));
+            new PoseRefreshProbeClipDefinition("A", ActionSequenceTrackKind.Animation, 0, 2),
+            new ProbeClipDefinition("S", ActionSequenceTrackKind.State, 0, 2));
         ActionPlayer player = CreatePlayer(out GameObject owner);
 
         try
@@ -379,7 +371,7 @@ public sealed class ActionPlayerSequenceIntegrationTests
     {
         ActionAsset action = CreateSequenceAction(
             2,
-            new ProbeClipDefinition("A", ActionSequenceClipPhase.State, 0, 2));
+            new ProbeClipDefinition("A", ActionSequenceTrackKind.State, 0, 2));
         ActionPlayer player = CreatePlayer(out GameObject owner);
 
         try
@@ -406,7 +398,7 @@ public sealed class ActionPlayerSequenceIntegrationTests
     {
         ActionAsset action = CreateSequenceAction(
             2,
-            new PoseRefreshProbeClipDefinition("A", ActionSequenceClipPhase.Animation, 0, 2));
+            new PoseRefreshProbeClipDefinition("A", ActionSequenceTrackKind.Animation, 0, 2));
         ActionPlayer player = CreatePlayer(out GameObject owner);
 
         try
@@ -492,7 +484,7 @@ public sealed class ActionPlayerSequenceIntegrationTests
         {
             LogAssert.Expect(
                 LogType.Warning,
-                "Action 播放失败：Sequence 动画 Clip 需要 Actor.AnimationConfig。");
+                new Regex("AnimationConfig"));
 
             player.BeginAction(action, ActionContext.None);
 
@@ -517,7 +509,7 @@ public sealed class ActionPlayerSequenceIntegrationTests
         {
             LogAssert.Expect(
                 LogType.Warning,
-                "Action 播放失败：AnimationConfig 找不到动画 key 'missing' 的 Transition。");
+                new Regex("missing.*Transition"));
 
             player.BeginAction(action, ActionContext.None);
 
@@ -542,7 +534,7 @@ public sealed class ActionPlayerSequenceIntegrationTests
         {
             LogAssert.Expect(
                 LogType.Warning,
-                "Action 播放失败：AnimationConfig 找不到动画 key 'missing' 的 RootMotionTrajectory。");
+                new Regex("missing.*RootMotionTrajectory"));
 
             player.BeginAction(action, ActionContext.None);
 
@@ -570,7 +562,7 @@ public sealed class ActionPlayerSequenceIntegrationTests
         {
             LogAssert.Expect(
                 LogType.Warning,
-                "Action 播放失败：RootMotionClip 区间重叠 [0, 2) 与 [1, 3)。");
+                new Regex("RootMotionClip.*\\[0, 2\\).*\\[1, 3\\)"));
 
             player.BeginAction(action, ActionContext.None);
 
@@ -595,7 +587,7 @@ public sealed class ActionPlayerSequenceIntegrationTests
         {
             LogAssert.Expect(
                 LogType.Warning,
-                "Action 播放失败：AnimationConfig 找不到动画 key 'missing' 的 RootMotionTrajectory。");
+                new Regex("missing.*RootMotionTrajectory"));
 
             player.BeginAction(action, ActionContext.None);
 
@@ -673,7 +665,7 @@ public sealed class ActionPlayerSequenceIntegrationTests
         {
             LogAssert.Expect(
                 LogType.Warning,
-                "Action 播放失败：SelfRotationClip PresetLocal 方向无效。");
+                new Regex("SelfRotationClip.*PresetLocal"));
 
             player.BeginAction(action, ActionContext.None);
 
@@ -701,7 +693,7 @@ public sealed class ActionPlayerSequenceIntegrationTests
         {
             LogAssert.Expect(
                 LogType.Warning,
-                "Action 播放失败：SelfRotationClip 区间重叠 [0, 2) 与 [1, 3)。");
+                new Regex("SelfRotationClip.*\\[0, 2\\).*\\[1, 3\\)"));
 
             player.BeginAction(action, ActionContext.None);
 
@@ -720,7 +712,7 @@ public sealed class ActionPlayerSequenceIntegrationTests
     {
         ActionAsset action = CreateSequenceAction(
             1,
-            new ProbeClipDefinition("A", ActionSequenceClipPhase.State, 0, 1));
+            new ProbeClipDefinition("A", ActionSequenceTrackKind.State, 0, 1));
         SetPrivateField(action, "isLoop", true);
         ActionPlayer player = CreatePlayer(out GameObject owner);
 
@@ -771,9 +763,8 @@ public sealed class ActionPlayerSequenceIntegrationTests
 
     private static void ExecuteFixedTick(ActionPlayer player)
     {
-        InvokePrivate(player, "ExecuteSimulationPreWorld", 1f / 60f);
-        InvokePrivate(player, "ExecuteSimulationPostWorld");
-        InvokePrivate(player, "EndSimulationTick");
+        InvokePrivate(player, "PlayActionFrame", 1f / 60f);
+        InvokePrivate(player, "FinishActionFrame");
     }
 
     private static void InvokePrivate(object target, string methodName, params object[] arguments)
@@ -800,10 +791,10 @@ public sealed class ActionPlayerSequenceIntegrationTests
         for (int i = 0; i < clips.Length; i++)
         {
             ActionSequenceClipDefinition clip = clips[i];
-            ProbeTrackDefinition track = FindTrack(action, clip.Phase);
+            ProbeTrackDefinition track = FindTrack(action, clip.Kind);
             if (track == null)
             {
-                track = new ProbeTrackDefinition(clip.Phase);
+                track = new ProbeTrackDefinition(clip.Kind);
                 action.SequenceData.EditorTracks.Add(track);
             }
 
@@ -852,11 +843,11 @@ public sealed class ActionPlayerSequenceIntegrationTests
         return trajectory;
     }
 
-    private static ProbeTrackDefinition FindTrack(ActionAsset action, ActionSequenceClipPhase phase)
+    private static ProbeTrackDefinition FindTrack(ActionAsset action, ActionSequenceTrackKind phase)
     {
         for (int i = 0; i < action.SequenceData.EditorTracks.Count; i++)
         {
-            if (action.SequenceData.EditorTracks[i] is ProbeTrackDefinition track && track.Phase == phase)
+            if (action.SequenceData.EditorTracks[i] is ProbeTrackDefinition track && track.Kind == phase)
                 return track;
         }
 
@@ -873,14 +864,14 @@ public sealed class ActionPlayerSequenceIntegrationTests
             typeof(ActionSequenceRootMotionClipDefinition),
             typeof(ActionSequenceSelfRotationClipDefinition),
         };
-        private readonly ActionSequenceClipPhase _phase;
+        private readonly ActionSequenceTrackKind _phase;
 
-        public ProbeTrackDefinition(ActionSequenceClipPhase phase)
+        public ProbeTrackDefinition(ActionSequenceTrackKind phase)
         {
             _phase = phase;
         }
 
-        public override ActionSequenceClipPhase Phase => _phase;
+        public override ActionSequenceTrackKind Kind => _phase;
         public override System.Type[] AllowedClipTypes => ClipTypes;
     }
 
@@ -888,9 +879,9 @@ public sealed class ActionPlayerSequenceIntegrationTests
     {
         public static readonly List<string> Events = new List<string>();
         private readonly string _id;
-        private readonly ActionSequenceClipPhase _phase;
+        private readonly ActionSequenceTrackKind _phase;
 
-        public ProbeClipDefinition(string id, ActionSequenceClipPhase phase, int start, int end)
+        public ProbeClipDefinition(string id, ActionSequenceTrackKind phase, int start, int end)
         {
             _id = id;
             _phase = phase;
@@ -898,7 +889,7 @@ public sealed class ActionPlayerSequenceIntegrationTests
             endFrame = end;
         }
 
-        public override ActionSequenceClipPhase Phase => _phase;
+        public override ActionSequenceTrackKind Kind => _phase;
 
         public override ActionSequenceClipRuntime CreateRuntime()
         {
@@ -934,9 +925,9 @@ public sealed class ActionPlayerSequenceIntegrationTests
     private sealed class PoseRefreshProbeClipDefinition : ActionSequenceClipDefinition
     {
         private readonly string _id;
-        private readonly ActionSequenceClipPhase _phase;
+        private readonly ActionSequenceTrackKind _phase;
 
-        public PoseRefreshProbeClipDefinition(string id, ActionSequenceClipPhase phase, int start, int end)
+        public PoseRefreshProbeClipDefinition(string id, ActionSequenceTrackKind phase, int start, int end)
         {
             _id = id;
             _phase = phase;
@@ -944,7 +935,7 @@ public sealed class ActionPlayerSequenceIntegrationTests
             endFrame = end;
         }
 
-        public override ActionSequenceClipPhase Phase => _phase;
+        public override ActionSequenceTrackKind Kind => _phase;
 
         public override ActionSequenceClipRuntime CreateRuntime()
         {

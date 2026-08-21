@@ -7,8 +7,8 @@ using UnityEngine;
 /// Owns the explicit fixed-step boundary around KCC and actor-on-actor resolution.
 ///
 /// Fixed simulation contract:
-/// KCC interpolation pre-step -> all Actor PreWorld -> KCC simulation -> actor
-/// overlap resolution -> physics transform sync -> all Actor PostWorld/EndTick
+/// KCC interpolation pre-step -> Play Action Frames -> KCC simulation -> actor
+/// overlap resolution -> physics transform sync -> Detect Hits -> Resolve Hits -> Finish Action Frames
 /// -> matching KCC interpolation post-step.
 ///
 /// This is intentionally not a general-purpose callback or phase scheduler.
@@ -30,8 +30,7 @@ public sealed class CombatSimulationDriver : MonoBehaviour
     private bool _hasPreviousAutoSimulation;
     private bool _previousAutoSimulation;
     private bool _reportedAutoSimulationOverride;
-    private readonly CombatTickTransaction _tickTransaction = new CombatTickTransaction();
-    private int _nextTickId;
+    private readonly CombatHitBuffer _hitBuffer = new CombatHitBuffer();
 
     public bool IsSimulationOwner => _ownsSimulation;
     public bool IsSimulationFaulted => _simulationFaulted;
@@ -121,7 +120,7 @@ public sealed class CombatSimulationDriver : MonoBehaviour
 
         try
         {
-            _tickTransaction.Begin(++_nextTickId);
+            _hitBuffer.Begin();
 
             if (interpolateThisStep)
             {
@@ -130,7 +129,7 @@ public sealed class CombatSimulationDriver : MonoBehaviour
             }
 
             for (int i = 0; i < _tickActors.Count; i++)
-                _tickActors[i].ExecutePreWorld(deltaTime);
+                _tickActors[i].PlayActionFrame(deltaTime);
 
             KinematicCharacterSystem.Simulate(
                 deltaTime,
@@ -141,12 +140,12 @@ public sealed class CombatSimulationDriver : MonoBehaviour
             Physics.SyncTransforms();
 
             for (int i = 0; i < _tickActors.Count; i++)
-                _tickActors[i].ExecutePostWorld(_tickTransaction.HitIntentSink);
+                _tickActors[i].DetectHits(_hitBuffer);
 
-            _tickTransaction.ResolveHits();
+            _hitBuffer.Resolve();
 
             for (int i = 0; i < _tickActors.Count; i++)
-                _tickActors[i].EndSimulationTick();
+                _tickActors[i].FinishActionFrame();
         }
         catch (Exception exception)
         {
@@ -176,7 +175,7 @@ public sealed class CombatSimulationDriver : MonoBehaviour
             }
 
             _tickActors.Clear();
-            _tickTransaction.Close();
+            _hitBuffer.Clear();
         }
 
         if (simulationException != null)
@@ -211,7 +210,7 @@ public sealed class CombatSimulationDriver : MonoBehaviour
         {
             try
             {
-                _tickActors[i].AbortSimulationTick();
+                _tickActors[i].CancelAction();
             }
             catch (Exception exception)
             {

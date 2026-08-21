@@ -78,13 +78,13 @@ internal sealed class ActionSequenceClipView : VisualElement
 
         SetClass("asv2-clip-muted", track.Muted);
         SetClass("asv2-clip-locked", track.Locked);
-        SetClass("asv2-clip-invalid", clip.Snapshot.IsNull || clip.Snapshot.MissingType || !clip.Snapshot.AllowedByTrack || !clip.Snapshot.PhaseMatchesTrack);
+        SetClass("asv2-clip-invalid", clip.Snapshot.IsNull || clip.Snapshot.MissingType || !clip.Snapshot.AllowedByTrack || !clip.Snapshot.KindMatchesTrack);
         SetClass("asv2-selected", selected);
         SetClass("asv2-clip-preview", state != null && state.InteractionPreview.IsActive && state.InteractionPreview.RenderKey == RenderKey);
 
         if (!string.IsNullOrEmpty(phaseClass))
             RemoveFromClassList(phaseClass);
-        phaseClass = ActionSequenceViewUtility.GetPhaseClass(clip.Snapshot.Phase);
+        phaseClass = ActionSequenceViewUtility.GetKindClass(clip.Snapshot.Kind);
         AddToClassList(phaseClass);
     }
 

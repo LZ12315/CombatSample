@@ -2,32 +2,17 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-internal interface ICombatHitIntentSink
+internal readonly struct PendingHit
 {
-    int TickId { get; }
-    bool TryEnqueue(in CombatHitIntent intent);
-}
-
-internal interface ICombatHitIntentReceipt
-{
-    void OnResolved(in HitResolveResult result);
-    void OnAborted();
-}
-
-internal readonly struct CombatHitIntent
-{
-    public CombatHitIntent(
-        int tickId,
+    public PendingHit(
         int attackerStableId,
         string clipStableId,
         int targetStableId,
         AttackHitData hitData,
         IDamageable target,
         Collider representativeCollider,
-        IReadOnlyList<ImpactEffectConfig> effects,
-        ICombatHitIntentReceipt receipt)
+        IReadOnlyList<ImpactEffectConfig> effects)
     {
-        TickId = tickId;
         AttackerStableId = attackerStableId;
         ClipStableId = string.IsNullOrEmpty(clipStableId) ? string.Empty : clipStableId;
         TargetStableId = targetStableId;
@@ -35,10 +20,8 @@ internal readonly struct CombatHitIntent
         Target = target;
         RepresentativeCollider = representativeCollider;
         Effects = effects;
-        Receipt = receipt;
     }
 
-    public int TickId { get; }
     public int AttackerStableId { get; }
     public string ClipStableId { get; }
     public int TargetStableId { get; }
@@ -46,97 +29,74 @@ internal readonly struct CombatHitIntent
     public IDamageable Target { get; }
     public Collider RepresentativeCollider { get; }
     public IReadOnlyList<ImpactEffectConfig> Effects { get; }
-    public ICombatHitIntentReceipt Receipt { get; }
 }
 
-internal sealed class CombatHitIntentBuffer : ICombatHitIntentSink
+internal sealed class CombatHitBuffer
 {
-    private static readonly Comparison<CombatHitIntent> CompareIntents = Compare;
-    private readonly List<CombatHitIntent> _intents = new List<CombatHitIntent>(32);
+    private static readonly Comparison<PendingHit> CompareHits = Compare;
+    private readonly List<PendingHit> _hits = new List<PendingHit>(32);
     private bool _isResolving;
 
-    public int TickId { get; private set; }
-    public IReadOnlyList<CombatHitIntent> Intents => _intents;
-    public int Count => _intents.Count;
+    public IReadOnlyList<PendingHit> Hits => _hits;
+    public int Count => _hits.Count;
 
-    public void Begin(int tickId)
+    public void Begin()
     {
-        TickId = tickId;
         _isResolving = false;
-        _intents.Clear();
+        _hits.Clear();
     }
 
-    public bool TryEnqueue(in CombatHitIntent intent)
+    public bool Add(in PendingHit hit)
     {
         if (_isResolving)
-            throw new InvalidOperationException("CombatHitIntent cannot be enqueued while the current hit buffer is resolving.");
+            throw new InvalidOperationException("PendingHit cannot be added while the current hit buffer is resolving.");
 
-        if (intent.Target == null)
+        if (hit.Target == null)
             return false;
 
-        _intents.Add(intent);
+        _hits.Add(hit);
         return true;
     }
 
     public void Resolve()
     {
         _isResolving = true;
-        int resolvedCount = 0;
 
         try
         {
-            _intents.Sort(CompareIntents);
-            for (; resolvedCount < _intents.Count; resolvedCount++)
+            _hits.Sort(CompareHits);
+            for (int i = 0; i < _hits.Count; i++)
             {
-                CombatHitIntent intent = _intents[resolvedCount];
-                HitResolveResult result = ResolveOne(intent);
-                intent.Receipt?.OnResolved(result);
+                PendingHit hit = _hits[i];
+                HitResolveResult result = ResolveOne(hit);
+                if (result.ImpactAllowed)
+                    TriggerImpactEffect(hit);
             }
-        }
-        catch
-        {
-            AbortFrom(resolvedCount);
-            throw;
         }
         finally
         {
             _isResolving = false;
-            _intents.Clear();
+            _hits.Clear();
         }
     }
 
-    public void Abort()
+    public void Clear()
     {
-        AbortFrom(0);
         _isResolving = false;
-        _intents.Clear();
+        _hits.Clear();
     }
 
-    private static HitResolveResult ResolveOne(in CombatHitIntent intent)
+    private static HitResolveResult ResolveOne(in PendingHit hit)
     {
-        IDamageable target = intent.Target;
+        IDamageable target = hit.Target;
         if (target == null || target.IsDead)
             return HitResolveResult.AlreadyDead();
 
-        HitResolveResult result = target.TakeDamage(intent.HitData);
-        if (result.ImpactAllowed)
-            TriggerImpactEffect(intent);
-
-        return result;
+        return target.TakeDamage(hit.HitData);
     }
 
-    private void AbortFrom(int startIndex)
+    private static int Compare(PendingHit a, PendingHit b)
     {
-        for (int i = Mathf.Max(0, startIndex); i < _intents.Count; i++)
-            _intents[i].Receipt?.OnAborted();
-    }
-
-    private static int Compare(CombatHitIntent a, CombatHitIntent b)
-    {
-        int tickCompare = a.TickId.CompareTo(b.TickId);
-        if (tickCompare != 0)
-            return tickCompare;
-
         int attackerCompare = a.AttackerStableId.CompareTo(b.AttackerStableId);
         if (attackerCompare != 0)
             return attackerCompare;
@@ -148,16 +108,16 @@ internal sealed class CombatHitIntentBuffer : ICombatHitIntentSink
         return a.TargetStableId.CompareTo(b.TargetStableId);
     }
 
-    private static void TriggerImpactEffect(in CombatHitIntent intent)
+    private static void TriggerImpactEffect(in PendingHit hit)
     {
-        if (intent.Effects == null || intent.Effects.Count == 0)
+        if (hit.Effects == null || hit.Effects.Count == 0)
             return;
 
         ImpactSystem.EnsureExists();
         if (ImpactSystem.Instance == null)
             return;
 
-        AttackHitData hitData = intent.HitData;
+        AttackHitData hitData = hit.HitData;
         ImpactData impactData = ImpactData.FromAttackHit(hitData);
         impactData.VfxSpawnPoint = hitData.HitPoint;
         impactData.FacingReferenceWorldPosition = HitVfxFacingUtility.ResolveFacingWorldPosition(
@@ -167,45 +127,6 @@ internal sealed class CombatHitIntentBuffer : ICombatHitIntentSink
         Vector3 attackerReference = HitVfxAnchorUtility.GetDefaultAttackerRayOrigin(hitData.Attacker);
         impactData.PopulateDirectionalReferences(attackerReference);
 
-        ImpactSystem.Instance.ApplyImpact(impactData, intent.Effects);
-    }
-}
-
-internal sealed class CombatTickTransaction
-{
-    private readonly CombatHitIntentBuffer _hitIntents = new CombatHitIntentBuffer();
-    private bool _isOpen;
-
-    public ICombatHitIntentSink HitIntentSink => _hitIntents;
-    public int TickId { get; private set; }
-
-    public void Begin(int tickId)
-    {
-        TickId = tickId;
-        _isOpen = true;
-        _hitIntents.Begin(tickId);
-    }
-
-    public void ResolveHits()
-    {
-        if (!_isOpen)
-            return;
-
-        _hitIntents.Resolve();
-    }
-
-    public void Abort()
-    {
-        if (!_isOpen)
-            return;
-
-        _hitIntents.Abort();
-    }
-
-    public void Close()
-    {
-        _hitIntents.Abort();
-        _isOpen = false;
-        TickId = 0;
+        ImpactSystem.Instance.ApplyImpact(impactData, hit.Effects);
     }
 }

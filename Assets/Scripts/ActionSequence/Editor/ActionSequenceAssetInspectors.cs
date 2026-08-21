@@ -149,7 +149,7 @@ internal sealed class ActionSequenceInspectorV2Builder : IDisposable
         ActionSequenceTrackSnapshot track = document.Tracks[trackIndex];
         parent.Add(Header("Selected Track"));
         parent.Add(ReadOnly("Type", ActionSequenceViewUtility.GetTrackTypeDisplayName(track)));
-        parent.Add(ReadOnly("Phase", track.Phase.ToString()));
+        parent.Add(ReadOnly("Kind", track.Kind.ToString()));
         parent.Add(ReadOnly("Editor ID", track.EditorId));
         parent.Add(ReadOnly("Owning Sequence", target.name));
 
@@ -185,7 +185,7 @@ internal sealed class ActionSequenceInspectorV2Builder : IDisposable
 
         parent.Add(Header("Selected Clip"));
         parent.Add(ReadOnly("Type", ActionSequenceViewUtility.GetClipDisplayName(clip)));
-        parent.Add(ReadOnly("Phase", clip.Phase.ToString()));
+        parent.Add(ReadOnly("Kind", clip.Kind.ToString()));
         parent.Add(ReadOnly("Editor ID", clip.EditorId));
         parent.Add(ReadOnly("Track", ActionSequenceViewUtility.GetTrackDisplayName(track)));
 

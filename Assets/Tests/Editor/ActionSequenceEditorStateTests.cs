@@ -33,7 +33,7 @@ public sealed class ActionSequenceEditorStateTests
     }
 
     [Test]
-    public void DisplayTracks_AreSortedByPhaseWithoutMutatingSerializedOrder()
+    public void DisplayTracks_AreSortedByKindWithoutMutatingSerializedOrder()
     {
         ActionSequenceAsset asset = ScriptableObject.CreateInstance<ActionSequenceAsset>();
         asset.EditorTracks.Clear();
@@ -44,8 +44,8 @@ public sealed class ActionSequenceEditorStateTests
         using var state = new ActionSequenceEditorState();
         state.SetTarget(asset);
 
-        Assert.AreEqual(ActionSequenceClipPhase.State, state.DisplayTracks[0].Snapshot.Phase);
-        Assert.AreEqual(ActionSequenceClipPhase.HitBox, asset.EditorTracks[0].Phase);
+        Assert.AreEqual(ActionSequenceTrackKind.State, state.DisplayTracks[0].Snapshot.Kind);
+        Assert.AreEqual(ActionSequenceTrackKind.HitBox, asset.EditorTracks[0].Kind);
     }
 
     [Test]

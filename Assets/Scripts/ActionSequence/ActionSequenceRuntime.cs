@@ -5,9 +5,7 @@ using UnityEngine;
 public enum ActionSequenceFrameTransactionState
 {
     Idle = 0,
-    Begun = 1,
-    PreWorldComplete = 2,
-    PostWorldComplete = 3,
+    Open = 1,
 }
 
 public sealed class ActionSequenceRuntime
@@ -16,7 +14,7 @@ public sealed class ActionSequenceRuntime
     {
         public ActionSequenceClipDefinition Definition;
         public ActionSequenceClipRuntime Runtime;
-        public ActionSequenceClipPhase Phase;
+        public ActionSequenceTrackKind Kind;
         public int TrackIndex;
         public int ClipIndex;
         public int StartFrame;
@@ -175,12 +173,12 @@ public sealed class ActionSequenceRuntime
             EnterClipsStartingAt(
                 0,
                 context,
-                ActionSequenceClipPhase.Animation,
-                ActionSequenceClipPhase.Animation);
+                ActionSequenceTrackKind.Animation,
+                ActionSequenceTrackKind.Animation);
             TickActiveClips(
                 context,
-                ActionSequenceClipPhase.Animation,
-                ActionSequenceClipPhase.Animation);
+                ActionSequenceTrackKind.Animation,
+                ActionSequenceTrackKind.Animation);
         }
         finally
         {
@@ -215,8 +213,8 @@ public sealed class ActionSequenceRuntime
         {
             TickActiveClips(
                 context,
-                ActionSequenceClipPhase.Animation,
-                ActionSequenceClipPhase.Animation);
+                ActionSequenceTrackKind.Animation,
+                ActionSequenceTrackKind.Animation);
         }
         finally
         {
@@ -226,17 +224,17 @@ public sealed class ActionSequenceRuntime
         return true;
     }
 
-    public bool BeginFrame(ActionSequenceContext context)
+    public bool PlayFrame(ActionSequenceContext context)
     {
-        return BeginFrame(context, CombatSimulationTiming.FixedDeltaTime, 1f);
+        return PlayFrame(context, CombatSimulationTiming.FixedDeltaTime, 1f);
     }
 
-    public bool BeginFrame(ActionSequenceContext context, float deltaTime, float speedScale)
+    public bool PlayFrame(ActionSequenceContext context, float deltaTime, float speedScale)
     {
         if (context == null)
             throw new ArgumentNullException(nameof(context));
 
-        EnsureNoOpenFrame(nameof(BeginFrame));
+        EnsureNoOpenFrame(nameof(PlayFrame));
 
         if (!IsPlaying || IsComplete || Data == null)
             return false;
@@ -250,7 +248,7 @@ public sealed class ActionSequenceRuntime
 
         _frameContext = context;
         _pendingFrame = nextFrame;
-        FrameTransactionState = ActionSequenceFrameTransactionState.Begun;
+        FrameTransactionState = ActionSequenceFrameTransactionState.Open;
 
         context.Frame = nextFrame;
         context.PoseFrame = nextFrame + 1f;
@@ -261,45 +259,13 @@ public sealed class ActionSequenceRuntime
         context.IsPoseRefresh = false;
 
         EnterClipsStartingAt(nextFrame, context);
+        TickActiveClips(context);
         return true;
     }
 
-    public void ExecutePreWorld()
+    public void FinishFrame()
     {
-        RequireFrameState(ActionSequenceFrameTransactionState.Begun, nameof(ExecutePreWorld));
-        TickActiveClips(
-            _frameContext,
-            ActionSequenceClipPhase.State,
-            ActionSequenceClipPhase.Motion);
-        FrameTransactionState = ActionSequenceFrameTransactionState.PreWorldComplete;
-    }
-
-    public void ExecutePostWorld()
-    {
-        ExecutePostWorld(null);
-    }
-
-    internal void ExecutePostWorld(ICombatHitIntentSink hitIntentSink)
-    {
-        RequireFrameState(ActionSequenceFrameTransactionState.PreWorldComplete, nameof(ExecutePostWorld));
-        _frameContext.HitIntentSink = hitIntentSink;
-        try
-        {
-            TickActiveClips(
-                _frameContext,
-                ActionSequenceClipPhase.HitBox,
-                ActionSequenceClipPhase.Cleanup);
-            FrameTransactionState = ActionSequenceFrameTransactionState.PostWorldComplete;
-        }
-        finally
-        {
-            _frameContext.HitIntentSink = null;
-        }
-    }
-
-    public void EndFrame()
-    {
-        RequireFrameState(ActionSequenceFrameTransactionState.PostWorldComplete, nameof(EndFrame));
+        RequireFrameState(ActionSequenceFrameTransactionState.Open, nameof(FinishFrame));
 
         int completedFrame = _pendingFrame;
         ActionSequenceContext context = _frameContext;
@@ -343,12 +309,10 @@ public sealed class ActionSequenceRuntime
 
         EnsureNoOpenFrame(nameof(StepFrame));
 
-        if (!BeginFrame(context, deltaTime, speedScale))
+        if (!PlayFrame(context, deltaTime, speedScale))
             return false;
 
-        ExecutePreWorld();
-        ExecutePostWorld();
-        EndFrame();
+        FinishFrame();
         return true;
     }
 
@@ -357,22 +321,22 @@ public sealed class ActionSequenceRuntime
         EnterClipsStartingAt(
             frame,
             context,
-            ActionSequenceClipPhase.State,
-            ActionSequenceClipPhase.Cleanup);
+            ActionSequenceTrackKind.State,
+            ActionSequenceTrackKind.Cleanup);
     }
 
     private void EnterClipsStartingAt(
         int frame,
         ActionSequenceContext context,
-        ActionSequenceClipPhase firstPhase,
-        ActionSequenceClipPhase lastPhase)
+        ActionSequenceTrackKind firstKind,
+        ActionSequenceTrackKind lastKind)
     {
         for (int i = 0; i < _clips.Count; i++)
         {
             ClipRecord record = _clips[i];
             if (record.Active || record.StartFrame != frame)
                 continue;
-            if ((int)record.Phase < (int)firstPhase || (int)record.Phase > (int)lastPhase)
+            if ((int)record.Kind < (int)firstKind || (int)record.Kind > (int)lastKind)
                 continue;
 
             record.Active = true;
@@ -385,15 +349,28 @@ public sealed class ActionSequenceRuntime
 
     private void TickActiveClips(
         ActionSequenceContext context,
-        ActionSequenceClipPhase firstPhase,
-        ActionSequenceClipPhase lastPhase)
+        ActionSequenceTrackKind firstKind,
+        ActionSequenceTrackKind lastKind)
     {
         for (int i = 0; i < _activeClips.Count; i++)
         {
             ClipRecord record = _activeClips[i];
             if (!record.Active
-                || (int)record.Phase < (int)firstPhase
-                || (int)record.Phase > (int)lastPhase)
+                || (int)record.Kind < (int)firstKind
+                || (int)record.Kind > (int)lastKind)
+                continue;
+
+            if (context.Frame >= record.StartFrame && context.Frame < record.EndFrame)
+                record.Runtime?.OnTick(context);
+        }
+    }
+
+    private void TickActiveClips(ActionSequenceContext context)
+    {
+        for (int i = 0; i < _activeClips.Count; i++)
+        {
+            ClipRecord record = _activeClips[i];
+            if (!record.Active)
                 continue;
 
             if (context.Frame >= record.StartFrame && context.Frame < record.EndFrame)
@@ -468,10 +445,6 @@ public sealed class ActionSequenceRuntime
 
     private static int CompareClipRecords(ClipRecord a, ClipRecord b)
     {
-        int phaseCompare = a.Phase.CompareTo(b.Phase);
-        if (phaseCompare != 0)
-            return phaseCompare;
-
         int trackCompare = a.TrackIndex.CompareTo(b.TrackIndex);
         if (trackCompare != 0)
             return trackCompare;
@@ -500,11 +473,11 @@ public sealed class ActionSequenceRuntime
             return;
         }
 
-        if (definition.Phase != track.Phase)
+        if (definition.Kind != track.Kind)
         {
             Diagnostics.Add(new ActionSequenceRuntimeDiagnostic(
-                ActionSequenceRuntimeDiagnosticCode.PhaseMismatch,
-                $"Clip phase {definition.Phase} does not match track phase {track.Phase}.",
+                ActionSequenceRuntimeDiagnosticCode.KindMismatch,
+                $"Clip kind {definition.Kind} does not match track kind {track.Kind}.",
                 trackIndex,
                 clipIndex));
             return;
@@ -538,7 +511,7 @@ public sealed class ActionSequenceRuntime
         {
             Definition = definition,
             Runtime = runtime,
-            Phase = track.Phase,
+            Kind = track.Kind,
             TrackIndex = trackIndex,
             ClipIndex = clipIndex,
             StartFrame = startFrame,
@@ -592,7 +565,7 @@ public sealed class ActionSequenceRuntime
             {
                 Definition = definition,
                 Runtime = runtime,
-                Phase = definition.Phase,
+                Kind = definition.Kind,
                 TrackIndex = int.MaxValue,
                 ClipIndex = i,
                 StartFrame = startFrame,

@@ -178,7 +178,7 @@ public sealed class ActionStateManagerContextTests
         action.SequenceData.EditorTracks.Clear();
         if (clips != null && clips.Length > 0)
         {
-            var track = new TestTrackDefinition(ActionSequenceClipPhase.State, clips);
+            var track = new TestTrackDefinition(ActionSequenceTrackKind.State, clips);
             action.SequenceData.EditorTracks.Add(track);
         }
 
@@ -286,7 +286,7 @@ public sealed class ActionStateManagerContextTests
 
     private sealed class RequiresDirectionClipDefinition : ActionSequenceClipDefinition
     {
-        public override ActionSequenceClipPhase Phase => ActionSequenceClipPhase.State;
+        public override ActionSequenceTrackKind Kind => ActionSequenceTrackKind.State;
         public override ActionContextFieldMask RequiredContextFields => ActionContextFieldMask.Direction;
 
         public override ActionSequenceClipRuntime CreateRuntime()
@@ -302,16 +302,16 @@ public sealed class ActionStateManagerContextTests
     private sealed class TestTrackDefinition : ActionSequenceTrackDefinition
     {
         private static readonly Type[] ClipTypes = { typeof(RequiresDirectionClipDefinition) };
-        private readonly ActionSequenceClipPhase _phase;
+        private readonly ActionSequenceTrackKind _phase;
 
-        public TestTrackDefinition(ActionSequenceClipPhase phase, params ActionSequenceClipDefinition[] clips)
+        public TestTrackDefinition(ActionSequenceTrackKind phase, params ActionSequenceClipDefinition[] clips)
         {
             _phase = phase;
             for (int i = 0; clips != null && i < clips.Length; i++)
                 EditorClips.Add(clips[i]);
         }
 
-        public override ActionSequenceClipPhase Phase => _phase;
+        public override ActionSequenceTrackKind Kind => _phase;
         public override Type[] AllowedClipTypes => ClipTypes;
     }
 }

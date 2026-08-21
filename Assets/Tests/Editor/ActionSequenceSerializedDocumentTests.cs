@@ -69,7 +69,7 @@ public sealed class ActionSequenceSerializedDocumentTests
         Assert.AreEqual(2, document.Tracks.Count);
         Assert.AreEqual(1, document.Tracks[0].Clips.Count);
         Assert.AreEqual(1, document.LegacyClips.Count);
-        Assert.AreEqual(ActionSequenceClipPhase.State, document.Tracks[0].Phase);
+        Assert.AreEqual(ActionSequenceTrackKind.State, document.Tracks[0].Kind);
         Assert.AreEqual(4, document.LegacyClips[0].StartFrame);
         Assert.AreEqual(6, document.LegacyClips[0].EndFrame);
     }

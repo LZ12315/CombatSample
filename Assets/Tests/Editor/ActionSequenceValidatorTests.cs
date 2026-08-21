@@ -57,12 +57,12 @@ public sealed class ActionSequenceValidatorTests
         ActionSequenceEditorValidationResult result = ActionSequenceValidator.Validate(asset);
 
         AssertIssue(result, ActionSequenceEditorValidationCode.DisallowedClipType);
-        AssertIssue(result, ActionSequenceEditorValidationCode.PhaseMismatch);
+        AssertIssue(result, ActionSequenceEditorValidationCode.KindMismatch);
         AssertIssue(result, ActionSequenceEditorValidationCode.InvalidStartFrame);
         AssertIssue(result, ActionSequenceEditorValidationCode.InvalidEndFrame);
         AssertIssue(result, ActionSequenceEditorValidationCode.ClipExceedsFixedDuration);
         AssertIssue(result, ActionSequenceEditorValidationCode.LegacyClip);
-        AssertIssue(result, ActionSequenceEditorValidationCode.TrackPhaseOrder);
+        AssertIssue(result, ActionSequenceEditorValidationCode.TrackKindOrder);
     }
 
     [Test]
@@ -92,7 +92,7 @@ public sealed class ActionSequenceValidatorTests
         ActionSequenceEditorValidationResult result = ActionSequenceValidator.Validate(asset);
 
         Assert.AreEqual(ActionSequenceValidator.MigrateLegacyClipsCommandId, result.Issues.First(i => i.Code == ActionSequenceEditorValidationCode.LegacyClip).RepairCommandId);
-        Assert.AreEqual(ActionSequenceValidator.RepairTrackPhaseOrderCommandId, result.Issues.First(i => i.Code == ActionSequenceEditorValidationCode.TrackPhaseOrder).RepairCommandId);
+        Assert.AreEqual(ActionSequenceValidator.RepairTrackKindOrderCommandId, result.Issues.First(i => i.Code == ActionSequenceEditorValidationCode.TrackKindOrder).RepairCommandId);
     }
 
     [Test]

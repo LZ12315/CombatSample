@@ -44,7 +44,7 @@ internal sealed class SequenceActionPlaybackSession : IFixedActionPlaybackSessio
             "Sequence playback is fixed-simulation owned and cannot be advanced from Update.");
     }
 
-    public bool TryBeginFrame(float deltaSeconds)
+    public bool TryPlayFrame(float deltaSeconds)
     {
         if (_disposed || _runtime == null || !_runtime.IsPlaying || _runtime.IsComplete || _paused)
             return false;
@@ -66,46 +66,25 @@ internal sealed class SequenceActionPlaybackSession : IFixedActionPlaybackSessio
         }
 
         _frameAccumulator -= 1.0;
-        return _runtime.BeginFrame(
+        return _runtime.PlayFrame(
             _sequenceContext,
             CombatSimulationTiming.FixedDeltaTime,
             (float)_speed);
     }
 
-    public void ExecutePreWorld()
+    public void FinishFrame()
     {
         if (!HasOpenFrame)
             return;
 
-        _runtime.ExecutePreWorld();
-    }
-
-    public void ExecutePostWorld()
-    {
-        ExecutePostWorld(null);
-    }
-
-    public void ExecutePostWorld(ICombatHitIntentSink hitIntentSink)
-    {
-        if (!HasOpenFrame)
-            return;
-
-        _runtime.ExecutePostWorld(hitIntentSink);
-    }
-
-    public void EndFrame()
-    {
-        if (!HasOpenFrame)
-            return;
-
-        _runtime.EndFrame();
+        _runtime.FinishFrame();
         Action.UpdateNormalizedTime(NormalizedTime);
 
         if (_runtime.IsComplete)
             Completed?.Invoke(this);
     }
 
-    public void AbortFrame()
+    public void Cancel()
     {
         if (_runtime != null && !_runtime.IsComplete)
             _runtime.Cancel(_sequenceContext);
@@ -171,6 +150,7 @@ internal sealed class SequenceActionPlaybackSession : IFixedActionPlaybackSessio
         _frameAccumulator = 0.0;
         _sequenceContext.Actor = _actor;
         _sequenceContext.Context = _context;
+        _sequenceContext.HitBoxes = _actor != null ? _actor.HitBoxes : null;
     }
 
     private float GetCurrentPoseFrame()

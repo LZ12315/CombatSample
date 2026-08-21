@@ -10,6 +10,7 @@ public sealed class ActionSequenceHitBoxIntentIntegrationTests
     private GameObject _targetOwner;
     private readonly List<GameObject> _extraOwners = new List<GameObject>();
     private ActionSequenceAsset _asset;
+    private ActorHitBoxRuntime _hitBoxes;
 
     [TearDown]
     public void TearDown()
@@ -30,7 +31,7 @@ public sealed class ActionSequenceHitBoxIntentIntegrationTests
     }
 
     [Test]
-    public void HitBox_PostWorldEnqueuesIntentAndResolveAppliesDamage()
+    public void HitBox_DetectHitsAddsPendingHitAndResolveAppliesDamage()
     {
         Actor attacker = CreateActor("HitIntent Attacker", Vector3.zero);
         ActorCombater target = CreateDamageableTarget("HitIntent Target", Vector3.forward * 0.25f);
@@ -39,27 +40,27 @@ public sealed class ActionSequenceHitBoxIntentIntegrationTests
         {
             Actor = attacker,
             Context = ActionContext.ForSelf(attacker),
+            HitBoxes = CreateHitBoxes(attacker),
         };
-        var buffer = new CombatHitIntentBuffer();
+        var buffer = new CombatHitBuffer();
 
-        Assert.IsTrue(runtime.BeginFrame(context, CombatSimulationTiming.FixedDeltaTime, 1f));
-        runtime.ExecutePreWorld();
+        Assert.IsTrue(runtime.PlayFrame(context, CombatSimulationTiming.FixedDeltaTime, 1f));
         Physics.SyncTransforms();
 
-        buffer.Begin(1);
-        runtime.ExecutePostWorld(buffer);
+        buffer.Begin();
+        context.HitBoxes.DetectHits(buffer);
 
         Assert.AreEqual(1, buffer.Count);
         Assert.AreEqual(target.MaxHealth, target.CurrentHealth);
 
         buffer.Resolve();
-        runtime.EndFrame();
+        runtime.FinishFrame();
 
         Assert.AreEqual(target.MaxHealth - 10f, target.CurrentHealth);
     }
 
     [Test]
-    public void HitBox_WithoutSinkSkipsAuthoritativeDamage()
+    public void HitBox_WithoutRuntimeSkipsAuthoritativeDamage()
     {
         Actor attacker = CreateActor("Preview Attacker", Vector3.zero);
         ActorCombater target = CreateDamageableTarget("Preview Target", Vector3.forward * 0.25f);
@@ -70,15 +71,13 @@ public sealed class ActionSequenceHitBoxIntentIntegrationTests
             Context = ActionContext.ForSelf(attacker),
         };
 
-        Assert.IsTrue(runtime.BeginFrame(context, CombatSimulationTiming.FixedDeltaTime, 1f));
-        runtime.ExecutePreWorld();
+        Assert.IsTrue(runtime.PlayFrame(context, CombatSimulationTiming.FixedDeltaTime, 1f));
         Physics.SyncTransforms();
         LogAssert.Expect(
             LogType.Warning,
-            "[ActionSequenceHitBox] No CombatHitIntent sink is available. Authoritative hit query and damage are skipped.");
+            "[ActionSequenceHitBox] No ActorHitBoxRuntime is available. Authoritative hit query and damage are skipped.");
 
-        runtime.ExecutePostWorld();
-        runtime.EndFrame();
+        runtime.FinishFrame();
 
         Assert.AreEqual(target.MaxHealth, target.CurrentHealth);
     }
@@ -94,13 +93,13 @@ public sealed class ActionSequenceHitBoxIntentIntegrationTests
             Vector3.right * 0.05f);
         ActionSequenceRuntime runtime = CreateRuntime(attacker);
         ActionSequenceContext context = CreateContext(attacker);
-        var buffer = new CombatHitIntentBuffer();
+        var buffer = new CombatHitBuffer();
 
-        ExecutePostWorldQuery(runtime, context, buffer, 1);
+        DetectHits(runtime, context, buffer, 1);
 
         Assert.AreEqual(1, buffer.Count);
         buffer.Resolve();
-        runtime.EndFrame();
+        runtime.FinishFrame();
 
         Assert.AreEqual(1, target.DamageCount);
         Assert.AreEqual(90f, target.Health);
@@ -117,12 +116,12 @@ public sealed class ActionSequenceHitBoxIntentIntegrationTests
             Vector3.right * 0.45f);
         ActionSequenceRuntime nearestRuntime = CreateRuntime(attacker);
         ActionSequenceContext nearestContext = CreateContext(attacker);
-        var nearestBuffer = new CombatHitIntentBuffer();
+        var nearestBuffer = new CombatHitBuffer();
 
-        ExecutePostWorldQuery(nearestRuntime, nearestContext, nearestBuffer, 1);
+        DetectHits(nearestRuntime, nearestContext, nearestBuffer, 1);
 
         Assert.AreEqual(1, nearestBuffer.Count);
-        Assert.AreSame(nearestTarget.Colliders[0], nearestBuffer.Intents[0].RepresentativeCollider);
+        Assert.AreSame(nearestTarget.Colliders[0], nearestBuffer.Hits[0].RepresentativeCollider);
 
         nearestRuntime.Cancel(nearestContext);
         Object.DestroyImmediate(_targetOwner);
@@ -137,19 +136,19 @@ public sealed class ActionSequenceHitBoxIntentIntegrationTests
             Vector3.zero);
         ActionSequenceRuntime tieRuntime = CreateRuntime(attacker);
         ActionSequenceContext tieContext = CreateContext(attacker);
-        var tieBuffer = new CombatHitIntentBuffer();
+        var tieBuffer = new CombatHitBuffer();
         Collider expected = tieTarget.Colliders[0].GetInstanceID() < tieTarget.Colliders[1].GetInstanceID()
             ? tieTarget.Colliders[0]
             : tieTarget.Colliders[1];
 
-        ExecutePostWorldQuery(tieRuntime, tieContext, tieBuffer, 2);
+        DetectHits(tieRuntime, tieContext, tieBuffer, 2);
 
         Assert.AreEqual(1, tieBuffer.Count);
-        Assert.AreSame(expected, tieBuffer.Intents[0].RepresentativeCollider);
+        Assert.AreSame(expected, tieBuffer.Hits[0].RepresentativeCollider);
     }
 
     [Test]
-    public void HitBox_RejectedImpactDoesNotCommitHitTargetAndRetriesNextGameplayFrame()
+    public void HitBox_RejectedImpactStillCountsAsAttemptForThisWindow()
     {
         Actor attacker = CreateActor("Retry Attacker", Vector3.zero);
         TestDamageable target = CreateTestDamageableTarget(
@@ -159,22 +158,22 @@ public sealed class ActionSequenceHitBoxIntentIntegrationTests
         target.Invincible = true;
         ActionSequenceRuntime runtime = CreateRuntime(attacker, durationFrames: 2, hitBoxEndFrame: 2);
         ActionSequenceContext context = CreateContext(attacker);
-        var buffer = new CombatHitIntentBuffer();
+        var buffer = new CombatHitBuffer();
 
-        ExecutePostWorldQuery(runtime, context, buffer, 1);
+        DetectHits(runtime, context, buffer, 1);
         Assert.AreEqual(1, buffer.Count);
         buffer.Resolve();
-        runtime.EndFrame();
+        runtime.FinishFrame();
         Assert.AreEqual(0, target.DamageCount);
 
         target.Invincible = false;
-        ExecutePostWorldQuery(runtime, context, buffer, 2);
-        Assert.AreEqual(1, buffer.Count);
+        DetectHits(runtime, context, buffer, 2);
+        Assert.AreEqual(0, buffer.Count);
         buffer.Resolve();
-        runtime.EndFrame();
+        runtime.FinishFrame();
 
-        Assert.AreEqual(1, target.DamageCount);
-        Assert.AreEqual(90f, target.Health);
+        Assert.AreEqual(0, target.DamageCount);
+        Assert.AreEqual(100f, target.Health);
     }
 
     [Test]
@@ -187,9 +186,9 @@ public sealed class ActionSequenceHitBoxIntentIntegrationTests
             Vector3.zero);
         ActionSequenceRuntime runtime = CreateRuntime(attacker);
         ActionSequenceContext context = CreateContext(attacker);
-        var buffer = new CombatHitIntentBuffer();
+        var buffer = new CombatHitBuffer();
 
-        ExecutePostWorldQuery(runtime, context, buffer, 1);
+        DetectHits(runtime, context, buffer, 1);
         Assert.AreEqual(1, buffer.Count);
 
         runtime.Cancel(context);
@@ -209,13 +208,13 @@ public sealed class ActionSequenceHitBoxIntentIntegrationTests
             Vector3.zero);
         ActionSequenceRuntime runtime = CreateRuntime(attacker, duplicateHitBoxClips: true);
         ActionSequenceContext context = CreateContext(attacker);
-        var buffer = new CombatHitIntentBuffer();
+        var buffer = new CombatHitBuffer();
 
-        ExecutePostWorldQuery(runtime, context, buffer, 1);
+        DetectHits(runtime, context, buffer, 1);
 
         Assert.AreEqual(2, buffer.Count);
         buffer.Resolve();
-        runtime.EndFrame();
+        runtime.FinishFrame();
         Assert.AreEqual(2, target.DamageCount);
         Assert.AreEqual(80f, target.Health);
     }
@@ -230,9 +229,9 @@ public sealed class ActionSequenceHitBoxIntentIntegrationTests
             Vector3.zero);
         ActionSequenceRuntime runtime = CreateRuntime(attacker);
         ActionSequenceContext context = CreateContext(attacker);
-        var buffer = new CombatHitIntentBuffer();
+        var buffer = new CombatHitBuffer();
 
-        ExecutePostWorldQuery(runtime, context, buffer, 1);
+        DetectHits(runtime, context, buffer, 1);
 
         Assert.IsTrue(runtime.IsPlaying);
         Assert.IsFalse(runtime.IsComplete);
@@ -241,7 +240,7 @@ public sealed class ActionSequenceHitBoxIntentIntegrationTests
         Assert.IsTrue(runtime.IsPlaying);
         Assert.IsFalse(runtime.IsComplete);
 
-        runtime.EndFrame();
+        runtime.FinishFrame();
         Assert.IsFalse(runtime.IsPlaying);
         Assert.IsTrue(runtime.IsComplete);
     }
@@ -347,20 +346,26 @@ public sealed class ActionSequenceHitBoxIntentIntegrationTests
         {
             Actor = attacker,
             Context = ActionContext.ForSelf(attacker),
+            HitBoxes = new ActorHitBoxRuntime(attacker),
         };
     }
 
-    private static void ExecutePostWorldQuery(
+    private ActorHitBoxRuntime CreateHitBoxes(Actor attacker)
+    {
+        _hitBoxes = new ActorHitBoxRuntime(attacker);
+        return _hitBoxes;
+    }
+
+    private static void DetectHits(
         ActionSequenceRuntime runtime,
         ActionSequenceContext context,
-        CombatHitIntentBuffer buffer,
+        CombatHitBuffer buffer,
         int tickId)
     {
-        Assert.IsTrue(runtime.BeginFrame(context, CombatSimulationTiming.FixedDeltaTime, 1f));
-        runtime.ExecutePreWorld();
+        Assert.IsTrue(runtime.PlayFrame(context, CombatSimulationTiming.FixedDeltaTime, 1f));
         Physics.SyncTransforms();
-        buffer.Begin(tickId);
-        runtime.ExecutePostWorld(buffer);
+        buffer.Begin();
+        context.HitBoxes.DetectHits(buffer);
     }
 
     private static void InvokePrivate(object target, string methodName)

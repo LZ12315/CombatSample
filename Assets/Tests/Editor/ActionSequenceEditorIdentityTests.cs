@@ -227,8 +227,8 @@ public sealed class ActionSequenceEditorIdentityTests
         Assert.AreEqual("Tag A", clip.displayName);
         Assert.AreEqual(4, clip.startFrame);
         Assert.AreEqual(9, clip.endFrame);
-        Assert.AreEqual(ActionSequenceClipPhase.State, track.Phase);
-        Assert.AreEqual(ActionSequenceClipPhase.State, clip.Phase);
+        Assert.AreEqual(ActionSequenceTrackKind.State, track.Kind);
+        Assert.AreEqual(ActionSequenceTrackKind.State, clip.Kind);
     }
 
     [Test]

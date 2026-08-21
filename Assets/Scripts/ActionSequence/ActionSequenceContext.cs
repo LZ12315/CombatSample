@@ -14,5 +14,5 @@ public sealed class ActionSequenceContext
     public object UserData { get; set; }
 
     public GameObject Owner => Actor != null ? Actor.gameObject : null;
-    internal ICombatHitIntentSink HitIntentSink { get; set; }
+    internal ActorHitBoxRuntime HitBoxes { get; set; }
 }

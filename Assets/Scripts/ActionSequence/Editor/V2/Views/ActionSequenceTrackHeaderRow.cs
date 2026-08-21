@@ -122,7 +122,7 @@ internal sealed class ActionSequenceTrackHeaderRow : VisualElement
 
         if (!string.IsNullOrEmpty(phaseClass))
             RemoveFromClassList(phaseClass);
-        phaseClass = ActionSequenceViewUtility.GetPhaseClass(snapshot.Phase);
+        phaseClass = ActionSequenceViewUtility.GetKindClass(snapshot.Kind);
         AddToClassList(phaseClass);
 
         style.height = ActionSequenceViewUtility.GetTrackHeight(snapshot);

@@ -425,7 +425,7 @@ public sealed class ActionSequenceEditorWindow : EditorWindow
         element.style.top = 5f;
         element.style.width = Mathf.Max(6f, xMax - xMin);
         element.style.height = TrackHeight - 10f;
-        element.style.backgroundColor = GetPhaseColor(track.Phase, ActionSequenceEditorSelection.IsClipSelected(_targetObject, trackIndex, clipIndex));
+        element.style.backgroundColor = GetKindColor(track.Kind, ActionSequenceEditorSelection.IsClipSelected(_targetObject, trackIndex, clipIndex));
         element.style.borderTopLeftRadius = 3f;
         element.style.borderTopRightRadius = 3f;
         element.style.borderBottomLeftRadius = 3f;
@@ -1053,15 +1053,15 @@ public sealed class ActionSequenceEditorWindow : EditorWindow
         return Mathf.Clamp(Mathf.FloorToInt(Mathf.Clamp01((x + _timelineScrollX) / Mathf.Max(1f, contentWidth)) * duration), 0, Mathf.Max(0, duration - 1));
     }
 
-    private static Color GetPhaseColor(ActionSequenceClipPhase phase, bool selected)
+    private static Color GetKindColor(ActionSequenceTrackKind phase, bool selected)
     {
         Color color = phase switch
         {
-            ActionSequenceClipPhase.State => new Color(0.36f, 0.49f, 0.76f),
-            ActionSequenceClipPhase.Animation => new Color(0.42f, 0.65f, 0.38f),
-            ActionSequenceClipPhase.Motion => new Color(0.77f, 0.52f, 0.28f),
-            ActionSequenceClipPhase.HitBox => new Color(0.76f, 0.34f, 0.34f),
-            ActionSequenceClipPhase.Cleanup => new Color(0.52f, 0.42f, 0.68f),
+            ActionSequenceTrackKind.State => new Color(0.36f, 0.49f, 0.76f),
+            ActionSequenceTrackKind.Animation => new Color(0.42f, 0.65f, 0.38f),
+            ActionSequenceTrackKind.Motion => new Color(0.77f, 0.52f, 0.28f),
+            ActionSequenceTrackKind.HitBox => new Color(0.76f, 0.34f, 0.34f),
+            ActionSequenceTrackKind.Cleanup => new Color(0.52f, 0.42f, 0.68f),
             _ => new Color(0.45f, 0.45f, 0.45f),
         };
 

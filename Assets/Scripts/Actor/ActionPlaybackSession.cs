@@ -33,10 +33,7 @@ internal interface IFixedActionPlaybackSession : IActionPlaybackSession
 {
     bool HasOpenFrame { get; }
 
-    bool TryBeginFrame(float deltaSeconds);
-    void ExecutePreWorld();
-    void ExecutePostWorld();
-    void ExecutePostWorld(ICombatHitIntentSink hitIntentSink);
-    void EndFrame();
-    void AbortFrame();
+    bool TryPlayFrame(float deltaSeconds);
+    void FinishFrame();
+    void Cancel();
 }
