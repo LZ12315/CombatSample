@@ -37,15 +37,19 @@ public sealed class ActionStateManagerContextTests
     }
 
     [Test]
-    public void PollCandidate_FreezesContextFromActorLogicInput()
+    public void PollCandidate_FreezesContextFromPendingLocomotionIntent()
     {
-        TestRig rig = CreateRig(addLogicInput: true);
+        TestRig rig = CreateRig();
         ActionAsset action = CreateSequenceAction("Poll Locomotion", ActionTriggerMode.Poll);
         SetPrivateField(action, "_startContextMode", ActionStartContextMode.LocomotionIntent);
         rig.SetActionList(action);
 
-        rig.LogicInput.InputMove(Vector2.right);
-        InvokePrivate(rig.LogicInput, "Update");
+        rig.Motor.SetLocomotionIntent(new LocomotionIntent
+        {
+            WorldMoveDirection = Vector3.right,
+            MoveStrength = 1f,
+            FacingDirection = Vector3.zero,
+        });
 
         rig.RunActionStateManager();
 
@@ -57,16 +61,12 @@ public sealed class ActionStateManagerContextTests
     }
 
     [Test]
-    public void PollCandidate_MissingActorLogicInputInvalidatesLocomotionContext()
+    public void PollCandidate_MissingPendingLocomotionIntentInvalidatesLocomotionContext()
     {
-        TestRig rig = CreateRig(addLogicInput: false);
+        TestRig rig = CreateRig();
         ActionAsset action = CreateSequenceAction("Poll Locomotion Missing Input", ActionTriggerMode.Poll);
         SetPrivateField(action, "_startContextMode", ActionStartContextMode.LocomotionIntent);
         rig.SetActionList(action);
-
-        LogAssert.Expect(
-            LogType.Error,
-            $"Action '{action.name}' uses StartContextMode.LocomotionIntent but Actor '{rig.Actor.name}' has no ActorLogicInput.");
 
         rig.RunActionStateManager();
 
@@ -76,7 +76,7 @@ public sealed class ActionStateManagerContextTests
     [Test]
     public void EventCandidates_KeepTheContextFromTheWinningSubmission()
     {
-        TestRig rig = CreateRig(addLogicInput: false);
+        TestRig rig = CreateRig();
         Tag eventTag = CreateTag("Tests.ActionContext.Event");
         TagReference eventRef = CreateTagReference(eventTag);
         ActionAsset high = CreateSequenceAction("High Event", ActionTriggerMode.Event, priorityValue: 10);
@@ -98,7 +98,7 @@ public sealed class ActionStateManagerContextTests
     [Test]
     public void ExternalRequest_WaitsUntilFixedDecideAction()
     {
-        TestRig rig = CreateRig(addLogicInput: false);
+        TestRig rig = CreateRig();
         ActionAsset action = CreateSequenceAction("External Deferred", ActionTriggerMode.Poll);
 
         bool? result = null;
@@ -116,7 +116,7 @@ public sealed class ActionStateManagerContextTests
     [Test]
     public void ExternalRequests_ReportOnlyTheExactWinningRequest()
     {
-        TestRig rig = CreateRig(addLogicInput: false);
+        TestRig rig = CreateRig();
         ActionAsset action = CreateSequenceAction("External", ActionTriggerMode.Poll);
 
         bool? first = null;
@@ -135,7 +135,7 @@ public sealed class ActionStateManagerContextTests
     [Test]
     public void ExternalRequest_OutsideCancelWindowFailsOnceAndDoesNotPersist()
     {
-        TestRig rig = CreateRig(addLogicInput: false);
+        TestRig rig = CreateRig();
         ActionAsset current = CreateSequenceAction("Current", ActionTriggerMode.Poll);
         ActionAsset requested = CreateSequenceAction("Requested", ActionTriggerMode.Poll);
 
@@ -160,7 +160,7 @@ public sealed class ActionStateManagerContextTests
     [Test]
     public void ExternalRequest_SubmittedDuringCallbackWaitsForNextDecideAction()
     {
-        TestRig rig = CreateRig(addLogicInput: false);
+        TestRig rig = CreateRig();
         ActionAsset firstAction = CreateSequenceAction("First External", ActionTriggerMode.Poll, priorityValue: 10);
         ActionAsset secondAction = CreateSequenceAction("Second External", ActionTriggerMode.Poll, priorityValue: 20);
 
@@ -188,7 +188,7 @@ public sealed class ActionStateManagerContextTests
     [Test]
     public void ExternalCallbackException_DoesNotBlockOtherCallbacks()
     {
-        TestRig rig = CreateRig(addLogicInput: false);
+        TestRig rig = CreateRig();
         ActionAsset action = CreateSequenceAction("External Callback Exception", ActionTriggerMode.Poll);
 
         bool? second = null;
@@ -209,7 +209,7 @@ public sealed class ActionStateManagerContextTests
     [Test]
     public void Disable_FailsQueuedExternalRequestExactlyOnce()
     {
-        TestRig rig = CreateRig(addLogicInput: false);
+        TestRig rig = CreateRig();
         ActionAsset action = CreateSequenceAction("External Disable", ActionTriggerMode.Poll);
 
         int callbackCount = 0;
@@ -230,7 +230,7 @@ public sealed class ActionStateManagerContextTests
     [Test]
     public void CandidateWithMissingRequiredContext_IsRejectedBeforeClaim()
     {
-        TestRig rig = CreateRig(addLogicInput: false);
+        TestRig rig = CreateRig();
         ActionAsset action = CreateSequenceAction(
             "Requires Direction",
             ActionTriggerMode.Poll,
@@ -251,7 +251,7 @@ public sealed class ActionStateManagerContextTests
     [Test]
     public void EntryConditionReceivesCandidateContext()
     {
-        TestRig rig = CreateRig(addLogicInput: false);
+        TestRig rig = CreateRig();
         ActionAsset action = CreateSequenceAction("External Context", ActionTriggerMode.Poll);
 
         ActionContext context = ActionContext.ForSelf(rig.Actor).WithMagnitude(7f);
@@ -262,28 +262,27 @@ public sealed class ActionStateManagerContextTests
         Assert.AreEqual(7f, ContextRecordingCondition.Contexts[0].Magnitude);
     }
 
-    private TestRig CreateRig(bool addLogicInput)
+    private TestRig CreateRig()
     {
         var owner = new GameObject("ActionStateManagerContextTests Actor");
         _objects.Add(owner);
 
         owner.AddComponent<PlayableDirector>();
         Actor actor = owner.AddComponent<Actor>();
+        ActorMotor motor = owner.AddComponent<ActorMotor>();
         ActionPlayer player = owner.AddComponent<ActionPlayer>();
         ActionStateManager asm = owner.AddComponent<ActionStateManager>();
-        ActorLogicInput logicInput = addLogicInput ? owner.AddComponent<ActorLogicInput>() : null;
 
+        actor.actorMotor = motor;
         actor.actionPlayer = player;
         actor.actionManager = asm;
         SetPrivateField(player, "_actor", actor);
         SetPrivateField(asm, "_actor", actor);
 
         InvokePrivate(player, "Awake");
-        if (logicInput != null)
-            InvokePrivate(logicInput, "Awake");
         InvokePrivate(asm, "Awake");
 
-        return new TestRig(actor, player, asm, logicInput, this);
+        return new TestRig(actor, motor, player, asm, this);
     }
 
     private ActionAsset CreateSequenceAction(
@@ -347,22 +346,22 @@ public sealed class ActionStateManagerContextTests
 
         public TestRig(
             Actor actor,
+            ActorMotor motor,
             ActionPlayer player,
             ActionStateManager asm,
-            ActorLogicInput logicInput,
             ActionStateManagerContextTests owner)
         {
             Actor = actor;
+            Motor = motor;
             Player = player;
             Asm = asm;
-            LogicInput = logicInput;
             _owner = owner;
         }
 
         public Actor Actor { get; }
+        public ActorMotor Motor { get; }
         public ActionPlayer Player { get; }
         public ActionStateManager Asm { get; }
-        public ActorLogicInput LogicInput { get; }
 
         public void SetActionList(params ActionAsset[] actions)
         {

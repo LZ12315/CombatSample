@@ -1,20 +1,17 @@
 using UnityEngine;
 
 /// <summary>
-/// 一帧的移动/动画/朝向意图。由 <see cref="ActorLogicInput"/>（玩家）或 AI/行为树（敌人）填写；
-/// <see cref="ActorMotor"/> 只消费，不读相机与摇杆。
+/// One motor-tick movement/facing intent. Player input and AI produce this shared gameplay semantic;
+/// ActorMotor consumes it without knowing the source.
 /// </summary>
 public struct LocomotionIntent
 {
-    /// <summary>世界空间水平移动方向（单位向量）。无输入时为 Vector3.zero。</summary>
     public Vector3 WorldMoveDirection;
-
-    /// <summary>0..1，对应摇杆模长等；填写方应 Clamp 到合理范围。</summary>
     public float MoveStrength;
 
     /// <summary>
-    /// 世界空间水平身体朝向。零向量表示：有移动时朝 <see cref="WorldMoveDirection"/>，无移动时不更新朝向。
-    /// 锁定时可填指向目标的方向。
+    /// World-space horizontal facing direction. Zero means face the move direction when moving,
+    /// or keep the current facing when idle.
     /// </summary>
     public Vector3 FacingDirection;
 

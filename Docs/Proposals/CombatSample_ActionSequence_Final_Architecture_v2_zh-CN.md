@@ -1,6 +1,6 @@
 # CombatSample ActionSequence 最终架构 v2
 
-> 状态：已批准的实施基线，分阶段实施中；Stage D4/D4.1 已落地，Stage D5 固定帧架构简化已完成并通过 focused tests、命令行编译、Unity Test Runner 全量 EditMode/PlayMode 与 Jaeger 手动回归；Stage E1 ASM 固定 Tick 决策已落地，下一阶段为 E2 Locomotion 输入兼容路径收敛
+> 状态：已批准的实施基线，分阶段实施中；Stage D4/D4.1 已落地，Stage D5 固定帧架构简化已完成并通过 focused tests、命令行编译、Unity Test Runner 全量 EditMode/PlayMode 与 Jaeger 手动回归；Stage E1 ASM 固定 Tick 决策已落地；Stage E2 玩家输入所有权与固定 Tick LocomotionIntent 已落地，下一阶段为 E3 LocomotionController / ModeAsset
 >
 > 日期：2026-08-22
 >
@@ -50,6 +50,8 @@ Update
 CombatSimulationDriver.FixedUpdate（60 Hz）
 │
 ├─ KCC PreSimulationInterpolationUpdate（若启用）
+│
+├─ PlayerInputController.SubmitLocomotionIntentForFixedTick（Stage E2 已接入）
 │
 ├─ Decide Actions（Stage E1 已接入；ASM 在固定 Tick 仲裁）
 │
@@ -677,8 +679,9 @@ PostSimulationInterpolationUpdate
 ```text
 1. 建立本 Tick actor 快照；注册/注销延迟到安全边界
 2. 若 KCC Settings.Interpolate：KCC.PreSimulationInterpolationUpdate，并记录本 Tick 已执行
-3. 所有 Actor DecideAction（Stage E1 已接入）
-4. 所有 Actor PlayActionFrame
+3. `PlayerInputController.SubmitLocomotionIntentForFixedTick`（Stage E2 已接入；Driver 不读取 rawMove/Camera/LockMode）
+4. 所有 Actor DecideAction（Stage E1 已接入）
+5. 所有 Actor PlayActionFrame
    - ActionPlayer 判断本 Tick 是否推进 Gameplay Frame
    - 若推进，Sequence 对本帧 Clip 执行 OnEnter / OnTick
    - Pose、RootMotion、SelfRotation、Velocity 和其他动作请求在这里提交
@@ -1076,3 +1079,5 @@ CombatHitBuffer
 Stage D5 的文件级切片、测试迁移、提交边界和有意行为变化，以 [`CombatSample_ActionSequence_Stage_D5_Simplification_zh-CN.md`](CombatSample_ActionSequence_Stage_D5_Simplification_zh-CN.md) 为准；若该实施文档与本文的长期职责冲突，仍以本文为准。
 
 Stage E1 的请求队列、固定 Tick 仲裁、回调生命周期和测试边界，以 [`CombatSample_ActionSequence_Stage_E1_ASM_Fixed_Tick_zh-CN.md`](CombatSample_ActionSequence_Stage_E1_ASM_Fixed_Tick_zh-CN.md) 为准。
+
+Stage E2 的玩家输入所有权、固定 Tick locomotion intent 提交、pending/effective intent 生命周期和兼容边界，以 [`CombatSample_ActionSequence_Stage_E2_Player_Input_Locomotion_zh-CN.md`](CombatSample_ActionSequence_Stage_E2_Player_Input_Locomotion_zh-CN.md) 为准。

@@ -435,16 +435,19 @@ public class ActionStateManager : MonoBehaviour
         if (_actor == null)
             return false;
 
-        ActorLogicInput logicInput = _actor.GetComponent<ActorLogicInput>();
-        if (logicInput == null)
+        ActorMotor motor = _actor.actorMotor;
+        if (motor == null)
         {
             Debug.LogError(
-                $"Action '{action.name}' uses StartContextMode.LocomotionIntent but Actor '{_actor.name}' has no ActorLogicInput.",
+                $"Action '{action.name}' uses StartContextMode.LocomotionIntent but Actor '{_actor.name}' has no ActorMotor.",
                 this);
             return false;
         }
 
-        LocomotionIntent intent = logicInput.LatestLocomotionIntent;
+        if (!motor.HasPendingLocomotionIntent)
+            return false;
+
+        LocomotionIntent intent = motor.PendingLocomotionIntent;
         context = context.WithMagnitude(Mathf.Clamp01(intent.MoveStrength));
 
         Vector3 direction = intent.WorldMoveDirection;

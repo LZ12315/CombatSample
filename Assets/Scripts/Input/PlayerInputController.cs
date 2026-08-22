@@ -1,12 +1,14 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
-using System;
 
 public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerActions
 {
-    PlayerInputControl actions;
+    private PlayerInputControl actions;
+
     public Actor controlledActor;
+
     [SerializeField] private ActorLogicInput logicInput;
 
     [Header("Debug")]
@@ -14,26 +16,42 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
     public float timeScale = 0.1f;
 
     [Header("Press Times")]
-    [SerializeField] int ShortPress_Frame = 40;
-    [SerializeField] int LongPress_Frame = 120;
+    [SerializeField] private int ShortPress_Frame = 40;
+    [SerializeField] private int LongPress_Frame = 120;
 
-    [SerializeField] float joystickHard_Distance = 0.6f;
-    [SerializeField] float joystick_DeadZone = 0.1f;
+    [SerializeField] private float joystickHard_Distance = 0.6f;
+    [SerializeField] private float joystick_DeadZone = 0.1f;
 
     [Header("Raw Axes")]
     private Vector2 rawMove = Vector2.zero;
     private Vector2 rawLook = Vector2.zero;
-    Dictionary<Enums.InputButton, InputPressState> buttonStates = new ();
-    Dictionary<Enums.InputJoystick, InputPressState> joystickStates = new ();
+
+    private readonly Dictionary<Enums.InputButton, InputPressState> buttonStates = new();
+    private readonly Dictionary<Enums.InputJoystick, InputPressState> joystickStates = new();
+
+    [Header("Input History")]
+    [SerializeField, Tooltip("Max age in real seconds for buffered player input events.")]
+    private float _bufferValidTime = 0.2f;
+
+    private readonly List<BufferedInput> _inputHistory = new List<BufferedInput>(32);
+    private readonly PlayerLocomotionIntentResolver _locomotionResolver = new PlayerLocomotionIntentResolver();
+    private Actor _lastControlledActor;
+    private ActorCameraControl _cachedCameraControl;
 
     public static PlayerInputController Instance { get; private set; }
+    public Vector2 RawMove => rawMove;
+    public Vector2 RawLook => rawLook;
+    public IReadOnlyList<BufferedInput> InputHistory => _inputHistory;
 
     private void Awake()
     {
         if (Instance != null && Instance != this)
+        {
             Destroy(gameObject);
-        else
-            Instance = this;
+            return;
+        }
+
+        Instance = this;
 
         actions = new PlayerInputControl();
         if (actions.asset == null)
@@ -46,17 +64,19 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
         actions.Player.SetCallbacks(this);
     }
 
-    void OnDestroy()
+    private void OnDestroy()
     {
+        ClearPendingPlayerLocomotionIntent();
+        if (Instance == this)
+            Instance = null;
+
         actions?.Dispose();
         actions = null;
     }
 
     private void Start()
     {
-        // 锁定鼠标用于视角；第一人称常用。
         Cursor.lockState = CursorLockMode.Locked;
-        // Locked 下隐藏指针，减少 UI/SkinnedMesh 一类问题。
         Cursor.visible = false;
 
         if (debug)
@@ -70,21 +90,21 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
 
     private void OnDisable()
     {
+        ClearPendingPlayerLocomotionIntent();
         actions?.Disable();
     }
 
-    void Update()
+    private void Update()
     {
-        if (controlledActor == null) return;
+        MaintainInputHistory();
+        SyncControlledActorChange();
 
-        // ESC：解锁鼠标，方便调试或切出。
         if (Input.GetKeyDown(KeyCode.Escape))
         {
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
         }
 
-        // R：暂停/恢复 Editor 运行，方便逐帧检查（用 Game 视图顶部的 Step 按钮逐帧前进）。
         if (Input.GetKeyDown(KeyCode.R))
         {
 #if UNITY_EDITOR
@@ -92,63 +112,68 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
 #endif
         }
 
-        // 每帧更新长按帧计数并派发 Short/Long 事件。
         UpdateInputState();
     }
 
-    void SendButtonInputData(Enums.InputButton button, Enums.ButtonState state)
-    {
-        ActorLogicInput logicInput = ResolveLogicInput();
-        if (logicInput == null) return;
-
-        InputButtonData buttonInput = new InputButtonData(button, state);
-
-        logicInput.GetInputData(buttonInput);
-
-        if (debug)
-            Debug.Log(buttonInput.inputButton + "   " + buttonInput.buttonState);
-    }
-
-    void SendJoystickInputData(Enums.InputJoystick joystick, Enums.JoystickVigor vigor)
-    {
-        ActorLogicInput logicInput = ResolveLogicInput();
-        if (logicInput == null) return;
-
-        InputJoystickData joystickInput = new InputJoystickData(joystick, vigor);
-
-        logicInput.GetInputData(joystickInput);
-
-        if (debug)
-            Debug.Log(joystickInput.inputJoystick + "   " + joystickInput.joystickVigor);
-    }
-
-    #region 输入状态查询
-
     public bool GetInputState(Enums.InputButton button)
     {
-        if (buttonStates.ContainsKey(button))
-            return buttonStates[button].isActive;
-        else
-        {
-            buttonStates[button] = new InputPressState(false);
-            return false;
-        }
+        if (buttonStates.TryGetValue(button, out InputPressState state))
+            return state.isActive;
+
+        buttonStates[button] = new InputPressState(false);
+        return false;
     }
 
     public bool GetInputState(Enums.InputJoystick joystick)
     {
-        if (joystickStates.ContainsKey(joystick))
-            return joystickStates[joystick].isActive;
-        else
-        {
-            joystickStates[joystick] = new InputPressState(false);
-            return false;
-        }
+        if (joystickStates.TryGetValue(joystick, out InputPressState state))
+            return state.isActive;
+
+        joystickStates[joystick] = new InputPressState(false);
+        return false;
     }
 
-    #endregion
+    public bool IsControlledActor(Actor actor)
+    {
+        return actor != null && controlledActor == actor;
+    }
 
-    #region Input System 回调
+    public void ClearInputHistory()
+    {
+        _inputHistory.Clear();
+    }
+
+    public bool TryConsumeInputHistory(IReadOnlyList<BufferedInput> entries)
+    {
+        if (entries == null || entries.Count == 0)
+            return false;
+
+        for (int i = 0; i < entries.Count; i++)
+        {
+            BufferedInput entry = entries[i];
+            if (entry == null || entry.IsConsumed || !_inputHistory.Contains(entry))
+                return false;
+        }
+
+        for (int i = 0; i < entries.Count; i++)
+            entries[i].Consume();
+
+        return true;
+    }
+
+    internal void SubmitLocomotionIntentForFixedTick()
+    {
+        if (!isActiveAndEnabled)
+            return;
+
+        SyncControlledActorChange();
+        if (controlledActor == null || controlledActor.actorMotor == null)
+            return;
+
+        ActorCameraControl cameraControl = ResolveCameraControl();
+        LocomotionIntent intent = _locomotionResolver.Resolve(controlledActor, cameraControl, rawMove);
+        controlledActor.actorMotor.SetLocomotionIntent(intent);
+    }
 
     public void OnMove(InputAction.CallbackContext context)
     {
@@ -157,8 +182,6 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
 
         switch (context.phase)
         {
-            // 摇杆用 Performed 持续上报；不用 Started（避免只响一次）。
-            // 推力达硬阈值发 Hard，否则 Light。
             case InputActionPhase.Performed:
                 if (distance >= joystickHard_Distance)
                     SendJoystickInputData(CastVectorToDirection(rawMove), Enums.JoystickVigor.Hard);
@@ -166,35 +189,32 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
                     SendJoystickInputData(CastVectorToDirection(rawMove), Enums.JoystickVigor.Light);
 
                 SetInputState(CastVectorToDirection(rawMove), true);
-                //SetInputState(Enums.InputJoystick.Idle, false);
                 break;
 
             case InputActionPhase.Canceled:
                 SendJoystickInputData(CastVectorToDirection(rawMove), Enums.JoystickVigor.Idle);
-
                 SetInputState(Enums.InputJoystick.Idle, true);
                 break;
         }
-
-        ResolveLogicInput()?.InputMove(rawMove);
     }
 
     public void OnLook(InputAction.CallbackContext context)
     {
         rawLook = context.ReadValue<Vector2>();
-        ResolveLogicInput()?.InputLook(rawLook);
     }
 
     public void OnLock(InputAction.CallbackContext context)
     {
-        if (controlledActor == null || !context.performed) return;
+        if (controlledActor == null || !context.performed)
+            return;
 
         controlledActor.combater?.ToggleSoftLock();
     }
 
     public void OnDodge(InputAction.CallbackContext context)
     {
-        if (controlledActor == null) return;
+        if (controlledActor == null)
+            return;
 
         switch (context.phase)
         {
@@ -210,9 +230,9 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
 
     public void OnLightAttack(InputAction.CallbackContext context)
     {
-        if (controlledActor == null) return;
+        if (controlledActor == null)
+            return;
 
-        // 若指针已解锁（例如点过 UI），点攻击时重新锁定并隐藏。
         if (Cursor.lockState == CursorLockMode.None)
         {
             Cursor.lockState = CursorLockMode.Locked;
@@ -233,7 +253,8 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
 
     public void OnHeavyAttack(InputAction.CallbackContext context)
     {
-        if (controlledActor == null) return;
+        if (controlledActor == null)
+            return;
 
         switch (context.phase)
         {
@@ -249,7 +270,8 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
 
     public void OnJump(InputAction.CallbackContext context)
     {
-        if (controlledActor == null) return;
+        if (controlledActor == null)
+            return;
 
         switch (context.phase)
         {
@@ -263,38 +285,35 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
         }
     }
 
-    #endregion
-
-    #region 按压计时与八向
-
-    // isActive：当前是否按住；elapsedFrame：已持续帧数。
-    // 松手时根据帧数发 ShortPress 或 LongPress_Stop。
-    public class InputPressState
+    private void SendButtonInputData(Enums.InputButton button, Enums.ButtonState state)
     {
-        public bool isActive;
-        public int elapsedFrame;
+        var buttonInput = new InputButtonData(button, state);
+        AddInputHistory(buttonInput);
 
-        public InputPressState(bool active = false, int frame = 0)
-        {
-            isActive = active;
-            elapsedFrame = frame;
-        }
+        if (debug)
+            Debug.Log(buttonInput.inputButton + "   " + buttonInput.buttonState);
     }
 
-    void SetInputState(Enums.InputButton button, bool active)
+    private void SendJoystickInputData(Enums.InputJoystick joystick, Enums.JoystickVigor vigor)
     {
-        if(buttonStates.ContainsKey(button))
-        {
-            var state = buttonStates[button];
-            state.isActive = active;
-        }
-        else
-            buttonStates[button] = new InputPressState(active);
+        var joystickInput = new InputJoystickData(joystick, vigor);
+        AddInputHistory(joystickInput);
 
-        if(!active)
+        if (debug)
+            Debug.Log(joystickInput.inputJoystick + "   " + joystickInput.joystickVigor);
+    }
+
+    private void SetInputState(Enums.InputButton button, bool active)
+    {
+        if (buttonStates.TryGetValue(button, out InputPressState state))
+            state.isActive = active;
+        else
+            buttonStates[button] = state = new InputPressState(active);
+
+        if (!active)
         {
-            var state = buttonStates[button];
-            if(state.elapsedFrame == 0) return;
+            if (state.elapsedFrame == 0)
+                return;
 
             if (state.elapsedFrame < ShortPress_Frame)
                 SendButtonInputData(button, Enums.ButtonState.ShortPress);
@@ -303,30 +322,28 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
         }
     }
 
-    void SetInputState(Enums.InputJoystick joystick, bool active)
+    private void SetInputState(Enums.InputJoystick joystick, bool active)
     {
-        foreach (var state in joystickStates.Values)
+        foreach (InputPressState state in joystickStates.Values)
             state.isActive = false;
 
-        if (joystickStates.ContainsKey(joystick))
-        {
-            var state = joystickStates[joystick];
-            state.isActive = active;
-        }
+        if (joystickStates.TryGetValue(joystick, out InputPressState current))
+            current.isActive = active;
         else
             joystickStates[joystick] = new InputPressState(active);
     }
 
-    void UpdateInputState()
+    private void UpdateInputState()
     {
         foreach (var pair in buttonStates)
         {
-            var state = pair.Value;
-            if(!state.isActive)
+            InputPressState state = pair.Value;
+            if (!state.isActive)
             {
                 state.elapsedFrame = 0;
                 continue;
             }
+
             state.elapsedFrame++;
 
             if (state.elapsedFrame == ShortPress_Frame)
@@ -339,13 +356,12 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
             {
                 SendButtonInputData(pair.Key, Enums.ButtonState.LongPress_Stop);
                 state.isActive = false;
-                continue;
             }
         }
 
         foreach (var pair in joystickStates)
         {
-            var state = pair.Value;
+            InputPressState state = pair.Value;
             if (!state.isActive)
             {
                 state.elapsedFrame = 0;
@@ -356,23 +372,20 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
         }
     }
 
-    // 摇杆向量 → 八向枚举（含 Idle）。
-    Enums.InputJoystick CastVectorToDirection(Vector2 input)
+    private Enums.InputJoystick CastVectorToDirection(Vector2 input)
     {
         if (input.sqrMagnitude < joystick_DeadZone)
             return Enums.InputJoystick.Idle;
 
         Vector2 normalized = input.normalized;
-
-        // Atan2 得带符号角，换算到 0–360。
         float angle = Mathf.Atan2(normalized.y, normalized.x) * Mathf.Rad2Deg;
-        if (angle < 0) angle += 360;
+        if (angle < 0f)
+            angle += 360f;
 
         return AngleToDirection(angle);
     }
 
-    // 东：315°–45°（跨过 0°）；北：45°–135°；西：135°–225°；南：225°–315°。
-    Enums.InputJoystick AngleToDirection(float angle)
+    private static Enums.InputJoystick AngleToDirection(float angle)
     {
         if (angle <= 45f || angle >= 315f)
             return Enums.InputJoystick.East;
@@ -386,18 +399,160 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
         return Enums.InputJoystick.South;
     }
 
-    #endregion
-
-    private ActorLogicInput ResolveLogicInput()
+    private void AddInputHistory(InputData inputData)
     {
-        if (logicInput != null)
-            return logicInput;
+        if (inputData == null)
+            return;
 
+        _inputHistory.Add(new BufferedInput(inputData, Time.unscaledTime));
+    }
+
+    private void MaintainInputHistory()
+    {
+        float now = Time.unscaledTime;
+        for (int i = _inputHistory.Count - 1; i >= 0; i--)
+        {
+            if (now - _inputHistory[i].Timestamp > _bufferValidTime)
+                _inputHistory.RemoveAt(i);
+        }
+    }
+
+    private void SyncControlledActorChange()
+    {
+        if (_lastControlledActor == controlledActor)
+            return;
+
+        ClearPendingPlayerLocomotionIntent(_lastControlledActor);
+        _lastControlledActor = controlledActor;
+        _cachedCameraControl = null;
+        logicInput = controlledActor != null ? controlledActor.GetComponent<ActorLogicInput>() : null;
+    }
+
+    private ActorCameraControl ResolveCameraControl()
+    {
+        if (_cachedCameraControl != null && _cachedCameraControl.actor == controlledActor)
+            return _cachedCameraControl;
+
+        _cachedCameraControl = null;
         if (controlledActor == null)
             return null;
 
-        logicInput = controlledActor.GetComponent<ActorLogicInput>();
-        return logicInput;
+        _cachedCameraControl = controlledActor.GetComponent<ActorCameraControl>();
+        if (_cachedCameraControl == null)
+            _cachedCameraControl = controlledActor.GetComponentInChildren<ActorCameraControl>();
+        if (_cachedCameraControl == null)
+            _cachedCameraControl = controlledActor.GetComponentInParent<ActorCameraControl>();
+
+        return _cachedCameraControl;
     }
 
+    private void ClearPendingPlayerLocomotionIntent()
+    {
+        Actor actor = _lastControlledActor != null ? _lastControlledActor : controlledActor;
+        ClearPendingPlayerLocomotionIntent(actor);
+    }
+
+    private static void ClearPendingPlayerLocomotionIntent(Actor actor)
+    {
+        actor?.actorMotor?.ClearPendingLocomotionIntent();
+    }
+
+    public class InputPressState
+    {
+        public bool isActive;
+        public int elapsedFrame;
+
+        public InputPressState(bool active = false, int frame = 0)
+        {
+            isActive = active;
+            elapsedFrame = frame;
+        }
+    }
+
+    public sealed class BufferedInput
+    {
+        public BufferedInput(InputData data, float timestamp)
+        {
+            Data = data;
+            Timestamp = timestamp;
+        }
+
+        public InputData Data { get; }
+        public float Timestamp { get; }
+        public bool IsConsumed { get; private set; }
+
+        internal void Consume()
+        {
+            IsConsumed = true;
+        }
+    }
+}
+
+internal sealed class PlayerLocomotionIntentResolver
+{
+    public LocomotionIntent Resolve(Actor actor, ActorCameraControl cameraControl, Vector2 rawMove)
+    {
+        Vector2 move = Vector2.ClampMagnitude(rawMove, 1f);
+        if (move.sqrMagnitude <= 0.01f)
+            return LocomotionIntent.Idle;
+
+        Vector3 worldDir = ResolveWorldMoveDirection(actor, cameraControl, move);
+        worldDir.y = 0f;
+        if (worldDir.sqrMagnitude < 0.0001f)
+            return LocomotionIntent.Idle;
+
+        worldDir.Normalize();
+        return new LocomotionIntent
+        {
+            WorldMoveDirection = worldDir,
+            MoveStrength = move.magnitude,
+            FacingDirection = Vector3.zero,
+        };
+    }
+
+    private static Vector3 ResolveWorldMoveDirection(
+        Actor actor,
+        ActorCameraControl cameraControl,
+        Vector2 move)
+    {
+        if (TryResolveHardLockMoveDirection(actor, move, out Vector3 hardLockMoveDir))
+            return hardLockMoveDir;
+
+        if (cameraControl != null)
+            return cameraControl.ToWorldMoveDirection(move);
+
+        Vector3 fallback = new Vector3(move.x, 0f, move.y);
+        return fallback.sqrMagnitude > 0.0001f ? fallback.normalized : Vector3.zero;
+    }
+
+    private static bool TryResolveHardLockMoveDirection(
+        Actor actor,
+        Vector2 move,
+        out Vector3 worldDir)
+    {
+        worldDir = Vector3.zero;
+
+        if (actor?.combater == null || actor.combater.LockMode != Enums.LockMode.HardLock)
+            return false;
+
+        Transform target = actor.combater.CombatTarget != null
+            ? actor.combater.CombatTarget.transform
+            : null;
+        if (target == null)
+            return false;
+
+        Vector3 toTarget = target.position - actor.transform.position;
+        toTarget.y = 0f;
+        if (toTarget.sqrMagnitude <= 0.0001f)
+            return false;
+
+        toTarget.Normalize();
+        Vector3 tangentRight = Vector3.Cross(Vector3.up, toTarget);
+        if (tangentRight.sqrMagnitude <= 0.0001f)
+            return false;
+
+        tangentRight.Normalize();
+        worldDir = toTarget * move.y + tangentRight * move.x;
+        return worldDir.sqrMagnitude > 0.0001f;
+    }
 }

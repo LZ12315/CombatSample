@@ -97,10 +97,17 @@ public class ActorMotor : MonoBehaviour, ICharacterController
     public int MaxJumpCount => _maxJumpCount;
 
     public LocomotionIntent LocomotionIntent => _locomotion.Intent;
+    internal LocomotionIntent PendingLocomotionIntent => _locomotion.PendingIntent;
+    internal bool HasPendingLocomotionIntent => _locomotion.HasPendingIntent;
 
     public void SetLocomotionIntent(in LocomotionIntent intent)
     {
         _locomotion.SetIntent(intent);
+    }
+
+    internal void ClearPendingLocomotionIntent()
+    {
+        _locomotion.ClearPendingIntent();
     }
 
     public void SetLocomotionSuppressed(bool suppressed)
@@ -362,26 +369,6 @@ public class ActorMotor : MonoBehaviour, ICharacterController
         ClearMovementTimeScaleModifiers();
     }
 
-    private void Update()
-    {
-        if (Motor == null)
-            return;
-
-        float dt = Time.deltaTime * MovementTimeScale;
-
-        _facing.Tick(
-            dt,
-            rotateSpeed,
-            _locomotion.Intent,
-            _locomotion.HasIntent,
-            _locomotion.IsSuppressed);
-
-        _locomotion.Tick(
-            _locomotionBaseSpeed,
-            _airControlFactor,
-            !Motor.GroundingStatus.IsStableOnGround);
-    }
-
     #endregion
 
     #region === ICharacterController ===
@@ -394,6 +381,7 @@ public class ActorMotor : MonoBehaviour, ICharacterController
         _kccPaused = false;
 
         MotionRuntime.BeginMotorTick();
+        TickFixedLocomotion(deltaTime);
     }
 
     public void PostGroundingUpdate(float deltaTime)
@@ -545,6 +533,31 @@ public class ActorMotor : MonoBehaviour, ICharacterController
     private void RefreshMovementTimeScale()
     {
         MotionRuntime.SetMovementTimeScale(_baseMovementTimeScale * _movementTimeScaleModifiers.Value);
+    }
+
+    private void TickFixedLocomotion(float deltaTime)
+    {
+        float dt = Mathf.Max(0f, deltaTime) * MovementTimeScale;
+
+        LocomotionIntent pendingIntent = _locomotion.PendingIntent;
+        bool hasPendingIntent = _locomotion.HasPendingIntent;
+
+        _facing.Tick(
+            dt,
+            rotateSpeed,
+            pendingIntent,
+            hasPendingIntent,
+            _locomotion.IsSuppressed);
+
+        _locomotion.Tick(
+            _locomotionBaseSpeed,
+            _airControlFactor,
+            !IsKccStableOnGround());
+    }
+
+    private bool IsKccStableOnGround()
+    {
+        return Motor != null && Motor.GroundingStatus.IsStableOnGround;
     }
 
     private void SyncFacingToCurrentRotation()

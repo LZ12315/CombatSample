@@ -16,6 +16,7 @@ public class LocomotionIntentCondition : ActionCondition
         if (actor == null || actor.actorMotor == null)
             return false;
 
-        return actor.actorMotor.LocomotionIntent.MoveStrength > threshold;
+        return actor.actorMotor.HasPendingLocomotionIntent &&
+               actor.actorMotor.PendingLocomotionIntent.MoveStrength > threshold;
     }
 }

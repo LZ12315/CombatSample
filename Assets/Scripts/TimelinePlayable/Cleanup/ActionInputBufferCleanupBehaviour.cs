@@ -29,6 +29,8 @@ public class ActionInputBufferCleanupBehaviour : ActionBehaviourBase
     private void ClearInputBuffer()
     {
         if (actor == null) return;
-        actor.GetComponent<ActorLogicInput>()?.ClearBuffer();
+        PlayerInputController input = PlayerInputController.Instance;
+        if (input != null && input.IsControlledActor(actor))
+            input.ClearInputHistory();
     }
 }

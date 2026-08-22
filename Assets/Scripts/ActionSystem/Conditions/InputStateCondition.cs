@@ -14,11 +14,15 @@ public class InputStateCondition : ActionCondition
     // 1. 读当前 Actor 的输入状态（通过单例 PlayerInputController，避免每帧传 actor 进 InputSystem）。
     protected override bool OnCheck(Actor actor)
     {
+        PlayerInputController input = PlayerInputController.Instance;
+        if (input == null || !input.IsControlledActor(actor))
+            return false;
+
         if (stateCheck is ButtonStateCheck buttonCheck)
         {
             foreach (var button in EnumUtils.GetFlags(buttonCheck.check))
             {
-                if (PlayerInputController.Instance.GetInputState(button) == buttonCheck.requiredState)
+                if (input.GetInputState(button) == buttonCheck.requiredState)
                     return true;
             }
         }
@@ -27,7 +31,7 @@ public class InputStateCondition : ActionCondition
         {
             foreach (var joyStick in EnumUtils.GetFlags(joystickCheck.check))
             {
-                if (PlayerInputController.Instance.GetInputState(joyStick) == joystickCheck.requiredState)
+                if (input.GetInputState(joyStick) == joystickCheck.requiredState)
                     return true;
             }
         }

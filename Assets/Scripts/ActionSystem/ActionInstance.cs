@@ -146,9 +146,8 @@ public class ActionInstance
         if (Actor == null)
             return Vector3.zero;
 
-        ActorLogicInput logicInput = Actor.GetComponent<ActorLogicInput>();
-        if (logicInput != null)
-            return logicInput.LatestLocomotionIntent.WorldMoveDirection;
+        if (Actor.actorMotor != null && Actor.actorMotor.HasPendingLocomotionIntent)
+            return Actor.actorMotor.PendingLocomotionIntent.WorldMoveDirection;
 
         return Actor.actorMotor != null ? Actor.actorMotor.LocomotionIntent.WorldMoveDirection : Vector3.zero;
     }

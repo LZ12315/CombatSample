@@ -7,7 +7,7 @@ using UnityEngine;
 /// Owns the explicit fixed-step boundary around KCC and actor-on-actor resolution.
 ///
 /// Fixed simulation contract:
-/// KCC interpolation pre-step -> Decide Actions -> Play Action Frames -> KCC simulation -> actor
+/// KCC interpolation pre-step -> Player locomotion intent -> Decide Actions -> Play Action Frames -> KCC simulation -> actor
 /// overlap resolution -> physics transform sync -> Detect Hits -> Resolve Hits -> Finish Action Frames
 /// -> matching KCC interpolation post-step.
 ///
@@ -127,6 +127,8 @@ public sealed class CombatSimulationDriver : MonoBehaviour
                 KinematicCharacterSystem.PreSimulationInterpolationUpdate(deltaTime);
                 interpolationPrepared = true;
             }
+
+            PlayerInputController.Instance?.SubmitLocomotionIntentForFixedTick();
 
             for (int i = 0; i < _tickActors.Count; i++)
                 _tickActors[i].DecideAction();
