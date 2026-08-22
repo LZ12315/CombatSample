@@ -11,6 +11,7 @@ internal sealed class ActorSimulationRuntime
 {
     private readonly Actor _actor;
     private ActionPlayer _actionPlayer;
+    private ActionStateManager _actionStateManager;
     private ActionPlayer _tickActionPlayer;
     private bool _playedActionFrameThisTick;
     private bool _tickClosed;
@@ -26,6 +27,14 @@ internal sealed class ActorSimulationRuntime
     public int StableId => _actor != null ? _actor.GetInstanceID() : 0;
 
     public ActorHitBoxRuntime HitBoxes => _hitBoxes;
+
+    public void DecideAction()
+    {
+        if (!IsActive)
+            return;
+
+        ResolveActionStateManager()?.DecideAction();
+    }
 
     public bool PlayActionFrame(float deltaSeconds)
     {
@@ -60,6 +69,8 @@ internal sealed class ActorSimulationRuntime
 
     public void CancelAction()
     {
+        ResolveActionStateManager()?.AbortQueuedActionRequests();
+
         if (_tickClosed)
         {
             _hitBoxes.Clear();
@@ -83,6 +94,18 @@ internal sealed class ActorSimulationRuntime
 
         return _actionPlayer != null && _actionPlayer.isActiveAndEnabled
             ? _actionPlayer
+            : null;
+    }
+
+    private ActionStateManager ResolveActionStateManager()
+    {
+        if (_actionStateManager == null && _actor != null)
+            _actionStateManager = _actor.actionManager != null
+                ? _actor.actionManager
+                : _actor.GetComponent<ActionStateManager>();
+
+        return _actionStateManager != null && _actionStateManager.isActiveAndEnabled
+            ? _actionStateManager
             : null;
     }
 }

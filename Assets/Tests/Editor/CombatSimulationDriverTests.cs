@@ -276,8 +276,12 @@ public sealed class CombatSimulationDriverPlayModeTests
         Actor actor = _probeOwner.AddComponent<Actor>();
         ActorCombater attackerCombater = _probeOwner.AddComponent<ActorCombater>();
         ActionPlayer player = _probeOwner.AddComponent<ActionPlayer>();
+        ActionStateManager asm = _probeOwner.AddComponent<ActionStateManager>();
         actor.actionPlayer = player;
+        actor.actionManager = asm;
         actor.combater = attackerCombater;
+        SetPrivateField(player, "_actor", actor);
+        SetPrivateField(asm, "_actor", actor);
 
         _sequenceTargetOwner = new GameObject("CombatSimulationDriver Hit Target");
         _sequenceTargetOwner.layer = 8;
@@ -289,6 +293,10 @@ public sealed class CombatSimulationDriverPlayModeTests
         _sequenceAction.SetPlaybackBackend(ActionPlaybackBackend.Sequence);
         _sequenceAction.SequenceData.EditorSetTiming(60, 1);
         _sequenceAction.SequenceData.EditorTracks.Clear();
+        SetPrivateField(
+            _sequenceAction,
+            "_entryConditions",
+            new List<ActionCondition> { new DriverEntryProbeCondition(orderEvents) });
         _sequenceAction.SequenceData.EditorTracks.Add(new DriverKindProbeTrack(
             ActionSequenceTrackKind.State,
             new DriverKindProbeClip(
@@ -306,7 +314,7 @@ public sealed class CombatSimulationDriverPlayModeTests
 
         _sequenceTargetOwner.transform.position =
             motor.TransientPosition + controller.RequestedVelocity * CombatFixedDeltaTime;
-        player.BeginAction(_sequenceAction, ActionContext.None);
+        asm.RequestExternalAction(_sequenceAction, ActionContext.None, _ => orderEvents.Add("request-callback"));
         Assert.AreEqual(0, orderEvents.Count, "Frame 0 must wait for the fixed simulation tick.");
 
         yield return WaitForObservation(observation, previousObservationCount);
@@ -323,7 +331,7 @@ public sealed class CombatSimulationDriverPlayModeTests
         previousObservationCount = observation.Count;
         _sequenceTargetOwner.transform.position =
             motor.TransientPosition + controller.RequestedVelocity * CombatFixedDeltaTime;
-        player.BeginAction(_sequenceAction, ActionContext.None);
+        asm.RequestExternalAction(_sequenceAction, ActionContext.None, _ => orderEvents.Add("request-callback"));
 
         yield return WaitForObservation(observation, previousObservationCount);
         AssertSequenceFixedOrder(orderEvents);
@@ -363,12 +371,15 @@ public sealed class CombatSimulationDriverPlayModeTests
 
     private static void AssertSequenceFixedOrder(List<string> orderEvents)
     {
+        int decideIndex = orderEvents.IndexOf("decide");
         int playIndex = orderEvents.IndexOf("play");
         int kccIndex = orderEvents.IndexOf("kcc");
         int resolveIndex = orderEvents.IndexOf("resolve");
         int exitIndex = orderEvents.IndexOf("exit");
 
+        Assert.GreaterOrEqual(decideIndex, 0);
         Assert.GreaterOrEqual(playIndex, 0);
+        Assert.Greater(playIndex, decideIndex);
         Assert.Greater(kccIndex, playIndex);
         Assert.Greater(resolveIndex, kccIndex);
         Assert.Greater(exitIndex, resolveIndex);
@@ -485,6 +496,13 @@ public sealed class CombatSimulationDriverPlayModeTests
             Time.timeScale = _savedTimeScale;
             _hasSavedTimeScale = false;
         }
+    }
+
+    private static void SetPrivateField(object target, string fieldName, object value)
+    {
+        FieldInfo field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(field, $"Missing field {fieldName} on {target.GetType().Name}.");
+        field.SetValue(target, value);
     }
 
     private sealed class ProbeController : ICharacterController
@@ -634,6 +652,22 @@ public sealed class CombatSimulationDriverPlayModeTests
             {
                 _events.Add("exit");
             }
+        }
+    }
+
+    private sealed class DriverEntryProbeCondition : ActionCondition
+    {
+        private readonly List<string> _events;
+
+        public DriverEntryProbeCondition(List<string> events)
+        {
+            _events = events;
+        }
+
+        protected override bool OnCheck(Actor actor)
+        {
+            _events.Add("decide");
+            return true;
         }
     }
 

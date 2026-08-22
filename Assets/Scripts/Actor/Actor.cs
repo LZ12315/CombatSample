@@ -41,6 +41,7 @@ public class Actor : MonoBehaviour
     {
         actorMotor = actorMotor != null ? actorMotor : GetComponent<ActorMotor>();
         actionPlayer = actionPlayer != null ? actionPlayer : GetComponent<ActionPlayer>();
+        actionManager = actionManager != null ? actionManager : GetComponent<ActionStateManager>();
         EnsureSimulationRuntime();
 
         if (cameraTarget == null)

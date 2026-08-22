@@ -1,6 +1,6 @@
 # CombatSample ActionSequence 最终架构 v2
 
-> 状态：已批准的实施基线，分阶段实施中；Stage D4/D4.1 已落地，Stage D5 固定帧架构简化已完成并通过 focused tests、命令行编译、Unity Test Runner 全量 EditMode/PlayMode 与 Jaeger 手动回归；下一阶段为 Stage E1
+> 状态：已批准的实施基线，分阶段实施中；Stage D4/D4.1 已落地，Stage D5 固定帧架构简化已完成并通过 focused tests、命令行编译、Unity Test Runner 全量 EditMode/PlayMode 与 Jaeger 手动回归；Stage E1 ASM 固定 Tick 决策已落地，下一阶段为 E2 Locomotion 输入兼容路径收敛
 >
 > 日期：2026-08-22
 >
@@ -51,7 +51,7 @@ CombatSimulationDriver.FixedUpdate（60 Hz）
 │
 ├─ KCC PreSimulationInterpolationUpdate（若启用）
 │
-├─ Decide Actions（Stage E1 接入；此前保留 ASM 兼容入口）
+├─ Decide Actions（Stage E1 已接入；ASM 在固定 Tick 仲裁）
 │
 ├─ Play Action Frames
 │  └─ 每个 ActionSequence 至多推进一个 Gameplay Frame
@@ -677,7 +677,7 @@ PostSimulationInterpolationUpdate
 ```text
 1. 建立本 Tick actor 快照；注册/注销延迟到安全边界
 2. 若 KCC Settings.Interpolate：KCC.PreSimulationInterpolationUpdate，并记录本 Tick 已执行
-3. 所有 Actor DecideAction（Stage E1 接入）
+3. 所有 Actor DecideAction（Stage E1 已接入）
 4. 所有 Actor PlayActionFrame
    - ActionPlayer 判断本 Tick 是否推进 Gameplay Frame
    - 若推进，Sequence 对本帧 Clip 执行 OnEnter / OnTick
@@ -698,7 +698,7 @@ PostSimulationInterpolationUpdate
 
 HitBox 必须发生在第 12 步之前，因为 KCC PostSimulationInterpolationUpdate 会把 Transform 暂时还原到 Tick 起点用于渲染插值。
 
-Driver 使用普通的 `try/catch/finally` 保护 KCC interpolation 配对和 Actor 清理，不建立通用 Gameplay Transaction。成功路径对每个已播放 Gameplay Frame 的 Actor 恰好调用一次 `FinishActionFrame`。任一播放、KCC、Resolver、Query 或 Resolve 阶段抛异常时：
+Driver 使用普通的 `try/catch/finally` 保护 KCC interpolation 配对和 Actor 清理，不建立通用 Gameplay Transaction。成功路径对每个已播放 Gameplay Frame 的 Actor 恰好调用一次 `FinishActionFrame`。任一决策、播放、KCC、Resolver、Query 或 Resolve 阶段抛异常时：
 
 1. 清空尚未结算的 `CombatHitBuffer`；已经发生的移动、伤害或外部副作用不回滚；
 2. 对本 Tick actor 快照逐个调用幂等 `CancelAction`，释放 Action owner、trajectory pending 和 active hitboxes；
@@ -917,7 +917,7 @@ Stage B 的 `BeginFrame / PreWorld / PostWorld / EndFrame` 是建立正确物理
 
 - 详细实施计划：[`CombatSample_ActionSequence_Stage_D5_Simplification_zh-CN.md`](CombatSample_ActionSequence_Stage_D5_Simplification_zh-CN.md)。
 - 保留 D4/D4.1 已验证的 60 Hz、KCC 屏障、Query/Resolve、稳定排序、相杀和最后一帧顺序。
-- Driver 改为直接表达 `Play Action Frames → Move Actors → Detect Hits → Resolve Hits → Finish Action Frames`；Stage E1 再在最前面接入 `Decide Actions`。
+- Driver 在 D5 改为直接表达 `Play Action Frames → Move Actors → Detect Hits → Resolve Hits → Finish Action Frames`；Stage E1 已在最前面接入 `Decide Actions`。
 - `ActorSimulationRuntime` 继续作为每 Actor 唯一固定 Tick 入口；Clip、ASM、Motor 和 HitBox 不向 Driver 注册阶段回调。
 - Sequence 移除 PreWorld/PostWorld 和运行时 Phase 调度，只保留普通 Gameplay Frame 生命周期与 Animation-only PoseRefresh。
 - HitBoxClip 只控制攻击窗口；Physics Query 移到每 Actor 一个 `ActorHitBoxRuntime`。
@@ -930,13 +930,13 @@ Stage B 的 `BeginFrame / PreWorld / PostWorld / EndFrame` 是建立正确物理
 - 已完成 E0：Poll/Event/External/direct BeginAction 都显式携带启动 Context；Event 不再使用全局 pending context，External 回调绑定到胜选 request。
 - 已完成 E0：Entry/Exit Condition 可读取 Context，`OnClaim` 保持 Actor-only；Sequence Clip 可声明 required context fields，缺字段会在 Claim 前阻断。
 - 已完成 E0（兼容期）：ActorLogicInput 保存 `LatestLocomotionIntent`，ASM start context 和 Legacy facing fallback 改读它；正式 LocomotionController 前仍继续向 ActorMotor 推送 intent。
-- E1 前置条件：Stage D5 完成并通过验收。
-- E1：把 ASM 当前 LateUpdate 仲裁改为请求排队，并由 `ActorSimulationRuntime.DecideAction` 在 Driver 固定 Tick 开头提交；不再伪造空的 Decide 阶段。
-- ActorLogicInput 改为只保存 Intent，移除直接推 Motor 的兼容路径。
-- 实现 LocomotionController / LocomotionModeAsset / Fallback。
-- ASM 增加 StateKind、CancelRule Conditions 和 Locomotion target。
-- Tag 改为按 owner 释放，并在 Action/Mode 域切换时事务式提交。
-- 移除新 Action 对整招 MotionConfig 和动量继承的依赖。
+- 已完成 E1：ASM 移除 LateUpdate 仲裁；External/Event 请求进入 pending 队列，并由 `ActorSimulationRuntime.DecideAction` 在 Driver 固定 Tick 开头提交。
+- 已完成 E1：Poll 每 Tick 重新采样；External/Event 采用 pending/deciding 双缓冲，一次性参与下一 Tick 仲裁；Disable/Abort 时 External exactly-once 回调 `false`。
+- E2：ActorLogicInput 改为只保存 Intent，移除直接推 Motor 的兼容路径。
+- E3：实现 LocomotionController / LocomotionModeAsset / Fallback。
+- E4：ASM 增加 StateKind、CancelRule Conditions 和 Locomotion target。
+- E5：Tag 改为按 owner 释放，并在 Action/Mode 域切换时事务式提交。
+- E6：移除新 Action 对整招 MotionConfig 和动量继承的依赖。
 
 ### Stage F：内容迁移与清理
 
@@ -1015,7 +1015,7 @@ Stage B 的 `BeginFrame / PreWorld / PostWorld / EndFrame` 是建立正确物理
 
 ## 16. 最终一句话
 
-> AnimationConfig 告诉角色有哪些 Pose 和烘焙运动；ActionSequence 只决定当前 Gameplay Frame 并驱动普通 Clip；CombatSimulationDriver 先播放动作帧、再让 ActorMotor/KCC 提交世界状态、随后通过 ActorHitBoxRuntime 统一查询和结算命中；没有 Action 时，LocomotionController 独立接管角色。
+> AnimationConfig 告诉角色有哪些 Pose 和烘焙运动；ActionSequence 只决定当前 Gameplay Frame 并驱动普通 Clip；CombatSimulationDriver 先让每个 Actor 决定本 Tick Action，再播放动作帧、提交 ActorMotor/KCC 世界状态，随后通过 ActorHitBoxRuntime 统一查询和结算命中；没有 Action 时，LocomotionController 独立接管角色。
 
 ---
 
@@ -1071,6 +1071,8 @@ CombatHitBuffer
 
 核心控制流不用事件驱动，也不用通用 phase scheduler。事件只用于已经提交的结果，例如 UI、Audio、VFX、Camera 和调试观察；不得用事件间接驱动移动、Hit Query 或伤害 Resolve。
 
-取消不表示回滚。死亡、Disable 或严重异常调用幂等 `CancelAction`，只退出 active clips、关闭 hitboxes、释放 owner 和 session；已经发生的移动、已经冻结到 Buffer 的 Hit 和已经结算的伤害继续保留。普通受击 Action 请求排到下一 Tick 的 `DecideAction`，不在 Resolve 中重入当前动作帧。
+取消不表示回滚。死亡、Disable 或严重异常调用幂等 `CancelAction`，只退出 active clips、关闭 hitboxes、释放 owner 和 session，并清空 ASM pending/deciding 请求；已经发生的移动、已经冻结到 Buffer 的 Hit 和已经结算的伤害继续保留。普通受击 Action 请求排到下一 Tick 的 `DecideAction`，不在 Resolve 中重入当前动作帧。
 
 Stage D5 的文件级切片、测试迁移、提交边界和有意行为变化，以 [`CombatSample_ActionSequence_Stage_D5_Simplification_zh-CN.md`](CombatSample_ActionSequence_Stage_D5_Simplification_zh-CN.md) 为准；若该实施文档与本文的长期职责冲突，仍以本文为准。
+
+Stage E1 的请求队列、固定 Tick 仲裁、回调生命周期和测试边界，以 [`CombatSample_ActionSequence_Stage_E1_ASM_Fixed_Tick_zh-CN.md`](CombatSample_ActionSequence_Stage_E1_ASM_Fixed_Tick_zh-CN.md) 为准。

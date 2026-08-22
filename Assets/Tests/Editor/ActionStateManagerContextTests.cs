@@ -27,6 +27,16 @@ public sealed class ActionStateManagerContextTests
     }
 
     [Test]
+    public void LateUpdate_NoLongerOwnsActionArbitration()
+    {
+        MethodInfo lateUpdate = typeof(ActionStateManager).GetMethod(
+            "LateUpdate",
+            BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.DeclaredOnly);
+
+        Assert.IsNull(lateUpdate);
+    }
+
+    [Test]
     public void PollCandidate_FreezesContextFromActorLogicInput()
     {
         TestRig rig = CreateRig(addLogicInput: true);
@@ -86,6 +96,24 @@ public sealed class ActionStateManagerContextTests
     }
 
     [Test]
+    public void ExternalRequest_WaitsUntilFixedDecideAction()
+    {
+        TestRig rig = CreateRig(addLogicInput: false);
+        ActionAsset action = CreateSequenceAction("External Deferred", ActionTriggerMode.Poll);
+
+        bool? result = null;
+        rig.Asm.RequestExternalAction(action, ActionContext.ForSelf(rig.Actor), value => result = value);
+
+        Assert.IsNull(result);
+        Assert.IsNull(rig.Player.CurrentAction);
+
+        rig.RunActionStateManager();
+
+        Assert.AreEqual(true, result);
+        Assert.AreSame(action, rig.Player.CurrentAction.Config);
+    }
+
+    [Test]
     public void ExternalRequests_ReportOnlyTheExactWinningRequest()
     {
         TestRig rig = CreateRig(addLogicInput: false);
@@ -102,6 +130,101 @@ public sealed class ActionStateManagerContextTests
         Assert.AreEqual(false, second);
         Assert.AreSame(action, rig.Player.CurrentAction.Config);
         Assert.AreEqual(1f, rig.Player.CurrentAction.Context.Magnitude);
+    }
+
+    [Test]
+    public void ExternalRequest_OutsideCancelWindowFailsOnceAndDoesNotPersist()
+    {
+        TestRig rig = CreateRig(addLogicInput: false);
+        ActionAsset current = CreateSequenceAction("Current", ActionTriggerMode.Poll);
+        ActionAsset requested = CreateSequenceAction("Requested", ActionTriggerMode.Poll);
+
+        rig.Player.BeginAction(current, ActionContext.ForSelf(rig.Actor));
+
+        int callbackCount = 0;
+        bool? result = null;
+        rig.Asm.RequestExternalAction(requested, ActionContext.ForSelf(rig.Actor), value =>
+        {
+            callbackCount++;
+            result = value;
+        });
+
+        rig.RunActionStateManager();
+        rig.RunActionStateManager();
+
+        Assert.AreEqual(1, callbackCount);
+        Assert.AreEqual(false, result);
+        Assert.AreSame(current, rig.Player.CurrentAction.Config);
+    }
+
+    [Test]
+    public void ExternalRequest_SubmittedDuringCallbackWaitsForNextDecideAction()
+    {
+        TestRig rig = CreateRig(addLogicInput: false);
+        ActionAsset firstAction = CreateSequenceAction("First External", ActionTriggerMode.Poll, priorityValue: 10);
+        ActionAsset secondAction = CreateSequenceAction("Second External", ActionTriggerMode.Poll, priorityValue: 20);
+
+        bool? first = null;
+        bool? second = null;
+        rig.Asm.RequestExternalAction(firstAction, ActionContext.ForSelf(rig.Actor), value =>
+        {
+            first = value;
+            rig.Asm.RequestExternalAction(secondAction, ActionContext.ForSelf(rig.Actor), next => second = next);
+        });
+
+        rig.RunActionStateManager();
+
+        Assert.AreEqual(true, first);
+        Assert.IsNull(second);
+        Assert.AreSame(firstAction, rig.Player.CurrentAction.Config);
+
+        rig.Player.StopAction();
+        rig.RunActionStateManager();
+
+        Assert.AreEqual(true, second);
+        Assert.AreSame(secondAction, rig.Player.CurrentAction.Config);
+    }
+
+    [Test]
+    public void ExternalCallbackException_DoesNotBlockOtherCallbacks()
+    {
+        TestRig rig = CreateRig(addLogicInput: false);
+        ActionAsset action = CreateSequenceAction("External Callback Exception", ActionTriggerMode.Poll);
+
+        bool? second = null;
+        LogAssert.Expect(LogType.Exception, "InvalidOperationException: Injected callback exception.");
+
+        rig.Asm.RequestExternalAction(
+            action,
+            ActionContext.ForSelf(rig.Actor),
+            _ => throw new InvalidOperationException("Injected callback exception."));
+        rig.Asm.RequestExternalAction(action, ActionContext.ForSelf(rig.Actor), value => second = value);
+
+        rig.RunActionStateManager();
+
+        Assert.AreEqual(false, second);
+        Assert.AreSame(action, rig.Player.CurrentAction.Config);
+    }
+
+    [Test]
+    public void Disable_FailsQueuedExternalRequestExactlyOnce()
+    {
+        TestRig rig = CreateRig(addLogicInput: false);
+        ActionAsset action = CreateSequenceAction("External Disable", ActionTriggerMode.Poll);
+
+        int callbackCount = 0;
+        bool? result = null;
+        rig.Asm.RequestExternalAction(action, ActionContext.ForSelf(rig.Actor), value =>
+        {
+            callbackCount++;
+            result = value;
+        });
+
+        rig.DisableActionStateManager();
+
+        Assert.AreEqual(1, callbackCount);
+        Assert.AreEqual(false, result);
+        Assert.IsNull(rig.Player.CurrentAction);
     }
 
     [Test]
@@ -258,7 +381,12 @@ public sealed class ActionStateManagerContextTests
 
         public void RunActionStateManager()
         {
-            InvokePrivate(Asm, "LateUpdate");
+            Asm.DecideAction();
+        }
+
+        public void DisableActionStateManager()
+        {
+            InvokePrivate(Asm, "OnDisable");
         }
     }
 

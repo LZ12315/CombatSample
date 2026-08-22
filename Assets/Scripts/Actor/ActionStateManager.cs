@@ -4,9 +4,8 @@ using UnityEngine;
 using DeiveEx.TagTree;
 
 /// <summary>
-/// Action 状态管理器：每帧收集候选 Action（Neutral / CancelRule / Event / External 请求），
-/// 统一优先级仲裁后播放。External 请求仅登记，在本帧 <see cref="LateUpdate"/> 与 ASM 正常流程一起裁决
-///（让 NodeCanvas/输入等在 <see cref="Update"/> 先登记，帧末统一仲裁）。
+/// Action 状态管理器：在固定 Tick 收集候选 Action（Neutral / CancelRule / Event / External 请求），
+/// 统一优先级仲裁后播放。External 和 Event 请求仅登记，在下一次 <see cref="DecideAction"/> 中裁决。
 /// 有当前 Action 时 External 必须匹配当前帧打开的 <see cref="CancelRule"/>，不绕过取消规则。
 /// </summary>
 [RequireComponent(typeof(Actor))]
@@ -25,6 +24,26 @@ public class ActionStateManager : MonoBehaviour
         public ActionContext Context;
         public Action<bool> Callback;
         public int Order;
+        private bool _completed;
+
+        public void Complete(bool started, UnityEngine.Object logContext)
+        {
+            if (_completed)
+                return;
+
+            _completed = true;
+            if (Callback == null)
+                return;
+
+            try
+            {
+                Callback(started);
+            }
+            catch (Exception exception)
+            {
+                Debug.LogException(exception, logContext);
+            }
+        }
     }
 
     private readonly struct ActionCandidate
@@ -58,10 +77,12 @@ public class ActionStateManager : MonoBehaviour
     [SerializeField] private ActionAssetList _actionList;
 
     private readonly List<ActionCandidate> _validCandidatesCache = new List<ActionCandidate>(10);
-    private readonly List<ExternalActionRequest> _externalRequestsThisFrame = new List<ExternalActionRequest>(4);
+    private readonly List<ExternalActionRequest> _pendingExternalRequests = new List<ExternalActionRequest>(4);
+    private readonly List<ExternalActionRequest> _decidingExternalRequests = new List<ExternalActionRequest>(4);
 
     private Dictionary<int, List<ActionAsset>> _eventActionMap;
-    private readonly List<ActionCandidate> _eventCandidatesThisFrame = new List<ActionCandidate>(4);
+    private readonly List<ActionCandidate> _pendingEventCandidates = new List<ActionCandidate>(4);
+    private readonly List<ActionCandidate> _decidingEventCandidates = new List<ActionCandidate>(4);
     private int _nextCandidateOrder;
 
     /// <summary>当前正在播放的 Action 配置；无当前动作时为 null。供 NodeCanvas 等查询。</summary>
@@ -87,49 +108,72 @@ public class ActionStateManager : MonoBehaviour
         ResolveActor();
         if (_actionPlayer != null)
             _actionPlayer.OnActionFinished -= HandleActionFinished;
+
+        AbortQueuedActionRequests();
     }
 
     /// <summary>
-    /// 登记本帧 External 播放请求（例如 AI / NodeCanvas）。不做即时判定，不播放；
-    /// 在 <see cref="LateUpdate"/> 中与 Neutral/Cancel/Event 候选统一仲裁。
+    /// 登记 External 播放请求（例如 AI / NodeCanvas）。不做即时判定，不播放；
+    /// 在下一次 <see cref="DecideAction"/> 中与 Neutral/Cancel/Event 候选统一仲裁。
     /// </summary>
     public void RequestExternalAction(ActionAsset action, ActionContext context, Action<bool> callback)
     {
-        _externalRequestsThisFrame.Add(new ExternalActionRequest
+        var request = new ExternalActionRequest
         {
             Action = action,
             Context = context,
             Callback = callback,
             Order = AllocateCandidateOrder(),
-        });
+        };
+
+        if (!isActiveAndEnabled)
+        {
+            request.Complete(false, this);
+            return;
+        }
+
+        _pendingExternalRequests.Add(request);
     }
 
-    private void LateUpdate()
+    internal void DecideAction()
     {
         if (_actionPlayer == null)
+        {
+            AbortQueuedActionRequests();
             return;
+        }
+
+        PrepareDecidingSnapshot();
 
         var currentInst = _actionPlayer.CurrentAction;
-        if (currentInst != null && currentInst.Config.CheckExit(_actor, currentInst.Context))
-            _actionPlayer.StopAction();
+        ActionCandidate? startedCandidate = null;
 
-        currentInst = _actionPlayer.CurrentAction;
+        try
+        {
+            if (currentInst != null && currentInst.Config.CheckExit(_actor, currentInst.Context))
+                _actionPlayer.StopAction();
 
-        _validCandidatesCache.Clear();
+            currentInst = _actionPlayer.CurrentAction;
 
-        CollectNormalCandidates(currentInst);
-        CollectEventCandidatesIntoPool();
+            _validCandidatesCache.Clear();
 
-        ActionCandidate? chosen = _validCandidatesCache.Count > 0
-            ? SelectHighestPriorityAction(_validCandidatesCache)
-            : null;
+            CollectNormalCandidates(currentInst);
+            CollectEventCandidatesIntoPool();
 
-        ActionCandidate? startedCandidate = TryPlayChosenAction(chosen);
+            ActionCandidate? chosen = _validCandidatesCache.Count > 0
+                ? SelectHighestPriorityAction(_validCandidatesCache)
+                : null;
 
-        ResolveExternalRequestResults(startedCandidate);
+            startedCandidate = TryPlayChosenAction(chosen);
+        }
+        catch
+        {
+            AbortQueuedActionRequests();
+            throw;
+        }
 
-        _externalRequestsThisFrame.Clear();
-        _eventCandidatesThisFrame.Clear();
+        CompleteDecidingExternalRequests(startedCandidate);
+        ClearDecidingSnapshot();
     }
 
     private void CollectNormalCandidates(ActionInstance currentInst)
@@ -162,9 +206,9 @@ public class ActionStateManager : MonoBehaviour
 
     private void CollectExternalNeutralCandidates()
     {
-        for (int i = 0; i < _externalRequestsThisFrame.Count; i++)
+        for (int i = 0; i < _decidingExternalRequests.Count; i++)
         {
-            var request = _externalRequestsThisFrame[i];
+            var request = _decidingExternalRequests[i];
             var action = request.Action;
             if (!IsValidExternalAction(action))
                 continue;
@@ -237,9 +281,9 @@ public class ActionStateManager : MonoBehaviour
 
     private void CollectExternalCancelCandidates(ActionInstance currentInst)
     {
-        for (int i = 0; i < _externalRequestsThisFrame.Count; i++)
+        for (int i = 0; i < _decidingExternalRequests.Count; i++)
         {
-            var request = _externalRequestsThisFrame[i];
+            var request = _decidingExternalRequests[i];
             var action = request.Action;
             if (!IsValidExternalAction(action))
                 continue;
@@ -326,8 +370,8 @@ public class ActionStateManager : MonoBehaviour
 
     private void CollectEventCandidatesIntoPool()
     {
-        for (int i = 0; i < _eventCandidatesThisFrame.Count; i++)
-            TryAddCandidate(_eventCandidatesThisFrame[i]);
+        for (int i = 0; i < _decidingEventCandidates.Count; i++)
+            TryAddCandidate(_decidingEventCandidates[i]);
     }
 
     private ActionCandidate? TryPlayChosenAction(ActionCandidate? chosen)
@@ -350,14 +394,14 @@ public class ActionStateManager : MonoBehaviour
         return candidate;
     }
 
-    private void ResolveExternalRequestResults(ActionCandidate? startedCandidate)
+    private void CompleteDecidingExternalRequests(ActionCandidate? startedCandidate)
     {
-        for (int i = 0; i < _externalRequestsThisFrame.Count; i++)
+        for (int i = 0; i < _decidingExternalRequests.Count; i++)
         {
-            var request = _externalRequestsThisFrame[i];
+            var request = _decidingExternalRequests[i];
             bool started = startedCandidate.HasValue
                            && ReferenceEquals(startedCandidate.Value.ExternalRequest, request);
-            request.Callback?.Invoke(started);
+            request.Complete(started, this);
         }
     }
 
@@ -446,6 +490,9 @@ public class ActionStateManager : MonoBehaviour
     /// </summary>
     public void SendEvent(Tag eventTag, ActionContext context)
     {
+        if (!isActiveAndEnabled)
+            return;
+
         if (eventTag == null) return;
         if (_eventActionMap == null || !_eventActionMap.TryGetValue(eventTag.Id, out var actions))
             return;
@@ -459,8 +506,19 @@ public class ActionStateManager : MonoBehaviour
                 context,
                 ActionCandidateOrigin.Event,
                 order);
-            _eventCandidatesThisFrame.Add(candidate);
+            _pendingEventCandidates.Add(candidate);
         }
+    }
+
+    internal void AbortQueuedActionRequests()
+    {
+        CompleteExternalRequests(_pendingExternalRequests, false);
+        CompleteExternalRequests(_decidingExternalRequests, false);
+        _pendingExternalRequests.Clear();
+        _decidingExternalRequests.Clear();
+        _pendingEventCandidates.Clear();
+        _decidingEventCandidates.Clear();
+        _validCandidatesCache.Clear();
     }
 
     private void TryAddPollCandidate(ActionAsset action)
@@ -560,6 +618,37 @@ public class ActionStateManager : MonoBehaviour
     private int AllocateCandidateOrder()
     {
         return _nextCandidateOrder++;
+    }
+
+    private void PrepareDecidingSnapshot()
+    {
+        _decidingExternalRequests.Clear();
+        _decidingEventCandidates.Clear();
+
+        if (_pendingExternalRequests.Count > 0)
+        {
+            _decidingExternalRequests.AddRange(_pendingExternalRequests);
+            _pendingExternalRequests.Clear();
+        }
+
+        if (_pendingEventCandidates.Count > 0)
+        {
+            _decidingEventCandidates.AddRange(_pendingEventCandidates);
+            _pendingEventCandidates.Clear();
+        }
+    }
+
+    private void ClearDecidingSnapshot()
+    {
+        _decidingExternalRequests.Clear();
+        _decidingEventCandidates.Clear();
+        _validCandidatesCache.Clear();
+    }
+
+    private void CompleteExternalRequests(List<ExternalActionRequest> requests, bool started)
+    {
+        for (int i = 0; i < requests.Count; i++)
+            requests[i]?.Complete(started, this);
     }
 
     private void ResolveActor()
