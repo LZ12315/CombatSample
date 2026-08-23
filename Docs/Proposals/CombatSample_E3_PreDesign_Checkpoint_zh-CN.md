@@ -4,7 +4,7 @@
 >
 > 基线：Stage E2 已落地；E3 尚未开始正式实现。
 >
-> 目的：在继续 Animation 与 LocomotionController / LocomotionModeAsset 讨论前，冻结当前 Motor / Motion / Rotation / MotionPolicy 决策，避免后续重新引入旧假设。
+> 目的：冻结 E3 实现前已经收口的 Input / ActorLocomotion / ActorMotor / Animation / MotionPolicy / HitDetection 核心架构，作为 Final Architecture v3 的直接输入。
 >
 > 注意：本文不是 E3 Implementation Plan，也不是 Final Architecture v3。未列入“Confirmed Decisions”的内容不得视为已经批准。
 
@@ -28,17 +28,18 @@ ActorMotor
     = LocomotionIntent 的消费者，不理解来源是 Player 还是 AI
 ```
 
-E2 之后，对以下领域进行了连续架构复核：
+E2 之后，对以下领域进行了连续架构复核并逐步收口：
 
 - Simulation Driver 与 producer / consumer 顺序；
-- Locomotion 与 Action 的职责边界；
-- Animation arbitration；
+- ActorLocomotion 与 Action 的职责边界；
+- ActorAnimation authority 与 Base / Override 模型；
 - Root Motion authority；
 - ActorMotor 的 Translation / Rotation 两大 Domain；
 - LocomotionRunner；
 - 水平 / 垂直 motion channel 与 compose；
 - Root Rotation / Scripted Rotation arbitration；
-- MotionPolicy 的参数、ownership 与配置入口。
+- MotionPolicy 的参数、ownership 与配置入口；
+- LocomotionModeAsset / Profile selection lifecycle。
 
 ---
 
@@ -84,7 +85,9 @@ Tags / gameplay effects
 ```text
 ALL Actors Control Production
 → ALL Actors Action / Sequence
-→ ALL Actors Motion Requests
+→ ALL Actors Locomotion / Animation Requests
+→ ALL Actors Animation Evaluate
+→ ALL Actors Motion Requests / Motor Preparation
 → ALL Actors Movement / KCC
 → Physics Sync（需要时）
 → ALL Hit Detection
@@ -132,7 +135,7 @@ AI / BehaviorTree
 - `ActorMotor` 不知道 intent 来源；
 - 不引入无现实需求的通用 Input Provider / Command Bus / Intent Source Manager；
 - `ActorLogicInput` 不再是 runtime authority；
-- `LocomotionController` 不是 `LocomotionIntent -> ActorMotor` 的必经中转层。
+- `ActorLocomotion` 不是 `LocomotionIntent -> ActorMotor` 的必经中转层。
 
 ---
 
@@ -642,8 +645,6 @@ neutral = 1
 combine = Multiply
 ```
 
-含义：
-
 ### LocomotionScale
 
 表示当前 Gameplay 对普通 locomotion contribution 的最大允许比例，不是角色移动速度 buff / debuff 系统。
@@ -756,78 +757,303 @@ Root Motion / Velocity Owner / Rotation 已有自己的 fixed arbitration，不�
 
 ---
 
-## 2.18 Animation：Base Locomotion + Temporary Action Override
+## 2.18 ActorAnimation：Actor 级 Animation Authority
 
-Animation 不采用：
+长期名称使用 `ActorAnimation`，不再使用含义模糊的 `ActorAnimationRuntime` 作为架构一级概念。
 
-```text
-Locomotion 停止
-→ Action 独占整个 Animancer
-→ Action 结束后重新启动 Locomotion
-```
-
-高层模型：
+`ActorAnimation` 是 Actor prefab 上的 Unity Component，也是 Actor 唯一的 Animancer authority：
 
 ```text
-Locomotion animation
-→ Base semantic channel
-
-Action animation
-→ Temporary Override semantic channel
+ActorAnimation
+├─ Locomotion Base
+├─ Action Override
+└─ Animancer
 ```
 
-Locomotion animation state 可以在 Action override 期间继续更新，Action 淡出后自然露出最新 locomotion pose。
+外部系统不得直接操作 Animancer Graph / State / Evaluate。
 
-目标关系：
+高层规则固定为：
 
 ```text
-LocomotionController ─┐
-                      ├→ ActorAnimationRuntime → Animancer
-Action / Sequence ────┘
+Locomotion
+→ persistent Base
+→ 即使 Action Override active，也持续更新
+
+Action
+→ temporary Override
+→ 有有效 Action Pose 时覆盖 Locomotion
+→ 无有效 Action Pose 时露出当前 Locomotion
 ```
 
-`ActorAnimationRuntime` 只拥有 animation 技术资源 / graph 操作：
+因此 Action 结束时不需要重新启动 Locomotion animation。
+
+`ActorAnimation` 不理解：
 
 ```text
-semantic layer / channel
-play / state
-weight / fade
-centralized Evaluate
+Attack
+Dodge
+Hit
+Combo
+LocomotionMode entry condition
 ```
 
-不得理解 Attack / Dodge / Hit / Locomotion Mode entry condition 等 Gameplay 语义。
-
-Action animation session 生命周期属于 ActionPlayer / Action runtime；`AnimationPoseClip` 只描述具体 action pose / time，不拥有整个 Action override session。
-
-`Evaluate()` 必须从单个 PoseClip 中集中出去。
-
-具体 API 与 Driver phase 尚未冻结，见 Open Questions。
+它只管理 Animation state / blending / Animancer execution。
 
 ---
 
-## 2.19 LocomotionController 当前边界
+## 2.19 Action Animation ownership 与 PoseClip
 
-`LocomotionController` 不负责阻止 Intent，也不是 Motor authority。
+Action animation ownership 属于 Action playback 生命周期，而不是 `AnimationPoseClip`。
 
-长期职责方向：
+Action 开始时取得一个轻量 Action owner token；Action Complete / Cancel 时释放。
 
-```text
-选择当前 Locomotion Mode
-管理 Idle / Run / Strafe / Air behavior
-管理 locomotion animation / mixer
-承载 locomotion-specific tuning / configuration
-```
+该 token 只用于 ownership protection：旧 Action 的迟到 cleanup / submit 不得影响已经开始的新 Action。
 
-不得设计为：
+`AnimationPoseClip` 只负责表达当前 Sequence Tick 的 Action Pose：
 
 ```text
-Input authority
-ActorMotor replacement
-Action / Locomotion 总状态切换器
-MotionPolicy 的常驻配置 owner
+animation key
++ Sequence-authoritative sampleTime
++ 必要 mixer parameter
 ```
 
-`LocomotionModeAsset` 的最终字段与 AnimationRuntime 边界仍待收口。
+`sampleTime` 的含义：
+
+```text
+当前动画应被精确采样到第几秒
+```
+
+Action animation 的时间模型固定为：
+
+```text
+Sequence fixed frame
+→ sampleTime
+→ Action Pose
+```
+
+Animancer 不自行推进 Action animation 时间。
+
+PoseClip 不负责：
+
+```text
+Action ownership
+Animancer.Play / Stop authority
+Graph lifecycle
+Evaluate
+Action channel lifecycle
+```
+
+---
+
+## 2.20 Action Override 的确定性规则
+
+第一版明确保持简单，不建立 Animation priority stack / generic channel framework。
+
+规则：
+
+```text
+同一个 Actor、同一个 Tick
+→ 最多一个有效 Action PoseClip
+```
+
+PoseClip overlap 视为 authoring error，不做 priority / stack 仲裁。
+
+Action Session / lifecycle 中出现 PoseClip 空档：
+
+```text
+没有 Action Pose 提交
+→ Action Override 不贡献 Pose
+→ 露出当前 Locomotion Base
+```
+
+不自动 Hold Last Pose。
+
+Action A -> Action B 同 Tick交接：
+
+```text
+A Action Pose
+→ direct crossfade
+→ B Action Pose
+```
+
+不得强制经过 Locomotion 作为中间态，也不销毁重建一个通用 Animation stack。
+
+---
+
+## 2.21 Animation 时间与 Evaluate
+
+两个时间模型明确分开：
+
+```text
+Action Animation
+→ Sequence sampleTime 权威
+
+Locomotion Animation
+→ Combat simulation dt 连续推进
+```
+
+HitStop 冻结 gameplay / action / locomotion animation time；不得让 Locomotion 继续使用普通 Unity frame time 偷偷推进。
+
+每个 Actor 每个 Combat Tick 由 `ActorAnimation` 统一 `Evaluate()` 一次。
+
+PoseClip、ActorLocomotion 等 Producer 只更新 animation state / pose data，不自行 `Evaluate()`。
+
+固定顺序：
+
+```text
+ALL Action / Sequence
+→ ALL ActorLocomotion animation updates
+→ ALL ActorAnimation Evaluate
+→ ALL Motion / KCC
+→ Physics Sync（需要时）
+→ ALL HitDetection
+→ HitResolution
+```
+
+这样当前 Tick 的 Skeleton Pose 在 HitDetection 前已确定，同时保留“所有 Movement 完成后再 HitDetection”的全局 barrier。
+
+---
+
+## 2.22 ActorLocomotion：Locomotion Gameplay Domain
+
+原 `LocomotionController` 概念正式升格 / 改名为：
+
+```text
+ActorLocomotion
+```
+
+它是 Actor prefab 上的 Unity Component，并代表稳定的 Locomotion Gameplay Domain，而不是一个临时中转 Controller。
+
+Actor 级核心职责分为：
+
+```text
+ActorLocomotion
+= 当前采用哪套 locomotion behavior / profile
+
+ActorMotor
+= Actor 怎么实际移动
+
+ActorAnimation
+= Actor 最终怎么表现动画
+```
+
+三者保持独立，不合并成 God Component。
+
+`ActorLocomotion` 拥有：
+
+```text
+可用 LocomotionMode / Profile 配置
+CurrentMode
+Mode selection
+Mode lifecycle / Tags
+```
+
+它输出：
+
+```text
+LocomotionTuning
+→ ActorMotor
+
+LocomotionAnimationProfile
+→ ActorAnimation
+```
+
+它不拦截 Player / AI 的 `LocomotionIntent`。
+
+---
+
+## 2.23 LocomotionModeAsset / Profile
+
+`LocomotionModeAsset` 是纯 ScriptableObject 配置，不包含 runtime 行为。
+
+第一版字段固定为：
+
+```text
+Priority
+EntryConditions
+SelfTags
+LocomotionTuning
+LocomotionAnimationProfile
+```
+
+其中 `LocomotionTuning` 至少包含：
+
+```text
+MoveSpeed
+AirControlFactor
+RotateSpeed
+```
+
+长期原则：
+
+> Mode 是一套 Locomotion Profile，不是每一个动画状态。
+
+合理示例：
+
+```text
+Normal
+LockOn
+Air
+```
+
+不应机械建立：
+
+```text
+IdleMode
+RunMode
+WalkMode
+```
+
+Idle / Run / Strafe 等通常属于当前 Profile 内的 locomotion animation / behavior 表现。
+
+`LocomotionModeAsset` 不实现 `OnEnter / OnExit`；生命周期统一由 `ActorLocomotion` 管理。
+
+---
+
+## 2.24 LocomotionMode selection / lifecycle
+
+每个 Combat Tick，`ActorLocomotion` 从满足 `EntryConditions` 的候选中选择 Mode。
+
+确定性规则：
+
+```text
+满足条件的 Mode
+→ Priority 高者胜
+
+同 Priority
+→ CurrentMode 仍合法时保持 CurrentMode
+
+CurrentMode 已失效，多个候选同 Priority
+→ serialized authored order 决定
+
+没有普通候选
+→ explicit fallbackMode
+```
+
+不建立：
+
+```text
+Mode Stack
+Transition Graph
+Command Queue
+Generic Gameplay StateSystem
+```
+
+`fallbackMode` 是显式配置，不依赖 `Priority = -999 + AlwaysTrue` 等隐式约定。
+
+Fallback 不参与普通 Priority 竞争，用于保证正常运行期间 `CurrentMode` 始终存在。
+
+Mode 切换语义：
+
+```text
+Old Mode Tags release
+→ CurrentMode 切换
+→ New Mode Tags acquire
+→ 更新 ActorMotor LocomotionTuning
+→ 更新 ActorAnimation LocomotionAnimationProfile
+```
+
+对 Gameplay 观察应表现为一次原子 Mode 切换，不暴露“旧 Tag 已释放、新 Tag 尚未建立”的中间逻辑状态。
 
 ---
 
@@ -972,63 +1198,83 @@ MotionPolicy 只是 ActorMotor supporting state
 
 ---
 
+## 3.10 ActorAnimationRuntime / Session API 扩张
+
+以下不作为长期一级架构概念：
+
+```text
+ActorAnimationRuntime 作为模糊 Runtime
+通用 Animation Layer Framework
+Animation Contribution Stack
+PoseClip 自己 owning Action Override lifecycle
+PoseClip 自己 Evaluate
+BeginSession / SetPose / ClearPose 等大量流程 API 作为框架中心
+```
+
+当前基线是更简单的：
+
+```text
+ActorAnimation
+├─ Locomotion Base
+└─ Action Override
+```
+
+Action 使用轻量 owner token；PoseClip 只提交当前 Pose 数据；ActorAnimation 统一 Resolve / Blend / Evaluate。
+
+---
+
+## 3.11 LocomotionController 作为薄中间层
+
+`LocomotionController` 名称与定位被 `ActorLocomotion` 取代。
+
+不得重新退回：
+
+```text
+LocomotionController
+= 只做几次转发的薄中间层
+```
+
+当前定位：
+
+```text
+ActorLocomotion
+= Locomotion Gameplay Domain
+= Profiles / CurrentMode / Selection / Tags owner
+```
+
+也不得为了“组件数量少”把 `ActorLocomotion + ActorAnimation` 或 `ActorLocomotion + ActorMotor` 合并成一个 God Component。
+
+---
+
 # 4. Open Questions
 
-## 4.1 ActorAnimationRuntime
+核心架构问题已经基本收口。剩余内容主要属于实现细节，不应重新开放上述 Domain / ownership 原则。
 
-仍需确认：
+## 4.1 Animation 实现细节
 
 ```text
-最小 public API
-Locomotion semantic channel 的具体职责
-Action semantic channel 的具体职责
-Action animation session begin/end
-AnimationPoseClip 是否允许 session 内空档
-Action A -> Action B handoff
-fade / weight 的 fixed-tick 语义
-Evaluate 的 Driver phase
-HitBox bone pose 与 Evaluate 的 tick 对齐关系
+ActorAnimation 最小 public API 的最终方法签名
+Action owner token 的具体 struct / generation 实现
+LocomotionAnimationProfile 的具体 Animancer 数据结构
+Action A -> B crossfade 参数具体从哪里配置
+PoseClip mixer parameter 的最终数据表示
 ```
 
 ---
 
-## 4.2 LocomotionController / LocomotionModeAsset
-
-仍需在新的 ActorMotor / LocomotionRunner / AnimationRuntime 模型下收口：
+## 4.2 ActorLocomotion 实现细节
 
 ```text
-Mode 的最小职责
-ModeAsset 最终字段
-BaseSpeed / AirControlFactor / RotateSpeed 的具体配置归属
-Locomotion animation config
-Mode selection / Priority / Claim / Fallback contract
-Mode Tags ownership / release
+LocomotionAnimationProfile 的具体字段
+EntryConditions 的现有 Condition API 如何复用
+SelfTags acquire / release 使用现有哪套 token API
+fallbackMode 的 Inspector validation
+serialized authored order 的稳定实现
 ```
-
-不得机械照搬旧 Architecture v2 中“Locomotion 域独占 Motor / Animancer”的描述。
 
 ---
 
-## 4.3 Animation Evaluate 与 Driver 顺序
-
-HitBox 可能依赖 bone Transform，因此必须最终冻结 animation pose 与 hit detection 的同 Tick 顺序。
-
-已经冻结的底线不能破坏：
-
-```text
-ALL movement complete
-→ Physics sync if needed
-→ ALL HitDetection
-→ HitResolution
-```
-
-具体 `Animation Evaluate` 插入点仍待 Animation 章节确认。
-
----
-
-## 4.4 实现层收尾（非架构大问题）
-
-以下属于落地时需要决定的实现细节，不重新开放上述架构原则：
+## 4.3 ActorMotor / MotionPolicy 实现层收尾
 
 ```text
 MotionPolicy 内部 token / container 具体类型
@@ -1042,39 +1288,45 @@ MotionPolicyClip authoring 的 optional field Inspector 表达
 
 # 5. 当前目标架构快照
 
+Actor 级核心 Domain：
+
 ```text
-                         INPUT / AI
-                             │
-                             ▼
-                     LocomotionIntent
-                             │
-                             ▼
-                      LocomotionRunner
-                       │           │
-                       │           └→ Locomotion Rotation
-                       └→ Locomotion Translation
+Actor
+├─ ActorLocomotion
+│    = Locomotion Gameplay Domain
+│    = Profiles / CurrentMode / Selection / Tags
+│
+├─ ActorMotor
+│    = Movement Authority / KCC Adapter
+│    ├─ LocomotionRunner
+│    ├─ Translation
+│    ├─ Rotation
+│    └─ MotionPolicy
+│
+└─ ActorAnimation
+     = Animation Authority
+     ├─ Locomotion Base
+     └─ Action Override
+```
 
-Sequence Motion Clips ───────┐
-MotionPolicy Clips ──────────┤
-                             ▼
-                         ActorMotor
-              movement authority / KCC adapter
-                  │                     │
-                  ▼                     ▼
-            Translation              Rotation
-                  │                     │
-                  └──────────┬──────────┘
-                             ▼
-                            KCC
+数据流：
 
-LocomotionController ─┐
-                      ├→ ActorAnimationRuntime → Animancer
-Action / Sequence ────┘
-
-Sequence HitBox Window
-→ Actor HitBox runtime/state
-→ Post-Movement HitDetection
-→ HitResolution
+```text
+Player / AI
+    │
+    ▼
+LocomotionIntent ───────────────────────→ ActorMotor
+                                             ▲
+                                             │ tuning
+                                      ActorLocomotion
+                                       │           │
+                                       │           └→ AnimationProfile
+                                       │                    │
+                                       └────────────────────▼
+                                                     ActorAnimation
+                                                          ▲
+                                                          │ Action Pose
+                                                   Action / Sequence
 ```
 
 Translation：
@@ -1118,12 +1370,24 @@ neutral = 1
 parameter-level ownership
 ```
 
+Animation：
+
+```text
+Locomotion Base
+→ persistent / simulation dt
+
+Action Override
+→ Sequence sampleTime
+→ max one PoseClip per Tick
+→ no Pose = reveal Locomotion
+```
+
 ---
 
 # 6. 后续使用规则
 
 1. 本文是 E3 正式实现前的讨论 checkpoint，不直接替代 `Final_Architecture_v2`。
-2. 当旧架构文档与本文明确冲突时，以本文已确认 / superseded 内容作为后续 E3 讨论基线。
-3. 不再重新讨论已经冻结的 Translation / Vertical / Rotation / MotionPolicy 核心语义，除非出现新的真实玩法需求或发现明确矛盾。
-4. 下一阶段优先收口 `ActorAnimationRuntime`，随后收口 `LocomotionController / LocomotionModeAsset`。
-5. Animation 与 Locomotion 两块收口后，再统一生成 Final Architecture v3，并据此制定 E3 Implementation Plan。
+2. 当旧架构文档与本文明确冲突时，以本文 Confirmed / Superseded 内容作为后续 E3 基线。
+3. Translation / Vertical / Rotation / MotionPolicy / ActorAnimation / ActorLocomotion 的核心语义已经冻结；除非出现真实玩法需求或明确矛盾，不重新开放。
+4. 下一步将本文整理进 `Final Architecture v3`，再据此制定 E3 Implementation Plan。
+5. 实现过程中如果发现具体 API / 数据结构问题，优先在既有 Domain 边界内解决，不以实现困难为由重新引入 Generic Runtime / Callback Scheduler / God Component。
