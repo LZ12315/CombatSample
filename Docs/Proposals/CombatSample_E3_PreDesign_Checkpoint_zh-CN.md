@@ -1,10 +1,10 @@
 # CombatSample E3 前置架构决策 Checkpoint
 
-> 状态：讨论 Checkpoint；仅记录截至 2026-08-23 已明确确认的结论、被后续讨论取代的旧方向，以及仍未收口的问题。
+> 状态：讨论 Checkpoint；记录截至 2026-08-23 已明确确认的结论、已被取代的旧方向，以及仍未收口的问题。
 >
 > 基线：Stage E2 已落地；E3 尚未开始正式实现。
 >
-> 目的：在继续讨论 MotionPolicy、AnimationRuntime、LocomotionController / ModeAsset 之前，冻结一份可回溯的决策快照，防止后续讨论重新引入已经被否决或修正的旧假设。
+> 目的：在继续 Animation 与 LocomotionController / LocomotionModeAsset 讨论前，冻结当前 Motor / Motion / Rotation / MotionPolicy 决策，避免后续重新引入旧假设。
 >
 > 注意：本文不是 E3 Implementation Plan，也不是 Final Architecture v3。未列入“Confirmed Decisions”的内容不得视为已经批准。
 
@@ -28,53 +28,48 @@ ActorMotor
     = LocomotionIntent 的消费者，不理解来源是 Player 还是 AI
 ```
 
-E2 之后，在正式进入 E3 `LocomotionController / LocomotionModeAsset` 实现前，对以下领域进行了连续架构复核：
+E2 之后，对以下领域进行了连续架构复核：
 
 - Simulation Driver 与 producer / consumer 顺序；
-- UE 中 Locomotion / Montage / CharacterMovement 的职责边界；
-- Locomotion 与 Action 的整体关系；
+- Locomotion 与 Action 的职责边界；
 - Animation arbitration；
 - Root Motion authority；
-- `ActorMotor / ActorMotionRuntime` 的 channel / compose 模型；
-- 水平 motion precedence；
-- 类鬼泣式 3D 空战需要的垂直 motion 模型；
-- MotionPolicy 的定位与生命周期方向。
-
-本 Checkpoint 只固化已经明确确认的部分。
+- ActorMotor 的 Translation / Rotation 两大 Domain；
+- LocomotionRunner；
+- 水平 / 垂直 motion channel 与 compose；
+- Root Rotation / Scripted Rotation arbitration；
+- MotionPolicy 的参数、ownership 与配置入口。
 
 ---
 
 # 2. Confirmed Decisions
 
-## 2.1 总体架构原则：统一生命周期，分离控制通道
+## 2.1 总体原则：统一生命周期，分离控制通道
 
-Action 可以统一拥有 Gameplay 生命周期，但不得成为 Animation、Movement、HitBox、Facing、Tags 等所有子系统的统一状态 owner。
-
-目标结构：
+Action / Sequence 可以统一 Gameplay 生命周期，但不得成为 Animation、Movement、HitBox、Rotation、Tags 等所有子系统的统一状态 owner。
 
 ```text
 ActionInstance / ActionSequence lifecycle
         │
         ├── Animation contribution
-        ├── MotionPolicy contribution
         ├── Motion channel contribution
+        ├── MotionPolicy clip contribution
         ├── HitBox window
         ├── Tags
-        └── 其他 scoped contribution
+        └── other scoped contributions
 ```
 
 各领域独立仲裁：
 
 ```text
 Animation arbitration
-Movement arbitration
+Translation arbitration
+Rotation arbitration
 HitBox lifecycle / query
 Tags / gameplay effects
 ```
 
-不得建立一个“大 ActionMode / LocomotionMode 开关”去一次性切换所有系统的控制权。
-
-核心原则：
+不得建立一个“大 ActionMode / LocomotionMode 开关”一次性切换所有系统控制权。
 
 > 统一生命周期，分离控制通道。
 
@@ -82,9 +77,9 @@ Tags / gameplay effects
 
 ## 2.2 Simulation Driver：执行顺序是第一职责
 
-`CombatSimulationDriver` 的身份是 Combat World scheduler；固定 60Hz 是 timestep policy，不是 Driver 存在的根本原因。
+`CombatSimulationDriver` 是 Combat World scheduler；固定 60Hz 是 timestep policy，不是 Driver 的根本身份。
 
-固定模拟必须保持全局 phase barrier：
+必须保持全局 phase barrier：
 
 ```text
 ALL Actors Control Production
@@ -96,14 +91,14 @@ ALL Actors Control Production
 → ALL Hit Resolution
 ```
 
-禁止改成：
+禁止按 Actor 纵向执行：
 
 ```text
 Actor A Action -> Move -> Detect
 Actor B Action -> Move -> Detect
 ```
 
-每个 Actor 只通过一个 `ActorSimulationRuntime` 参与固定模拟；其他子系统不向 Driver 注册通用 phase callback。
+每个 Actor 只通过一个 `ActorSimulationRuntime` 参与固定模拟；子系统不向 Driver 注册通用 phase callback。
 
 KCC 是世界运动求解 barrier，不是 Gameplay scheduler。
 
@@ -111,7 +106,7 @@ KCC 是世界运动求解 barrier，不是 Gameplay scheduler。
 
 ## 2.3 Input / LocomotionIntent
 
-玩家输入链保持：
+玩家输入链：
 
 ```text
 Input System
@@ -121,7 +116,7 @@ Input System
 → ActorMotor
 ```
 
-AI 保持独立生产：
+AI 独立生产：
 
 ```text
 AI / BehaviorTree
@@ -129,129 +124,133 @@ AI / BehaviorTree
 → ActorMotor
 ```
 
-已确认约束：
+已确认：
 
-- `PlayerInputController` 是玩家 raw input 与 input history owner；
+- `PlayerInputController` 是 raw input 与 input history owner；
 - `PlayerLocomotionIntentResolver` 只解释玩家输入；
-- AI 不需要模拟 joystick / button；
+- AI 不模拟 joystick / button；
 - `ActorMotor` 不知道 intent 来源；
-- 不引入 `IActorInputProvider`、通用 Command Bus、Intent Source Manager 等无现实需求的抽象；
-- `ActorLogicInput` 不再是 runtime authority，只保留兼容壳直到安全清理。
-
-`LocomotionController` 不是 `LocomotionIntent -> ActorMotor` 的必要中转层。Player / AI 可以持续直接向 Motor 提交 intent。
-
----
-
-## 2.4 LocomotionController 的职责方向
-
-`LocomotionController` 不负责“Action 期间阻止输入进入 Motor”。
-
-其长期职责方向是：
-
-```text
-选择当前 Locomotion Mode
-管理 Idle / Run / Strafe / Air 等 locomotion behavior
-管理 locomotion animation / mixer
-承载 locomotion-specific gameplay configuration
-必要时产生自己的 MotionPolicy contribution
-```
-
-不得把它设计为：
-
-```text
-Input authority
-ActorMotor replacement
-Action / Locomotion 总状态切换器
-```
-
-`LocomotionModeAsset` 的既有方向仍有效：Mode 持有自己的 Priority、EntryConditions、SelfTags、AnimationConfig Key、Locomotion 参数；但其最终字段与 MotionPolicy / AnimationRuntime 的边界仍待后续讨论。
+- 不引入无现实需求的通用 Input Provider / Command Bus / Intent Source Manager；
+- `ActorLogicInput` 不再是 runtime authority；
+- `LocomotionController` 不是 `LocomotionIntent -> ActorMotor` 的必经中转层。
 
 ---
 
-## 2.5 Animation：Base Locomotion + Temporary Action Override
+## 2.4 ActorMotor：Movement Authority + KCC Adapter
 
-Animation 不采用“Locomotion 停止 -> Action 接管整个 Animancer -> Action 结束后重新启动 Locomotion”的整体 ownership transfer。
-
-高层模型：
+ActorMotor 的目标心智模型已经重构为：
 
 ```text
-Locomotion animation
-→ Base pose / base semantic channel
+ActorMotor
+= Actor movement authority + KCC Adapter
 
-Action animation
-→ Temporary override semantic channel
+                    ActorMotor
+                       │
+        ┌──────────────┴──────────────┐
+        │                             │
+    Translation                   Rotation
+        │                             │
+  multiple contributions        multiple contributions
+        │                             │
+  fixed arbitration             fixed arbitration
+        │                             │
+        └──────────────┬──────────────┘
+                       ↓
+                      KCC
 ```
 
-Locomotion 的 animation state 可以在 Action override 期间保持更新，从而 Action 淡出后自然露出最新 locomotion pose。
+Translation 与 Rotation 是 ActorMotor 的两个 first-class Domain。
 
-语义 ownership 必须分离：
+目标结构：
 
 ```text
-LocomotionController
-→ 只请求 locomotion animation channel
-
-Action / Sequence
-→ 只请求 action animation channel
+ActorMotor
+├─ LocomotionRunner
+│    LocomotionIntent
+│    → Translation native data
+│    → Rotation local yaw delta
+│
+├─ Translation Domain
+│    ├─ Locomotion
+│    ├─ Root Motion
+│    ├─ Horizontal Impulse
+│    ├─ Horizontal Velocity Owner
+│    ├─ BallisticVerticalVelocity
+│    └─ Vertical Velocity Owner
+│
+├─ Rotation Domain
+│    ├─ Locomotion Rotation
+│    ├─ Root Rotation
+│    └─ Scripted Rotation
+│
+└─ Supporting State
+     ├─ Grounding
+     ├─ Velocity Readout
+     └─ MotionPolicy
 ```
 
-不得由两者直接争抢“整个 Animancer 的唯一控制权”。
+现有 `LocomotionRuntime / FacingRuntime / ActorMotionRuntime / SelfRotationBuffer` 的类划分不是长期架构边界；后续实现应从上述 Domain 模型反推结构，而不是保留旧 Runtime 名称作为一级概念。
 
 ---
 
-## 2.6 ActorAnimationRuntime：明确方向，但 API 尚未冻结
+## 2.5 LocomotionRunner
 
-已经形成的职责边界：
-
-```text
-LocomotionController ─┐
-                      ├→ ActorAnimationRuntime → Animancer
-Action / Sequence ────┘
-```
-
-`ActorAnimationRuntime` 应只拥有 animation 技术资源与 graph 操作，例如：
+`LocomotionRunner` 是 ActorMotor 内部、KCC 之前的 locomotion interpreter / producer，不是平行 movement authority。
 
 ```text
-semantic layer / channel
-play / state
-weight / fade
-centralized Evaluate
+LocomotionIntent
++
+Locomotion tuning
++
+Grounded / Airborne
++
+Current Rotation
++
+Effective MotionPolicy
+        ↓
+LocomotionRunner
+        ├→ Locomotion Translation: Vector3 velocity
+        └→ Locomotion Rotation: local yaw delta
+        ↓
+ActorMotor Translation / Rotation arbitration
 ```
 
-它不得理解具体 Gameplay 语义，例如 Attack、Dodge、Hit、某个 Locomotion Mode 的进入条件。
+Producer 负责解释 WHY / WHERE / HOW；Motor 只接收已经解析好的物理运动量并进行保存、仲裁、Compose。
 
-Action animation session 的生命周期应由 ActionPlayer / Action runtime 管理；`AnimationPoseClip` 只描述当前区间的具体 action pose / time，不负责整个 Action override session 的 begin/end。
+因此 ActorMotor 不理解：
 
-`Evaluate()` 必须从单个 PoseClip 中集中出去；最终应由 Actor 级 animation authority 在已知阶段统一 Evaluate。
+```text
+Target
+Direction
+Snap
+RotateBySpeed
+Attack
+LockOn
+```
 
-但以下细节尚未冻结：
-
-- 最小 API；
-- Action layer / channel 的完整生命周期；
-- Action A -> B handoff；
-- fade / weight 的 fixed-tick 语义；
-- Driver 中 `Evaluate()` 的确切 phase。
+`BaseSpeed / AirControlFactor / RotateSpeed` 属于 locomotion tuning，而不是 MotionPolicy。
 
 ---
 
-## 2.7 Root Motion authority
+## 2.6 Root Motion authority
 
-继续遵守既有原则：
+继续遵守：
 
 > Sequence is authoritative; Animation is data.
 
-Gameplay Root Motion 链路：
+Gameplay Root Motion：
 
 ```text
 Sequence fixed frame
 → RootMotionTrajectory
-→ RootMotionClip（或未来其他显式 motion data producer）
+→ RootMotionClip
 → ActorMotor
 → KCC
 ```
 
-Animation 不再反向决定 Gameplay movement。
+Animation 不反向决定 Gameplay movement。
 
-当前存在的：
+长期删除：
 
 ```text
 Animator
@@ -261,66 +260,51 @@ Animator
 → ActorMotor
 ```
 
-不属于长期架构，后续应移除。
+未来任何 Root Motion 来源都必须先产生明确 motion data，再显式提交给 Motor。
 
-未来即使增加 RootMotionClip 之外的新 Root Motion 来源，也必须先产生明确 motion data，再显式提交给 Motor；Motor 不从 Animator 读取权威位移。
+术语统一：
 
-Trajectory Root Motion 只负责 XZ；Y 丢弃。
+- **Root Motion**：`RootMotionTrajectory` 烘焙得到的 XZ displacement；
+- **Root Rotation**：同一 trajectory 烘焙得到的 Yaw rotation。
 
----
-
-## 2.8 ActorMotor 总体框架：保留
-
-现有 Motor 的大体结构是正确的，不做架构性推翻：
-
-```text
-Producer
-→ 独立 Motion Channel
-→ Channel 独立保存 / 演化自己的状态
-→ ActorMotionRuntime / ActorMotor Compose
-→ KCC
-```
-
-最重要的约束：
-
-> Channel submission 与 final arbitration 必须分离。
-
-某个高优先级 Channel 当前生效，不得阻止其他 Channel 正常接收提交、维护状态和推进生命周期。
-
-例如：
-
-```text
-HorizontalVelocityOwner active
-≠ 禁止 Trajectory 提交
-
-Trajectory active
-≠ 禁止 HorizontalImpulse 提交
-```
-
-跨 Channel 的“谁最终生效”只能存在于 Compose 规则中，不得散落在各 Producer / Channel 的提交逻辑里。
+Root Motion 的 Y 永久丢弃。
 
 ---
 
-## 2.9 水平 Motion Channels
+## 2.7 Translation：submission 与 final arbitration 分离
 
-水平长期保留四类 contribution：
+固定原则：
+
+> Producer 独立提交；各 Channel 独立维护状态；最终只有 Compose 决定哪些 contribution 生效。
+
+高优先级 Channel 当前生效，不得阻止较低 Channel：
+
+- 接收新提交；
+- 更新自身状态；
+- 推进自身生命周期。
+
+被覆盖期间不产生 catch-up / missed delta 累积。
+
+---
+
+## 2.8 水平 Translation
+
+水平 contribution：
 
 ```text
 Locomotion
 HorizontalImpulse
-Trajectory Root Motion
+Root Motion
 HorizontalVelocityOwner
 ```
 
-### 2.9.1 最终水平 Compose
-
-固定为：
+最终 Compose 固定为：
 
 ```text
 if HorizontalVelocityOwner exists
     Horizontal = TopHorizontalVelocityOwner
-else if TrajectoryRootMotion exists
-    Horizontal = TopTrajectoryRootMotion
+else if RootMotion exists
+    Horizontal = TopRootMotion
 else
     Horizontal = Locomotion + HorizontalImpulse
 ```
@@ -329,92 +313,68 @@ else
 
 ```text
 HorizontalVelocityOwner
-        >
-Trajectory Root Motion
-        >
+>
+Root Motion
+>
 Locomotion + HorizontalImpulse
 ```
 
-`HorizontalImpulse` 不再与 Trajectory Root Motion 相加。
+### HorizontalVelocityOwner
 
-注意：这是 Compose 规则，不是 submission rule。
-
-Trajectory / VelocityOwner 生效期间，HorizontalImpulse 仍可被外部提交并维护自己的状态；只是当前 Compose 不读取它。
-
----
-
-## 2.10 HorizontalVelocityOwner
-
-`HorizontalVelocityOwner` 是可恢复的 LIFO stack：
+使用可恢复 LIFO stack：
 
 ```text
 A Begin -> A
-B Begin -> B 覆盖 A
-B End   -> A 恢复
+B Begin -> B
+B End   -> A
 ```
 
-非栈顶 owner 可以继续被外部更新，只是不参与当前最终 Compose。
+非栈顶 owner 可以继续更新。
 
-它对最终水平输出的优先级高于 Trajectory、Locomotion 与 HorizontalImpulse，但不得销毁或阻止这些 Channel 自己的状态。
+### Root Motion
+
+Root Motion owner 同样使用可恢复 LIFO stack：
+
+```text
+A ---------------------
+      B -------
+
+output:
+A A A | B B B | A A A
+```
+
+被覆盖的 A：
+
+- Sequence 时间继续推进；
+- 可以继续提交当前 tick delta；
+- 被覆盖 delta 不累计；
+- B 结束后从当前时间继续，不补发过去位移。
+
+### HorizontalImpulse
+
+HorizontalImpulse 是独立 additive / decaying channel。
+
+只有 Compose 落到 locomotion 分支时：
+
+```text
+Horizontal = Locomotion + HorizontalImpulse
+```
+
+Root Motion / HorizontalVelocityOwner 覆盖期间，Impulse 仍可继续接收提交并在后台按自己的规则衰减。
+
+明确否决：
+
+```text
+RootMotion Begin -> ClearHorizontalImpulse
+RootMotion active -> Reject AddHorizontalImpulse
+HorizontalVelocityOwner active -> Reject lower submissions
+```
 
 ---
 
-## 2.11 Trajectory Root Motion Channel
+## 2.9 垂直 Translation：Ballistic + VerticalVelocityOwner
 
-当前 single-slot replace 规则需要修改为可恢复 LIFO stack：
-
-```text
-A Begin -> A
-B Begin -> B 临时覆盖 A
-B End   -> A 恢复
-```
-
-进一步约束：
-
-- 被覆盖的 Trajectory owner 自身生命周期继续存在；
-- 被覆盖期间 Sequence 时间可以继续推进；
-- 被覆盖期间的 trajectory delta 不累计、不在恢复时补发；
-- 恢复后只从当前 Tick / 当前 Sequence 时间继续提交；
-- Trajectory 只产生 XZ movement；Y 永久丢弃。
-
-Trajectory 与 HorizontalVelocityOwner 是不同 Channel。VelocityOwner 只是 Compose 上覆盖 Trajectory，不得清除 Trajectory owner stack。
-
----
-
-## 2.12 HorizontalImpulse Channel
-
-`HorizontalImpulse` 是独立状态，负责：
-
-```text
-接收外部 additive impulse
-维护自己的 impulse velocity
-按自己的内部 drag 规则衰减
-```
-
-它不属于 Locomotion，也不属于 Trajectory。
-
-最终是否影响实际移动只由水平 Compose 决定：
-
-```text
-只有 Compose 落到 Locomotion 分支时
-→ Locomotion + HorizontalImpulse
-```
-
-已明确否决：
-
-```text
-Trajectory Begin -> ClearHorizontalImpulse
-Trajectory active -> Reject AddHorizontalImpulse
-VelocityOwner active -> Reject AddHorizontalImpulse
-```
-
-Channel 不互相阻拦。
-
----
-
-## 2.13 垂直 Motion：改为单一自由弹道状态 + scripted override
-
-类鬼泣式 3D 空战下，当前长期并列：
+长期删除：
 
 ```text
 GravityAccumulator
@@ -422,37 +382,19 @@ GravityAccumulator
 VerticalImpulseVelocity
 ```
 
-的模型不再作为目标架构。
-
-自由弹道收敛为单一权威状态：
+自由弹道收敛为：
 
 ```text
 BallisticVerticalVelocity
 ```
 
-职责：
+Gravity 是 Ballistic 的持续演化：
 
 ```text
-Gravity
-→ 持续演化 BallisticVerticalVelocity
-
-Jump / Launch / Vertical impulse producer
-→ 事件式修改 BallisticVerticalVelocity
+BallisticVerticalVelocity += PhysicsGravityY * EffectiveGravityScale * dt
 ```
 
-最终不再使用：
-
-```text
-FinalVertical = GravityAccumulator + VerticalImpulseVelocity
-```
-
-作为长期模型。
-
----
-
-## 2.14 BallisticVerticalVelocity 的外部修改
-
-外部 Producer 在提交时决定本次操作语义；Ballistic channel 不理解 Jump、Launcher、Hit 等 Gameplay 概念。
+Jump / DoubleJump / Launcher / Hit / Impulse 等 producer 通过事件式操作修改 Ballistic。
 
 至少支持：
 
@@ -464,19 +406,13 @@ Set
 velocity = value
 ```
 
-`Max / Min` 等操作只有在后续出现明确需求时再增加，不提前扩展。
-
-Gravity 是 Channel 自身的持续演化：
-
-```text
-BallisticVerticalVelocity += Gravity * dt
-```
+Ballistic 不理解 Jump / Hit / Launcher 等 Gameplay 标签。
 
 ---
 
-## 2.15 VerticalVelocityOwner
+## 2.10 VerticalVelocityOwner
 
-语义分界：
+语义：
 
 ```text
 BallisticVerticalVelocity
@@ -486,17 +422,7 @@ VerticalVelocityOwner
 = scripted / Action-driven 垂直轴临时接管
 ```
 
-例如：
-
-```text
-Jump / DoubleJump / Launcher
-→ Ballistic 写入
-
-悬停 / 固定升降 / 下砸曲线
-→ VerticalVelocityOwner
-```
-
-最终 Compose：
+最终：
 
 ```text
 if VerticalVelocityOwner exists
@@ -505,76 +431,43 @@ else
     Vertical = BallisticVerticalVelocity
 ```
 
-`VerticalVelocityOwner` 使用可恢复 LIFO stack：
+VerticalVelocityOwner 使用可恢复 LIFO stack；非栈顶 owner 可以继续更新。
 
-```text
-A Begin -> A
-B Begin -> B
-B End   -> A 恢复
-A End   -> 回到 Ballistic
-```
-
-非栈顶 owner 可以继续被外部更新，只是不参与当前 Compose。
-
----
-
-## 2.16 VerticalVelocityOwner 与 Ballistic 的 handoff
-
-只要存在至少一个 `VerticalVelocityOwner`：
+只要 stack 非空：
 
 ```text
 BallisticVerticalVelocity 冻结
-Gravity 不在后台继续积分
+Gravity 不继续积分
 ```
 
-当 owner stack 从非空变成空，即最后一个 owner 结束时：
+当 owner count 从 `> 0` 变成 `0`：
 
 ```text
 BallisticVerticalVelocity = 0
 ```
 
-下一 Tick 再从 0 开始受 Gravity。
+默认不恢复 owner 接管前 Ballistic velocity，也不继承最后一个 owner velocity。
 
-当前不默认继承：
-
-```text
-Owner 接管前的旧 Ballistic velocity
-Owner 最后一帧 velocity
-```
-
-未来若出现明确玩法需求，可再引入显式 finish / handoff policy；当前不提前实现。
+未来只有出现明确玩法需求时才增加 finish / handoff policy。
 
 ---
 
-## 2.17 Grounded 对垂直系统的规则
+## 2.11 Grounded 与垂直系统
 
-Grounded 必须区分“最终物理约束”和“Channel 生命周期”。
-
-### 最终物理约束
-
-稳定接地时：
+稳定接地：
 
 ```text
 Final Vertical = 0
-```
-
-### Ballistic 状态
-
-稳定接地时：
-
-```text
 BallisticVerticalVelocity = 0
-Grounded 期间不继续积累 Gravity
+Grounded 期间不积累 Gravity
 ```
-
-### VerticalVelocityOwner
 
 Grounded 不得：
 
 ```text
-自动销毁 owner
+销毁 VerticalVelocityOwner
 修改 owner velocity
-阻止 VelocityClip / Producer 继续 Submit
+阻止 producer 继续 Submit
 ```
 
 例如：
@@ -583,141 +476,409 @@ Grounded 不得：
 VelocityClip 持续提交 -20
 Grounded = true
 
-Channel state:
-TopOwnerVelocity = -20
-
-Final movement:
-Vertical = 0
+Owner state = -20
+Final Vertical = 0
 ```
 
-只要 Clip / Owner 自身仍存活，该请求仍然有效；如果之后重新离地，它可以再次参与 Compose。
+如果 owner 仍存活且 Actor 再次离地，`-20` 可以重新参与 Compose。
 
-向上的有效垂直控制仍必须具备主动离地能力；顶层 owner 在稳定接地时提交明显正速度时，应继续支持 ForceUnground 类机制。
+有效向上 Ballistic / owner 写入仍需要 ForceUnground 类机制。
 
 ---
 
-## 2.18 MotionPolicy 的定位
+## 2.12 Rotation Domain
 
-MotionPolicy 的高层边界已经确认：
+Rotation 是与 Translation 并列的一等 Domain。
 
-```text
-LocomotionIntent
-= Actor 想怎样移动
-
-MotionPolicy
-= 当前允许这些 movement contribution 怎样生效 / 允许哪些参数
-
-MotionChannels
-= 实际 motion contribution
-
-ActorMotor
-= 固定内部 arbitration / compose
-```
-
-即：
+来源：
 
 ```text
-Intent + EffectivePolicy + MotionChannels
-→ ActorMotor fixed rules
-→ KCC
+Locomotion Rotation
+Root Rotation
+Scripted Rotation
 ```
 
-MotionPolicy 可以改变参数，但不得改变已经冻结的 Motor channel precedence / semantic contract。
-
-不得允许外部 Action 配置类似：
+固定 precedence：
 
 ```text
-“这次 Impulse 比 Trajectory 优先”
-“这次改变 Motor precedence”
+Scripted Rotation
+>
+Root Rotation
+>
+Locomotion Rotation
 ```
 
-这类跨 Channel 仲裁规则必须固定在 Motor 内部。
+### 数据 contract
+
+三个 Rotation channel 最终都提交：
+
+```text
+this tick's local yaw delta
+```
+
+- LocomotionRunner 解释 facing intent + current rotation + locomotion tuning，输出 local yaw delta；
+- Root Rotation 输出 trajectory baked local yaw delta；
+- Scripted producer 在 Motor 外解释 Target / Direction / Snap / RotateBySpeed，再输出 local yaw delta。
+
+Motor 不理解这些 Gameplay 语义。
+
+最终只使用 winning channel：
+
+```text
+RequestedRotation
+= TickStartRotation * WinningLocalYawDelta
+```
+
+不同 Rotation channel 不相加、不相乘。
 
 ---
 
-## 2.19 MotionPolicy 生命周期方向
+## 2.13 Rotation ownership / covered semantics
 
-必须避免永久 setter + 人工恢复：
+`Root Rotation` 使用自己的可恢复 LIFO owner stack。
 
-```text
-SetLocomotionSuppressed(true)
-...
-希望某处记得 SetLocomotionSuppressed(false)
-```
+`Scripted Rotation` 使用自己的可恢复 LIFO owner stack。
 
-长期方向必须是 scoped / owned modifier：
+两个 stack 不合并为“最后 Begin 的全局 winner”，因为固定 precedence 必须始终保持：
 
 ```text
-Acquire
-→ optional Update
-→ Release own token
+if Scripted stack nonempty
+    use Scripted top
+else if Root Rotation stack nonempty
+    use Root Rotation top
+else
+    use Locomotion Rotation
 ```
 
-典型生命周期：
+被覆盖的 Rotation contribution：
+
+- 可以继续计算 / 提交；
+- 不累计 missed yaw；
+- 恢复后只使用当前 tick 的 delta。
+
+现有 `SelfRotationClip` 中混合的概念需要按长期语义拆开理解：
 
 ```text
-Action Begin
-→ acquire Action-owned policy contribution
+RootRotation source
+→ Root Rotation channel
 
-Clip Enter
-→ acquire Clip-owned contribution
+Target / Direction source
+→ Scripted Rotation producer
 
-Clip Exit
-→ release Clip contribution
-
-Action Complete / Cancel
-→ release all Action-owned contributions
+Snap / RotateBySpeed
+→ producer-side resolution mode
 ```
 
-该方向与现有 `SpeedModifierStack` / `MotionOwner` 的 ownership 思路一致。
+---
 
-但 Policy 具体字段、字段合成规则和 API 尚未冻结，见 Open Questions。
+## 2.14 MotionPolicy：Supporting State，而不是新 Runtime
+
+MotionPolicy 属于 ActorMotor 的 supporting state，不创建新的“大 `MotionPolicyRuntime`”。
+
+它不负责：
+
+```text
+Tick
+Gameplay decision
+Intent interpretation
+Translation Compose
+Rotation arbitration
+Action knowledge
+```
+
+它只负责：
+
+```text
+neutral base values
++
+scoped parameter modifiers
+↓
+effective values
+```
+
+默认 neutral value：
+
+```text
+LocomotionScale    = 1
+AirLocomotionScale = 1
+GravityScale       = 1
+```
+
+长期角色能力 / Mode tuning 不伪装成永久 Policy Modifier。
+
+例如：
+
+```text
+BaseSpeed / BaseAirControlFactor / RotateSpeed
+→ Locomotion tuning
+
+BaseGravityScale（若角色确实需要）
+→ Translation / Ballistic tuning
+
+临时 gameplay constraint
+→ MotionPolicy
+```
+
+---
+
+## 2.15 MotionPolicy 当前字段与合成规则
+
+第一版保留：
+
+```text
+LocomotionScale
+range 0..1
+neutral = 1
+combine = Min
+
+AirLocomotionScale
+range 0..1
+neutral = 1
+combine = Min
+
+GravityScale
+range >= 0
+neutral = 1
+combine = Multiply
+```
+
+含义：
+
+### LocomotionScale
+
+表示当前 Gameplay 对普通 locomotion contribution 的最大允许比例，不是角色移动速度 buff / debuff 系统。
+
+Grounded locomotion：
+
+```text
+LocomotionVelocity
+× EffectiveLocomotionScale
+```
+
+### AirLocomotionScale
+
+不是 `BaseAirControlFactor`。
+
+```text
+BaseAirControlFactor
+= 角色 / LocomotionMode 本身的空中控制能力
+
+AirLocomotionScale
+= 当前 Gameplay 对空中 locomotion 的临时许可 / 约束
+```
+
+Airborne locomotion：
+
+```text
+DesiredVelocity
+× BaseAirControlFactor
+× min(EffectiveLocomotionScale, EffectiveAirLocomotionScale)
+```
+
+### GravityScale
+
+只影响 Ballistic gravity evolution：
+
+```text
+BallisticVerticalVelocity
++= PhysicsGravityY * EffectiveGravityScale * dt
+```
+
+不影响 `VerticalVelocityOwner`。
+
+当 VerticalVelocityOwner active 时，Ballistic 本来就被冻结，因此 GravityScale 此时不会推进 Ballistic。
+
+Policy 不支持负 GravityScale；反向重力若未来需要，应作为显式 motion producer。
+
+---
+
+## 2.16 MotionPolicy ownership：参数级独立 owner
+
+MotionPolicy 不使用“一份完整 Policy Modifier = 一个 owner”的模型。
+
+每个参数独立 ownership、独立合成：
+
+```text
+LocomotionScale owners
+AirLocomotionScale owners
+GravityScale owners
+```
+
+一个 authoring Clip 可以同时配置多个字段，但 runtime ownership 仍是参数级独立 token。
+
+例如：
+
+```text
+MotionPolicyClip
+├→ LocomotionScale token
+├→ AirLocomotionScale token
+└→ GravityScale token
+```
+
+不同参数不得因为来自同一个 Clip 就被绑定为一整个 Policy owner。
+
+---
+
+## 2.17 MotionPolicy 配置入口
+
+ActionAsset 本身不配置 MotionPolicy。
+
+MotionPolicy 属于 Sequence 时间轴上的局部行为。
+
+当前配置入口固定为：
+
+```text
+MotionPolicyClip
+├─ optional LocomotionScale
+├─ optional AirLocomotionScale
+└─ optional GravityScale
+
+ImpulseClip
+└─ optional GravityScale
+
+RootMotionClip
+└─ no MotionPolicy fields
+
+SelfRotationClip
+└─ no MotionPolicy fields
+
+VelocityClip
+└─ no MotionPolicy fields
+```
+
+原则：
+
+> 专用 `MotionPolicyClip` 可以表达纯 Policy 时间窗；其他 Clip 只暴露与自己行为存在明确直接关系的 Policy 参数，绝不统一嵌入完整 `MotionPolicyConfig`。
+
+`ImpulseClip.GravityScale` 的理由是：Impulse 可以定义一段自由弹道的初始速度，同时允许定义该弹道后续 Gravity 演化比例。
+
+Root Motion / Velocity Owner / Rotation 已有自己的 fixed arbitration，不用通过 LocomotionScale 等重复表达覆盖关系。
+
+---
+
+## 2.18 Animation：Base Locomotion + Temporary Action Override
+
+Animation 不采用：
+
+```text
+Locomotion 停止
+→ Action 独占整个 Animancer
+→ Action 结束后重新启动 Locomotion
+```
+
+高层模型：
+
+```text
+Locomotion animation
+→ Base semantic channel
+
+Action animation
+→ Temporary Override semantic channel
+```
+
+Locomotion animation state 可以在 Action override 期间继续更新，Action 淡出后自然露出最新 locomotion pose。
+
+目标关系：
+
+```text
+LocomotionController ─┐
+                      ├→ ActorAnimationRuntime → Animancer
+Action / Sequence ────┘
+```
+
+`ActorAnimationRuntime` 只拥有 animation 技术资源 / graph 操作：
+
+```text
+semantic layer / channel
+play / state
+weight / fade
+centralized Evaluate
+```
+
+不得理解 Attack / Dodge / Hit / Locomotion Mode entry condition 等 Gameplay 语义。
+
+Action animation session 生命周期属于 ActionPlayer / Action runtime；`AnimationPoseClip` 只描述具体 action pose / time，不拥有整个 Action override session。
+
+`Evaluate()` 必须从单个 PoseClip 中集中出去。
+
+具体 API 与 Driver phase 尚未冻结，见 Open Questions。
+
+---
+
+## 2.19 LocomotionController 当前边界
+
+`LocomotionController` 不负责阻止 Intent，也不是 Motor authority。
+
+长期职责方向：
+
+```text
+选择当前 Locomotion Mode
+管理 Idle / Run / Strafe / Air behavior
+管理 locomotion animation / mixer
+承载 locomotion-specific tuning / configuration
+```
+
+不得设计为：
+
+```text
+Input authority
+ActorMotor replacement
+Action / Locomotion 总状态切换器
+MotionPolicy 的常驻配置 owner
+```
+
+`LocomotionModeAsset` 的最终字段与 AnimationRuntime 边界仍待收口。
 
 ---
 
 # 3. Superseded / Rejected Decisions
 
-以下方向不得继续作为 E3 设计依据；其中部分仍可能存在于旧文档或当前兼容代码中。
+以下方向不得继续作为 E3 设计依据。
 
-## 3.1 输入与 Locomotion
-
-以下已被取代：
+## 3.1 Input / Locomotion
 
 ```text
 ActorLogicInput 作为 runtime input authority
-LocomotionController 作为 LocomotionIntent -> ActorMotor 必经中转层
-Player / AI 必须通过统一 Input Provider 抽象
+LocomotionController 作为 Intent -> Motor 必经中转
+Player / AI 必须走统一 Input Provider
 ```
 
-当前基线以 E2 的 `PlayerInputController + PlayerLocomotionIntentResolver` 和 AI 独立 intent producer 为准。
+均已取代。
 
 ---
 
-## 3.2 Action / Locomotion 总状态切换
+## 3.2 通用 Gameplay StateSystem / 整体 ownership transfer
 
-以下不得视为当前已批准架构：
+不得把以下当作已批准架构：
 
 ```text
-StateKind.Action / StateKind.Locomotion 已经批准并冻结
+StateKind.Action / StateKind.Locomotion 已冻结
 通用 Gameplay StateSystem
-Action 进入时整体夺取所有子系统控制权
+Action 进入时整体夺取 Animation / Movement / HitBox / Rotation 控制权
 ```
-
-`StateKind` 虽存在于旧 Architecture v2 路线描述，但没有明确批准证据；后续设计不得把它当作既定前提。
 
 ---
 
-## 3.3 Animation ownership
+## 3.3 旧 ActorMotor Runtime 划分
 
-以下旧方向被当前“Base + Override / independent channels”思路取代：
+以下当前代码结构不再代表长期架构边界：
 
 ```text
-进入 Action 后 LocomotionController 完全停止操控 Graph
-Action 独占整个 Animancer
-Action 结束后显式重新启动 Locomotion animation
+ActorMotor
+├─ LocomotionRuntime
+├─ FacingRuntime
+└─ ActorMotionRuntime
 ```
 
-最终细节仍待 Animation 收口，但不再回到整体 ownership transfer 模型。
+目标改为：
+
+```text
+ActorMotor
+├─ LocomotionRunner
+├─ Translation Domain
+├─ Rotation Domain
+└─ Supporting State
+```
 
 ---
 
@@ -732,87 +893,88 @@ ActorRootMotionRelay
 RootMotionApplyMode.Managed 作为正式运动来源
 ```
 
-该路径后续应删除，不再纳入最终 Motor arbitration contract。
-
 ---
 
-## 3.5 水平 Motion 提交阻断
+## 3.5 Channel submission 阻断
 
-以下已明确否决：
+明确否决：
 
 ```text
-Trajectory Begin -> Clear HorizontalImpulse
-Trajectory active -> Reject HorizontalImpulse submission
-HorizontalVelocityOwner active -> Reject lower channel submission
+RootMotion Begin -> Clear HorizontalImpulse
+RootMotion active -> Reject HorizontalImpulse
+VelocityOwner active -> Reject lower channel submission
 ```
 
 Submission 与 Compose 必须分离。
 
 ---
 
-## 3.6 垂直双状态模型
+## 3.6 垂直双状态
 
-以下不再作为目标模型：
+不再使用：
 
 ```text
-GravityAccumulator
-+
-VerticalImpulseVelocity
-→ 最终自由垂直速度
+GravityAccumulator + VerticalImpulseVelocity
 ```
 
-目标模型改为单一 `BallisticVerticalVelocity`。
+目标是 `BallisticVerticalVelocity`。
 
 ---
 
-## 3.7 Grounded 自动结束 scripted velocity
+## 3.7 Grounded 自动结束 VerticalVelocityOwner
 
-以下已否决：
+明确否决：
 
 ```text
 Grounded / Landed
 → ActorMotor 自动 EndVerticalVelocityOwner
 ```
 
-Grounding 只约束最终物理输出和 Ballistic 状态，不接管外部 Owner 生命周期。
+Grounding 不接管外部 owner 生命周期。
+
+---
+
+## 3.8 Facing 作为 Motor 总 Rotation 模型
+
+`Facing` 只保留为 locomotion/base facing 语义，不再代表 ActorMotor 的总旋转系统。
+
+总 Domain 名称固定为：
+
+```text
+Rotation
+├─ Locomotion Rotation
+├─ Root Rotation
+└─ Scripted Rotation
+```
+
+---
+
+## 3.9 通用 MotionPolicyModifier / Action-level Policy
+
+以下方向已被后续讨论取代：
+
+```text
+ActionAsset 默认持有一整组 MotionPolicy contribution
+一个来源 = 一个完整 MotionPolicyModifier owner
+所有 Motion Clip 都暴露完整 MotionPolicyConfig
+新建 MotionPolicyRuntime 作为一级 Runtime
+```
+
+当前基线是：
+
+```text
+Sequence Clip authoring
++
+Policy parameter-level ownership
++
+MotionPolicy 只是 ActorMotor supporting state
+```
 
 ---
 
 # 4. Open Questions
 
-以下问题仍未冻结。后续讨论必须将其从 Open Question 明确转为 Confirmed Decision 后，才可进入最终架构文档。
-
-## 4.1 MotionPolicy
-
-需要逐项确认：
-
-```text
-Policy 到底包含哪些参数
-LocomotionScale / SuppressLocomotion 如何表达
-GravityScale
-AirControlScale
-FacingEnabled / Facing policy 是否属于 MotionPolicy
-RootMotion 相关参数是否还需要存在
-其他参数是否有真实需求
-```
-
-同时需要定义：
-
-```text
-同一参数多个 modifier 的合成规则
-Min / Multiply / Override / Priority 等分别适用于哪些字段
-Action default contribution
-Clip contribution
-token ownership / release
-EffectivePolicy 何时求值
-ActorMotor 如何读取
-```
-
-原则已确认，但具体模型尚未设计完成。
-
----
-
-## 4.2 ActorAnimationRuntime
+## 4.1 ActorAnimationRuntime
 
 仍需确认：
 
@@ -821,50 +983,37 @@ ActorMotor 如何读取
 Locomotion semantic channel 的具体职责
 Action semantic channel 的具体职责
 Action animation session begin/end
-AnimationPoseClip 是否允许 session 内存在空档
-Action A -> Action B 是否保持 override channel 连续
-fade / weight 如何按 fixed simulation time 推进
+AnimationPoseClip 是否允许 session 内空档
+Action A -> Action B handoff
+fade / weight 的 fixed-tick 语义
 Evaluate 的 Driver phase
 HitBox bone pose 与 Evaluate 的 tick 对齐关系
 ```
 
 ---
 
-## 4.3 LocomotionController / LocomotionModeAsset
+## 4.2 LocomotionController / LocomotionModeAsset
 
-需要在新的“Intent 直接到 Motor + MotionPolicy + AnimationRuntime”框架下重新收口：
+仍需在新的 ActorMotor / LocomotionRunner / AnimationRuntime 模型下收口：
 
 ```text
 Mode 的最小职责
-ModeAsset 哪些字段属于 Gameplay
-哪些字段属于 Animation
-哪些字段转换为 MotionPolicy contribution
-Mode Tags 的 ownership / release
-Mode transition / Claim 生命周期
-Fallback 的最终 contract
+ModeAsset 最终字段
+BaseSpeed / AirControlFactor / RotateSpeed 的具体配置归属
+Locomotion animation config
+Mode selection / Priority / Claim / Fallback contract
+Mode Tags ownership / release
 ```
 
 不得机械照搬旧 Architecture v2 中“Locomotion 域独占 Motor / Animancer”的描述。
 
 ---
 
-## 4.4 Animation Evaluate 与 Driver 顺序
+## 4.3 Animation Evaluate 与 Driver 顺序
 
-HitBox 可能依赖 bone Transform，因此最终必须明确：
+HitBox 可能依赖 bone Transform，因此必须最终冻结 animation pose 与 hit detection 的同 Tick 顺序。
 
-```text
-ALL Animation Requests
-→ ALL Animation Evaluate
-→ Movement
-→ Physics Sync
-→ HitDetection
-```
-
-或其他等价的固定顺序。
-
-当前只确认 `Evaluate()` 需要集中；确切 phase 尚未冻结。
-
-任何调整不得破坏已经冻结的：
+已经冻结的底线不能破坏：
 
 ```text
 ALL movement complete
@@ -873,69 +1022,100 @@ ALL movement complete
 → HitResolution
 ```
 
+具体 `Animation Evaluate` 插入点仍待 Animation 章节确认。
+
+---
+
+## 4.4 实现层收尾（非架构大问题）
+
+以下属于落地时需要决定的实现细节，不重新开放上述架构原则：
+
+```text
+MotionPolicy 内部 token / container 具体类型
+Effective Policy 在 modifier 变化时还是固定 Tick 求值
+MotionPolicyClip authoring 的 optional field Inspector 表达
+旧 LocomotionRuntime / FacingRuntime / ActorMotionRuntime 的迁移顺序
+旧 SelfRotationBuffer 向 Root / Scripted Rotation owner stack 的迁移
+```
+
 ---
 
 # 5. 当前目标架构快照
 
-截至本 Checkpoint，可以用以下关系图表达当前已确认方向：
-
 ```text
-                   INPUT / AI
-                       │
-                       ▼
-               LocomotionIntent
-                       │
-                       │
-Gameplay / Action      │
-      │                │
-      ├── MotionPolicy ┤
-      │                │
-      ├── Motion Channels ───────────┐
-      │                              │
-      │                        ActorMotor
-      │                     fixed arbitration
-      │                              │
-      │                              ▼
-      │                             KCC
-      │
-      ├── Animation Contribution ─→ ActorAnimationRuntime ─→ Animancer
-      │
-      ├── HitBox Window ───────────→ ActorHitBoxRuntime
-      │
-      ├── Tags
-      └── other scoped contributions
+                         INPUT / AI
+                             │
+                             ▼
+                     LocomotionIntent
+                             │
+                             ▼
+                      LocomotionRunner
+                       │           │
+                       │           └→ Locomotion Rotation
+                       └→ Locomotion Translation
+
+Sequence Motion Clips ───────┐
+MotionPolicy Clips ──────────┤
+                             ▼
+                         ActorMotor
+              movement authority / KCC adapter
+                  │                     │
+                  ▼                     ▼
+            Translation              Rotation
+                  │                     │
+                  └──────────┬──────────┘
+                             ▼
+                            KCC
+
+LocomotionController ─┐
+                      ├→ ActorAnimationRuntime → Animancer
+Action / Sequence ────┘
+
+Sequence HitBox Window
+→ Actor HitBox runtime/state
+→ Post-Movement HitDetection
+→ HitResolution
 ```
 
-Motor 内部：
+Translation：
 
 ```text
 HORIZONTAL
 
 HorizontalVelocityOwner
-        >
-Trajectory Root Motion
-        >
+>
+Root Motion
+>
 Locomotion + HorizontalImpulse
 ```
 
 ```text
 VERTICAL
 
-BallisticVerticalVelocity
-    ← Gravity continuous evolution
-    ← external Add / Set
+VerticalVelocityOwner exists
+    ? TopOwnerVelocity
+    : BallisticVerticalVelocity
+```
 
-VerticalVelocityOwner Stack
-    ↓
+Rotation：
 
-if owner exists
-    Vertical = TopOwnerVelocity
-else
-    Vertical = BallisticVerticalVelocity
+```text
+Scripted Rotation
+>
+Root Rotation
+>
+Locomotion Rotation
+```
 
-Grounded
-    → FinalVertical = 0
-    → BallisticVerticalVelocity = 0
+MotionPolicy：
+
+```text
+LocomotionScale       Min
+AirLocomotionScale    Min
+GravityScale          Multiply
+
+neutral = 1
+parameter-level ownership
 ```
 
 ---
@@ -943,7 +1123,7 @@ Grounded
 # 6. 后续使用规则
 
 1. 本文是 E3 正式实现前的讨论 checkpoint，不直接替代 `Final_Architecture_v2`。
-2. 当旧架构文档与本文明确冲突时，E3 后续讨论不得继续把已被本 Checkpoint 标记为 superseded 的旧方向当作前提。
-3. 后续每完成一个 Open Question，应先形成明确 Confirmed Decision，再进入实现计划。
-4. MotionPolicy、AnimationRuntime、LocomotionController / ModeAsset 全部收口后，再统一生成新的 Final Architecture 版本；不要在旧 v2 上持续堆叠互相冲突的局部补丁。
-5. E3 Implementation Plan 应建立在收口后的最终架构上，而不是直接建立在本 Checkpoint 的未决项上。
+2. 当旧架构文档与本文明确冲突时，以本文已确认 / superseded 内容作为后续 E3 讨论基线。
+3. 不再重新讨论已经冻结的 Translation / Vertical / Rotation / MotionPolicy 核心语义，除非出现新的真实玩法需求或发现明确矛盾。
+4. 下一阶段优先收口 `ActorAnimationRuntime`，随后收口 `LocomotionController / LocomotionModeAsset`。
+5. Animation 与 Locomotion 两块收口后，再统一生成 Final Architecture v3，并据此制定 E3 Implementation Plan。
