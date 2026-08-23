@@ -1,49 +1,66 @@
 # Documentation Index
 
-> Last audited against `FrameWork` at `9d568e97`: 2026-08-07
+> Last documentation authority audit: 2026-08-24 (`FrameWork`)
 
-`Docs` is divided by document authority. A file's directory is part of its status; do not treat archived records or proposals as active work.
+`Docs` is divided by document authority. Directory placement is part of document status: `Current/` is verified fact/reference, `Proposals/` is active design work, and `Archive/` is historical context. Do not treat an old plan as current just because its technical details are still useful.
 
 ## Current
 
-- [Project Structure](Current/Project_Structure.md) — factual repository layout and scene entry points.
-- [Scene Ownership Baseline](Current/Scene_Ownership_Baseline_2026-08-02.md) — current release and targeted validation scenes.
-- [Actor Motion Validation](Current/Actor_Motion_Validation.md) — current behavior checklist; historical PlayMode results are explicitly marked and need rerunning.
-- [ActionSequence 大迭代复盘与当前架构说明](Current/ActionSequence_Iteration_Retrospective_2026-08-07_zh-CN.md) — Stage 0–7 的中文复盘、当前完成度、验证边界与后续方向。
-- [ActionSequence Editor Design Spec](Current/ActionSequence_Editor_Design_Spec.md) — fixed-frame ActionSequence 的产品语言基线；部分早期 non-goal 已在 V2 后续阶段实现。
-- [ActionSequence Editor Implementation Audit](Current/ActionSequence_Editor_Implementation_Audit_2026-08-02.md) — Prototype 的历史问题快照；不能作为当前缺陷列表。
-- [ActionSequence Editor V2 Architecture](Current/ActionSequence_Editor_V2_Architecture.md) — 已实现的 UI Toolkit 编辑器与 Stage 7 Runtime 架构基线。
-- [ActionSequence 编辑器 V2 架构（中文）](Current/ActionSequence_Editor_V2_Architecture_zh-CN.md) — 当前 V2 架构的完整中文版本。
+These documents may be used as current repository/editor references, subject to their own verification dates.
 
-## Proposals
+- [Project Structure](Current/Project_Structure.md) — factual repository layout and scene entry points. Last verified 2026-08-02; refresh before relying on it for broad file-migration planning.
+- [Scene Ownership Baseline](Current/Scene_Ownership_Baseline_2026-08-02.md) — current release and targeted validation scene ownership. Refresh before changing scene/build ownership.
+- [ActionSequence Editor Design Spec](Current/ActionSequence_Editor_Design_Spec.md) — ActionSequence fixed-frame editor product-language baseline.
+- [ActionSequence Editor V2 Architecture](Current/ActionSequence_Editor_V2_Architecture.md) — implemented UI Toolkit editor architecture.
+- [ActionSequence 编辑器 V2 架构（中文）](Current/ActionSequence_Editor_V2_Architecture_zh-CN.md) — implemented V2 editor architecture, Chinese edition.
 
-- [CombatSample ActionSequence 最终架构 v2](Proposals/CombatSample_ActionSequence_Final_Architecture_v2_zh-CN.md) — approved implementation baseline, now partially implemented: the project-side KCC Driver, 60 Hz fixed world clock, Sequence phasing, fractional PoseRefresh, AnimationConfig/Baker, Stage D1 Pose + XZ RootMotion, D2 SelfRotation, and D3 VelocityOverride have landed; LocomotionController, Timeline migration, and two-stage Hit resolve remain staged work.
-- [帧表迁移完整落地方案（历史草案）](Proposals/帧表迁移完整落地方案_历史草案.md) — not approved and not executable as written. Requires a new go/no-go decision and redesign against the current Timeline-based action system.
+The former Actor Motion validation checklist, Stage 0–7 retrospective, and Prototype implementation audit have been moved to `Archive/` because their runtime/current-status sections predate the E1/E2/E3 architecture changes.
+
+## Active Proposals / Architecture Work
+
+Authority for the current E3 design work is:
+
+1. [E3 Pre-Design Checkpoint](Proposals/CombatSample_E3_PreDesign_Checkpoint_zh-CN.md) — highest current authority for the E3 Input / ActorLocomotion / ActorMotor / Animation / MotionPolicy / HitDetection decisions. It explicitly supersedes conflicting E2-era directions.
+2. [v3 Source Audit](Proposals/CombatSample_Final_v3_Source_Audit_zh-CN.md) — classifies which parts of older architecture/design documents are retained, superseded, historical, or still need verification before writing Final Architecture v3.
+3. [ActionSequence Final Architecture v2](Proposals/CombatSample_ActionSequence_Final_Architecture_v2_zh-CN.md) — legacy approved baseline and implementation history. It remains an important source, but is **partially superseded by the E3 checkpoint** and must not be treated as the current final architecture where they conflict.
+
+`Final Architecture v3` has not yet been written. Until it exists, the E3 checkpoint wins over conflicting v2 runtime responsibilities.
+
+## Design Source Pending v3 Consolidation
+
+- [Root Motion Final Design v1](CombatSample_RootMotion_Final_Design_v1.md) — retain its Baker approach, cumulative trajectory data model, SE(3) extraction/composition mathematics, and requested-vs-actual motion distinction as v3 source material. Its older runtime ownership/policy, Animator Root Motion compatibility, and Facing-era rules are not current authority.
 
 ## Archive
 
-- [Camera SoftLock 交接报告](Archive/Camera_SoftLock_Handoff_Report.md) — obsolete branch handoff and failed experiment snapshot.
-- [KCC 接入第二阶段改造方案](Archive/KCC接入第二阶段改造方案.md) — completed implementation plan.
-- [KCC 接入复盘总结](Archive/KCC接入复盘总结.md) — historical implementation review.
-- [ActorMotor Runtime 架构落地计划](Archive/actor-motor-runtime-refactor.md) — completed and subsequently superseded refactor plan.
-- [项目最终建议（帧表迁移之外）](Archive/项目最终建议_帧表迁移之外.md) — historical recommendation list, mostly completed.
+`Archive/` contains completed implementation plans, superseded runtime designs, historical audits, retrospectives, and old recommendations. They may explain why code or architecture evolved, but they are not executable/current plans.
+
+Notable archived records now include:
+
+- `CombatSample_ActionSequence_Stage_D5_Simplification_zh-CN.md` — completed D5 implementation plan.
+- `CombatSample_ActionSequence_Stage_E1_ASM_Fixed_Tick_zh-CN.md` — completed E1 implementation record.
+- `CombatSample_ActionSequence_Stage_E2_Player_Input_Locomotion_zh-CN.md` — completed E2 implementation record.
+- `帧表迁移完整落地方案_历史草案.md` — explicitly unapproved historical migration draft.
+- `Actor_Motion_Validation.md` — old ActorMotionRuntime/GravityAccumulator/Animator-RM behavior checklist; superseded as a current validation contract by the E3 motor design.
+- `ActionSequence_Iteration_Retrospective_2026-08-07_zh-CN.md` — Stage 0–7 historical retrospective.
+- `ActionSequence_Editor_Implementation_Audit_2026-08-02.md` — Prototype historical issue snapshot.
+- KCC migration/refactor reports and older project recommendations already archived before this audit.
 
 ## Current Follow-ups
 
-These are current observations, not approved implementation tasks:
+These are observations or documentation tasks, not automatically approved implementation work:
 
-- Rerun the Actor Motion PlayMode checklist, especially double jump and current External RootMotion rotation behavior.
-- Decide whether a new broad development scene is needed; currently only release and targeted validation entry points are designated.
-- Consider an Inspector warning for Poll actions with empty entry conditions.
-- Consider an Action arbitration diagnostics tool if action-table debugging cost justifies it.
-- Run one representative Timeline-to-Sequence vertical action migration before choosing the next ActionSequence feature stage.
-- Systematically validate Animancer, HitBox, HitStop, cross-backend cancellation, loop, and Actor disable cleanup through the formal ActionPlayer path.
-- Confirm in Unity that the obsolete, currently unreferenced `CharacterControllerRigidbodyPush` component can be deleted.
+- Write Final Architecture v3 from the E3 checkpoint plus the retained portions classified in the v3 Source Audit.
+- After v3 is approved, archive Final Architecture v2 and the E3 checkpoint as historical design inputs.
+- Rebuild the Actor Motion validation checklist against the v3 Translation / Rotation / Ballistic / MotionPolicy contracts before the corresponding refactor is considered complete.
+- Refresh `Project_Structure.md` and scene ownership dates when implementation planning begins if repository/scene facts are material to that plan.
+- Keep editor architecture documents current only for editor/runtime-boundary changes that actually affect them; do not fold ActorMotor design into editor docs.
 
 ## Maintenance Rules
 
-- `Current/` documents must describe verified repository facts or repeatable current validation procedures.
-- `Proposals/` documents must state approval status, assumptions, migration scope, and validation requirements.
+- `Current/` documents must describe verified repository facts, implemented architecture, or repeatable current validation procedures.
+- `Proposals/` documents must state approval/authority status, assumptions, migration scope, and validation requirements.
 - `Archive/` documents are immutable historical context except for status banners or broken-link corrections.
-- Add the verification date when refreshing a current document.
+- Add the verification date when refreshing a Current document.
+- Completed stage implementation plans belong in `Archive/`, not `Proposals/`.
 - Do not infer that a document is current from its Git modification date alone.
+- When architecture sources conflict during the v3 transition: **E3 Checkpoint > current verified code facts > v2/root-motion legacy design sources > Archive history**.
