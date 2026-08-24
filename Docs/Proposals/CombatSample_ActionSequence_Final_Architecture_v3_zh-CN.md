@@ -1,6 +1,6 @@
 # CombatSample Final Architecture v3
 
-> 状态：Review Draft；已完成第一轮 Architecture Review 修订，仍不是 E3 Implementation Plan。
+> 状态：Review Draft；已完成第一轮 Architecture Review 与 Driver 7-Phase Model 修订，仍不是 E3 Implementation Plan。
 >
 > 日期：2026-08-25
 >
@@ -1419,64 +1419,105 @@ Resolve 与 Query 分离，避免一个 Actor 的伤害副作用影响另一个 
 
 # 15. CombatSimulationDriver
 
-## 15.1 根本职责
+## 15.1 根本职责与边界
 
 `CombatSimulationDriver` 的根本职责是：
 
-> **显式规定 Combat World 的执行顺序。**
+> **拥有 Combat World 的 Phase Order，而不是拥有 Actor 内部 Domain。**
 
 60Hz 是 timestep policy，不是 Driver 的身份。
 
-Driver 不接管普通 Camera / UI / VFX / Audio 的 Unity lifecycle，也不允许任意子系统注册 generic phase callback。
+Driver 负责决定“什么阶段先发生、什么阶段后发生”，但不负责理解某个 Actor 内部如何完成 Animation、Motion、Action 或 HitBox 的具体工作。
 
-每个 Actor 只通过一个 `ActorSimulationRuntime` 参加 fixed simulation。
-
-## 15.2 全局 Phase Barrier
-
-目标顺序：
+固定边界：
 
 ```text
-1. Capture Actor Snapshot
-2. KCC PreSimulationInterpolationUpdate（若启用）
+CombatSimulationDriver
+= World Phase Order
 
-3. ALL Control Production
-   - Player locomotion intent
-   - AI locomotion intent
-   - ActorLocomotion Mode selection / profile update
+ActorSimulationRuntime
+= per-Actor simulation boundary / phase routing
 
-4. ALL Action Decision / ActionSequence
-   - ActionStateManager.DecideAction
-   - ActionPlayer.PlayActionFrame / Sequence contributions
-
-5. ALL ActorLocomotion Animation Updates
-   - update Locomotion Base state
-
-6. ALL ActorAnimation Evaluate
-   - resolve Locomotion Base + Action Override
-   - each Actor exactly once per Combat Tick
-
-7. ALL ActorMotor Preparation
-   - LocomotionRunner
-   - Translation / Rotation state update
-   - MotionPolicy effective values
-   - final RequestedVelocity / RequestedRotation
-
-8. KCC World Movement
-   - KinematicCharacterSystem.Simulate
-   - ActorCollisionResolver
-
-9. Physics.SyncTransforms（需要时）
-
-10. ALL HitDetection
-11. CombatHitBuffer Resolve
-
-12. ALL FinishActionFrame
-   - frame-end Clip Exit / Action completion
-
-13. KCC PostSimulationInterpolationUpdate（与 Pre 配对）
+Actor internal domains
+= Action / ActorLocomotion / ActorAnimation / ActorMotor / HitBox runtime
 ```
 
-最重要的不变量：
+因此 Driver 可以直接知道真正的 **world-level system / barrier**，例如：
+
+```text
+PlayerInputController（全局玩家输入 producer）
+KinematicCharacterSystem
+ActorCollisionResolver
+Physics.SyncTransforms
+CombatHitBuffer
+```
+
+但 Driver 不直接编排：
+
+```text
+ActorLocomotion
+ActionStateManager
+ActionPlayer
+ActorAnimation
+ActorMotor
+ActorHitBoxRuntime
+LocomotionRunner
+MotionPolicy
+Translation / Rotation internals
+```
+
+这些 per-Actor subsystem 只能通过 `ActorSimulationRuntime` 的明确 phase entry 进入固定模拟。
+
+> **Driver 知道 Phase，不知道 Actor 内部 Subsystem。**
+
+Driver 也不接管普通 Camera / UI / VFX / Audio 的 Unity lifecycle，并继续禁止任意子系统向 Driver 注册 generic phase callback。
+
+## 15.2 正式 7-Phase Model
+
+Combat fixed simulation 的一级 Phase Model 固定为：
+
+```text
+1. Input / Control
+2. Action
+3. Animation
+4. Motion
+5. World
+6. Hit
+7. Finish
+```
+
+含义：
+
+```text
+Input / Control
+= 生产本 Tick control intent，并选择稳定 locomotion profile
+
+Action
+= fixed-tick Action arbitration + ActionSequence contribution production
+
+Animation
+= 汇总本 Tick animation state / pose contribution，并得到最终 skeleton pose
+
+Motion
+= ActorMotor 推进运动状态、完成 Translation / Rotation arbitration、产出 requested motion
+
+World
+= KCC / actor collision / transform sync，得到最终 world result
+
+Hit
+= 基于最终 skeleton + world transform 做统一 query，并统一 Resolve
+
+Finish
+= 关闭本 Tick frame lifecycle，执行 frame-end Exit / Action completion 等收尾
+```
+
+这七个 Phase 是长期架构语言。以后新增 fixed-simulation 行为，首先判断它属于哪个现有 Phase；不得因为新增一个 subsystem 就机械增加一个新的 Driver 一级 Phase。
+
+只有出现无法由现有 Phase 表达、并且确实需要新的 **world-level ordering barrier** 的需求时，才重新讨论 Phase Model。
+
+## 15.3 Global Barrier 原则
+
+一级 Phase 始终遵守：
 
 ```text
 ALL Actors Phase A
@@ -1487,13 +1528,170 @@ ALL Actors Phase A
 禁止：
 
 ```text
-Actor A: Decide → Sequence → Move → Hit
-Actor B: Decide → Sequence → Move → Hit
+Actor A: Control → Action → Animation → Motion → Hit
+Actor B: Control → Action → Animation → Motion → Hit
 ```
 
-## 15.3 Mode → Action 的依赖方向
+一个一级 Phase 内部允许存在必要的固定 sub-barrier，但 sub-barrier 同样由 Driver / ActorSimulationRuntime contract 明确表达，而不是依赖 Component execution order。
 
-Phase 3 的 `ActorLocomotion` selection 在 Phase 4 Action arbitration 之前完成，这是固定顺序，不是偶然的 Component execution order。
+例如 Action Phase 第一版需要：
+
+```text
+ALL Action Decision
+→ ALL ActionSequence Advance / contributions
+```
+
+Hit Phase 需要：
+
+```text
+ALL Hit Query
+→ CombatHitBuffer Resolve
+```
+
+这些属于一级 Phase 内部的 execution contract，不因此扩张新的顶层 Phase。
+
+## 15.4 Detailed Execution Contract
+
+7-Phase Model 外围允许存在 KCC interpolation 与 tick snapshot 的边界操作；它们不是新的 Gameplay Phase。
+
+完整第一版执行合同：
+
+```text
+Tick Boundary Setup
+- Capture Actor Snapshot
+- KCC PreSimulationInterpolationUpdate（若启用）
+
+Phase 1 — Input / Control
+- Player / AI 生产 LocomotionIntent
+- ALL ActorSimulationRuntime.Control
+  - ActorLocomotion Mode selection / profile update
+
+Phase 2 — Action
+- ALL ActorSimulationRuntime.DecideAction
+- ALL ActorSimulationRuntime.AdvanceAction
+  - ActionPlayer / ActionSequence fixed-frame contributions
+
+Phase 3 — Animation
+- ALL ActorSimulationRuntime.EvaluateAnimation
+  - update current Locomotion Base state
+  - resolve Locomotion Base + Action Override
+  - ActorAnimation Evaluate exactly once
+
+Phase 4 — Motion
+- ALL ActorSimulationRuntime.PrepareMotion
+  - LocomotionRunner
+  - Translation / Rotation state evolution
+  - MotionPolicy effective values
+  - final RequestedVelocity / RequestedRotation
+
+Phase 5 — World
+- KinematicCharacterSystem.Simulate
+- ActorCollisionResolver.ResolveFixedStep
+- Physics.SyncTransforms（需要时）
+
+Phase 6 — Hit
+- ALL ActorSimulationRuntime.DetectHits
+- CombatHitBuffer.Resolve
+
+Phase 7 — Finish
+- ALL ActorSimulationRuntime.FinishFrame
+  - frame-end Clip Exit / Action completion
+
+Tick Boundary Teardown
+- KCC PostSimulationInterpolationUpdate（与 Pre 配对）
+```
+
+上述 `Control / DecideAction / AdvanceAction / EvaluateAnimation / PrepareMotion / DetectHits / FinishFrame` 是 **架构级 phase entry 的示意名称**，不冻结最终 public API 方法名。
+
+重要的是依赖边界：Driver 对 Actor 只看到 `ActorSimulationRuntime`，由 Runtime 再把对应阶段路由到 Actor 内部 owner。
+
+## 15.5 ActorSimulationRuntime 的定位
+
+`ActorSimulationRuntime` 的价值不是增加一个新的 Runtime Domain，而是防止 Driver 随着系统增加而不断认识 Actor 内部细节。
+
+结构固定理解为：
+
+```text
+CombatSimulationDriver
+        │
+        │  world phase
+        ▼
+ActorSimulationRuntime
+        │
+        ├→ Action domain
+        ├→ ActorLocomotion
+        ├→ ActorAnimation
+        ├→ ActorMotor
+        └→ ActorHitBoxRuntime
+```
+
+它只做：
+
+```text
+持有 / 解析该 Actor 的 simulation references
+把 world phase 转发给正确 domain
+保护 per-tick lifecycle / abort cleanup
+```
+
+它不做：
+
+```text
+Gameplay arbitration
+Movement arbitration
+Animation blending
+Locomotion mode decision
+Hit result resolution
+```
+
+这些职责仍由各自 Domain owner 持有。
+
+同样，不建立 `IPhaseListener`、callback registry、generic scheduler 等为了减少几行显式代码而引入的抽象。固定少量 phase entry 比动态注册关系更容易阅读、验证和维护。
+
+## 15.6 Animation / Motion 内部顺序不泄漏到 Driver
+
+v3 文档需要描述内部依赖，但这些描述不等于 Driver 必须逐项直接调用 subsystem。
+
+例如 Animation Phase 的 Actor 内部合同可以是：
+
+```text
+update Locomotion Base
+→ resolve Action Override
+→ ActorAnimation.Evaluate
+```
+
+第一版这些操作没有跨 Actor dependency，因此可以由单个：
+
+```text
+ActorSimulationRuntime.EvaluateAnimation(simulationDt)
+```
+
+在该 Actor 内部连续完成。
+
+同理 Motion Phase 内部：
+
+```text
+LocomotionRunner
+→ channel evolution
+→ Translation / Rotation arbitration
+→ Requested Motion
+```
+
+属于：
+
+```text
+ActorSimulationRuntime.PrepareMotion(simulationDt)
+→ ActorMotor
+```
+
+Driver 不认识 `LocomotionRunner / MotionPolicy / Translation / Rotation`。
+
+原则：
+
+> **v3 中的 subsystem 顺序描述 dependency contract，不代表 Driver 对这些 subsystem 建立直接依赖。**
+
+## 15.7 Mode → Action 的依赖方向
+
+Input / Control Phase 的 `ActorLocomotion` selection 在 Action Phase arbitration 之前完成，这是固定顺序，不是偶然的 Component execution order。
 
 本 Tick 新 Action 的 Enter / SelfTags / Clip contribution 不反向重新触发本 Tick Mode selection。
 
@@ -1509,7 +1707,7 @@ Tick-start stable state
 
 如果 Action 需要限制自由移动、改变 authored movement 或控制朝向，应直接提交 MotionPolicy / Translation / Rotation contribution，而不是要求 ActorLocomotion 在同 Tick 重新选一次 Mode。
 
-## 15.4 Produce → Consume
+## 15.8 Produce → Consume
 
 同一个 Combat Tick 内，本 Tick producer 的输出应由本 Tick consumer 使用。
 
@@ -1521,9 +1719,9 @@ Produce Intent N
 → expire / replace according to channel contract
 ```
 
-Action / Sequence、Locomotion、Animation、Motor、HitBox 的顺序都必须通过 Driver 的 phase barrier 表达，而不是依赖 MonoBehaviour Script Execution Order 的偶然关系。
+Action / Sequence、Locomotion、Animation、Motor、HitBox 的顺序都必须通过 7-Phase Model 与必要 sub-barrier 表达，而不是依赖 MonoBehaviour Script Execution Order 的偶然关系。
 
-## 15.5 Combat simulation time / HitStop
+## 15.9 Combat simulation time / HitStop
 
 Driver 的 phase barrier 与 Actor 的 simulation time 是两个概念。
 
@@ -1742,6 +1940,22 @@ ActorLocomotion Mode selection
 
 Action 的 movement 权限与覆盖通过独立 control channels 表达，不通过 `ActionMode / LocomotionMode` whole-actor ownership transfer。
 
+## 18.10 Driver Boundary / 7-Phase Model
+
+```text
+CombatSimulationDriver
+→ owns Input/Control → Action → Animation → Motion → World → Hit → Finish order
+
+per-Actor execution
+→ only through ActorSimulationRuntime
+```
+
+Driver 不得随着系统增加而直接依赖 `ActorLocomotion / ActionStateManager / ActionPlayer / ActorAnimation / ActorMotor / ActorHitBoxRuntime` 等 Actor 内部 subsystem。
+
+一级 Phase 的数量由 world-level ordering dependency 决定，不由“项目里有多少 subsystem”决定。
+
+不得通过 generic callback / phase listener registry 隐藏真实执行顺序；固定显式 phase entry 是当前长期方案。
+
 ---
 
 # 19. Implementation Gaps：不是 Open Architecture
@@ -1765,6 +1979,8 @@ ActionMotionConfig / ActionInstance whole-action motor rewrite 迁移
 旧 ActorLogicInput runtime path 清理
 Legacy Timeline 内容迁移
 HitStop / simulation time contract 统一
+CombatSimulationDriver 收敛为 7-Phase façade
+ActorSimulationRuntime 补齐明确 phase routing，避免 Driver 直接认识 Actor 内部 subsystem
 ```
 
 已有 `ActionStateManager / ActionPlayer` 的 fixed-tick action arbitration / playback 职责属于应保留并接入 v3 的现有基础，不是需要删除的旧系统。
@@ -1778,16 +1994,18 @@ LocomotionAnimationProfile 数据结构
 crossfade 参数具体配置位置
 Pose mixer parameter 数据结构
 MotionPolicy token/container 类型
+ActorSimulationRuntime phase entry 的最终方法名
+Driver 各 Phase helper 的具体代码组织
 serialized authored order 的具体实现
 Inspector validation 细节
 Baker backend 的内部组织方式
 迁移提交切片与测试顺序
 ```
 
-这些实现选择必须服从本文 Domain / authority / arbitration，不得为了局部方便重新引入旧的 whole-domain ownership、Generic Runtime 或 God Component。
+这些实现选择必须服从本文 Domain / authority / arbitration，不得为了局部方便重新引入旧的 whole-domain ownership、Generic Runtime、generic scheduler 或 God Component。
 
 ---
 
 # 20. Final Architecture v3 一句话
 
-> **Player / AI 产生 LocomotionIntent；ActorLocomotion 先选择当前 Locomotion Profile；ActionStateManager 在 fixed Tick 仲裁 Action 并由 ActionPlayer 管理播放生命周期；ActionSequence 以 fixed frame 产生局部 Gameplay contribution；ActorAnimation 独占动画表现；ActorMotor 以 Translation / Rotation 两大 Domain 固定仲裁全部运动请求并交给 KCC；CombatSimulationDriver 通过全局 phase barrier 与统一 Combat simulation time，让所有 Actor 在同一世界状态上完成动画、移动、Hit Query 与统一 Resolve。**
+> **Player / AI 产生 LocomotionIntent；ActorLocomotion 先选择当前 Locomotion Profile；ActionStateManager 在 fixed Tick 仲裁 Action 并由 ActionPlayer 管理播放生命周期；ActionSequence 以 fixed frame 产生局部 Gameplay contribution；ActorAnimation 独占动画表现；ActorMotor 以 Translation / Rotation 两大 Domain 固定仲裁全部运动请求并交给 KCC；CombatSimulationDriver 只拥有 Input / Control → Action → Animation → Motion → World → Hit → Finish 的 World Phase Order，并通过 ActorSimulationRuntime 进入每个 Actor，使所有 Actor 在统一 barrier 与 Combat simulation time 下完成确定性模拟。**
