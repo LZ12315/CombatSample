@@ -1,8 +1,8 @@
 # CombatSample Final Architecture v3
 
-> 状态：Review Draft；基于已经收口的 E3 架构决策整理，不是 E3 Implementation Plan。
+> 状态：Review Draft；已完成第一轮 Architecture Review 修订，仍不是 E3 Implementation Plan。
 >
-> 日期：2026-08-24
+> 日期：2026-08-25
 >
 > 主要输入：[`CombatSample_E3_PreDesign_Checkpoint_zh-CN.md`](CombatSample_E3_PreDesign_Checkpoint_zh-CN.md)、[`CombatSample_Final_v3_Source_Audit_zh-CN.md`](CombatSample_Final_v3_Source_Audit_zh-CN.md)。
 >
@@ -35,17 +35,21 @@ ActionInstance / ActionSequence lifecycle
 各领域拥有自己的 authority 与固定仲裁：
 
 ```text
-Input authority             → PlayerInputController / AI producer
-Locomotion profile authority→ ActorLocomotion
-Movement authority          → ActorMotor
-Animation authority         → ActorAnimation
-Action time authority       → ActionSequence
-Authored root data authority→ RootMotionTrajectory
-World movement result       → KCC + ActorCollisionResolver
-Hit query state             → ActorHitBoxRuntime
-Hit resolution              → CombatHitBuffer
-World execution order       → CombatSimulationDriver
+Input authority              → PlayerInputController / AI producer
+Locomotion profile authority → ActorLocomotion
+Action arbitration authority → ActionStateManager
+Action playback authority    → ActionPlayer
+Action time authority        → ActionSequence
+Movement authority           → ActorMotor
+Animation authority          → ActorAnimation
+Authored root data authority → RootMotionTrajectory
+World movement result        → KCC + ActorCollisionResolver
+Hit query state              → ActorHitBoxRuntime
+Hit resolution               → CombatHitBuffer
+World execution order        → CombatSimulationDriver
 ```
+
+`ActionStateManager / ActionPlayer / ActionSequence` 的 authority 只覆盖 Action 的选择、播放生命周期与 fixed-frame 内容时间，不因此获得 Animation / Movement / Rotation / HitBox 的全局 authority。
 
 不得重新建立：
 
@@ -60,7 +64,7 @@ StateKind.Action / StateKind.Locomotion 作为 whole-actor 互斥 ownership
 
 # 2. Actor 级目标结构
 
-Actor 的三个核心 Gameplay / Runtime Domain 固定为：
+Actor 在 locomotion / movement / animation 侧的三个核心 Gameplay / Runtime Domain 固定为：
 
 ```text
 Actor
@@ -79,6 +83,19 @@ Actor
      = Animation Authority
      ├─ Locomotion Base
      └─ Action Override
+```
+
+Action Domain 继续由已有职责组成，不塞进上述三个 Domain：
+
+```text
+ActionStateManager
+= Action candidate collection + fixed-tick arbitration
+
+ActionPlayer
+= CurrentAction + Begin / Stop + playback lifecycle
+
+ActionSequence
+= fixed-frame content time + Clip lifecycle
 ```
 
 `ActorSimulationRuntime` 继续作为一个 Actor 参加 Combat fixed simulation 的唯一入口，但它不是新的 Gameplay Domain。它只把 Driver 的固定阶段转发到该 Actor 已有的 Action、Locomotion、Animation、Motor 与 HitBox 子系统。
@@ -102,11 +119,14 @@ LocomotionIntent ─────────────────────
                                                              │ Action Pose
                                                       Action / Sequence
 
-Action / Sequence
-├→ Translation contributions ─────────→ ActorMotor
-├→ Rotation contributions ────────────→ ActorMotor
-├→ MotionPolicy contributions ────────→ ActorMotor
-└→ HitBox windows ────────────────────→ ActorHitBoxRuntime
+ActionStateManager
+→ ActionPlayer
+→ Action / Sequence
+   ├→ Animation contribution ──────────→ ActorAnimation
+   ├→ Translation contributions ──────→ ActorMotor
+   ├→ Rotation contributions ─────────→ ActorMotor
+   ├→ MotionPolicy contributions ─────→ ActorMotor
+   └→ HitBox windows ─────────────────→ ActorHitBoxRuntime
 ```
 
 ---
@@ -154,8 +174,8 @@ Player 与 AI 只在 Intent 生产侧不同，ActorMotor 不知道 Intent 来源
 - `ActorLogicInput` 不再是 runtime authority。
 - `ActorLocomotion` 不是 Intent 到 Motor 的必经中转层。
 - 不建立通用 `InputProvider`、`CommandBus`、`IntentSourceManager`。
-- raw input / input history 使用输入自己的时间语义；HitStop 冻结 Combat simulation，不要求停止真实输入采集。
-- Combat Tick 内必须先生产本 Tick Intent，再由后续 Action / Locomotion / Motor 阶段消费本 Tick状态。
+- raw input / input history 使用输入自己的时间语义；HitStop 冻结 Combat simulation time，不要求停止真实输入采集。
+- Combat Tick 内必须先生产本 Tick Intent，再由后续 Action / Locomotion / Motor 阶段消费本 Tick 状态。
 
 ---
 
@@ -268,6 +288,37 @@ Gameplay 观察上这是一次原子切换，不暴露旧 Tags 已释放、新 T
 
 `LocomotionModeAsset` 不实现 `OnEnter / OnExit`；生命周期统一由 `ActorLocomotion` 管理。
 
+## 4.5 与 Action 的同 Tick 依赖方向
+
+Driver 固定先完成本 Tick `ActorLocomotion` Mode selection，再进入 Action arbitration。
+
+因此 Mode selection 可以读取 Tick 开始时已经存在的稳定 Actor 状态 / Tags，但不得依赖“本 Tick 新 Action 开始后才产生”的 side effect。
+
+固定依赖方向：
+
+```text
+Stable Actor State + Intent
+→ ActorLocomotion Mode selection
+→ Action arbitration may read CurrentMode / mode tags
+```
+
+Action 不通过整体切换 LocomotionMode 来夺取 movement control。Action 对本 Tick movement 的临时影响继续使用：
+
+```text
+MotionPolicy
+Translation contribution
+Rotation contribution
+```
+
+这样避免形成：
+
+```text
+LocomotionMode selection
+↔ same-tick Action side effects
+```
+
+的循环依赖。
+
 ---
 
 # 5. ActorMotor
@@ -352,7 +403,7 @@ Current Rotation
 Effective MotionPolicy
         ↓
 LocomotionRunner
-        ├→ Locomotion Translation: Vector3 velocity
+        ├→ Locomotion Translation: world planar velocity
         └→ Locomotion Rotation: local yaw delta
         ↓
 ActorMotor arbitration
@@ -380,7 +431,53 @@ MotionPolicy 只表达临时 Gameplay permission / constraint，不保存角色�
 
 被覆盖的 contribution 不积累 missed delta，也不在恢复后 catch-up。
 
-## 7.2 水平 Translation
+## 7.2 数据单位与坐标空间合同
+
+Translation Channel 不允许把 `delta / velocity / local / world` 隐式混用。
+
+第一版固定合同：
+
+```text
+Locomotion
+→ world planar velocity
+→ m/s
+
+HorizontalImpulse
+→ world planar velocity state
+→ m/s
+
+HorizontalVelocityOwner
+→ world planar velocity
+→ m/s
+
+Root Motion
+→ local planar displacement over current Sequence interval
+→ meters
+
+BallisticVerticalVelocity
+→ scalar velocity along CharacterUp
+→ m/s
+
+VerticalVelocityOwner
+→ scalar velocity along CharacterUp
+→ m/s
+```
+
+其中 Root Motion 是唯一以“区间 displacement”提交的水平 authored source。它在 ActorMotor Compose boundary 转换为 KCC 请求速度：
+
+```text
+worldDelta
+= TickStartRotation * RootMotionLocalDelta
+
+rootMotionVelocity
+= worldDelta / KccDeltaTime
+```
+
+`RootMotionLocalDelta` 已经是当前 `Extract(t0,t1)` 得到的当前区间数据，因此 time scale / playback speed 通过“查询了哪个时间区间”表达，不再对 displacement 额外乘一次速度倍率。
+
+Motor 对 Translation 的最终输出统一为 KCC 可消费的 world-space `RequestedVelocity`。
+
+## 7.3 水平 Translation
 
 来源：
 
@@ -397,7 +494,7 @@ HorizontalVelocityOwner
 if HorizontalVelocityOwner exists
     Horizontal = TopHorizontalVelocityOwner
 else if RootMotion exists
-    Horizontal = TopRootMotion
+    Horizontal = RootMotionVelocity(TopRootMotion)
 else
     Horizontal = Locomotion + HorizontalImpulse
 ```
@@ -457,10 +554,11 @@ Root Motion / HorizontalVelocityOwner 覆盖期间，它仍可以接收提交并
 ```text
 RootMotion Begin → Clear Impulse
 RootMotion active → Reject Impulse
+RootMotion active → Add HorizontalImpulse into final RootMotion branch
 VelocityOwner active → Reject lower submissions
 ```
 
-## 7.3 垂直 Translation
+## 7.4 垂直 Translation
 
 自由弹道统一为：
 
@@ -478,7 +576,7 @@ Gravity 是 Ballistic 的持续演化：
 
 ```text
 BallisticVerticalVelocity
-+= PhysicsGravityY * EffectiveGravityScale * dt
++= PhysicsGravityY * EffectiveGravityScale * simulationDt
 ```
 
 Jump / DoubleJump / Launcher / Hit / Impulse 等 Gameplay producer 只通过事件式操作修改 Ballistic。
@@ -527,7 +625,7 @@ BallisticVerticalVelocity = 0
 
 只有出现真实玩法需求时，才增加新的 finish / handoff policy。
 
-## 7.4 Grounded
+## 7.5 Grounded
 
 稳定接地时：
 
@@ -700,7 +798,7 @@ Gravity：
 
 ```text
 BallisticVerticalVelocity
-+= PhysicsGravityY * EffectiveGravityScale * dt
++= PhysicsGravityY * EffectiveGravityScale * simulationDt
 ```
 
 `GravityScale` 不影响 VerticalVelocityOwner。
@@ -741,6 +839,21 @@ VelocityClip
 ```
 
 ActionAsset 本身不配置整招 MotionPolicy。
+
+`ImpulseClip.GravityScale` 的 token 生命周期第一版固定等于该 Clip 的 active interval：
+
+```text
+Clip Enter
+→ acquire GravityScale token
+
+Clip active
+→ token contributes
+
+Clip Exit / Cancel
+→ release token
+```
+
+`ImpulseClip` 不因为一次 Ballistic 写入就自动拥有后续整个 ballistic lifecycle。未来如果出现“离开 Clip 后仍持续特殊重力”的真实玩法，应使用显式的独立 Policy window，而不是偷偷延长 ImpulseClip ownership。
 
 ---
 
@@ -869,7 +982,7 @@ A Pose
 
 不强制经过 Locomotion 中间态。
 
-## 11.5 时间与 Evaluate
+## 11.5 时间、Blend 与 Evaluate
 
 两个时间模型明确分开：
 
@@ -881,7 +994,17 @@ Locomotion Animation
 → Combat simulation dt continuous
 ```
 
-HitStop 冻结 Gameplay / Action / Locomotion animation time；Locomotion 不得改用 Unity render frame time继续推进。
+Animation blend / crossfade 的推进同样使用 Combat simulation dt，不使用 render-frame `Time.deltaTime` 作为权威时间。
+
+HitStop 冻结：
+
+```text
+Action sample progression
+Locomotion animation progression
+Animation blend / crossfade progression
+```
+
+Locomotion 不得改用 Unity render frame time 偷偷推进。
 
 每个 Actor 每个 Combat Tick 由 `ActorAnimation` 集中 `Evaluate()` 一次。
 
@@ -898,7 +1021,7 @@ ActorAnimation
 
 # 12. Action / ActionSequence
 
-## 12.1 单一 Action 模型
+## 12.1 单一 Action 模型与 Authority
 
 长期 Action 模型继续保持：
 
@@ -907,7 +1030,25 @@ ActionAsset
 └─ ActionSequenceData
 
 ActionInstance
+ActionStateManager
 ActionPlayer
+ActionSequence
+```
+
+职责边界：
+
+```text
+ActionStateManager
+= fixed-tick Action candidate collection + arbitration
+
+ActionPlayer
+= CurrentAction + Begin / Stop + playback lifecycle
+
+ActionInstance
+= one playback instance + scoped Action lifecycle state
+
+ActionSequence
+= fixed-frame content time + Clip Enter / Tick / Exit
 ```
 
 不发展：
@@ -923,7 +1064,30 @@ LegacyTimelineAction
 
 Legacy Timeline 只作为迁移期兼容 backend，不是第二个长期玩法架构。
 
-## 12.2 Sequence 职责
+## 12.2 Action arbitration / playback
+
+`ActionStateManager` 保留现有 fixed-tick 仲裁职责：
+
+```text
+Poll candidates
+Event candidates
+External requests
+Cancel candidates
+        ↓
+fixed-tick candidate pool
+        ↓
+Action arbitration
+        ↓
+chosen Action
+        ↓
+ActionPlayer.BeginAction
+```
+
+Action arbitration 不即时绕过 Driver phase，也不因为 External / Event 来源不同而建立另一套播放路径。
+
+`ActionPlayer` 负责 Action playback lifecycle，但不是 Animation authority，也不是 Movement authority。它不得因为“播放动作”就直接拥有 Animancer Graph 或整个 ActorMotor policy。
+
+## 12.3 Sequence 职责
 
 `ActionSequence` 是 Action Gameplay time authority，只解释 fixed frame 并驱动普通 Clip 生命周期：
 
@@ -944,7 +1108,7 @@ global phase scheduler
 
 世界阶段由 CombatSimulationDriver 持有。
 
-## 12.3 Contribution contract
+## 12.4 Contribution contract
 
 Sequence Clip 应直接表达自己的局部 contribution：
 
@@ -964,7 +1128,7 @@ VelocityClip
 
 ImpulseClip
 → HorizontalImpulse and/or Ballistic operation
-→ optional GravityScale token
+→ optional GravityScale token during Clip active interval
 
 MotionPolicyClip
 → parameter-level MotionPolicy tokens
@@ -975,7 +1139,52 @@ HitBoxClip
 
 Action / Sequence lifecycle 可以帮助这些 contribution 取得和释放 token，但不得把它们合并为一个“Action owns everything”的总 owner。
 
-## 12.4 Fixed frame
+## 12.5 Action-level MotionConfig 的迁移边界
+
+旧代码中的整招运动配置，例如：
+
+```text
+ActionAsset.ActionMotionConfig
+ActionInstance.ApplyMotionConfig()
+ActionInstance.RestoreMotionConfig()
+```
+
+属于 migration source，不是 v3 长期 Action contract。
+
+长期不得在 Action Enter / Exit 通过一次整体操作做：
+
+```text
+ClearVelocityOwners
+SetRootMotionApplyMode
+SetLocomotionSuppressed
+SetGravityScale / restore to 1
+whole-action Facing ownership
+```
+
+这些语义分别迁移到：
+
+```text
+Locomotion suppression / permission
+→ MotionPolicyClip
+
+Authored horizontal movement
+→ Root Motion / HorizontalVelocityOwner
+
+Ballistic / impulse
+→ ImpulseClip / Ballistic operation
+
+Scripted facing / snap
+→ Scripted Rotation producer
+
+Root Rotation
+→ Root Rotation channel
+```
+
+`ActionAsset.SelfTags` 仍可以作为整个 Action playback 生命周期的 scoped Tags；这与 whole-action movement ownership 是不同职责。
+
+为保护已有 Unity serialized asset，旧 `ActionMotionConfig` 字段 / API 可以在迁移期间暂存，但只能作为 compatibility 数据源；新 Action 内容不得继续依赖它作为长期 authoring 入口。
+
+## 12.6 Fixed frame
 
 当前项目 Combat simulation 与 Gameplay Sequence 使用 60Hz policy。
 
@@ -1005,9 +1214,11 @@ ActorMotor / KCC
 
 Animation 不反向产生 Gameplay movement。
 
-## 13.2 AnimationConfig 与 Baker
+## 13.2 AnimationConfig 与 Baker 边界
 
-继续保留已验证的数据组织与 Baker 方向：
+长期冻结的是 **RootMotionTrajectory 数据合同、Unity Import / Avatar 语义、依赖身份与验证要求**，不是某一个具体 extraction backend。
+
+当前 CombatSample 推荐 Editor Bake 路径：
 
 ```text
 AnimationClip
@@ -1016,15 +1227,27 @@ AnimationConfig Editor Bake Context
 +
 Reference Rig / Avatar family
         ↓
-Manual PlayableGraph
-continuous Evaluate(dt)
+validated extraction backend
         ↓
-Unity 最终求值后的 cumulative Root Transform
+Unity 最终求值语义下的 cumulative Root Transform
         ↓
 RootMotionTrajectory
 ```
 
-Baker 不解析 FBX、不从 Hips/Pelvis 猜 Root Motion、不重写 Unity Humanoid / Avatar 规则。
+对于当前 Humanoid 内容，`Reference Rig + Manual PlayableGraph + continuous Evaluate(dt)` 是推荐 backend，因为它能够吸收 Avatar / retarget / importer 的最终 Unity 求值语义。
+
+Generic 可以复用同一 Baker 外壳并配置明确 Generic Root Node；如果未来验证证明直接读取 Unity 导入后的 Root curves 更合适，也允许作为内部 backend。backend 选择属于 Editor implementation detail，不暴露为 Runtime architecture。
+
+所有 backend 都必须满足：
+
+```text
+不解析 FBX 作为 gameplay truth
+不从 Hips / Pelvis 猜 Root Motion
+尊重 Unity Import / Avatar semantics
+依赖变化可判定 trajectory stale
+输出相同 RootMotionTrajectory contract
+存在独立 validator / oracle 验证
+```
 
 ## 13.3 Trajectory 数据合同
 
@@ -1222,8 +1445,8 @@ Driver 不接管普通 Camera / UI / VFX / Audio 的 Unity lifecycle，也不允
    - ActorLocomotion Mode selection / profile update
 
 4. ALL Action Decision / ActionSequence
-   - DecideAction
-   - PlayActionFrame / Sequence contributions
+   - ActionStateManager.DecideAction
+   - ActionPlayer.PlayActionFrame / Sequence contributions
 
 5. ALL ActorLocomotion Animation Updates
    - update Locomotion Base state
@@ -1268,7 +1491,25 @@ Actor A: Decide → Sequence → Move → Hit
 Actor B: Decide → Sequence → Move → Hit
 ```
 
-## 15.3 Produce → Consume
+## 15.3 Mode → Action 的依赖方向
+
+Phase 3 的 `ActorLocomotion` selection 在 Phase 4 Action arbitration 之前完成，这是固定顺序，不是偶然的 Component execution order。
+
+本 Tick 新 Action 的 Enter / SelfTags / Clip contribution 不反向重新触发本 Tick Mode selection。
+
+因此：
+
+```text
+Tick-start stable state
++ current Intent
+→ CurrentMode N
+→ Action arbitration N may consume CurrentMode N
+→ Action N contributions
+```
+
+如果 Action 需要限制自由移动、改变 authored movement 或控制朝向，应直接提交 MotionPolicy / Translation / Rotation contribution，而不是要求 ActorLocomotion 在同 Tick 重新选一次 Mode。
+
+## 15.4 Produce → Consume
 
 同一个 Combat Tick 内，本 Tick producer 的输出应由本 Tick consumer 使用。
 
@@ -1282,11 +1523,40 @@ Produce Intent N
 
 Action / Sequence、Locomotion、Animation、Motor、HitBox 的顺序都必须通过 Driver 的 phase barrier 表达，而不是依赖 MonoBehaviour Script Execution Order 的偶然关系。
 
+## 15.5 Combat simulation time / HitStop
+
+Driver 的 phase barrier 与 Actor 的 simulation time 是两个概念。
+
+HitStop / actor-local combat time freeze 时，Driver 仍可以维持全局阶段顺序，但被冻结 Actor 的 simulation time 不推进。
+
+至少冻结：
+
+```text
+ActionSequence advance
+Action animation sample progression
+Locomotion animation progression
+Animation blend / crossfade progression
+LocomotionRunner 的时间性演化
+Ballistic gravity evolution
+HorizontalImpulse decay / other temporal channel evolution
+authored Root Motion / Root Rotation interval advancement
+```
+
+不要求冻结：
+
+```text
+raw player input capture
+input history collection
+Driver world phase execution itself
+```
+
+实现可以选择在某些 Actor phase 中快速 no-op，但不得让 frozen Actor 因 Driver 仍执行而重复 Gameplay Frame side effect，也不得让 Animation 已冻结而 Gravity / Impulse 在后台继续演化。
+
 ---
 
 # 16. Legacy Migration Boundary
 
-Legacy Timeline、旧 Motor runtime、Animator Gameplay Root Motion 等仍可能存在于当前代码或资产中，但不再决定长期架构。
+Legacy Timeline、旧 Motor runtime、Animator Gameplay Root Motion、整招 Action MotionConfig 等仍可能存在于当前代码或资产中，但不再决定长期架构。
 
 迁移原则：
 
@@ -1302,6 +1572,10 @@ ActorLogicInput
 LocomotionRuntime / FacingRuntime / ActorMotionRuntime
 → implementation migration source
 → not v3 domain model
+
+ActionMotionConfig / ActionInstance whole-action motor rewrite
+→ serialized compatibility / migration source only
+→ not v3 Action contract
 
 Animator Gameplay Root Motion
 → remove
@@ -1332,6 +1606,7 @@ Motion Warping
 RootMotionPolicy 恢复为通用 runtime policy
 复杂 Vertical owner finish / inherit policy
 Mode Stack / Locomotion Transition Graph
+Action-level MotionConfig 作为长期 movement authority
 ```
 
 原则是：
@@ -1347,6 +1622,12 @@ v3 实现与后续重构必须至少守住以下不变量。
 ## 18.1 Authority
 
 ```text
+Action selection
+→ only ActionStateManager fixed-tick arbitration path
+
+Action playback lifecycle
+→ ActionPlayer
+
 Gameplay Actor Root movement
 → only ActorMotor / KCC path
 
@@ -1367,7 +1648,22 @@ HorizontalVelocityOwner > Root Motion > Locomotion + HorizontalImpulse
 VerticalVelocityOwner ? owner : BallisticVerticalVelocity
 ```
 
+数据合同：
+
+```text
+Locomotion / HorizontalImpulse / HorizontalVelocityOwner
+→ world planar velocity, m/s
+
+Root Motion
+→ local planar displacement, meters / current interval
+
+Ballistic / VerticalVelocityOwner
+→ scalar CharacterUp velocity, m/s
+```
+
 低优先级 Channel 被覆盖时仍接受 submission / update，但不 catch-up。
+
+Root Motion active 时 HorizontalImpulse 不进入最终 Root Motion 分支。
 
 ## 18.3 Rotation
 
@@ -1396,9 +1692,10 @@ Action Override temporary
 max one Action Pose per Actor per Tick
 no Pose → reveal Locomotion
 ActorAnimation Evaluate once per Combat Tick
+blend progression uses Combat simulation dt
 ```
 
-HitStop 冻结 Action 与 Locomotion animation simulation time。
+HitStop 冻结 Action、Locomotion animation 与 crossfade simulation time。
 
 ## 18.6 Root data
 
@@ -1409,6 +1706,8 @@ Root Motion = XZ
 Root Rotation = Yaw
 blocked displacement never repaid
 ```
+
+Baker backend 可以演进，但所有 backend 必须输出同一 trajectory contract，并尊重 Unity Import / Rig / Avatar dependency identity 与独立验证要求。
 
 ## 18.7 Hit
 
@@ -1421,6 +1720,28 @@ ALL movement
 
 同 Tick 结果不得依赖 Actor 注册顺序、Physics 返回容器顺序或 per-Actor 纵向执行顺序。
 
+## 18.8 Time Domain
+
+```text
+raw input time
+≠ Combat simulation time
+≠ Unity render-frame time
+```
+
+HitStop 可以让 Actor Combat simulation dt = 0，而不停止 raw input capture。所有依赖 Combat simulation time 的 Gameplay / Animation / Motion temporal evolution 必须一起冻结，不能各自偷用 render delta。
+
+## 18.9 Action / Locomotion dependency
+
+```text
+ActorLocomotion Mode selection
+→ Action arbitration
+→ Action contributions
+```
+
+本 Tick Action side effects 不反向重跑本 Tick Mode selection。
+
+Action 的 movement 权限与覆盖通过独立 control channels 表达，不通过 `ActionMode / LocomotionMode` whole-actor ownership transfer。
+
 ---
 
 # 19. Implementation Gaps：不是 Open Architecture
@@ -1431,16 +1752,22 @@ ALL movement
 ActorLocomotion Component 实现 / prefab migration
 ActorAnimation Component 实现 / Animancer authority migration
 ActorMotor 从旧 Runtime 划分迁到 Translation / Rotation Domain
+Translation 单位 / 坐标合同统一
 BallisticVerticalVelocity 替代旧 vertical state
 Root Motion owner stack
 Root Rotation owner stack
 Scripted Rotation owner stack
 MotionPolicy / MotionPolicyClip
 Animation centralized Evaluate phase
+ActionMotionConfig / ActionInstance whole-action motor rewrite 迁移
+旧 RootMotion + HorizontalImpulse compose 修正
 旧 Animator Gameplay Root Motion 删除
 旧 ActorLogicInput runtime path 清理
 Legacy Timeline 内容迁移
+HitStop / simulation time contract 统一
 ```
+
+已有 `ActionStateManager / ActionPlayer` 的 fixed-tick action arbitration / playback 职责属于应保留并接入 v3 的现有基础，不是需要删除的旧系统。
 
 仍可在 implementation 阶段确定的内容：
 
@@ -1453,6 +1780,7 @@ Pose mixer parameter 数据结构
 MotionPolicy token/container 类型
 serialized authored order 的具体实现
 Inspector validation 细节
+Baker backend 的内部组织方式
 迁移提交切片与测试顺序
 ```
 
@@ -1462,4 +1790,4 @@ Inspector validation 细节
 
 # 20. Final Architecture v3 一句话
 
-> **Player / AI 产生 LocomotionIntent；ActorLocomotion 选择当前 Locomotion Profile；ActionSequence 以 fixed frame 产生局部 Gameplay contribution；ActorAnimation 独占动画表现；ActorMotor 以 Translation / Rotation 两大 Domain 固定仲裁全部运动请求并交给 KCC；CombatSimulationDriver 通过全局 phase barrier 让所有 Actor 在同一世界状态上完成动画、移动、Hit Query 与统一 Resolve。**
+> **Player / AI 产生 LocomotionIntent；ActorLocomotion 先选择当前 Locomotion Profile；ActionStateManager 在 fixed Tick 仲裁 Action 并由 ActionPlayer 管理播放生命周期；ActionSequence 以 fixed frame 产生局部 Gameplay contribution；ActorAnimation 独占动画表现；ActorMotor 以 Translation / Rotation 两大 Domain 固定仲裁全部运动请求并交给 KCC；CombatSimulationDriver 通过全局 phase barrier 与统一 Combat simulation time，让所有 Actor 在同一世界状态上完成动画、移动、Hit Query 与统一 Resolve。**
