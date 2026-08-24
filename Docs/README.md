@@ -29,8 +29,9 @@ The former Actor Motion validation checklist, Stage 0–7 retrospective, and Pro
 ## Active Architecture / Implementation Work
 
 - [Final Architecture v3](Proposals/CombatSample_ActionSequence_Final_Architecture_v3_zh-CN.md) — approved long-term architecture baseline. It is kept in `Proposals/` because major portions are still implementation targets rather than verified current runtime facts.
+- [E3 Architecture Migration Roadmap](Proposals/CombatSample_E3_Architecture_Migration_Roadmap_zh-CN.md) — active stage-level migration roadmap from the current `FrameWork` runtime to v3. It defines dependencies, migration boundaries and Exit Criteria; file/method/test-level plans are intentionally deferred to Codex Plan Mode per Stage.
 
-Future E3 Implementation Plans belong here while active. They must describe migration toward v3 and must not silently reopen v3 architecture decisions.
+The Roadmap is subordinate to Final Architecture v3. It may refine implementation sequencing as code evolves, but it must not silently reopen v3 architecture decisions.
 
 ## Archive
 
@@ -58,7 +59,7 @@ Other notable archived records include:
 
 These are documentation / implementation follow-ups, not architecture questions:
 
-- Write the E3 Implementation Plan against Final Architecture v3.
+- Execute E3 stage by stage using the Architecture Migration Roadmap; create a fresh Codex Plan Mode implementation plan for each Stage against the then-current branch.
 - Rebuild the Actor Motion validation checklist against the v3 Translation / Rotation / Ballistic / MotionPolicy contracts before the corresponding refactor is considered complete.
 - Refresh `Project_Structure.md` and scene ownership dates when implementation planning begins if repository/scene facts are material to that plan.
 - Keep editor architecture documents current only for editor/runtime-boundary changes that actually affect them; do not fold ActorMotor design into editor docs.
