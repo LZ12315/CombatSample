@@ -1,14 +1,14 @@
 # CombatSample Final Architecture v3
 
-> 状态：Review Draft；已完成第一轮 Architecture Review 与 Driver 7-Phase Model 修订，仍不是 E3 Implementation Plan。
+> 状态：**Approved Architecture Baseline**；本文是 CombatSample E3 及后续实现计划的最高架构依据，不是 E3 Implementation Plan。
 >
-> 日期：2026-08-25
+> 批准日期：2026-08-25
 >
-> 主要输入：[`CombatSample_E3_PreDesign_Checkpoint_zh-CN.md`](CombatSample_E3_PreDesign_Checkpoint_zh-CN.md)、[`CombatSample_Final_v3_Source_Audit_zh-CN.md`](CombatSample_Final_v3_Source_Audit_zh-CN.md)。
+> 设计输入（已归档）：[`CombatSample_E3_PreDesign_Checkpoint_zh-CN.md`](../Archive/CombatSample_E3_PreDesign_Checkpoint_zh-CN.md)、[`CombatSample_Final_v3_Source_Audit_zh-CN.md`](../Archive/CombatSample_Final_v3_Source_Audit_zh-CN.md)。
 >
-> 历史来源：[`CombatSample_ActionSequence_Final_Architecture_v2_zh-CN.md`](CombatSample_ActionSequence_Final_Architecture_v2_zh-CN.md) 与 [`../CombatSample_RootMotion_Final_Design_v1.md`](../CombatSample_RootMotion_Final_Design_v1.md) 中仍被 Source Audit 明确保留的部分。
+> 历史来源（已归档）：[`CombatSample_ActionSequence_Final_Architecture_v2_zh-CN.md`](../Archive/CombatSample_ActionSequence_Final_Architecture_v2_zh-CN.md) 与 [`CombatSample_RootMotion_Final_Design_v1.md`](../Archive/CombatSample_RootMotion_Final_Design_v1.md) 中经 Source Audit 明确保留的部分。
 >
-> 本 Draft 获得确认前，E3 Pre-Design Checkpoint 仍是 E3 冲突项的最高设计依据；确认后，本文将成为长期架构基线。
+> 当前代码与本文不一致时，默认视为 **Implementation Gap**；只有经过显式 Architecture Review，才重新开放本文已经冻结的 Domain、authority、arbitration 与 phase model。
 
 ---
 
