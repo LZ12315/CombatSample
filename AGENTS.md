@@ -22,4 +22,10 @@ Avoid unrelated prefab, scene, `.meta`, `ProjectSettings`, and package changes.
 
 Preserve serialized field names, public APIs, prefab references, and scene references unless the task explicitly requires a migration.
 
-Prefer focused EditMode or PlayMode tests when practical. If they are not practical, record exact manual validation steps.
+## Testing
+
+Keep the default Test Runner suite small and deterministic. Test stable gameplay/data contracts, not private method names, field names, temporary class structure, or behavior already covered by compilation/static analysis.
+
+Prefer pure EditMode contract tests. Use PlayMode, scene, prefab, importer, UI geometry, or repository-asset-dependent checks only when they protect a contract that cannot be validated more simply; otherwise record a manual validation step instead.
+
+Reflection-based tests should be exceptional. Do not preserve obsolete production APIs only to keep an old test green.
