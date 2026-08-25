@@ -25,18 +25,23 @@ public readonly struct ActorMotionRuntimeConfig
 }
 
 /// <summary>
-/// ActorMotor 持有的纯 C# 运动运行时。
-/// 它聚合 KCC tick 期间会变化的运动状态，并协调 MotionChannels、
-/// GroundingRuntime、RootMotionBuffer 与 VelocityReadout。
+/// ActorMotor compatibility façade over the E3 Translation / Rotation Domain
+/// and supporting motion state.
+/// ActorMotor 的 first-class Translation / Rotation Domain 与 supporting state
+/// 由这里集中保存；旧 MotionRuntime API 暂时转发到这些权威对象。
 /// </summary>
 public sealed class ActorMotionRuntime
 {
     #region === 子运行时与策略状态 ===
 
-    private readonly MotionChannels _channels = new();
+    private readonly TranslationDomain _translation = new();
+    private readonly MotionChannels _channels;
+    private readonly RotationDomain _rotation = new();
+    private readonly MotionPolicyState _policy = new();
     private readonly GroundingRuntime _grounding = new();
     private readonly RootMotionBuffer _rootMotion = new();
-    private readonly SelfRotationBuffer _selfRotation = new();
+    private readonly SelfRotationBuffer _rootRotation = new();
+    private readonly SelfRotationBuffer _scriptedRotation = new();
     private readonly VelocityReadout _velocity = new();
 
     private bool _pendingForceUnground;
@@ -44,9 +49,13 @@ public sealed class ActorMotionRuntime
     private bool _pendingCeilingHit;
 
     private float _movementTimeScale = 1f;
-    private float _gravityScale = 1f;
     private RootMotionApplyMode _rootMotionApplyMode = RootMotionApplyMode.External;
     private bool _animatorRootMotionSuppressed;
+
+    public ActorMotionRuntime()
+    {
+        _channels = new MotionChannels(_translation);
+    }
 
     #endregion
 
@@ -59,13 +68,18 @@ public sealed class ActorMotionRuntime
     public bool ForceUngroundedThisTick => _forceUngroundedThisTick;
 
     public float MovementTimeScale => _movementTimeScale;
-    public float GravityScale => _gravityScale;
+    public float GravityScale => _policy.GravityScale;
+    public float LocomotionScale => _policy.LocomotionScale;
+    public float AirLocomotionScale => _policy.AirLocomotionScale;
 
     public int JumpCount => _grounding.JumpCount;
 
+    public TranslationDomain Translation => _translation;
+    public RotationDomain Rotation => _rotation;
+    public MotionPolicyState Policy => _policy;
     public MotionChannels Channels => _channels;
-    public bool HasSelfRotationTick => _selfRotation.HasTickOwner;
-    public Quaternion SelfRotationLocalYawDelta => _selfRotation.TickLocalYawDelta;
+    public bool HasSelfRotationTick => _scriptedRotation.HasTickOwner;
+    public Quaternion SelfRotationLocalYawDelta => _scriptedRotation.TickLocalYawDelta;
 
     /// <summary>
     /// 当前 RootMotion 策略允许 ActorMotor 应用的根旋转。
@@ -101,7 +115,7 @@ public sealed class ActorMotionRuntime
 
     public void SetGravityScale(float scale)
     {
-        _gravityScale = scale;
+        _policy.SetBaseGravityScale(scale);
     }
 
     public void SetRootMotionApplyMode(RootMotionApplyMode mode)
@@ -124,7 +138,8 @@ public sealed class ActorMotionRuntime
     {
         _forceUngroundedThisTick = false;
         _rootMotion.BeginMotorTick();
-        _selfRotation.BeginMotorTick();
+        _rootRotation.BeginMotorTick();
+        _scriptedRotation.BeginMotorTick();
     }
 
     public void EndMotorTick()
@@ -164,13 +179,12 @@ public sealed class ActorMotionRuntime
         bool grounded,
         ActorMotionRuntimeConfig config)
     {
-        _channels.StepGravity(motionDeltaTime, grounded, _gravityScale);
-        _channels.StepHorizontalDrag(motionDeltaTime, config.HorizontalDrag);
-        _channels.StepVerticalImpulse(
+        _translation.StepHorizontalDrag(motionDeltaTime, config.HorizontalDrag);
+        _translation.StepBallistic(
             motionDeltaTime,
-            !grounded,
             grounded,
             _pendingCeilingHit,
+            _policy.GravityScale,
             config.VerticalImpulseAirDrag);
 
         _pendingCeilingHit = false;
@@ -188,60 +202,73 @@ public sealed class ActorMotionRuntime
         Quaternion tickStartRotation,
         float deltaTime)
     {
+        if (deltaTime <= 0f)
+            return Vector3.zero;
+
         float ts = _movementTimeScale;
 
-        if (!_rootMotion.HasTrajectoryTick
-            && ShouldApplyRootMotion
-            && _rootMotion.PendingPosition.sqrMagnitude > 0.0001f)
-        {
-            Vector3 legacyRootVelocity = _rootMotion.PendingPosition / deltaTime * ts;
-            if (isGrounded)
-                legacyRootVelocity = motor.GetDirectionTangentToSurface(
-                    legacyRootVelocity,
-                    motor.GroundingStatus.GroundNormal) * legacyRootVelocity.magnitude;
-            return legacyRootVelocity;
-        }
-
+        Vector3 characterUp = motor != null ? motor.CharacterUp : Vector3.up;
         Vector3 horizontal;
-        if (_channels.TryComposeHorizontalVelocityOwner(ts, out horizontal))
+        if (_translation.TryComposeHorizontalVelocityOwner(ts, out horizontal))
         {
-            horizontal.y = 0f;
         }
         else if (_rootMotion.HasTrajectoryTick)
         {
             Vector3 localDelta = _rootMotion.TrajectoryLocalPosition;
             localDelta.y = 0f;
             horizontal = tickStartRotation * localDelta / deltaTime;
-            horizontal.y = 0f;
-            horizontal += _channels.HorizontalImpulseVelocity * ts;
+        }
+        else if (ShouldApplyRootMotion && _rootMotion.PendingPosition.sqrMagnitude > 0.0001f)
+        {
+            horizontal = _rootMotion.PendingPosition / deltaTime * ts;
         }
         else
         {
-            horizontal = _channels.ComposeHorizontal(locomotionVelocity, ts);
+            horizontal = _translation.ComposeHorizontal(locomotionVelocity, ts);
         }
 
-        float vertical = _channels.ComposeVertical(ts);
+        horizontal = Vector3.ProjectOnPlane(horizontal, characterUp);
+        float vertical = _translation.ComposeVertical(ts);
 
-        if (isGrounded)
+        if (isGrounded && motor != null)
         {
             horizontal = motor.GetDirectionTangentToSurface(
                 horizontal,
                 motor.GroundingStatus.GroundNormal) * horizontal.magnitude;
             vertical = 0f;
         }
+        else if (isGrounded)
+        {
+            vertical = 0f;
+        }
 
-        Vector3 characterUp = motor != null ? motor.CharacterUp : Vector3.up;
         return horizontal + characterUp * vertical;
+    }
+
+    public Quaternion PrepareRequestedRotation(
+        Quaternion tickStartRotation,
+        Quaternion locomotionRotation)
+    {
+        _rotation.Prepare(
+            tickStartRotation,
+            locomotionRotation,
+            _scriptedRotation.HasTickOwner,
+            _scriptedRotation.TickLocalYawDelta,
+            _rootRotation.HasTickOwner || AppliedRootMotionRotation != Quaternion.identity,
+            _rootRotation.HasTickOwner ? _rootRotation.TickLocalYawDelta : AppliedRootMotionRotation);
+        return _rotation.RequestedRotation;
     }
 
     public void PublishSolvedVelocity(
         Vector3 solvedVelocity,
+        Vector3 characterUp,
         bool isStableGrounded,
         float smoothingDeltaTime,
         float verticalSmoothTime)
     {
         _velocity.Publish(
             solvedVelocity,
+            characterUp,
             isStableGrounded,
             smoothingDeltaTime,
             verticalSmoothTime);
@@ -253,47 +280,59 @@ public sealed class ActorMotionRuntime
 
     public void AddVerticalImpulse(float speed)
     {
-        _channels.ApplyVerticalImpulse(speed);
+        AddBallisticVerticalVelocity(speed);
+    }
+
+    public void AddBallisticVerticalVelocity(float speed)
+    {
+        _translation.AddBallisticVerticalVelocity(speed);
+        if (speed > 0f)
+            _pendingForceUnground = true;
+    }
+
+    public void SetBallisticVerticalVelocity(float speed)
+    {
+        _translation.SetBallisticVerticalVelocity(speed);
         if (speed > 0f)
             _pendingForceUnground = true;
     }
 
     public void AddHorizontalImpulse(Vector3 velocity)
     {
-        _channels.AddHorizontalImpulse(velocity);
+        _translation.AddHorizontalImpulse(velocity);
     }
 
     public void ClearHorizontalImpulse()
     {
-        _channels.ClearHorizontalImpulse();
+        _translation.ClearHorizontalImpulse();
     }
 
     public MotionOwner BeginHorizontalVelocity()
     {
-        return _channels.BeginHorizontalVelocity();
+        return _translation.BeginHorizontalVelocity();
     }
 
     public void SetHorizontalVelocity(MotionOwner owner, Vector3 velocity)
     {
-        _channels.SetHorizontalVelocity(owner, velocity);
+        _translation.SetHorizontalVelocity(owner, velocity);
     }
 
     public void EndHorizontalVelocity(MotionOwner owner)
     {
-        _channels.EndHorizontalVelocity(owner);
+        _translation.EndHorizontalVelocity(owner);
     }
 
     public MotionOwner BeginVerticalVelocity()
     {
-        return _channels.BeginVerticalVelocity();
+        return _translation.BeginVerticalVelocity();
     }
 
     public void SetVerticalVelocity(MotionOwner owner, float verticalSpeed)
     {
-        if (!_channels.SetVerticalVelocity(owner, verticalSpeed))
+        if (!_translation.SetVerticalVelocity(owner, verticalSpeed))
             return;
 
-        if (_channels.IsTopVerticalVelocityOwner(owner) &&
+        if (_translation.IsTopVerticalVelocityOwner(owner) &&
             verticalSpeed > 0.001f &&
             _grounding.State is ActorGroundState.Grounded or ActorGroundState.JustLanded)
         {
@@ -303,17 +342,67 @@ public sealed class ActorMotionRuntime
 
     public void EndVerticalVelocity(MotionOwner owner)
     {
-        _channels.EndVerticalVelocity(owner);
+        _translation.EndVerticalVelocity(owner);
     }
 
     public void ClearVelocityOwners()
     {
-        _channels.ClearVelocityOwners();
+        _translation.ClearVelocityOwners();
     }
 
     public void ApplyMotionHandoff(float horizontalInheritance, float verticalInheritance)
     {
-        _channels.ApplyHandoff(horizontalInheritance, verticalInheritance);
+        _translation.ApplyHandoff(horizontalInheritance, verticalInheritance);
+    }
+
+    public MotionOwner BeginLocomotionScale(float scale)
+    {
+        return _policy.BeginLocomotionScale(scale);
+    }
+
+    public bool UpdateLocomotionScale(MotionOwner owner, float scale)
+    {
+        return _policy.UpdateLocomotionScale(owner, scale);
+    }
+
+    public bool EndLocomotionScale(MotionOwner owner)
+    {
+        return _policy.EndLocomotionScale(owner);
+    }
+
+    public MotionOwner BeginAirLocomotionScale(float scale)
+    {
+        return _policy.BeginAirLocomotionScale(scale);
+    }
+
+    public bool UpdateAirLocomotionScale(MotionOwner owner, float scale)
+    {
+        return _policy.UpdateAirLocomotionScale(owner, scale);
+    }
+
+    public bool EndAirLocomotionScale(MotionOwner owner)
+    {
+        return _policy.EndAirLocomotionScale(owner);
+    }
+
+    public MotionOwner BeginGravityScale(float scale)
+    {
+        return _policy.BeginGravityScale(scale);
+    }
+
+    public bool UpdateGravityScale(MotionOwner owner, float scale)
+    {
+        return _policy.UpdateGravityScale(owner, scale);
+    }
+
+    public bool EndGravityScale(MotionOwner owner)
+    {
+        return _policy.EndGravityScale(owner);
+    }
+
+    public void ClearPolicyOwners()
+    {
+        _policy.ClearPolicyOwners();
     }
 
     #endregion
@@ -371,17 +460,47 @@ public sealed class ActorMotionRuntime
 
     public bool TryBeginSelfRotation(out MotionOwner owner)
     {
-        return _selfRotation.TryBegin(out owner);
+        return BeginScriptedRotation(out owner);
     }
 
     public bool SubmitSelfRotation(MotionOwner owner, Quaternion localYawDelta)
     {
-        return _selfRotation.Submit(owner, localYawDelta);
+        return SubmitScriptedRotation(owner, localYawDelta);
     }
 
     public bool EndSelfRotation(MotionOwner owner)
     {
-        return _selfRotation.End(owner);
+        return EndScriptedRotation(owner);
+    }
+
+    public bool BeginRootRotation(out MotionOwner owner)
+    {
+        return _rootRotation.TryBegin(out owner);
+    }
+
+    public bool SubmitRootRotation(MotionOwner owner, Quaternion localYawDelta)
+    {
+        return _rootRotation.Submit(owner, localYawDelta);
+    }
+
+    public bool EndRootRotation(MotionOwner owner)
+    {
+        return _rootRotation.End(owner);
+    }
+
+    public bool BeginScriptedRotation(out MotionOwner owner)
+    {
+        return _scriptedRotation.TryBegin(out owner);
+    }
+
+    public bool SubmitScriptedRotation(MotionOwner owner, Quaternion localYawDelta)
+    {
+        return _scriptedRotation.Submit(owner, localYawDelta);
+    }
+
+    public bool EndScriptedRotation(MotionOwner owner)
+    {
+        return _scriptedRotation.End(owner);
     }
 
     #endregion

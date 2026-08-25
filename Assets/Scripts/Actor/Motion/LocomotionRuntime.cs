@@ -1,5 +1,9 @@
 using UnityEngine;
 
+/// <summary>
+/// E3-B compatibility intent/state adapter。LocomotionRunner 消费这里的 intent，
+/// 长期 locomotion interpretation 由 Runner 承担。
+/// </summary>
 public sealed class LocomotionRuntime
 {
     private LocomotionIntent _pendingIntent = LocomotionIntent.Idle;
@@ -34,7 +38,12 @@ public sealed class LocomotionRuntime
         _suppressed = suppressed;
     }
 
-    public void Tick(float baseSpeed, float airControlFactor, bool isAirborne)
+    public void Tick(
+        float baseSpeed,
+        float airControlFactor,
+        bool isAirborne,
+        float locomotionScale,
+        float airLocomotionScale)
     {
         if (_hasPendingIntent)
         {
@@ -47,11 +56,16 @@ public sealed class LocomotionRuntime
             _hasEffectiveIntent = false;
         }
 
-        _cachedVelocity = ComputeVelocity(baseSpeed, airControlFactor, isAirborne);
+        _cachedVelocity = ComputeVelocity(baseSpeed, airControlFactor, isAirborne, locomotionScale, airLocomotionScale);
         ClearPendingIntent();
     }
 
-    private Vector3 ComputeVelocity(float baseSpeed, float airControlFactor, bool isAirborne)
+    private Vector3 ComputeVelocity(
+        float baseSpeed,
+        float airControlFactor,
+        bool isAirborne,
+        float locomotionScale,
+        float airLocomotionScale)
     {
         if (_suppressed || !_hasEffectiveIntent)
             return Vector3.zero;
@@ -62,10 +76,45 @@ public sealed class LocomotionRuntime
             return Vector3.zero;
 
         dir.Normalize();
-        float speed = _effectiveIntent.MoveStrength * baseSpeed;
+        float speed = _effectiveIntent.MoveStrength * baseSpeed * Mathf.Clamp01(locomotionScale);
         if (isAirborne)
+        {
             speed *= airControlFactor;
+            speed *= Mathf.Clamp01(airLocomotionScale);
+        }
 
         return dir * speed;
+    }
+}
+
+/// <summary>
+/// ActorMotor 内部的 locomotion interpreter / producer。
+/// 它把本 Tick intent 与 tuning 解析为 Translation/Rotation 的 locomotion contribution，
+/// 本身不拥有 movement authority。
+/// </summary>
+public sealed class LocomotionRunner
+{
+    public void Prepare(
+        LocomotionRuntime locomotion,
+        FacingRuntime facing,
+        float deltaTime,
+        float baseSpeed,
+        float airControlFactor,
+        float rotateSpeed,
+        bool isAirborne,
+        float locomotionScale,
+        float airLocomotionScale)
+    {
+        LocomotionIntent pendingIntent = locomotion.PendingIntent;
+        bool hasPendingIntent = locomotion.HasPendingIntent;
+
+        facing.Tick(
+            deltaTime,
+            rotateSpeed,
+            pendingIntent,
+            hasPendingIntent,
+            locomotion.IsSuppressed);
+
+        locomotion.Tick(baseSpeed, airControlFactor, isAirborne, locomotionScale, airLocomotionScale);
     }
 }

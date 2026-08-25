@@ -19,26 +19,28 @@ public sealed class VelocityReadout
 
     public void Publish(
         Vector3 solvedVelocity,
+        Vector3 characterUp,
         bool isStableGrounded,
         float deltaTime,
         float verticalSmoothTime)
     {
-        float targetY = isStableGrounded ? 0f : solvedVelocity.y;
+        if (characterUp.sqrMagnitude < 0.0001f)
+            characterUp = Vector3.up;
+        else
+            characterUp.Normalize();
+
+        Vector3 planarVelocity = Vector3.ProjectOnPlane(solvedVelocity, characterUp);
+        float targetVertical = isStableGrounded ? 0f : Vector3.Dot(solvedVelocity, characterUp);
         _smoothedVelocityY = Mathf.SmoothDamp(
             _smoothedVelocityY,
-            targetY,
+            targetVertical,
             ref _smoothedVelocityYRef,
             verticalSmoothTime,
             float.MaxValue,
             deltaTime);
 
-        _currentVelocity = new Vector3(
-            solvedVelocity.x,
-            _smoothedVelocityY,
-            solvedVelocity.z);
-        _currentHorizontalSpeed = new Vector2(
-            solvedVelocity.x,
-            solvedVelocity.z).magnitude;
+        _currentVelocity = planarVelocity + characterUp * _smoothedVelocityY;
+        _currentHorizontalSpeed = planarVelocity.magnitude;
         _currentVerticalSpeed = _smoothedVelocityY;
     }
 }

@@ -102,8 +102,8 @@ public sealed class ActionSequenceSelfRotationClipDefinition : ActionSequenceCli
         private MotionOwner _owner;
         private Actor _actor;
         private ActorMotor _motor;
-        private Quaternion _rootRotationDesiredWorld = Quaternion.identity;
         private Vector3 _presetWorldDirection = Vector3.forward;
+        private bool _usesRootRotationChannel;
         private bool _warnedMissingTarget;
 
         public Runtime(ActionSequenceSelfRotationClipDefinition definition)
@@ -119,8 +119,8 @@ public sealed class ActionSequenceSelfRotationClipDefinition : ActionSequenceCli
                 throw new InvalidOperationException("SelfRotationClip requires ActorMotor.");
 
             Quaternion currentRotation = GetSimulationRotation(_actor, _motor);
-            _rootRotationDesiredWorld = currentRotation;
             _presetWorldDirection = currentRotation * _definition.presetLocalDirection;
+            _usesRootRotationChannel = _definition.source == SelfRotationSource.RootRotation;
             _warnedMissingTarget = false;
 
             if (_definition.source == SelfRotationSource.RootRotation
@@ -140,8 +140,12 @@ public sealed class ActionSequenceSelfRotationClipDefinition : ActionSequenceCli
             if (!_definition.HasValidAngularSpeed())
                 throw new InvalidOperationException("SelfRotationClip RotateBySpeed requires Angular Speed > 0.");
 
-            if (!_motor.TryBeginSelfRotation(out _owner))
-                throw new InvalidOperationException("SelfRotationClip could not acquire self-rotation owner.");
+            bool acquired = _usesRootRotationChannel
+                ? _motor.BeginRootRotation(out _owner)
+                : _motor.BeginScriptedRotation(out _owner);
+
+            if (!acquired)
+                throw new InvalidOperationException("SelfRotationClip could not acquire rotation owner.");
         }
 
         public override void OnTick(ActionSequenceContext context)
@@ -151,6 +155,18 @@ public sealed class ActionSequenceSelfRotationClipDefinition : ActionSequenceCli
 
             Quaternion currentRotation = GetSimulationRotation(_actor, _motor);
             Vector3 characterUp = GetCharacterUp(_motor, currentRotation);
+
+            if (_definition.source == SelfRotationSource.RootRotation)
+            {
+                if (!TryBuildRootLocalYawDelta(context, out Quaternion rootLocalYawDelta))
+                {
+                    SubmitYaw(Quaternion.identity);
+                    return;
+                }
+
+                SubmitYaw(rootLocalYawDelta);
+                return;
+            }
 
             if (!TryResolveDesiredWorldDirection(context, currentRotation, characterUp, out Vector3 desiredWorldDirection))
             {
@@ -175,12 +191,18 @@ public sealed class ActionSequenceSelfRotationClipDefinition : ActionSequenceCli
         public override void OnExit(ActionSequenceContext context, bool completed)
         {
             if (_motor != null && _owner.IsValid)
-                _motor.EndSelfRotation(_owner);
+            {
+                if (_usesRootRotationChannel)
+                    _motor.EndRootRotation(_owner);
+                else
+                    _motor.EndScriptedRotation(_owner);
+            }
 
             _owner = default;
             _trajectory = null;
             _actor = null;
             _motor = null;
+            _usesRootRotationChannel = false;
         }
 
         private bool TryResolveDesiredWorldDirection(
@@ -193,10 +215,7 @@ public sealed class ActionSequenceSelfRotationClipDefinition : ActionSequenceCli
             switch (_definition.source)
             {
                 case SelfRotationSource.RootRotation:
-                    if (!AdvanceRootRotation(context))
-                        return false;
-
-                    desiredWorldDirection = _rootRotationDesiredWorld * Vector3.forward;
+                    desiredWorldDirection = currentRotation * Vector3.forward;
                     return ProjectPlanarDirection(desiredWorldDirection, characterUp, out desiredWorldDirection);
 
                 case SelfRotationSource.Target:
@@ -211,8 +230,9 @@ public sealed class ActionSequenceSelfRotationClipDefinition : ActionSequenceCli
             }
         }
 
-        private bool AdvanceRootRotation(ActionSequenceContext context)
+        private bool TryBuildRootLocalYawDelta(ActionSequenceContext context, out Quaternion localYawDelta)
         {
+            localYawDelta = Quaternion.identity;
             if (_trajectory == null)
                 return false;
 
@@ -228,13 +248,20 @@ public sealed class ActionSequenceSelfRotationClipDefinition : ActionSequenceCli
                 _definition.playbackSpeed);
 
             if (!_trajectory.TryExtract(startTime, endTime, out RootMotionTransform delta)
-                || !RootMotionYawUtility.TryExtractLocalYaw(delta.Rotation, out Quaternion localYawDelta))
+                || !RootMotionYawUtility.TryExtractLocalYaw(delta.Rotation, out localYawDelta))
             {
                 throw new InvalidOperationException(
                     $"SelfRotationClip failed to extract local yaw for key '{_definition.AnimationKey}'.");
             }
 
-            _rootRotationDesiredWorld *= localYawDelta;
+            if (_definition.mode == SelfRotationMode.RotateBySpeed)
+            {
+                float signedYaw = Mathf.DeltaAngle(0f, localYawDelta.eulerAngles.y);
+                float maxDelta = _definition.angularSpeedDegrees / Mathf.Max(1, context.FrameRate);
+                signedYaw = Mathf.Clamp(signedYaw, -maxDelta, maxDelta);
+                localYawDelta = Quaternion.AngleAxis(signedYaw, Vector3.up);
+            }
+
             return true;
         }
 
@@ -313,8 +340,12 @@ public sealed class ActionSequenceSelfRotationClipDefinition : ActionSequenceCli
 
         private void SubmitYaw(Quaternion localYawDelta)
         {
-            if (!_motor.SubmitSelfRotation(_owner, localYawDelta))
-                throw new InvalidOperationException("SelfRotationClip self-rotation owner became invalid.");
+            bool submitted = _usesRootRotationChannel
+                ? _motor.SubmitRootRotation(_owner, localYawDelta)
+                : _motor.SubmitScriptedRotation(_owner, localYawDelta);
+
+            if (!submitted)
+                throw new InvalidOperationException("SelfRotationClip rotation owner became invalid.");
         }
 
         private bool ResolveTrajectory(Actor actor, out RootMotionTrajectory trajectory)

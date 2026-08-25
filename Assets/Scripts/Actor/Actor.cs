@@ -61,7 +61,7 @@ public class Actor : MonoBehaviour
     {
         if (_simulationRuntime != null)
         {
-            _simulationRuntime.CancelAction();
+            _simulationRuntime.CancelFrame();
             CombatSimulationDriver.UnregisterActor(_simulationRuntime);
         }
 

@@ -14,6 +14,10 @@ public class ActionInstance
     /// <summary>当前持有此 ActionInstance 的 Actor，OnEnter 时赋值，OnExit 时清空。</summary>
     public Actor Actor { get; private set; }
 
+    private MotionOwner _locomotionScaleOwner;
+    private MotionOwner _airLocomotionScaleOwner;
+    private MotionOwner _gravityScaleOwner;
+
     public ActionInstance(ActionAsset config)
     {
         Config = config;
@@ -94,8 +98,15 @@ public class ActionInstance
             motion.verticalMomentumInheritance);
         motor.SetRootMotionApplyMode(motion.rootMotionMode);
         motor.SetLocomotionSuppressed(motion.suppressLocomotion);
+        if (motion.suppressLocomotion)
+        {
+            _locomotionScaleOwner = motor.BeginLocomotionScale(0f);
+            _airLocomotionScaleOwner = motor.BeginAirLocomotionScale(0f);
+        }
+
         if (motion.gravityScale >= 0f)
-            motor.SetGravityScale(motion.gravityScale);
+            _gravityScaleOwner = motor.BeginGravityScale(motion.gravityScale);
+
         ApplyFacingOnStart(motion.facingOnStart, context);
     }
 
@@ -103,9 +114,23 @@ public class ActionInstance
     {
         if (Actor?.actorMotor == null) return;
         var motor = Actor.actorMotor;
+        ReleaseMotionPolicyOwners(motor);
         motor.SetRootMotionApplyMode(RootMotionApplyMode.External);
         motor.SetLocomotionSuppressed(false);
-        motor.SetGravityScale(1f);
+    }
+
+    private void ReleaseMotionPolicyOwners(ActorMotor motor)
+    {
+        if (_locomotionScaleOwner.IsValid)
+            motor.EndLocomotionScale(_locomotionScaleOwner);
+        if (_airLocomotionScaleOwner.IsValid)
+            motor.EndAirLocomotionScale(_airLocomotionScaleOwner);
+        if (_gravityScaleOwner.IsValid)
+            motor.EndGravityScale(_gravityScaleOwner);
+
+        _locomotionScaleOwner = default;
+        _airLocomotionScaleOwner = default;
+        _gravityScaleOwner = default;
     }
 
     private void ApplyFacingOnStart(ActionFacingOnStart mode, ActionContext context)

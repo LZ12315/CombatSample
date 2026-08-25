@@ -12,6 +12,7 @@ internal sealed class ActorSimulationRuntime
     private readonly Actor _actor;
     private ActionPlayer _actionPlayer;
     private ActionStateManager _actionStateManager;
+    private ActorMotor _actorMotor;
     private ActionPlayer _tickActionPlayer;
     private bool _playedActionFrameThisTick;
     private bool _tickClosed;
@@ -28,6 +29,12 @@ internal sealed class ActorSimulationRuntime
 
     public ActorHitBoxRuntime HitBoxes => _hitBoxes;
 
+    public void Control(float deltaSeconds)
+    {
+        if (!IsActive)
+            return;
+    }
+
     public void DecideAction()
     {
         if (!IsActive)
@@ -36,7 +43,7 @@ internal sealed class ActorSimulationRuntime
         ResolveActionStateManager()?.DecideAction();
     }
 
-    public bool PlayActionFrame(float deltaSeconds)
+    public bool AdvanceAction(float deltaSeconds)
     {
         _tickActionPlayer = null;
         _playedActionFrameThisTick = false;
@@ -50,13 +57,35 @@ internal sealed class ActorSimulationRuntime
         return _playedActionFrameThisTick;
     }
 
-    public void DetectHits(CombatHitBuffer buffer)
+    public void EvaluateAnimation(float deltaSeconds)
+    {
+        if (!IsActive)
+            return;
+    }
+
+    public void PrepareMotion(float deltaSeconds)
+    {
+        if (!IsActive)
+            return;
+
+        ResolveActorMotor()?.PrepareMotion(deltaSeconds);
+    }
+
+    public void PublishWorldResult()
+    {
+        if (!IsActive)
+            return;
+
+        ResolveActorMotor()?.PublishWorldResult();
+    }
+
+    public void QueryHits(CombatHitBuffer buffer)
     {
         if (!_tickClosed && _playedActionFrameThisTick)
             _hitBoxes.DetectHits(buffer);
     }
 
-    public void FinishActionFrame()
+    public void FinishFrame()
     {
         if (_tickClosed)
             return;
@@ -67,9 +96,10 @@ internal sealed class ActorSimulationRuntime
         _playedActionFrameThisTick = false;
     }
 
-    public void CancelAction()
+    public void CancelFrame()
     {
         ResolveActionStateManager()?.AbortQueuedActionRequests();
+        ResolveActorMotor()?.CancelPreparedMotion();
 
         if (_tickClosed)
         {
@@ -106,6 +136,18 @@ internal sealed class ActorSimulationRuntime
 
         return _actionStateManager != null && _actionStateManager.isActiveAndEnabled
             ? _actionStateManager
+            : null;
+    }
+
+    private ActorMotor ResolveActorMotor()
+    {
+        if (_actorMotor == null && _actor != null)
+            _actorMotor = _actor.actorMotor != null
+                ? _actor.actorMotor
+                : _actor.GetComponent<ActorMotor>();
+
+        return _actorMotor != null && _actorMotor.isActiveAndEnabled
+            ? _actorMotor
             : null;
     }
 }

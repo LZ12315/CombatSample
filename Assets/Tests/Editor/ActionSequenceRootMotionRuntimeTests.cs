@@ -64,19 +64,48 @@ public sealed class ActionSequenceRootMotionRuntimeTests
     }
 
     [Test]
-    public void SelfRotationBuffer_RejectsSecondOwnerAndIgnoresStaleToken()
+    public void RootMotionBuffer_UsesRecoverableLifoOwnersWithoutCatchup()
+    {
+        var buffer = new RootMotionBuffer();
+        MotionOwner a = buffer.BeginTrajectory();
+        buffer.SubmitTrajectory(a, Vector3.forward);
+        MotionOwner b = buffer.BeginTrajectory();
+        buffer.SubmitTrajectory(a, Vector3.right * 2f);
+        buffer.SubmitTrajectory(b, Vector3.left);
+
+        buffer.BeginMotorTick();
+
+        Assert.IsTrue(buffer.HasTrajectoryTick);
+        Assert.AreEqual(Vector3.left, buffer.TrajectoryLocalPosition);
+
+        buffer.SubmitTrajectory(a, Vector3.forward * 3f);
+        buffer.EndTrajectory(b);
+        buffer.BeginMotorTick();
+
+        Assert.IsTrue(buffer.HasTrajectoryTick);
+        Assert.AreEqual(Vector3.forward * 3f, buffer.TrajectoryLocalPosition);
+    }
+
+    [Test]
+    public void SelfRotationBuffer_UsesRecoverableLifoOwnersAndIgnoresStaleToken()
     {
         var buffer = new SelfRotationBuffer();
         Assert.IsTrue(buffer.TryBegin(out MotionOwner first));
-        Assert.IsFalse(buffer.TryBegin(out MotionOwner second));
-        Assert.IsFalse(second.IsValid);
+        Assert.IsTrue(buffer.TryBegin(out MotionOwner second));
 
         Assert.IsFalse(buffer.Submit(new MotionOwner(first.Id + 100), Quaternion.Euler(0f, 90f, 0f)));
         Assert.IsTrue(buffer.Submit(first, Quaternion.Euler(0f, 30f, 0f)));
+        Assert.IsTrue(buffer.Submit(second, Quaternion.Euler(0f, 60f, 0f)));
         buffer.BeginMotorTick();
 
         Assert.IsTrue(buffer.HasTickOwner);
-        AssertQuaternion(Quaternion.Euler(0f, 30f, 0f), buffer.TickLocalYawDelta);
+        AssertQuaternion(Quaternion.Euler(0f, 60f, 0f), buffer.TickLocalYawDelta);
+
+        Assert.IsTrue(buffer.End(second));
+        Assert.IsTrue(buffer.Submit(first, Quaternion.Euler(0f, 15f, 0f)));
+        buffer.BeginMotorTick();
+
+        AssertQuaternion(Quaternion.Euler(0f, 15f, 0f), buffer.TickLocalYawDelta);
     }
 
     [Test]
@@ -109,6 +138,25 @@ public sealed class ActionSequenceRootMotionRuntimeTests
         AssertQuaternion(Quaternion.Euler(0f, 45f, 0f), runtime.SelfRotationLocalYawDelta);
         Assert.IsTrue(runtime.EndSelfRotation(owner));
         Assert.IsFalse(runtime.HasSelfRotationTick);
+    }
+
+    [Test]
+    public void RotationDomain_UsesFixedScriptedRootLocomotionPrecedence()
+    {
+        var rotation = new RotationDomain();
+        Quaternion tickStart = Quaternion.Euler(0f, 10f, 0f);
+        Quaternion locomotion = Quaternion.Euler(0f, 80f, 0f);
+        Quaternion rootDelta = Quaternion.Euler(0f, 20f, 0f);
+        Quaternion scriptedDelta = Quaternion.Euler(0f, 40f, 0f);
+
+        rotation.Prepare(tickStart, locomotion, false, Quaternion.identity, true, rootDelta);
+        AssertQuaternion(Quaternion.Euler(0f, 30f, 0f), rotation.RequestedRotation);
+
+        rotation.Prepare(tickStart, locomotion, true, scriptedDelta, true, rootDelta);
+        AssertQuaternion(Quaternion.Euler(0f, 50f, 0f), rotation.RequestedRotation);
+
+        rotation.Prepare(tickStart, locomotion, false, Quaternion.identity, false, Quaternion.identity);
+        AssertQuaternion(locomotion, rotation.RequestedRotation);
     }
 
     [Test]
@@ -171,6 +219,7 @@ public sealed class ActionSequenceRootMotionRuntimeTests
             gameObject.transform.rotation = Quaternion.Euler(0f, 123f, 0f);
             motor.EndSelfRotation(owner);
 
+            motor.BeforeCharacterUpdate(DeltaTime);
             Quaternion rotation = Quaternion.identity;
             motor.UpdateRotation(ref rotation, DeltaTime);
 
@@ -214,7 +263,7 @@ public sealed class ActionSequenceRootMotionRuntimeTests
     }
 
     [Test]
-    public void TrajectoryRootMotion_AddsHorizontalImpulseAndKeepsVerticalChannels()
+    public void TrajectoryRootMotion_DoesNotAddHorizontalImpulseButKeepsVerticalChannel()
     {
         var runtime = new ActorMotionRuntime();
         runtime.AddHorizontalImpulse(Vector3.right * 3f);
@@ -230,7 +279,7 @@ public sealed class ActionSequenceRootMotionRuntimeTests
             Quaternion.identity,
             DeltaTime);
 
-        Assert.That(velocity.x, Is.EqualTo(3f).Within(0.0001f));
+        Assert.That(velocity.x, Is.EqualTo(0f).Within(0.0001f));
         Assert.That(velocity.y, Is.EqualTo(5f).Within(0.0001f));
         Assert.That(velocity.z, Is.EqualTo(60f).Within(0.0001f));
     }

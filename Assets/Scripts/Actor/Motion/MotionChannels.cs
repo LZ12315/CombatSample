@@ -18,31 +18,21 @@ public readonly struct MotionOwner
 }
 
 /// <summary>
-/// 由 ActorMotionRuntime 持有的运行时运动通道。
-/// 这是纯 C# 状态，不是 Unity 组件。
-///
-/// 水平和垂直 API 有意保持不对称：
-/// 水平运动建模的是平面动量，垂直运动同时混合了起跳/击飞、下砸、
-/// 重力和接地贴附等语义。
-///
-/// 通道分类：
-/// - Locomotion：调用方提供的基础水平速度。
-/// - Impulse：可叠加的水平动量，以及 launch/slam 语义的垂直意图。
-/// - Velocity owner：Action/Timeline 对单轴速度的可恢复覆盖栈。
-/// - Gravity accumulator：没有垂直 owner 时的内部垂直演化状态。
+/// ActorMotor 的 Translation Domain。
+/// 所有水平数据均为 world planar velocity（Root Motion 的 interval displacement
+/// 在 compose boundary 进入这里之前完成换算）；垂直自由运动只有一个
+/// BallisticVerticalVelocity authoritative state。
 /// </summary>
-public sealed class MotionChannels
+public sealed class TranslationDomain
 {
     #region === 常量与状态 ===
 
-    private const float GroundStickVelocity = -2f;
     private const float VelocityEpsilon = 0.001f;
 
     private int _nextOwnerId = 1;
 
     private Vector3 _horizontalImpulseVelocity = Vector3.zero;
-    private float _gravityAccumulator;
-    private float _verticalImpulseVelocity;
+    private float _ballisticVerticalVelocity;
 
     private readonly List<HorizontalVelocityOwnerState> _horizontalVelocityOwners = new();
 
@@ -52,8 +42,7 @@ public sealed class MotionChannels
     public bool HasVerticalVelocityOwner => _verticalVelocityOwners.Count > 0;
 
     public Vector3 DebugHorizontalImpulse => _horizontalImpulseVelocity;
-    public float DebugVerticalImpulse => _verticalImpulseVelocity;
-    public float DebugGravityAccumulator => _gravityAccumulator;
+    public float BallisticVerticalVelocity => _ballisticVerticalVelocity;
     public Vector3 DebugOwnerHorizontalVelocity => TryGetTopHorizontal(out HorizontalVelocityOwnerState horizontal) ? horizontal.Velocity : Vector3.zero;
     public float DebugOwnerVerticalVelocity => TryGetTopVertical(out VerticalVelocityOwnerState vertical) ? vertical.Velocity : 0f;
     public int DebugHorizontalVelocityOwnerCount => _horizontalVelocityOwners.Count;
@@ -70,8 +59,11 @@ public sealed class MotionChannels
     /// </summary>
     public void ClearVelocityOwners()
     {
+        bool hadVerticalOwners = _verticalVelocityOwners.Count > 0;
         _horizontalVelocityOwners.Clear();
         _verticalVelocityOwners.Clear();
+        if (hadVerticalOwners)
+            _ballisticVerticalVelocity = 0f;
     }
 
     public MotionOwner BeginHorizontalVelocity()
@@ -125,8 +117,12 @@ public sealed class MotionChannels
     public void EndVerticalVelocity(MotionOwner owner)
     {
         int index = FindVerticalOwnerIndex(owner);
-        if (index >= 0)
-            _verticalVelocityOwners.RemoveAt(index);
+        if (index < 0)
+            return;
+
+        _verticalVelocityOwners.RemoveAt(index);
+        if (_verticalVelocityOwners.Count == 0)
+            _ballisticVerticalVelocity = 0f;
     }
 
     #endregion
@@ -144,20 +140,14 @@ public sealed class MotionChannels
         _horizontalImpulseVelocity = Vector3.zero;
     }
 
-    /// <summary>
-    /// 写入垂直 launch/slam 意图。
-    /// 向上冲量保留当前最强的 launch；向下冲量直接覆盖当前垂直冲量，
-    /// 让下砸能立刻生效。
-    /// </summary>
-    public void ApplyVerticalImpulse(float verticalSpeed)
+    public void AddBallisticVerticalVelocity(float velocity)
     {
-        if (verticalSpeed >= 0f)
-            _verticalImpulseVelocity = Mathf.Max(_verticalImpulseVelocity, verticalSpeed);
-        else
-            _verticalImpulseVelocity = verticalSpeed;
+        _ballisticVerticalVelocity += velocity;
+    }
 
-        if (verticalSpeed > 0f)
-            _gravityAccumulator = 0f;
+    public void SetBallisticVerticalVelocity(float velocity)
+    {
+        _ballisticVerticalVelocity = velocity;
     }
 
     /// <summary>
@@ -170,8 +160,7 @@ public sealed class MotionChannels
         verticalInheritance = Mathf.Clamp01(verticalInheritance);
 
         _horizontalImpulseVelocity *= horizontalInheritance;
-        _verticalImpulseVelocity *= verticalInheritance;
-        _gravityAccumulator *= verticalInheritance;
+        _ballisticVerticalVelocity *= verticalInheritance;
     }
 
     #endregion
@@ -179,32 +168,34 @@ public sealed class MotionChannels
     #region === Tick 演化 ===
 
     /// <summary>
-    /// 接地时调和内部垂直状态。
-    /// 清掉垂直冲量，并把重力钳到一个较小的贴地速度。
-    /// 这只影响下一次离地手感；接地时对外发布的 CurrentVelocity.y
-    /// 仍由 VelocityReadout 负责归零。
-    /// 水平冲量有意保留，不在这里清除。
+    /// 演化唯一 Ballistic state。Vertical owner 活跃时冻结；稳定接地时归零。
     /// </summary>
-    internal void ResetVerticalStateForGround()
-    {
-        _verticalImpulseVelocity = 0f;
-        _gravityAccumulator = GroundStickVelocity;
-    }
-
-    /// <summary>
-    /// 演化重力。dt 是 Actor 本地 motion delta（已乘 MovementTimeScale）。
-    /// 若垂直 velocity owner 正在接管该轴，则暂停内部重力演化。
-    /// 稳定接地时会钳制垂直内部状态，而不是继续累积重力。
-    /// </summary>
-    public void StepGravity(float dt, bool isGrounded, float gravityScale)
+    public void StepBallistic(
+        float dt,
+        bool isGrounded,
+        bool hitCeiling,
+        float gravityScale,
+        float legacyAirDrag)
     {
         if (HasVerticalVelocityOwner)
             return;
 
         if (isGrounded)
-            ResetVerticalStateForGround();
-        else
-            _gravityAccumulator += Physics.gravity.y * gravityScale * dt;
+        {
+            _ballisticVerticalVelocity = 0f;
+            return;
+        }
+
+        if (hitCeiling && _ballisticVerticalVelocity > 0f)
+            _ballisticVerticalVelocity = 0f;
+
+        if (legacyAirDrag > 0f && Mathf.Abs(_ballisticVerticalVelocity) > 0.01f)
+            _ballisticVerticalVelocity *= Mathf.Exp(-legacyAirDrag * dt);
+
+        _ballisticVerticalVelocity += Physics.gravity.y * gravityScale * dt;
+
+        if (Mathf.Abs(_ballisticVerticalVelocity) < 0.01f)
+            _ballisticVerticalVelocity = 0f;
     }
 
     /// <summary>
@@ -221,37 +212,6 @@ public sealed class MotionChannels
 
         float factor = Mathf.Exp(-drag * dt);
         _horizontalImpulseVelocity *= factor;
-    }
-
-    /// <summary>
-    /// 衰减垂直冲量，并处理一次性的垂直碰撞反馈。dt 是 Actor 本地 motion delta。
-    /// 撞天花板会截断向上速度，但不会把已累积的重力瞬间暴露成过快下落。
-    /// </summary>
-    public void StepVerticalImpulse(
-        float dt,
-        bool isAirborne,
-        bool isGrounded,
-        bool hitCeiling,
-        float airDrag)
-    {
-        if (isAirborne && airDrag > 0f && Mathf.Abs(_verticalImpulseVelocity) > 0.01f)
-        {
-            float factor = Mathf.Exp(-airDrag * dt);
-            _verticalImpulseVelocity *= factor;
-        }
-
-        if (hitCeiling && _verticalImpulseVelocity > 0f)
-        {
-            float currentVerticalSpeed = _gravityAccumulator + _verticalImpulseVelocity;
-            _verticalImpulseVelocity = 0f;
-            _gravityAccumulator = Mathf.Min(0f, currentVerticalSpeed);
-        }
-
-        if (isGrounded)
-            _verticalImpulseVelocity = 0f;
-
-        if (Mathf.Abs(_verticalImpulseVelocity) < 0.01f)
-            _verticalImpulseVelocity = 0f;
     }
 
     #endregion
@@ -287,7 +247,7 @@ public sealed class MotionChannels
 
     /// <summary>
     /// 合成 ActorMotor 执行接地钳制前的垂直请求速度。
-    /// 垂直 owner 会完全覆盖重力和垂直冲量。
+    /// 垂直 owner 会完全覆盖 BallisticVerticalVelocity。
     /// timeScale 是 MovementTimeScale，作为统一出口倍率在此应用。
     /// </summary>
     public float ComposeVertical(float timeScale)
@@ -295,7 +255,7 @@ public sealed class MotionChannels
         if (TryGetTopVertical(out VerticalVelocityOwnerState owner))
             return owner.Velocity * timeScale;
 
-        return (_gravityAccumulator + _verticalImpulseVelocity) * timeScale;
+        return _ballisticVerticalVelocity * timeScale;
     }
 
     #endregion
@@ -387,4 +347,248 @@ public sealed class MotionChannels
     }
 
     #endregion
+}
+
+/// <summary>
+/// ActorMotor supporting state for temporary motion constraints.
+/// Each parameter owns its own token list and combine rule.
+/// </summary>
+public sealed class MotionPolicyState
+{
+    private int _nextOwnerId = 1;
+
+    private float _baseLocomotionScale = 1f;
+    private float _baseAirLocomotionScale = 1f;
+    private float _baseGravityScale = 1f;
+
+    private readonly List<PolicyOwnerState> _locomotionScaleOwners = new();
+    private readonly List<PolicyOwnerState> _airLocomotionScaleOwners = new();
+    private readonly List<PolicyOwnerState> _gravityScaleOwners = new();
+
+    public float LocomotionScale => ComposeMin(_baseLocomotionScale, _locomotionScaleOwners);
+    public float AirLocomotionScale => ComposeMin(_baseAirLocomotionScale, _airLocomotionScaleOwners);
+    public float GravityScale => ComposeMultiply(_baseGravityScale, _gravityScaleOwners);
+
+    public int DebugLocomotionScaleOwnerCount => _locomotionScaleOwners.Count;
+    public int DebugAirLocomotionScaleOwnerCount => _airLocomotionScaleOwners.Count;
+    public int DebugGravityScaleOwnerCount => _gravityScaleOwners.Count;
+
+    public void SetBaseLocomotionScale(float scale)
+    {
+        _baseLocomotionScale = Sanitize01(scale);
+    }
+
+    public void SetBaseAirLocomotionScale(float scale)
+    {
+        _baseAirLocomotionScale = Sanitize01(scale);
+    }
+
+    public void SetBaseGravityScale(float scale)
+    {
+        _baseGravityScale = SanitizeNonNegative(scale);
+    }
+
+    public MotionOwner BeginLocomotionScale(float scale)
+    {
+        return Begin(_locomotionScaleOwners, Sanitize01(scale));
+    }
+
+    public bool UpdateLocomotionScale(MotionOwner owner, float scale)
+    {
+        return Update(_locomotionScaleOwners, owner, Sanitize01(scale));
+    }
+
+    public bool EndLocomotionScale(MotionOwner owner)
+    {
+        return End(_locomotionScaleOwners, owner);
+    }
+
+    public MotionOwner BeginAirLocomotionScale(float scale)
+    {
+        return Begin(_airLocomotionScaleOwners, Sanitize01(scale));
+    }
+
+    public bool UpdateAirLocomotionScale(MotionOwner owner, float scale)
+    {
+        return Update(_airLocomotionScaleOwners, owner, Sanitize01(scale));
+    }
+
+    public bool EndAirLocomotionScale(MotionOwner owner)
+    {
+        return End(_airLocomotionScaleOwners, owner);
+    }
+
+    public MotionOwner BeginGravityScale(float scale)
+    {
+        return Begin(_gravityScaleOwners, SanitizeNonNegative(scale));
+    }
+
+    public bool UpdateGravityScale(MotionOwner owner, float scale)
+    {
+        return Update(_gravityScaleOwners, owner, SanitizeNonNegative(scale));
+    }
+
+    public bool EndGravityScale(MotionOwner owner)
+    {
+        return End(_gravityScaleOwners, owner);
+    }
+
+    public void ClearPolicyOwners()
+    {
+        _locomotionScaleOwners.Clear();
+        _airLocomotionScaleOwners.Clear();
+        _gravityScaleOwners.Clear();
+    }
+
+    private MotionOwner Begin(List<PolicyOwnerState> owners, float value)
+    {
+        MotionOwner owner = NewOwner();
+        owners.Add(new PolicyOwnerState(owner, value));
+        return owner;
+    }
+
+    private static bool Update(List<PolicyOwnerState> owners, MotionOwner owner, float value)
+    {
+        int index = FindOwnerIndex(owners, owner);
+        if (index < 0)
+            return false;
+
+        owners[index] = new PolicyOwnerState(owner, value);
+        return true;
+    }
+
+    private static bool End(List<PolicyOwnerState> owners, MotionOwner owner)
+    {
+        int index = FindOwnerIndex(owners, owner);
+        if (index < 0)
+            return false;
+
+        owners.RemoveAt(index);
+        return true;
+    }
+
+    private MotionOwner NewOwner()
+    {
+        if (_nextOwnerId == int.MaxValue)
+            _nextOwnerId = 1;
+
+        return new MotionOwner(_nextOwnerId++);
+    }
+
+    private static int FindOwnerIndex(List<PolicyOwnerState> owners, MotionOwner owner)
+    {
+        if (!owner.IsValid)
+            return -1;
+
+        for (int i = owners.Count - 1; i >= 0; i--)
+        {
+            if (owners[i].Owner.Id == owner.Id)
+                return i;
+        }
+
+        return -1;
+    }
+
+    private static float ComposeMin(float baseValue, List<PolicyOwnerState> owners)
+    {
+        float result = Sanitize01(baseValue);
+        for (int i = 0; i < owners.Count; i++)
+            result = Mathf.Min(result, owners[i].Value);
+
+        return result;
+    }
+
+    private static float ComposeMultiply(float baseValue, List<PolicyOwnerState> owners)
+    {
+        float result = SanitizeNonNegative(baseValue);
+        for (int i = 0; i < owners.Count; i++)
+            result *= owners[i].Value;
+
+        return result;
+    }
+
+    private static float Sanitize01(float value)
+    {
+        if (float.IsNaN(value) || float.IsInfinity(value))
+            return 1f;
+
+        return Mathf.Clamp01(value);
+    }
+
+    private static float SanitizeNonNegative(float value)
+    {
+        if (float.IsNaN(value) || float.IsInfinity(value))
+            return 1f;
+
+        return Mathf.Max(0f, value);
+    }
+
+    private readonly struct PolicyOwnerState
+    {
+        public readonly MotionOwner Owner;
+        public readonly float Value;
+
+        public PolicyOwnerState(MotionOwner owner, float value)
+        {
+            Owner = owner;
+            Value = value;
+        }
+    }
+}
+
+/// <summary>
+/// E3-B compatibility façade。旧调用方和 Editor 暂时仍可使用 MotionChannels，
+/// authoritative state 与 compose 规则全部由 TranslationDomain 持有。
+/// </summary>
+public sealed class MotionChannels
+{
+    private readonly TranslationDomain _translation;
+
+    public MotionChannels()
+        : this(new TranslationDomain())
+    {
+    }
+
+    internal MotionChannels(TranslationDomain translation)
+    {
+        _translation = translation;
+    }
+
+    public TranslationDomain Domain => _translation;
+    public bool HasHorizontalVelocityOwner => _translation.HasHorizontalVelocityOwner;
+    public bool HasVerticalVelocityOwner => _translation.HasVerticalVelocityOwner;
+    public Vector3 DebugHorizontalImpulse => _translation.DebugHorizontalImpulse;
+    public float DebugVerticalImpulse => _translation.BallisticVerticalVelocity;
+    public float DebugGravityAccumulator => 0f;
+    public float DebugBallisticVerticalVelocity => _translation.BallisticVerticalVelocity;
+    public Vector3 DebugOwnerHorizontalVelocity => _translation.DebugOwnerHorizontalVelocity;
+    public float DebugOwnerVerticalVelocity => _translation.DebugOwnerVerticalVelocity;
+    public int DebugHorizontalVelocityOwnerCount => _translation.DebugHorizontalVelocityOwnerCount;
+    public int DebugVerticalVelocityOwnerCount => _translation.DebugVerticalVelocityOwnerCount;
+    public Vector3 HorizontalImpulseVelocity => _translation.HorizontalImpulseVelocity;
+
+    public void ClearVelocityOwners() => _translation.ClearVelocityOwners();
+    public MotionOwner BeginHorizontalVelocity() => _translation.BeginHorizontalVelocity();
+    public void SetHorizontalVelocity(MotionOwner owner, Vector3 velocity) => _translation.SetHorizontalVelocity(owner, velocity);
+    public void EndHorizontalVelocity(MotionOwner owner) => _translation.EndHorizontalVelocity(owner);
+    public MotionOwner BeginVerticalVelocity() => _translation.BeginVerticalVelocity();
+    public bool SetVerticalVelocity(MotionOwner owner, float velocity) => _translation.SetVerticalVelocity(owner, velocity);
+    public bool IsTopVerticalVelocityOwner(MotionOwner owner) => _translation.IsTopVerticalVelocityOwner(owner);
+    public void EndVerticalVelocity(MotionOwner owner) => _translation.EndVerticalVelocity(owner);
+    public void AddHorizontalImpulse(Vector3 velocity) => _translation.AddHorizontalImpulse(velocity);
+    public void ClearHorizontalImpulse() => _translation.ClearHorizontalImpulse();
+    public void ApplyVerticalImpulse(float velocity) => _translation.AddBallisticVerticalVelocity(velocity);
+    public void AddBallisticVerticalVelocity(float velocity) => _translation.AddBallisticVerticalVelocity(velocity);
+    public void SetBallisticVerticalVelocity(float velocity) => _translation.SetBallisticVerticalVelocity(velocity);
+    public void ApplyHandoff(float horizontalInheritance, float verticalInheritance) => _translation.ApplyHandoff(horizontalInheritance, verticalInheritance);
+    public void StepGravity(float dt, bool isGrounded, float gravityScale) =>
+        _translation.StepBallistic(dt, isGrounded, false, gravityScale, 0f);
+    public void StepHorizontalDrag(float dt, float drag) => _translation.StepHorizontalDrag(dt, drag);
+    public void StepVerticalImpulse(float dt, bool isAirborne, bool isGrounded, bool hitCeiling, float airDrag) =>
+        _translation.StepBallistic(dt, isGrounded, hitCeiling, 0f, isAirborne ? airDrag : 0f);
+    public Vector3 ComposeHorizontal(Vector3 locomotionVelocity, float timeScale) =>
+        _translation.ComposeHorizontal(locomotionVelocity, timeScale);
+    public bool TryComposeHorizontalVelocityOwner(float timeScale, out Vector3 velocity) =>
+        _translation.TryComposeHorizontalVelocityOwner(timeScale, out velocity);
+    public float ComposeVertical(float timeScale) => _translation.ComposeVertical(timeScale);
 }

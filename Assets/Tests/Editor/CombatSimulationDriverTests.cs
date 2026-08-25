@@ -12,6 +12,8 @@ using UnityEngine.TestTools;
 public sealed class CombatSimulationDriverStructureTests
 {
     private const string ManagerPrefabPath = "Assets/Prefabs/Function/Manager.prefab";
+    private const BindingFlags DeclaredInstanceMethods =
+        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
 
     [Test]
     public void ManagerPrefab_HasOneEnabledDriverAndResolver()
@@ -31,19 +33,71 @@ public sealed class CombatSimulationDriverStructureTests
     [Test]
     public void Resolver_HasOneExplicitEntryPointAndNoUnityFixedUpdate()
     {
-        const BindingFlags instanceMethods =
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
-
-        MethodInfo fixedUpdate = typeof(ActorCollisionResolver).GetMethod("FixedUpdate", instanceMethods);
+        MethodInfo fixedUpdate = typeof(ActorCollisionResolver).GetMethod("FixedUpdate", DeclaredInstanceMethods);
         MethodInfo explicitStep = typeof(ActorCollisionResolver).GetMethod(
             "ResolveFixedStep",
-            instanceMethods);
+            DeclaredInstanceMethods);
 
         Assert.IsNull(fixedUpdate, "Resolver must not keep a second Unity FixedUpdate entry point.");
         Assert.IsNotNull(explicitStep);
         Assert.IsTrue(explicitStep.IsAssembly);
         Assert.AreEqual(typeof(void), explicitStep.ReturnType);
         Assert.AreEqual(0, explicitStep.GetParameters().Length);
+    }
+
+    [Test]
+    public void Driver_HasExplicitSevenPhaseFacade()
+    {
+        AssertDriverMethod("RunInputControlPhase", typeof(float));
+        AssertDriverMethod("RunActionPhase", typeof(float));
+        AssertDriverMethod("RunAnimationPhase", typeof(float));
+        AssertDriverMethod("RunMotionPhase", typeof(float));
+        AssertDriverMethod("RunWorldPhase", typeof(float));
+        AssertDriverMethod("RunHitPhase");
+        AssertDriverMethod("RunFinishPhase");
+    }
+
+    [Test]
+    public void Runtime_HasExplicitPerActorPhaseEntries()
+    {
+        AssertRuntimeMethod("Control", typeof(float));
+        AssertRuntimeMethod("DecideAction");
+        AssertRuntimeMethod("AdvanceAction", typeof(float));
+        AssertRuntimeMethod("EvaluateAnimation", typeof(float));
+        AssertRuntimeMethod("PrepareMotion", typeof(float));
+        AssertRuntimeMethod("PublishWorldResult");
+        AssertRuntimeMethod("QueryHits", typeof(CombatHitBuffer));
+        AssertRuntimeMethod("FinishFrame");
+
+        Assert.IsNull(
+            typeof(ActorSimulationRuntime).GetMethod("FixedUpdate", DeclaredInstanceMethods),
+            "ActorSimulationRuntime must remain driven only by CombatSimulationDriver.");
+    }
+
+    private static void AssertDriverMethod(string methodName, params System.Type[] parameterTypes)
+    {
+        MethodInfo method = typeof(CombatSimulationDriver).GetMethod(
+            methodName,
+            DeclaredInstanceMethods,
+            null,
+            parameterTypes,
+            null);
+
+        Assert.IsNotNull(method, $"CombatSimulationDriver is missing {methodName}.");
+        Assert.IsTrue(method.IsPrivate, $"{methodName} must stay as Driver-owned phase plumbing.");
+    }
+
+    private static void AssertRuntimeMethod(string methodName, params System.Type[] parameterTypes)
+    {
+        MethodInfo method = typeof(ActorSimulationRuntime).GetMethod(
+            methodName,
+            DeclaredInstanceMethods,
+            null,
+            parameterTypes,
+            null);
+
+        Assert.IsNotNull(method, $"ActorSimulationRuntime is missing {methodName}.");
+        Assert.IsTrue(method.IsPublic, $"{methodName} must be an explicit per-Actor phase entry.");
     }
 }
 

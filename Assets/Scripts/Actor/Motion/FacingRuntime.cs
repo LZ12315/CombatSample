@@ -1,8 +1,9 @@
 using UnityEngine;
 
 /// <summary>
-/// 朝向意图运行时。
-/// 负责维护外部覆盖朝向、瞬时 Snap，以及由 locomotion 意图驱动的待应用旋转。
+/// E3-B compatibility facing adapter。
+/// 负责维护现有外部覆盖朝向、瞬时 Snap 与 locomotion rotation contribution；
+/// 最终 requested rotation 由 RotationDomain 产出。
 /// </summary>
 public sealed class FacingRuntime
 {
@@ -89,5 +90,38 @@ public sealed class FacingRuntime
             _pendingRotation,
             _targetRotation,
             angularSpeed * deltaTime);
+    }
+}
+
+/// <summary>
+/// ActorMotor 的 Rotation Domain。
+/// 固定仲裁：Scripted Rotation > Root Rotation > Locomotion Rotation。
+/// 所有 temporary rotation owner 都提交本 Tick 的 local yaw delta。
+/// </summary>
+public sealed class RotationDomain
+{
+    public Quaternion RequestedRotation { get; private set; } = Quaternion.identity;
+
+    public void Prepare(
+        Quaternion tickStartRotation,
+        Quaternion locomotionRotation,
+        bool hasScriptedRotation,
+        Quaternion scriptedLocalYawDelta,
+        bool hasRootRotation,
+        Quaternion rootLocalYawDelta)
+    {
+        if (hasScriptedRotation)
+        {
+            RequestedRotation = tickStartRotation * scriptedLocalYawDelta;
+            return;
+        }
+
+        if (hasRootRotation)
+        {
+            RequestedRotation = tickStartRotation * rootLocalYawDelta;
+            return;
+        }
+
+        RequestedRotation = locomotionRotation;
     }
 }

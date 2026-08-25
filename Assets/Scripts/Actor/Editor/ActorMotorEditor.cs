@@ -67,6 +67,7 @@ public class ActorMotorEditor : Editor
         Vector3 reqVel = m.RequestedVelocity;
         Row("请求速度 (KCC)", $"({reqVel.x:F2}, {reqVel.y:F2}, {reqVel.z:F2})");
         Row("时间缩放", $"{m.MovementTimeScale:F2}x");
+        Row("Policy", $"Move {m.MotionPolicy.LocomotionScale:F2}, Air {m.MotionPolicy.AirLocomotionScale:F2}, Gravity {m.MotionPolicy.GravityScale:F2}");
         GUI.color = Color.white;
 
         EditorGUI.indentLevel--;
@@ -144,18 +145,14 @@ public class ActorMotorEditor : Editor
         Vector3 imp = ch.DebugHorizontalImpulse;
         Row("水平冲量", $"({imp.x:F3}, 0, {imp.z:F3})  |mag|={imp.magnitude:F3}");
 
-        float vImp = ch.DebugVerticalImpulse;
-        GUI.color = vImp > 0.01f ? new Color(0.3f, 1f, 0.5f) : (vImp < -0.01f ? new Color(1f, 0.4f, 0.3f) : Color.white);
-        Row("垂直冲量", $"{vImp:F2} m/s");
-        GUI.color = Color.white;
-
-        float grav = ch.DebugGravityAccumulator;
-        GUI.color = grav < -0.5f ? new Color(1f, 0.55f, 0.3f) : Color.white;
-        Row("重力累积", $"{grav:F2} m/s");
+        float ballistic = ch.DebugBallisticVerticalVelocity;
+        GUI.color = ballistic > 0.01f ? new Color(0.3f, 1f, 0.5f) : (ballistic < -0.01f ? new Color(1f, 0.4f, 0.3f) : Color.white);
+        Row("Ballistic 垂直速度", $"{ballistic:F2} m/s");
         GUI.color = Color.white;
 
         Row("水平 Owner 活跃", ch.HasHorizontalVelocityOwner ? "是" : "否");
         Row("垂直 Owner 活跃", ch.HasVerticalVelocityOwner ? "是" : "否");
+        Row("Policy Owners", $"Move {m.MotionPolicy.DebugLocomotionScaleOwnerCount}, Air {m.MotionPolicy.DebugAirLocomotionScaleOwnerCount}, Gravity {m.MotionPolicy.DebugGravityScaleOwnerCount}");
 
         EditorGUI.indentLevel--;
         EditorGUILayout.EndFoldoutHeaderGroup();
@@ -185,9 +182,11 @@ public class ActorMotorEditor : Editor
         Row("基础速度", $"{m.DebugBaseSpeed:F1} m/s");
 
         bool airborne = m.IsAirborne;
-        float effectiveSpeed = intent.MoveStrength * m.DebugBaseSpeed;
-        if (airborne) effectiveSpeed *= m.DebugAirControlFactor;
-        string speedNote = airborne ? $" (空中 ×{m.DebugAirControlFactor:F2})" : "";
+        float effectiveSpeed = intent.MoveStrength * m.DebugBaseSpeed * m.MotionPolicy.LocomotionScale;
+        if (airborne) effectiveSpeed *= m.DebugAirControlFactor * m.MotionPolicy.AirLocomotionScale;
+        string speedNote = airborne
+            ? $" (空中 ×{m.DebugAirControlFactor:F2}, Policy ×{m.MotionPolicy.AirLocomotionScale:F2})"
+            : $" (Policy ×{m.MotionPolicy.LocomotionScale:F2})";
         Row("生效速度", $"{effectiveSpeed:F2} m/s{speedNote}");
 
         GUI.color = loco.IsSuppressed ? new Color(1f, 0.5f, 0.3f) : new Color(0.5f, 1f, 0.5f);

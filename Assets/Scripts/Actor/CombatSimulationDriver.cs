@@ -7,9 +7,8 @@ using UnityEngine;
 /// Owns the explicit fixed-step boundary around KCC and actor-on-actor resolution.
 ///
 /// Fixed simulation contract:
-/// KCC interpolation pre-step -> Player locomotion intent -> Decide Actions -> Play Action Frames -> KCC simulation -> actor
-/// overlap resolution -> physics transform sync -> Detect Hits -> Resolve Hits -> Finish Action Frames
-/// -> matching KCC interpolation post-step.
+/// Tick boundary setup -> Input/Control -> Action -> Animation -> Motion -> World -> Hit -> Finish
+/// -> tick boundary teardown.
 ///
 /// This is intentionally not a general-purpose callback or phase scheduler.
 /// </summary>
@@ -112,8 +111,6 @@ public sealed class CombatSimulationDriver : MonoBehaviour
             throw new InvalidOperationException("KinematicCharacterSystem settings are unavailable.");
 
         EnsureAutoSimulationDisabled();
-        CaptureActorSnapshot();
-
         bool interpolationPrepared = false;
         bool interpolateThisStep = settings.Interpolate;
         Exception simulationException = null;
@@ -122,62 +119,23 @@ public sealed class CombatSimulationDriver : MonoBehaviour
         {
             _hitBuffer.Begin();
 
-            if (interpolateThisStep)
-            {
-                KinematicCharacterSystem.PreSimulationInterpolationUpdate(deltaTime);
-                interpolationPrepared = true;
-            }
-
-            PlayerInputController.Instance?.SubmitLocomotionIntentForFixedTick();
-
-            for (int i = 0; i < _tickActors.Count; i++)
-                _tickActors[i].DecideAction();
-
-            for (int i = 0; i < _tickActors.Count; i++)
-                _tickActors[i].PlayActionFrame(deltaTime);
-
-            KinematicCharacterSystem.Simulate(
-                deltaTime,
-                KinematicCharacterSystem.CharacterMotors,
-                KinematicCharacterSystem.PhysicsMovers);
-
-            _collisionResolver.ResolveFixedStep();
-            Physics.SyncTransforms();
-
-            for (int i = 0; i < _tickActors.Count; i++)
-                _tickActors[i].DetectHits(_hitBuffer);
-
-            _hitBuffer.Resolve();
-
-            for (int i = 0; i < _tickActors.Count; i++)
-                _tickActors[i].FinishActionFrame();
+            RunTickBoundarySetup(deltaTime, interpolateThisStep, out interpolationPrepared);
+            RunInputControlPhase(deltaTime);
+            RunActionPhase(deltaTime);
+            RunAnimationPhase(deltaTime);
+            RunMotionPhase(deltaTime);
+            RunWorldPhase(deltaTime);
+            RunHitPhase();
+            RunFinishPhase();
         }
         catch (Exception exception)
         {
             simulationException = exception;
-            AbortActorTicks();
+            AbortActorFrames();
         }
         finally
         {
-            if (interpolationPrepared)
-            {
-                try
-                {
-                    KinematicCharacterSystem.PostSimulationInterpolationUpdate(deltaTime);
-                }
-                catch (Exception exception)
-                {
-                    if (simulationException == null)
-                    {
-                        simulationException = exception;
-                        AbortActorTicks();
-                    }
-                    else
-                    {
-                        Debug.LogException(exception, this);
-                    }
-                }
-            }
+            RunTickBoundaryTeardown(deltaTime, interpolationPrepared, ref simulationException);
 
             _tickActors.Clear();
             _hitBuffer.Clear();
@@ -187,6 +145,105 @@ public sealed class CombatSimulationDriver : MonoBehaviour
         {
             _simulationFaulted = true;
             Debug.LogException(simulationException, this);
+        }
+    }
+
+    private void RunTickBoundarySetup(
+        float deltaTime,
+        bool interpolateThisStep,
+        out bool interpolationPrepared)
+    {
+        interpolationPrepared = false;
+        CaptureActorSnapshot();
+
+        if (!interpolateThisStep)
+            return;
+
+        KinematicCharacterSystem.PreSimulationInterpolationUpdate(deltaTime);
+        interpolationPrepared = true;
+    }
+
+    private void RunInputControlPhase(float deltaTime)
+    {
+        PlayerInputController.Instance?.SubmitLocomotionIntentForFixedTick();
+
+        for (int i = 0; i < _tickActors.Count; i++)
+            _tickActors[i].Control(deltaTime);
+    }
+
+    private void RunActionPhase(float deltaTime)
+    {
+        for (int i = 0; i < _tickActors.Count; i++)
+            _tickActors[i].DecideAction();
+
+        for (int i = 0; i < _tickActors.Count; i++)
+            _tickActors[i].AdvanceAction(deltaTime);
+    }
+
+    private void RunAnimationPhase(float deltaTime)
+    {
+        for (int i = 0; i < _tickActors.Count; i++)
+            _tickActors[i].EvaluateAnimation(deltaTime);
+    }
+
+    private void RunMotionPhase(float deltaTime)
+    {
+        for (int i = 0; i < _tickActors.Count; i++)
+            _tickActors[i].PrepareMotion(deltaTime);
+    }
+
+    private void RunWorldPhase(float deltaTime)
+    {
+        KinematicCharacterSystem.Simulate(
+            deltaTime,
+            KinematicCharacterSystem.CharacterMotors,
+            KinematicCharacterSystem.PhysicsMovers);
+
+        _collisionResolver.ResolveFixedStep();
+
+        Physics.SyncTransforms();
+
+        for (int i = 0; i < _tickActors.Count; i++)
+            _tickActors[i].PublishWorldResult();
+    }
+
+    private void RunHitPhase()
+    {
+        for (int i = 0; i < _tickActors.Count; i++)
+            _tickActors[i].QueryHits(_hitBuffer);
+
+        _hitBuffer.Resolve();
+    }
+
+    private void RunFinishPhase()
+    {
+        for (int i = 0; i < _tickActors.Count; i++)
+            _tickActors[i].FinishFrame();
+    }
+
+    private void RunTickBoundaryTeardown(
+        float deltaTime,
+        bool interpolationPrepared,
+        ref Exception simulationException)
+    {
+        if (!interpolationPrepared)
+            return;
+
+        try
+        {
+            KinematicCharacterSystem.PostSimulationInterpolationUpdate(deltaTime);
+        }
+        catch (Exception exception)
+        {
+            if (simulationException == null)
+            {
+                simulationException = exception;
+                AbortActorFrames();
+            }
+            else
+            {
+                Debug.LogException(exception, this);
+            }
         }
     }
 
@@ -209,13 +266,13 @@ public sealed class CombatSimulationDriver : MonoBehaviour
         _tickActors.Sort((a, b) => a.StableId.CompareTo(b.StableId));
     }
 
-    private void AbortActorTicks()
+    private void AbortActorFrames()
     {
         for (int i = 0; i < _tickActors.Count; i++)
         {
             try
             {
-                _tickActors[i].CancelAction();
+                _tickActors[i].CancelFrame();
             }
             catch (Exception exception)
             {

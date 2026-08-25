@@ -8,6 +8,36 @@ public sealed class ActionSequenceVelocityOverrideTests
     private const float DeltaTime = 1f / 60f;
 
     [Test]
+    public void TranslationDomain_BallisticSupportsCauseAgnosticAddAndSet()
+    {
+        var translation = new TranslationDomain();
+
+        translation.AddBallisticVerticalVelocity(5f);
+        translation.AddBallisticVerticalVelocity(-2f);
+        Assert.AreEqual(3f, translation.BallisticVerticalVelocity);
+
+        translation.SetBallisticVerticalVelocity(-7f);
+        Assert.AreEqual(-7f, translation.BallisticVerticalVelocity);
+    }
+
+    [Test]
+    public void TranslationDomain_VerticalOwnerFreezesAndResetsBallisticWhenLastOwnerEnds()
+    {
+        var translation = new TranslationDomain();
+        translation.SetBallisticVerticalVelocity(5f);
+        MotionOwner owner = translation.BeginVerticalVelocity();
+        translation.SetVerticalVelocity(owner, 2f);
+
+        translation.StepBallistic(1f, false, false, 1f, 0f);
+        Assert.AreEqual(5f, translation.BallisticVerticalVelocity);
+        Assert.AreEqual(2f, translation.ComposeVertical(1f));
+
+        translation.EndVerticalVelocity(owner);
+        Assert.AreEqual(0f, translation.BallisticVerticalVelocity);
+        Assert.AreEqual(0f, translation.ComposeVertical(1f));
+    }
+
+    [Test]
     public void MotionChannels_VelocityOwnerRestoresCoveredOwner()
     {
         var channels = new MotionChannels();
@@ -36,6 +66,36 @@ public sealed class ActionSequenceVelocityOverrideTests
         channels.EndHorizontalVelocity(b);
 
         Assert.AreEqual(Vector3.left * 7f, channels.ComposeHorizontal(Vector3.zero, 1f));
+    }
+
+    [Test]
+    public void MotionChannels_VerticalVelocityOwnerRestoresCoveredOwnerAndKeepsUpdating()
+    {
+        var channels = new MotionChannels();
+        MotionOwner a = channels.BeginVerticalVelocity();
+        channels.SetVerticalVelocity(a, 2f);
+        MotionOwner b = channels.BeginVerticalVelocity();
+        channels.SetVerticalVelocity(b, -4f);
+        channels.SetVerticalVelocity(a, 7f);
+
+        Assert.AreEqual(-4f, channels.ComposeVertical(1f));
+
+        channels.EndVerticalVelocity(b);
+
+        Assert.AreEqual(7f, channels.ComposeVertical(1f));
+    }
+
+    [Test]
+    public void MotionChannels_GroundedDoesNotEndVerticalVelocityOwner()
+    {
+        var channels = new MotionChannels();
+        MotionOwner owner = channels.BeginVerticalVelocity();
+        channels.SetVerticalVelocity(owner, 3f);
+
+        channels.StepGravity(1f, true, 1f);
+
+        Assert.IsTrue(channels.HasVerticalVelocityOwner);
+        Assert.AreEqual(3f, channels.ComposeVertical(1f));
     }
 
     [Test]
@@ -72,6 +132,37 @@ public sealed class ActionSequenceVelocityOverrideTests
 
         Assert.AreEqual(Vector3.forward * 3f, channels.ComposeHorizontal(Vector3.zero, 1f));
         Assert.AreEqual(1, channels.DebugHorizontalVelocityOwnerCount);
+    }
+
+    [Test]
+    public void MotionPolicyState_CombinesParameterOwnersByRule()
+    {
+        var policy = new MotionPolicyState();
+
+        MotionOwner locomotionA = policy.BeginLocomotionScale(0.8f);
+        MotionOwner locomotionB = policy.BeginLocomotionScale(0.5f);
+        MotionOwner air = policy.BeginAirLocomotionScale(0.25f);
+        MotionOwner gravityA = policy.BeginGravityScale(0.5f);
+        MotionOwner gravityB = policy.BeginGravityScale(2f);
+
+        Assert.AreEqual(0.5f, policy.LocomotionScale);
+        Assert.AreEqual(0.25f, policy.AirLocomotionScale);
+        Assert.AreEqual(1f, policy.GravityScale);
+
+        Assert.IsTrue(policy.EndLocomotionScale(locomotionB));
+        Assert.IsTrue(policy.UpdateGravityScale(gravityA, 0.25f));
+
+        Assert.AreEqual(0.8f, policy.LocomotionScale);
+        Assert.AreEqual(0.5f, policy.GravityScale);
+
+        Assert.IsTrue(policy.EndLocomotionScale(locomotionA));
+        Assert.IsTrue(policy.EndAirLocomotionScale(air));
+        Assert.IsTrue(policy.EndGravityScale(gravityA));
+        Assert.IsTrue(policy.EndGravityScale(gravityB));
+
+        Assert.AreEqual(1f, policy.LocomotionScale);
+        Assert.AreEqual(1f, policy.AirLocomotionScale);
+        Assert.AreEqual(1f, policy.GravityScale);
     }
 
     [Test]
