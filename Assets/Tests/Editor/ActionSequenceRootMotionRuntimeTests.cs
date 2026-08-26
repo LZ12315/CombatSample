@@ -1,5 +1,6 @@
 using NUnit.Framework;
 using System.Reflection;
+using KinematicCharacterController;
 using UnityEngine;
 using UnityEngine.TestTools;
 
@@ -171,9 +172,7 @@ public sealed class ActionSequenceRootMotionRuntimeTests
             Assert.IsTrue(motor.TryBeginSelfRotation(out MotionOwner owner));
             Assert.IsTrue(motor.SubmitSelfRotation(owner, Quaternion.Euler(0f, 60f, 0f)));
 
-            motor.BeforeCharacterUpdate(DeltaTime);
-            Quaternion rotation = Quaternion.identity;
-            motor.UpdateRotation(ref rotation, DeltaTime);
+            Quaternion rotation = ConsumePreparedRotation(gameObject, motor);
 
             AssertQuaternion(Quaternion.Euler(0f, 75f, 0f), rotation);
         }
@@ -194,9 +193,7 @@ public sealed class ActionSequenceRootMotionRuntimeTests
             motor.DebugFacing.Initialize(Quaternion.Euler(0f, 170f, 0f));
             Assert.IsTrue(motor.TryBeginSelfRotation(out _));
 
-            motor.BeforeCharacterUpdate(DeltaTime);
-            Quaternion rotation = Quaternion.identity;
-            motor.UpdateRotation(ref rotation, DeltaTime);
+            Quaternion rotation = ConsumePreparedRotation(gameObject, motor);
 
             AssertQuaternion(Quaternion.Euler(0f, 15f, 0f), rotation);
         }
@@ -219,9 +216,7 @@ public sealed class ActionSequenceRootMotionRuntimeTests
             gameObject.transform.rotation = Quaternion.Euler(0f, 123f, 0f);
             motor.EndSelfRotation(owner);
 
-            motor.BeforeCharacterUpdate(DeltaTime);
-            Quaternion rotation = Quaternion.identity;
-            motor.UpdateRotation(ref rotation, DeltaTime);
+            Quaternion rotation = ConsumePreparedRotation(gameObject, motor);
 
             AssertQuaternion(Quaternion.Euler(0f, 123f, 0f), rotation);
         }
@@ -363,9 +358,7 @@ public sealed class ActionSequenceRootMotionRuntimeTests
 
             actorObject.transform.rotation = second;
             runtime.OnExit(context, true);
-            motor.BeforeCharacterUpdate(DeltaTime);
-            Quaternion afterExit = Quaternion.identity;
-            motor.UpdateRotation(ref afterExit, DeltaTime);
+            Quaternion afterExit = ConsumePreparedRotation(actorObject, motor);
             AssertQuaternion(second, afterExit);
         }
         finally
@@ -482,10 +475,27 @@ public sealed class ActionSequenceRootMotionRuntimeTests
 
     private static Quaternion ConsumeSelfRotation(GameObject actorObject, ActorMotor motor)
     {
+        return ConsumePreparedRotation(actorObject, motor);
+    }
+
+    private static Quaternion ConsumePreparedRotation(GameObject actorObject, ActorMotor motor)
+    {
+        KinematicCharacterMotor kcc = SyncKccPose(actorObject);
         motor.BeforeCharacterUpdate(DeltaTime);
         Quaternion rotation = actorObject.transform.rotation;
         motor.UpdateRotation(ref rotation, DeltaTime);
+        kcc.SetPositionAndRotation(actorObject.transform.position, rotation);
         return rotation;
+    }
+
+    private static KinematicCharacterMotor SyncKccPose(GameObject actorObject)
+    {
+        KinematicCharacterMotor kcc = actorObject.GetComponent<KinematicCharacterMotor>();
+        if (kcc == null)
+            kcc = actorObject.AddComponent<KinematicCharacterMotor>();
+
+        kcc.SetPositionAndRotation(actorObject.transform.position, actorObject.transform.rotation);
+        return kcc;
     }
 
     private static RootMotionTrajectory CreateYawTrajectory(params float[] yawDegrees)
