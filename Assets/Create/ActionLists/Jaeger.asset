@@ -13,8 +13,6 @@ MonoBehaviour:
   m_Name: Jaeger
   m_EditorClassIdentifier: 
   _globalActions:
-  - {fileID: 11400000, guid: 2f15aa6f4d451f642af4dc8b8bd6db01, type: 2}
-  - {fileID: 11400000, guid: 3d226d8e8ddd46144a380fbf858ff67a, type: 2}
   - {fileID: 11400000, guid: 22c7354ecebf0c787980d8cefaf07e1a, type: 2}
   - {fileID: 11400000, guid: f9840ef760a6e3248a26b8b19bc24e31, type: 2}
   - {fileID: 11400000, guid: f8bc2c39ca88c2f05a08a28766f03e37, type: 2}

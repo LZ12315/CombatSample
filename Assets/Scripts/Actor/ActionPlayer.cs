@@ -731,7 +731,6 @@ public class ActionPlayer : MonoBehaviour
 
             _isPaused = false;
             action.OnExit();
-            _actor?.ClearTransientTags();
 
             if (clearTimeline && _director != null)
                 _director.playableAsset = null;

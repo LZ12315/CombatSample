@@ -54,6 +54,7 @@ public class ActorMotor : MonoBehaviour, ICharacterController
     private readonly LocomotionRuntime _locomotion = new();
     private readonly FacingRuntime _facing = new();
     private readonly LocomotionRunner _locomotionRunner = new();
+    private LocomotionTuning _effectiveLocomotionTuning = LocomotionTuning.Default;
 
     /// <summary>基础移动时间缩放。外部临时效果不直接写入 MotionRuntime，而是通过 modifier 叠加。</summary>
     private float _baseMovementTimeScale = 1f;
@@ -102,7 +103,7 @@ public class ActorMotor : MonoBehaviour, ICharacterController
 
     #region === 对外运动 API ===
 
-    public float LocomotionBaseSpeed => _locomotionBaseSpeed;
+    public float LocomotionBaseSpeed => _effectiveLocomotionTuning.MoveSpeed;
     public int MaxJumpCount => _maxJumpCount;
 
     public LocomotionIntent LocomotionIntent => _locomotion.Intent;
@@ -117,6 +118,21 @@ public class ActorMotor : MonoBehaviour, ICharacterController
     internal void ClearPendingLocomotionIntent()
     {
         _locomotion.ClearPendingIntent();
+    }
+
+    internal void ApplyLocomotionTuning(LocomotionTuning tuning)
+    {
+        _effectiveLocomotionTuning = LocomotionTuning.Sanitize(tuning);
+    }
+
+    internal void RestoreCompatibilityLocomotionTuning()
+    {
+        _effectiveLocomotionTuning = LocomotionTuning.Sanitize(new LocomotionTuning
+        {
+            MoveSpeed = _locomotionBaseSpeed,
+            AirControlFactor = _airControlFactor,
+            RotateSpeed = rotateSpeed,
+        });
     }
 
     public void SetLocomotionSuppressed(bool suppressed)
@@ -423,9 +439,9 @@ public class ActorMotor : MonoBehaviour, ICharacterController
     public TranslationDomain Translation => MotionRuntime.Translation;
     public RotationDomain Rotation => MotionRuntime.Rotation;
     public MotionPolicyState MotionPolicy => MotionRuntime.Policy;
-    public float DebugBaseSpeed => _locomotionBaseSpeed;
-    public float DebugAirControlFactor => _airControlFactor;
-    public float DebugRotateSpeed => rotateSpeed;
+    public float DebugBaseSpeed => _effectiveLocomotionTuning.MoveSpeed;
+    public float DebugAirControlFactor => _effectiveLocomotionTuning.AirControlFactor;
+    public float DebugRotateSpeed => _effectiveLocomotionTuning.RotateSpeed;
 
     public bool CanJump()
     {
@@ -455,6 +471,7 @@ public class ActorMotor : MonoBehaviour, ICharacterController
         Motor.CharacterController = this;
         _requestedRotation = Motor.TransientRotation;
         PublishResolvedWorldPose();
+        RestoreCompatibilityLocomotionTuning();
 
         if (actor != null)
             actor.actorMotor = this;
@@ -520,9 +537,9 @@ public class ActorMotor : MonoBehaviour, ICharacterController
             _locomotion,
             _facing,
             motionDeltaTime,
-            _locomotionBaseSpeed,
-            _airControlFactor,
-            rotateSpeed,
+            _effectiveLocomotionTuning.MoveSpeed,
+            _effectiveLocomotionTuning.AirControlFactor,
+            _effectiveLocomotionTuning.RotateSpeed,
             !grounded,
             MotionRuntime.LocomotionScale,
             MotionRuntime.AirLocomotionScale);

@@ -4046,6 +4046,17 @@ PrefabInstance:
       propertyPath: cameraTarget
       value: 
       objectReference: {fileID: 676585208}
+    - target: {fileID: 20400052013803368, guid: 7351e195eb0fa1445af9e9e72fcc017f,
+        type: 3}
+      propertyPath: animationConfig
+      value:
+      objectReference: {fileID: 11400000, guid: 20ee87b5f6a8e565db6e66a151dc6975,
+        type: 2}
+    - target: {fileID: 20400052013803368, guid: 7351e195eb0fa1445af9e9e72fcc017f,
+        type: 3}
+      propertyPath: actorLocomotion
+      value:
+      objectReference: {fileID: 344299297}
     - target: {fileID: 562087276151890924, guid: 7351e195eb0fa1445af9e9e72fcc017f,
         type: 3}
       propertyPath: _preInitializeSubGraphs
@@ -4071,11 +4082,6 @@ PrefabInstance:
         type: 3}
       propertyPath: _actorPushMass
       value: 2.5
-      objectReference: {fileID: 0}
-    - target: {fileID: 1415806643822593406, guid: 7351e195eb0fa1445af9e9e72fcc017f,
-        type: 3}
-      propertyPath: _locomotionBaseSpeed
-      value: 7
       objectReference: {fileID: 0}
     - target: {fileID: 1805172419140318867, guid: 7351e195eb0fa1445af9e9e72fcc017f,
         type: 3}
@@ -4271,6 +4277,10 @@ PrefabInstance:
         type: 3}
       insertIndex: -1
       addedObject: {fileID: 344299296}
+    - targetCorrespondingSourceObject: {fileID: 1805172419140318867, guid: 7351e195eb0fa1445af9e9e72fcc017f,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 344299297}
   m_SourcePrefab: {fileID: 100100000, guid: 7351e195eb0fa1445af9e9e72fcc017f, type: 3}
 --- !u!4 &344299292 stripped
 Transform:
@@ -4302,6 +4312,21 @@ GameObject:
     type: 3}
   m_PrefabInstance: {fileID: 344299291}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &344299297
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 344299295}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e9373b4b64024da5901130468aa80641, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  actor: {fileID: 344299294}
+  fallbackMode: {fileID: 11400000, guid: b5d5a89e5e194204a152d33b8d86b3fe, type: 2}
+  candidateModes: []
 --- !u!114 &344299296
 MonoBehaviour:
   m_ObjectHideFlags: 0
