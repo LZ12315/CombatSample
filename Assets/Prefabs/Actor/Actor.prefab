@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 8810464392593274740}
   - component: {fileID: 6152586604641815652}
   - component: {fileID: 1829239684118840258}
+  - component: {fileID: 6928918381991151234}
   - component: {fileID: 5391054559327852829}
   - component: {fileID: 760913534941012436}
   - component: {fileID: 6202206151019820556}
@@ -76,8 +77,23 @@ MonoBehaviour:
   actorMotor: {fileID: 760913534941012436}
   actionManager: {fileID: 6202206151019820556}
   actionPlayer: {fileID: 5430425547270008086}
+  actorAnimation: {fileID: 6928918381991151234}
   animancer: {fileID: 8224712931873708015}
   combater: {fileID: 5138158429335519842}
+--- !u!114 &6928918381991151234
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 11250960775893561}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f51c8d2435b24889b27ec07dec9326e6, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  actor: {fileID: 1829239684118840258}
+  animancer: {fileID: 8224712931873708015}
 --- !u!114 &5391054559327852829
 MonoBehaviour:
   m_ObjectHideFlags: 0

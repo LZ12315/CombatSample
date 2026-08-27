@@ -246,6 +246,9 @@ public sealed class ActionSequenceRuntime
             return false;
         }
 
+        if (nextFrame == 0)
+            _poseBaselineApplied = true;
+
         _frameContext = context;
         _pendingFrame = nextFrame;
         FrameTransactionState = ActionSequenceFrameTransactionState.Open;

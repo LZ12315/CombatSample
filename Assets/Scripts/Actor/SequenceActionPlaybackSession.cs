@@ -7,6 +7,8 @@ internal sealed class SequenceActionPlaybackSession : IFixedActionPlaybackSessio
     private readonly ActionContext _context;
     private readonly ActionSequenceContext _sequenceContext = new ActionSequenceContext();
     private ActionSequenceRuntime _runtime;
+    private ActorAnimation _actorAnimation;
+    private ActorAnimationActionOwner _animationOwner;
     private bool _paused;
     private bool _disposed;
     private bool _animatorRootMotionSuppressed;
@@ -35,6 +37,7 @@ internal sealed class SequenceActionPlaybackSession : IFixedActionPlaybackSessio
     public void Start()
     {
         SetAnimatorRootMotionSuppressed(true);
+        AcquireActionAnimationOwner();
         CreateRuntimeAndContext();
     }
 
@@ -46,26 +49,29 @@ internal sealed class SequenceActionPlaybackSession : IFixedActionPlaybackSessio
 
     public bool TryPlayFrame(float deltaSeconds)
     {
-        if (_disposed || _runtime == null || !_runtime.IsPlaying || _runtime.IsComplete || _paused)
+        if (_disposed || _runtime == null || !_runtime.IsPlaying || _runtime.IsComplete)
             return false;
 
-        if (deltaSeconds <= 0f || float.IsNaN(deltaSeconds) || float.IsInfinity(deltaSeconds))
+        if (deltaSeconds < 0f || float.IsNaN(deltaSeconds) || float.IsInfinity(deltaSeconds))
             return false;
 
         _sequenceContext.Actor = _actor;
-        _runtime.ApplyPoseBaseline(_sequenceContext);
 
-        if (_speed <= 0.0)
-            return false;
-
-        _frameAccumulator += deltaSeconds * _speed * CombatSimulationTiming.FrameRate;
-        if (_frameAccumulator < 1.0)
+        if (_paused || _speed <= 0.0 || deltaSeconds <= 0f)
         {
-            _runtime.RefreshPose(_sequenceContext, GetCurrentPoseFrame());
+            SubmitCurrentPose();
             return false;
         }
 
-        _frameAccumulator -= 1.0;
+        double nextAccumulator = _frameAccumulator + deltaSeconds * _speed * CombatSimulationTiming.FrameRate;
+        if (nextAccumulator < 1.0)
+        {
+            _frameAccumulator = nextAccumulator;
+            SubmitCurrentPose();
+            return false;
+        }
+
+        _frameAccumulator = nextAccumulator - 1.0;
         return _runtime.PlayFrame(
             _sequenceContext,
             CombatSimulationTiming.FixedDeltaTime,
@@ -123,24 +129,32 @@ internal sealed class SequenceActionPlaybackSession : IFixedActionPlaybackSessio
         Action.ResetRuntimeData();
         _paused = false;
         SetAnimatorRootMotionSuppressed(true);
+        ReleaseActionAnimationOwner();
+        AcquireActionAnimationOwner();
         CreateRuntimeAndContext();
     }
 
     public void Stop(ActionPlaybackStopMode stopMode)
     {
         if (_runtime == null)
+        {
+            ReleaseActionAnimationOwner();
+            SetAnimatorRootMotionSuppressed(false);
             return;
+        }
 
         if (!_runtime.IsComplete)
             _runtime.Cancel(_sequenceContext);
 
         _frameAccumulator = 0.0;
+        ReleaseActionAnimationOwner();
         SetAnimatorRootMotionSuppressed(false);
     }
 
     public void Dispose()
     {
         _disposed = true;
+        ReleaseActionAnimationOwner();
         SetAnimatorRootMotionSuppressed(false);
     }
 
@@ -151,12 +165,24 @@ internal sealed class SequenceActionPlaybackSession : IFixedActionPlaybackSessio
         _sequenceContext.Actor = _actor;
         _sequenceContext.Context = _context;
         _sequenceContext.HitBoxes = _actor != null ? _actor.HitBoxes : null;
+        _sequenceContext.AnimationOwner = _animationOwner;
     }
 
     private float GetCurrentPoseFrame()
     {
         int currentFrame = _runtime != null ? _runtime.CurrentFrame : -1;
         return currentFrame + 1f + (float)_frameAccumulator;
+    }
+
+    private void SubmitCurrentPose()
+    {
+        if (_runtime == null)
+            return;
+
+        if (_runtime.ApplyPoseBaseline(_sequenceContext))
+            return;
+
+        _runtime.RefreshPose(_sequenceContext, GetCurrentPoseFrame());
     }
 
     private void SetAnimatorRootMotionSuppressed(bool suppressed)
@@ -167,5 +193,36 @@ internal sealed class SequenceActionPlaybackSession : IFixedActionPlaybackSessio
         _animatorRootMotionSuppressed = suppressed;
         if (_actor != null && _actor.actorMotor != null)
             _actor.actorMotor.SetAnimatorRootMotionSuppressed(suppressed);
+    }
+
+    private void AcquireActionAnimationOwner()
+    {
+        if (_animationOwner.IsValid)
+            return;
+
+        _actorAnimation = ResolveActorAnimation();
+        if (_actorAnimation != null)
+            _animationOwner = _actorAnimation.BeginActionOverride();
+    }
+
+    private void ReleaseActionAnimationOwner()
+    {
+        if (!_animationOwner.IsValid)
+            return;
+
+        _actorAnimation?.EndActionOverride(_animationOwner);
+        _animationOwner = default;
+    }
+
+    private ActorAnimation ResolveActorAnimation()
+    {
+        if (_actorAnimation == null && _actor != null)
+            _actorAnimation = _actor.actorAnimation != null
+                ? _actor.actorAnimation
+                : _actor.GetComponent<ActorAnimation>();
+
+        return _actorAnimation != null && _actorAnimation.isActiveAndEnabled
+            ? _actorAnimation
+            : null;
     }
 }

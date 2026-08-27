@@ -25,6 +25,7 @@ public class ActionPlayer : MonoBehaviour
     private IActionPlaybackSession _session;
     private IFixedActionPlaybackSession _fixedTickSession;
     private bool _isFinalizingAction;
+    private bool _isPaused;
 
     /// <summary>
     /// 当前 Action 自己的基础播放速度。临时慢速效果不应写入这里。
@@ -37,6 +38,7 @@ public class ActionPlayer : MonoBehaviour
     /// 当前最终播放速度。实际播放载体会被防御性同步到这个值。
     /// </summary>
     public double PlaybackSpeed => _baseSpeed * _externalSpeedModifiers.Value;
+    internal bool IsPaused => _isPaused;
 
     /// <summary>
     /// 当前 Action 基础速度，不含外部临时修正。
@@ -95,7 +97,10 @@ public class ActionPlayer : MonoBehaviour
     {
         var action = CurrentAction;
         if (action == null)
+        {
+            _isPaused = false;
             return;
+        }
 
         IActionPlaybackSession session = _session;
         SafeStopSession(session, ActionPlaybackStopMode.Explicit);
@@ -107,6 +112,7 @@ public class ActionPlayer : MonoBehaviour
     {
         StopAction();
         _currentContext = context;
+        _isPaused = false;
 
         if (!TryValidateActionAsset(actionAsset, out string warning))
         {
@@ -145,11 +151,13 @@ public class ActionPlayer : MonoBehaviour
 
     public void Pause()
     {
+        _isPaused = true;
         _session?.Pause();
     }
 
     public void Resume()
     {
+        _isPaused = false;
         _session?.Resume();
     }
 
@@ -355,6 +363,7 @@ public class ActionPlayer : MonoBehaviour
             return true;
 
         AnimationConfig config = _actor != null ? _actor.AnimationConfig : null;
+        var animationPoseIntervals = new List<ActionSequenceAnimationPoseClipDefinition>();
         var rootMotionIntervals = new List<ActionSequenceRootMotionClipDefinition>();
         var selfRotationIntervals = new List<ActionSequenceSelfRotationClipDefinition>();
 
@@ -365,12 +374,27 @@ public class ActionPlayer : MonoBehaviour
             if (track == null || track.muted)
                 continue;
 
-            if (!TryValidateSequenceClips(track.Clips, config, rootMotionIntervals, selfRotationIntervals, out warning))
+            if (!TryValidateSequenceClips(track.Clips, config, animationPoseIntervals, rootMotionIntervals, selfRotationIntervals, out warning))
                 return false;
         }
 
-        if (!TryValidateSequenceClips(sequenceData.LegacyClips, config, rootMotionIntervals, selfRotationIntervals, out warning))
+        if (!TryValidateSequenceClips(sequenceData.LegacyClips, config, animationPoseIntervals, rootMotionIntervals, selfRotationIntervals, out warning))
             return false;
+
+        for (int i = 0; i < animationPoseIntervals.Count; i++)
+        {
+            ActionSequenceAnimationPoseClipDefinition a = animationPoseIntervals[i];
+            for (int j = i + 1; j < animationPoseIntervals.Count; j++)
+            {
+                ActionSequenceAnimationPoseClipDefinition b = animationPoseIntervals[j];
+                if (a.StartFrame < b.EndFrame && b.StartFrame < a.EndFrame)
+                {
+                    warning =
+                        $"Action 播放失败：AnimationPoseClip 区间重叠 [{a.StartFrame}, {a.EndFrame}) 与 [{b.StartFrame}, {b.EndFrame})。";
+                    return false;
+                }
+            }
+        }
 
         for (int i = 0; i < rootMotionIntervals.Count; i++)
         {
@@ -408,6 +432,7 @@ public class ActionPlayer : MonoBehaviour
     private static bool TryValidateSequenceClips(
         IReadOnlyList<ActionSequenceClipDefinition> clips,
         AnimationConfig config,
+        List<ActionSequenceAnimationPoseClipDefinition> animationPoseIntervals,
         List<ActionSequenceRootMotionClipDefinition> rootMotionIntervals,
         List<ActionSequenceSelfRotationClipDefinition> selfRotationIntervals,
         out string warning)
@@ -431,6 +456,8 @@ public class ActionPlayer : MonoBehaviour
                     warning = $"Action 播放失败：AnimationConfig 找不到动画 key '{poseClip.AnimationKey}' 的 Transition。";
                     return false;
                 }
+
+                animationPoseIntervals?.Add(poseClip);
             }
             else if (clip is ActionSequenceRootMotionClipDefinition rootMotionClip)
             {
@@ -702,6 +729,7 @@ public class ActionPlayer : MonoBehaviour
             if (CurrentAction == action)
                 CurrentAction = null;
 
+            _isPaused = false;
             action.OnExit();
             _actor?.ClearTransientTags();
 

@@ -12,6 +12,7 @@ public class Actor : MonoBehaviour
     public ActorMotor actorMotor;
     public ActionStateManager actionManager;
     public ActionPlayer actionPlayer;
+    public ActorAnimation actorAnimation;
     public AnimancerComponent animancer;
     public ActorCombater combater;
 
@@ -42,6 +43,11 @@ public class Actor : MonoBehaviour
         actorMotor = actorMotor != null ? actorMotor : GetComponent<ActorMotor>();
         actionPlayer = actionPlayer != null ? actionPlayer : GetComponent<ActionPlayer>();
         actionManager = actionManager != null ? actionManager : GetComponent<ActionStateManager>();
+        animancer = animancer != null ? animancer : GetComponentInChildren<AnimancerComponent>();
+        actorAnimation = actorAnimation != null ? actorAnimation : GetComponent<ActorAnimation>();
+        if (actorAnimation == null && animancer != null)
+            actorAnimation = gameObject.AddComponent<ActorAnimation>();
+        actorAnimation?.Bind(this);
         EnsureSimulationRuntime();
 
         if (cameraTarget == null)

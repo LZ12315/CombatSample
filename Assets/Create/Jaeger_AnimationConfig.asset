@@ -13,6 +13,12 @@ MonoBehaviour:
   m_Name: Jaeger_AnimationConfig
   m_EditorClassIdentifier: 
   entries:
+  - key: locomotion_idle
+    transitionAsset: {fileID: 11400000, guid: 10dfd4b8a0d0726468f22f9cedc73ec6, type: 2}
+    hasRootMotionTrajectory: 0
+  - key: locomotion_move
+    transitionAsset: {fileID: 11400000, guid: da5c034246dfd9343bcaa7f7eb44df06, type: 2}
+    hasRootMotionTrajectory: 0
   - key: retreat_attack
     transitionAsset: {fileID: 11400000, guid: 9697e304985e2864b8a1063872096547, type: 2}
     hasRootMotionTrajectory: 1

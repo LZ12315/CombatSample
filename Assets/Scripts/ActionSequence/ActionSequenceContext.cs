@@ -15,4 +15,5 @@ public sealed class ActionSequenceContext
 
     public GameObject Owner => Actor != null ? Actor.gameObject : null;
     internal ActorHitBoxRuntime HitBoxes { get; set; }
+    internal ActorAnimationActionOwner AnimationOwner { get; set; }
 }

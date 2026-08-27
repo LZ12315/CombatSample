@@ -9,10 +9,15 @@ using UnityEngine;
 /// </summary>
 internal sealed class ActorSimulationRuntime
 {
+    private const string LocomotionIdleKey = "locomotion_idle";
+    private const string LocomotionMoveKey = "locomotion_move";
+    private const float LocomotionMoveThreshold = 0.01f;
+
     private readonly Actor _actor;
     private ActionPlayer _actionPlayer;
     private ActionStateManager _actionStateManager;
     private ActorMotor _actorMotor;
+    private ActorAnimation _actorAnimation;
     private ActionPlayer _tickActionPlayer;
     private bool _playedActionFrameThisTick;
     private bool _tickClosed;
@@ -33,6 +38,8 @@ internal sealed class ActorSimulationRuntime
     {
         if (!IsActive)
             return;
+
+        ResolveActorAnimation()?.BeginFixedAnimationTick();
     }
 
     public void DecideAction()
@@ -61,6 +68,30 @@ internal sealed class ActorSimulationRuntime
     {
         if (!IsActive)
             return;
+
+        float animationDeltaSeconds = deltaSeconds;
+        ActionPlayer actionPlayer = _tickActionPlayer ?? ResolveActionPlayer();
+        bool hasAction = actionPlayer != null && actionPlayer.CurrentAction != null;
+        bool usesTimeline = hasAction
+                            && actionPlayer.CurrentAction.Config != null
+                            && actionPlayer.CurrentAction.Config.UsesTimeline;
+        bool freezeAnimation = actionPlayer != null
+                               && hasAction
+                               && (actionPlayer.IsPaused || actionPlayer.PlaybackSpeed <= 0.0);
+
+        ActorAnimation actorAnimation = ResolveActorAnimation();
+        if (actorAnimation == null)
+            return;
+
+        if (!usesTimeline && !freezeAnimation)
+            actorAnimation.SetLocomotionBase(BuildLocomotionFallbackPose());
+
+        if (freezeAnimation)
+        {
+            animationDeltaSeconds = 0f;
+        }
+
+        actorAnimation.Evaluate(animationDeltaSeconds);
     }
 
     public void PrepareMotion(float deltaSeconds)
@@ -110,9 +141,46 @@ internal sealed class ActorSimulationRuntime
 
         _tickClosed = true;
         (_tickActionPlayer ?? ResolveActionPlayer())?.CancelAction();
+        ResolveActorAnimation()?.CancelFixedAnimationTick();
         _hitBoxes.Clear();
         _tickActionPlayer = null;
         _playedActionFrameThisTick = false;
+    }
+
+    private LocomotionAnimationPose BuildLocomotionFallbackPose()
+    {
+        ActorMotor motor = ResolveActorMotor();
+        LocomotionIntent intent = motor != null && motor.HasPendingLocomotionIntent
+            ? motor.PendingLocomotionIntent
+            : motor != null
+                ? motor.LocomotionIntent
+                : LocomotionIntent.Idle;
+
+        float moveStrength = Mathf.Clamp01(intent.MoveStrength);
+        bool isMoving = moveStrength > LocomotionMoveThreshold
+                        && intent.WorldMoveDirection.sqrMagnitude > 0.0001f;
+
+        Vector2 parameter = Vector2.zero;
+        if (isMoving && _actor != null)
+        {
+            Vector3 moveDirection = intent.WorldMoveDirection;
+            moveDirection.y = 0f;
+            if (moveDirection.sqrMagnitude > 0.0001f)
+            {
+                moveDirection.Normalize();
+                Vector3 localDirection = _actor.transform.InverseTransformDirection(moveDirection);
+                parameter = new Vector2(localDirection.x, localDirection.z) * moveStrength;
+                if (parameter.sqrMagnitude > 1f)
+                    parameter.Normalize();
+            }
+        }
+
+        return new LocomotionAnimationPose(
+            isMoving ? LocomotionMoveKey : LocomotionIdleKey,
+            isMoving,
+            parameter,
+            true,
+            isMoving ? moveStrength : 0f);
     }
 
     private ActionPlayer ResolveActionPlayer()
@@ -148,6 +216,18 @@ internal sealed class ActorSimulationRuntime
 
         return _actorMotor != null && _actorMotor.isActiveAndEnabled
             ? _actorMotor
+            : null;
+    }
+
+    private ActorAnimation ResolveActorAnimation()
+    {
+        if (_actorAnimation == null && _actor != null)
+            _actorAnimation = _actor.actorAnimation != null
+                ? _actor.actorAnimation
+                : _actor.GetComponent<ActorAnimation>();
+
+        return _actorAnimation != null && _actorAnimation.isActiveAndEnabled
+            ? _actorAnimation
             : null;
     }
 }

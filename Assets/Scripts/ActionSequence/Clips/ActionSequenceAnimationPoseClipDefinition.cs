@@ -1,4 +1,3 @@
-using Animancer;
 using UnityEngine;
 
 [System.Serializable]
@@ -23,66 +22,20 @@ public sealed class ActionSequenceAnimationPoseClipDefinition : ActionSequenceCl
     private sealed class Runtime : ActionSequenceClipRuntime
     {
         private readonly ActionSequenceAnimationPoseClipDefinition _definition;
-        private AnimancerState _state;
-        private TransitionAsset _transitionAsset;
-        private float _transitionDuration;
 
         public Runtime(ActionSequenceAnimationPoseClipDefinition definition)
         {
             _definition = definition;
         }
 
-        public override void OnEnter(ActionSequenceContext context)
-        {
-            Actor actor = context.Actor;
-            if (actor == null || actor.animancer == null)
-                return;
-
-            if (!ResolveTransition(actor, out _transitionAsset))
-                return;
-
-            _transitionDuration = (float)AnimancerTransitionUtility.GetDuration(_transitionAsset);
-            _state = actor.animancer.Play(_transitionAsset.Transition);
-            InitializeMixerParameter(context);
-
-            if (_state != null)
-            {
-                _state.Speed = 0f;
-                _state.IsPlaying = true;
-                Sample(context);
-            }
-        }
-
         public override void OnTick(ActionSequenceContext context)
         {
-            Sample(context);
+            SubmitPose(context);
         }
 
-        public override void OnExit(ActionSequenceContext context, bool completed)
+        private void SubmitPose(ActionSequenceContext context)
         {
-            if (_state != null)
-                _state.IsPlaying = false;
-
-            _state = null;
-            _transitionAsset = null;
-            _transitionDuration = 0f;
-        }
-
-        private bool ResolveTransition(Actor actor, out TransitionAsset transitionAsset)
-        {
-            transitionAsset = null;
-            AnimationConfig config = actor != null ? actor.AnimationConfig : null;
-            if (config == null)
-                return false;
-
-            return config.TryGetTransition(_definition.AnimationKey, out transitionAsset)
-                   && transitionAsset != null
-                   && transitionAsset.Transition != null;
-        }
-
-        private void Sample(ActionSequenceContext context)
-        {
-            if (_state == null || context.Actor == null || context.Actor.animancer == null)
+            if (context == null || context.Actor == null)
                 return;
 
             float sampleTime = ActionSequenceAnimationTimeUtility.GetPoseSampleTime(
@@ -90,43 +43,60 @@ public sealed class ActionSequenceAnimationPoseClipDefinition : ActionSequenceCl
                 _definition.StartFrame,
                 _definition.startOffsetSeconds,
                 _definition.playbackSpeed);
-            if (_transitionDuration > 0f)
-                sampleTime = Mathf.Min(sampleTime, _transitionDuration);
 
-            _state.Speed = 0f;
-            _state.Time = sampleTime;
-            context.Actor.animancer.Evaluate();
+            BuildMixerParameter(
+                context,
+                out bool hasVector2Parameter,
+                out Vector2 vector2Parameter,
+                out bool hasFloatParameter,
+                out float floatParameter);
+
+            var pose = new ActionAnimationPose(
+                _definition.AnimationKey,
+                sampleTime,
+                hasVector2Parameter,
+                vector2Parameter,
+                hasFloatParameter,
+                floatParameter);
+
+            ActorAnimation actorAnimation = context.Actor.actorAnimation != null
+                ? context.Actor.actorAnimation
+                : context.Actor.GetComponent<ActorAnimation>();
+            actorAnimation?.SubmitActionPose(context.AnimationOwner, pose);
         }
 
-        private void InitializeMixerParameter(ActionSequenceContext context)
+        private void BuildMixerParameter(
+            ActionSequenceContext context,
+            out bool hasVector2Parameter,
+            out Vector2 vector2Parameter,
+            out bool hasFloatParameter,
+            out float floatParameter)
         {
-            if (_state is MixerState<Vector2> mixer2D)
+            hasVector2Parameter = false;
+            vector2Parameter = _definition.fallbackVector2;
+            hasFloatParameter = false;
+            floatParameter = _definition.fallbackFloat;
+
+            switch (_definition.parameterMode)
             {
-                switch (_definition.parameterMode)
-                {
-                    case AnimancerParameterMode.ContextDirection2D:
-                        mixer2D.Parameter = TryGetContextDirection2D(context, out Vector2 dir2D)
-                            ? dir2D
-                            : _definition.fallbackVector2;
-                        break;
-                    case AnimancerParameterMode.SerializedFallback:
-                        mixer2D.Parameter = _definition.fallbackVector2;
-                        break;
-                }
-            }
-            else if (_state is MixerState<float> mixer1D)
-            {
-                switch (_definition.parameterMode)
-                {
-                    case AnimancerParameterMode.ContextMagnitude:
-                        mixer1D.Parameter = context.Context.HasMagnitude && Mathf.Abs(context.Context.Magnitude) > 0.001f
-                            ? context.Context.Magnitude
-                            : _definition.fallbackFloat;
-                        break;
-                    case AnimancerParameterMode.SerializedFallback:
-                        mixer1D.Parameter = _definition.fallbackFloat;
-                        break;
-                }
+                case AnimancerParameterMode.ContextDirection2D:
+                    hasVector2Parameter = true;
+                    vector2Parameter = TryGetContextDirection2D(context, out Vector2 dir2D)
+                        ? dir2D
+                        : _definition.fallbackVector2;
+                    break;
+                case AnimancerParameterMode.ContextMagnitude:
+                    hasFloatParameter = true;
+                    floatParameter = context.Context.HasMagnitude && Mathf.Abs(context.Context.Magnitude) > 0.001f
+                        ? context.Context.Magnitude
+                        : _definition.fallbackFloat;
+                    break;
+                case AnimancerParameterMode.SerializedFallback:
+                    hasVector2Parameter = true;
+                    vector2Parameter = _definition.fallbackVector2;
+                    hasFloatParameter = true;
+                    floatParameter = _definition.fallbackFloat;
+                    break;
             }
         }
 
