@@ -533,6 +533,34 @@ public class ActionPlayer : MonoBehaviour
 
                 selfRotationIntervals?.Add(selfRotationClip);
             }
+            else if (clip is ActionSequenceRootRotationClipDefinition rootRotationClip)
+            {
+                if (config == null)
+                {
+                    warning = "Action 播放失败：RootRotationClip 需要 Actor.AnimationConfig。";
+                    return false;
+                }
+
+                if (!config.TryGetTrajectory(rootRotationClip.AnimationKey, out RootMotionTrajectory trajectory)
+                    || trajectory == null)
+                {
+                    warning = $"Action 播放失败：AnimationConfig 找不到动画 key '{rootRotationClip.AnimationKey}' 的 RootMotionTrajectory。";
+                    return false;
+                }
+
+                RootMotionTrajectoryValidationResult validation = trajectory.ValidateData();
+                if (!validation.IsValid)
+                {
+                    warning = $"Action 播放失败：动画 key '{rootRotationClip.AnimationKey}' 的 RootMotionTrajectory 数据无效。";
+                    return false;
+                }
+
+                if (!TryValidateRootRotationExtraction(rootRotationClip, trajectory))
+                {
+                    warning = $"Action 播放失败：RootRotationClip 无法从动画 key '{rootRotationClip.AnimationKey}' 提取有效 Yaw。";
+                    return false;
+                }
+            }
             else if (clip is ActionSequenceVelocityOverrideClipDefinition velocityClip)
             {
                 if (!velocityClip.HasAnyAxis)
@@ -553,6 +581,40 @@ public class ActionPlayer : MonoBehaviour
                     return false;
                 }
             }
+            else if (clip is ActionSequenceImpulseClipDefinition impulseClip)
+            {
+                if (!impulseClip.HasAnyContribution)
+                {
+                    warning = "Action 播放失败：ImpulseClip 至少需要启用一个 contribution。";
+                    return false;
+                }
+
+                if (!impulseClip.HasFiniteValues())
+                {
+                    warning = "Action 播放失败：ImpulseClip 数值必须是有限数值。";
+                    return false;
+                }
+
+                if (!impulseClip.HasValidPresetLocalDirection())
+                {
+                    warning = "Action 播放失败：ImpulseClip PresetLocal 方向无效。";
+                    return false;
+                }
+            }
+            else if (clip is ActionSequenceMotionPolicyClipDefinition motionPolicyClip)
+            {
+                if (!motionPolicyClip.HasAnyPolicy)
+                {
+                    warning = "Action 播放失败：MotionPolicyClip 至少需要启用一个 policy。";
+                    return false;
+                }
+
+                if (!motionPolicyClip.HasValidValues())
+                {
+                    warning = "Action 播放失败：MotionPolicyClip 数值无效。";
+                    return false;
+                }
+            }
         }
 
         return true;
@@ -560,6 +622,31 @@ public class ActionPlayer : MonoBehaviour
 
     private static bool TryValidateSelfRotationExtraction(
         ActionSequenceSelfRotationClipDefinition clip,
+        RootMotionTrajectory trajectory)
+    {
+        if (clip == null || trajectory == null)
+            return false;
+
+        int frameRate = CombatSimulationTiming.FrameRate;
+        for (int frame = clip.StartFrame; frame < clip.EndFrame; frame++)
+        {
+            float localFrame = frame - clip.StartFrame;
+            float speed = Mathf.Max(0f, clip.playbackSpeed);
+            float startTime = Mathf.Max(0f, clip.startOffsetSeconds) + localFrame / frameRate * speed;
+            float endTime = Mathf.Max(0f, clip.startOffsetSeconds) + (localFrame + 1f) / frameRate * speed;
+
+            if (!trajectory.TryExtract(startTime, endTime, out RootMotionTransform delta)
+                || !RootMotionYawUtility.TryExtractLocalYaw(delta.Rotation, out _))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool TryValidateRootRotationExtraction(
+        ActionSequenceRootRotationClipDefinition clip,
         RootMotionTrajectory trajectory)
     {
         if (clip == null || trajectory == null)
@@ -623,9 +710,15 @@ public class ActionPlayer : MonoBehaviour
             _fixedTickSession = null;
 
         UnbindSession(session);
-        session.Dispose();
-        if (_session == session)
-            _session = null;
+        try
+        {
+            session.Dispose();
+        }
+        finally
+        {
+            if (_session == session)
+                _session = null;
+        }
     }
 
     private void HandleSessionCompleted(IActionPlaybackSession session)

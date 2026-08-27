@@ -272,22 +272,33 @@ public sealed class ActionSequenceRuntime
 
         int completedFrame = _pendingFrame;
         ActionSequenceContext context = _frameContext;
-        context.Frame = completedFrame + 1;
-        ExitClipsEndingAt(completedFrame + 1, context, true);
-
-        CurrentFrame = completedFrame;
-        if (CurrentFrame >= DurationFrames - 1)
+        try
         {
-            ExitAll(context, true);
-            IsComplete = true;
-            IsPlaying = false;
-        }
-        else
-        {
-            context.Frame = completedFrame;
-        }
+            context.Frame = completedFrame + 1;
+            ExitClipsEndingAt(completedFrame + 1, context, true);
 
-        ResetFrameTransaction();
+            CurrentFrame = completedFrame;
+            if (CurrentFrame >= DurationFrames - 1)
+            {
+                try
+                {
+                    ExitAll(context, true);
+                }
+                finally
+                {
+                    IsComplete = true;
+                    IsPlaying = false;
+                }
+            }
+            else
+            {
+                context.Frame = completedFrame;
+            }
+        }
+        finally
+        {
+            ResetFrameTransaction();
+        }
     }
 
     public void Cancel(ActionSequenceContext context)
@@ -296,10 +307,16 @@ public sealed class ActionSequenceRuntime
             return;
 
         ActionSequenceContext exitContext = _frameContext ?? context;
-        ExitAll(exitContext, false);
-        ResetFrameTransaction();
-        IsPlaying = false;
-        IsComplete = true;
+        try
+        {
+            ExitAll(exitContext, false);
+        }
+        finally
+        {
+            ResetFrameTransaction();
+            IsPlaying = false;
+            IsComplete = true;
+        }
     }
 
     private bool StepFrame(ActionSequenceContext context, float deltaTime, float speedScale)
@@ -383,6 +400,7 @@ public sealed class ActionSequenceRuntime
 
     private void ExitClipsEndingAt(int frame, ActionSequenceContext context, bool completed)
     {
+        List<Exception> cleanupExceptions = null;
         for (int i = _activeClips.Count - 1; i >= 0; i--)
         {
             ClipRecord record = _activeClips[i];
@@ -391,8 +409,17 @@ public sealed class ActionSequenceRuntime
 
             record.Active = false;
             _activeClips.RemoveAt(i);
-            record.Runtime?.OnExit(context, completed);
+            try
+            {
+                record.Runtime?.OnExit(context, completed);
+            }
+            catch (Exception exception)
+            {
+                AddCleanupException(ref cleanupExceptions, exception);
+            }
         }
+
+        ThrowCleanupExceptions(cleanupExceptions, "ActionSequence clip exit failed.");
     }
 
     private void CompleteWithoutFrame(ActionSequenceContext context)
@@ -401,9 +428,15 @@ public sealed class ActionSequenceRuntime
             return;
 
         context.Frame = DurationFrames;
-        ExitAll(context, true);
-        IsComplete = true;
-        IsPlaying = false;
+        try
+        {
+            ExitAll(context, true);
+        }
+        finally
+        {
+            IsComplete = true;
+            IsPlaying = false;
+        }
     }
 
     private void EnsureNoOpenFrame(string operation)
@@ -433,6 +466,7 @@ public sealed class ActionSequenceRuntime
 
     private void ExitAll(ActionSequenceContext context, bool completed)
     {
+        List<Exception> cleanupExceptions = null;
         for (int i = _activeClips.Count - 1; i >= 0; i--)
         {
             ClipRecord record = _activeClips[i];
@@ -440,10 +474,32 @@ public sealed class ActionSequenceRuntime
                 continue;
 
             record.Active = false;
-            record.Runtime?.OnExit(context, completed);
+            try
+            {
+                record.Runtime?.OnExit(context, completed);
+            }
+            catch (Exception exception)
+            {
+                AddCleanupException(ref cleanupExceptions, exception);
+            }
         }
 
         _activeClips.Clear();
+        ThrowCleanupExceptions(cleanupExceptions, "ActionSequence cancellation cleanup failed.");
+    }
+
+    private static void AddCleanupException(ref List<Exception> exceptions, Exception exception)
+    {
+        exceptions ??= new List<Exception>();
+        exceptions.Add(exception);
+    }
+
+    private static void ThrowCleanupExceptions(List<Exception> exceptions, string message)
+    {
+        if (exceptions == null || exceptions.Count == 0)
+            return;
+
+        throw new AggregateException(message, exceptions);
     }
 
     private static int CompareClipRecords(ClipRecord a, ClipRecord b)

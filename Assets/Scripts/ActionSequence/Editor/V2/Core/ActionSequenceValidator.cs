@@ -28,6 +28,8 @@ public enum ActionSequenceEditorValidationCode
     LegacyClip,
     TrackKindOrder,
     InvalidVelocityConfig,
+    InvalidImpulseConfig,
+    InvalidMotionPolicyConfig,
 }
 
 public sealed class ActionSequenceEditorValidationIssue
@@ -267,16 +269,37 @@ public static class ActionSequenceValidator
         ActionSequenceClipSnapshot clip,
         ActionSequenceEditorDocumentItemKind kind)
     {
-        if (clip.Type != typeof(ActionSequenceVelocityOverrideClipDefinition))
-            return;
-
         SerializedProperty property = clip.IsLegacy
             ? document.GetLegacyClipProperty(clip.LegacyClipIndex)
             : document.GetClipProperty(clip.TrackIndex, clip.ClipIndex);
 
-        if (property?.managedReferenceValue is not ActionSequenceVelocityOverrideClipDefinition velocityClip)
+        if (property == null)
             return;
 
+        if (property.managedReferenceValue is ActionSequenceVelocityOverrideClipDefinition velocityClip)
+        {
+            ValidateVelocityClip(result, clip, kind, velocityClip);
+            return;
+        }
+
+        if (property.managedReferenceValue is ActionSequenceImpulseClipDefinition impulseClip)
+        {
+            ValidateImpulseClip(result, clip, kind, impulseClip);
+            return;
+        }
+
+        if (property.managedReferenceValue is ActionSequenceMotionPolicyClipDefinition policyClip)
+        {
+            ValidateMotionPolicyClip(result, clip, kind, policyClip);
+        }
+    }
+
+    private static void ValidateVelocityClip(
+        ActionSequenceEditorValidationResult result,
+        ActionSequenceClipSnapshot clip,
+        ActionSequenceEditorDocumentItemKind kind,
+        ActionSequenceVelocityOverrideClipDefinition velocityClip)
+    {
         if (!velocityClip.HasAnyAxis)
         {
             result.Add(NewIssue(ActionSequenceEditorValidationSeverity.Error, ActionSequenceEditorValidationCode.InvalidVelocityConfig, "VelocityOverrideClip must enable at least one axis.", kind, clip.EditorId, clip.TrackIndex, clip.ClipIndex, clip.LegacyClipIndex, clip.ManagedReferenceId));
@@ -290,6 +313,45 @@ public static class ActionSequenceValidator
         if (!velocityClip.HasValidPresetLocalDirection())
         {
             result.Add(NewIssue(ActionSequenceEditorValidationSeverity.Error, ActionSequenceEditorValidationCode.InvalidVelocityConfig, "VelocityOverrideClip PresetLocal direction is invalid.", kind, clip.EditorId, clip.TrackIndex, clip.ClipIndex, clip.LegacyClipIndex, clip.ManagedReferenceId));
+        }
+    }
+
+    private static void ValidateImpulseClip(
+        ActionSequenceEditorValidationResult result,
+        ActionSequenceClipSnapshot clip,
+        ActionSequenceEditorDocumentItemKind kind,
+        ActionSequenceImpulseClipDefinition impulseClip)
+    {
+        if (!impulseClip.HasAnyContribution)
+        {
+            result.Add(NewIssue(ActionSequenceEditorValidationSeverity.Error, ActionSequenceEditorValidationCode.InvalidImpulseConfig, "ImpulseClip must enable at least one contribution.", kind, clip.EditorId, clip.TrackIndex, clip.ClipIndex, clip.LegacyClipIndex, clip.ManagedReferenceId));
+        }
+
+        if (!impulseClip.HasFiniteValues())
+        {
+            result.Add(NewIssue(ActionSequenceEditorValidationSeverity.Error, ActionSequenceEditorValidationCode.InvalidImpulseConfig, "ImpulseClip values must be finite.", kind, clip.EditorId, clip.TrackIndex, clip.ClipIndex, clip.LegacyClipIndex, clip.ManagedReferenceId));
+        }
+
+        if (!impulseClip.HasValidPresetLocalDirection())
+        {
+            result.Add(NewIssue(ActionSequenceEditorValidationSeverity.Error, ActionSequenceEditorValidationCode.InvalidImpulseConfig, "ImpulseClip PresetLocal direction is invalid.", kind, clip.EditorId, clip.TrackIndex, clip.ClipIndex, clip.LegacyClipIndex, clip.ManagedReferenceId));
+        }
+    }
+
+    private static void ValidateMotionPolicyClip(
+        ActionSequenceEditorValidationResult result,
+        ActionSequenceClipSnapshot clip,
+        ActionSequenceEditorDocumentItemKind kind,
+        ActionSequenceMotionPolicyClipDefinition policyClip)
+    {
+        if (!policyClip.HasAnyPolicy)
+        {
+            result.Add(NewIssue(ActionSequenceEditorValidationSeverity.Error, ActionSequenceEditorValidationCode.InvalidMotionPolicyConfig, "MotionPolicyClip must enable at least one policy.", kind, clip.EditorId, clip.TrackIndex, clip.ClipIndex, clip.LegacyClipIndex, clip.ManagedReferenceId));
+        }
+
+        if (!policyClip.HasValidValues())
+        {
+            result.Add(NewIssue(ActionSequenceEditorValidationSeverity.Error, ActionSequenceEditorValidationCode.InvalidMotionPolicyConfig, "MotionPolicyClip values are invalid.", kind, clip.EditorId, clip.TrackIndex, clip.ClipIndex, clip.LegacyClipIndex, clip.ManagedReferenceId));
         }
     }
 

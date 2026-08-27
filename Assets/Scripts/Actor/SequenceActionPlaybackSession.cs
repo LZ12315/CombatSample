@@ -92,10 +92,15 @@ internal sealed class SequenceActionPlaybackSession : IFixedActionPlaybackSessio
 
     public void Cancel()
     {
-        if (_runtime != null && !_runtime.IsComplete)
-            _runtime.Cancel(_sequenceContext);
-
-        _frameAccumulator = 0.0;
+        try
+        {
+            if (_runtime != null && !_runtime.IsComplete)
+                _runtime.Cancel(_sequenceContext);
+        }
+        finally
+        {
+            _frameAccumulator = 0.0;
+        }
     }
 
     public void Pause()
@@ -126,6 +131,9 @@ internal sealed class SequenceActionPlaybackSession : IFixedActionPlaybackSessio
 
     public void Restart()
     {
+        if (_runtime != null && !_runtime.IsComplete)
+            _runtime.Cancel(_sequenceContext);
+
         Action.ResetRuntimeData();
         _paused = false;
         SetAnimatorRootMotionSuppressed(true);
@@ -136,26 +144,31 @@ internal sealed class SequenceActionPlaybackSession : IFixedActionPlaybackSessio
 
     public void Stop(ActionPlaybackStopMode stopMode)
     {
-        if (_runtime == null)
+        try
         {
-            ReleaseActionAnimationOwner();
-            SetAnimatorRootMotionSuppressed(false);
-            return;
+            if (_runtime != null && !_runtime.IsComplete)
+                _runtime.Cancel(_sequenceContext);
         }
-
-        if (!_runtime.IsComplete)
-            _runtime.Cancel(_sequenceContext);
-
-        _frameAccumulator = 0.0;
-        ReleaseActionAnimationOwner();
-        SetAnimatorRootMotionSuppressed(false);
+        finally
+        {
+            _frameAccumulator = 0.0;
+            ReleaseSessionOwnership();
+        }
     }
 
     public void Dispose()
     {
         _disposed = true;
-        ReleaseActionAnimationOwner();
-        SetAnimatorRootMotionSuppressed(false);
+        try
+        {
+            if (_runtime != null && !_runtime.IsComplete)
+                _runtime.Cancel(_sequenceContext);
+        }
+        finally
+        {
+            _frameAccumulator = 0.0;
+            ReleaseSessionOwnership();
+        }
     }
 
     private void CreateRuntimeAndContext()
@@ -193,6 +206,18 @@ internal sealed class SequenceActionPlaybackSession : IFixedActionPlaybackSessio
         _animatorRootMotionSuppressed = suppressed;
         if (_actor != null && _actor.actorMotor != null)
             _actor.actorMotor.SetAnimatorRootMotionSuppressed(suppressed);
+    }
+
+    private void ReleaseSessionOwnership()
+    {
+        try
+        {
+            ReleaseActionAnimationOwner();
+        }
+        finally
+        {
+            SetAnimatorRootMotionSuppressed(false);
+        }
     }
 
     private void AcquireActionAnimationOwner()

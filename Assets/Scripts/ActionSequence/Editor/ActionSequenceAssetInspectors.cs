@@ -328,6 +328,20 @@ internal sealed class ActionSequenceInspectorV2Builder : IDisposable
             return;
         }
 
+        if (clipProperty.managedReferenceValue is ActionSequenceImpulseClipDefinition)
+        {
+            DrawImpulseClipConfigFields(parent, clipProperty);
+            parent.RegisterCallback<SerializedPropertyChangeEvent>(_ => QueueContentChanged(trackId, clipId));
+            return;
+        }
+
+        if (clipProperty.managedReferenceValue is ActionSequenceMotionPolicyClipDefinition)
+        {
+            DrawMotionPolicyClipConfigFields(parent, clipProperty);
+            parent.RegisterCallback<SerializedPropertyChangeEvent>(_ => QueueContentChanged(trackId, clipId));
+            return;
+        }
+
         SerializedProperty iterator = clipProperty.Copy();
         SerializedProperty end = iterator.GetEndProperty();
         bool enterChildren = true;
@@ -448,6 +462,93 @@ internal sealed class ActionSequenceInspectorV2Builder : IDisposable
             parent.TrackPropertyValue(directionMode, _ => RefreshVisibility());
         if (useVertical != null)
             parent.TrackPropertyValue(useVertical, _ => RefreshVisibility());
+    }
+
+    private void DrawImpulseClipConfigFields(VisualElement parent, SerializedProperty clipProperty)
+    {
+        AddManagedReferenceProperty(parent, clipProperty, "displayName");
+        AddManagedReferenceProperty(parent, clipProperty, "useHorizontalImpulse", "Use Horizontal Impulse");
+        AddManagedReferenceProperty(parent, clipProperty, "useVerticalBallistic", "Use Vertical Ballistic");
+        VisualElement verticalOperation = AddManagedReferenceProperty(parent, clipProperty, "verticalOperation", "Vertical Operation");
+        AddManagedReferenceProperty(parent, clipProperty, "overrideGravityScale", "Override Gravity Scale");
+
+        SerializedProperty useHorizontal = clipProperty.FindPropertyRelative("useHorizontalImpulse");
+        SerializedProperty useVertical = clipProperty.FindPropertyRelative("useVerticalBallistic");
+        SerializedProperty overrideGravity = clipProperty.FindPropertyRelative("overrideGravityScale");
+        SerializedProperty config = clipProperty.FindPropertyRelative("config");
+        if (config == null)
+            return;
+
+        SerializedProperty directionMode = config.FindPropertyRelative("directionMode");
+
+        VisualElement directionModeField = AddManagedReferenceProperty(parent, config, "directionMode", "Direction Source");
+        VisualElement localDirection = AddManagedReferenceProperty(parent, config, "localHorizontalDirection", "Preset Local Direction");
+        VisualElement horizontalForce = AddManagedReferenceProperty(parent, config, "horizontalForce", "Horizontal Force");
+        VisualElement verticalForce = AddManagedReferenceProperty(parent, config, "verticalForce", "Vertical Force");
+        VisualElement gravityScale = AddManagedReferenceProperty(parent, clipProperty, "gravityScale", "Gravity Scale");
+        VisualElement debugLog = AddManagedReferenceProperty(parent, config, "debugLog", "Debug Log");
+
+        void RefreshVisibility()
+        {
+            bool showHorizontal = useHorizontal != null && useHorizontal.boolValue;
+            bool showVertical = useVertical != null && useVertical.boolValue;
+            bool showGravity = overrideGravity != null && overrideGravity.boolValue;
+            ImpulseDirectionMode directionValue = directionMode != null
+                ? (ImpulseDirectionMode)directionMode.intValue
+                : ImpulseDirectionMode.FromContext;
+
+            SetVisible(directionModeField, showHorizontal);
+            SetVisible(localDirection, showHorizontal && directionValue == ImpulseDirectionMode.LocalHorizontal);
+            SetVisible(horizontalForce, showHorizontal);
+            SetVisible(verticalOperation, showVertical);
+            SetVisible(verticalForce, showVertical);
+            SetVisible(gravityScale, showGravity);
+            SetVisible(debugLog, true);
+        }
+
+        RefreshVisibility();
+        if (useHorizontal != null)
+            parent.TrackPropertyValue(useHorizontal, _ => RefreshVisibility());
+        if (useVertical != null)
+            parent.TrackPropertyValue(useVertical, _ => RefreshVisibility());
+        if (overrideGravity != null)
+            parent.TrackPropertyValue(overrideGravity, _ => RefreshVisibility());
+        if (directionMode != null)
+            parent.TrackPropertyValue(directionMode, _ => RefreshVisibility());
+    }
+
+    private void DrawMotionPolicyClipConfigFields(VisualElement parent, SerializedProperty clipProperty)
+    {
+        AddManagedReferenceProperty(parent, clipProperty, "displayName");
+
+        SerializedProperty useLocomotion = clipProperty.FindPropertyRelative("useLocomotionScale");
+        SerializedProperty useAirLocomotion = clipProperty.FindPropertyRelative("useAirLocomotionScale");
+        SerializedProperty useGravity = clipProperty.FindPropertyRelative("useGravityScale");
+
+        VisualElement locomotionToggle = AddManagedReferenceProperty(parent, clipProperty, "useLocomotionScale", "Use Locomotion Scale");
+        VisualElement locomotionScale = AddManagedReferenceProperty(parent, clipProperty, "locomotionScale", "Locomotion Scale");
+        VisualElement airToggle = AddManagedReferenceProperty(parent, clipProperty, "useAirLocomotionScale", "Use Air Locomotion Scale");
+        VisualElement airScale = AddManagedReferenceProperty(parent, clipProperty, "airLocomotionScale", "Air Locomotion Scale");
+        VisualElement gravityToggle = AddManagedReferenceProperty(parent, clipProperty, "useGravityScale", "Use Gravity Scale");
+        VisualElement gravityScale = AddManagedReferenceProperty(parent, clipProperty, "gravityScale", "Gravity Scale");
+
+        void RefreshVisibility()
+        {
+            SetVisible(locomotionToggle, true);
+            SetVisible(locomotionScale, useLocomotion != null && useLocomotion.boolValue);
+            SetVisible(airToggle, true);
+            SetVisible(airScale, useAirLocomotion != null && useAirLocomotion.boolValue);
+            SetVisible(gravityToggle, true);
+            SetVisible(gravityScale, useGravity != null && useGravity.boolValue);
+        }
+
+        RefreshVisibility();
+        if (useLocomotion != null)
+            parent.TrackPropertyValue(useLocomotion, _ => RefreshVisibility());
+        if (useAirLocomotion != null)
+            parent.TrackPropertyValue(useAirLocomotion, _ => RefreshVisibility());
+        if (useGravity != null)
+            parent.TrackPropertyValue(useGravity, _ => RefreshVisibility());
     }
 
     private static VisualElement AddManagedReferenceProperty(

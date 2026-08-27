@@ -159,9 +159,11 @@ public sealed class ActionSequenceMotionTrack : ActionSequenceTrackDefinition
     private static readonly Type[] ClipTypes =
     {
         typeof(ActionSequenceRootMotionClipDefinition),
+        typeof(ActionSequenceRootRotationClipDefinition),
         typeof(ActionSequenceSelfRotationClipDefinition),
         typeof(ActionSequenceVelocityOverrideClipDefinition),
         typeof(ActionSequenceImpulseClipDefinition),
+        typeof(ActionSequenceMotionPolicyClipDefinition),
     };
 
     public override ActionSequenceTrackKind Kind => ActionSequenceTrackKind.Motion;

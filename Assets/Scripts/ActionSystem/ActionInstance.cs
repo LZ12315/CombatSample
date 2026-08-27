@@ -17,6 +17,7 @@ public class ActionInstance
     private MotionOwner _locomotionScaleOwner;
     private MotionOwner _airLocomotionScaleOwner;
     private MotionOwner _gravityScaleOwner;
+    private bool _motionConfigApplied;
 
     public ActionInstance(ActionAsset config)
     {
@@ -87,6 +88,9 @@ public class ActionInstance
 
     private void ApplyMotionConfig(ActionContext context)
     {
+        if (Config == null || !Config.UsesTimeline)
+            return;
+
         if (Actor?.actorMotor == null) return;
         var motion = Config.MotionConfig;
         var motor = Actor.actorMotor;
@@ -108,10 +112,16 @@ public class ActionInstance
             _gravityScaleOwner = motor.BeginGravityScale(motion.gravityScale);
 
         ApplyFacingOnStart(motion.facingOnStart, context);
+        _motionConfigApplied = true;
     }
 
     private void RestoreMotionConfig()
     {
+        if (!_motionConfigApplied)
+            return;
+
+        _motionConfigApplied = false;
+
         if (Actor?.actorMotor == null) return;
         var motor = Actor.actorMotor;
         ReleaseMotionPolicyOwners(motor);

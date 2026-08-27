@@ -1,5 +1,7 @@
+using System;
 using UnityEngine;
 
+[Obsolete("Gameplay ActionSequence playback is owned by ActionPlayer and CombatSimulationDriver. This compatibility component no longer advances runtime gameplay.")]
 [DefaultExecutionOrder(-40)]
 public sealed class ActionSequenceRunner : MonoBehaviour
 {
@@ -17,6 +19,7 @@ public sealed class ActionSequenceRunner : MonoBehaviour
 
     private ActionSequenceRuntime _runtime;
     private readonly ActionSequenceContext _context = new ActionSequenceContext();
+    private bool _reportedRuntimeRejection;
 
     public ActionSequenceAsset Sequence => sequence;
     public ActionSequenceRuntime Runtime => _runtime;
@@ -40,20 +43,11 @@ public sealed class ActionSequenceRunner : MonoBehaviour
 
     private void FixedUpdate()
     {
-        if (_runtime == null || !_runtime.IsPlaying)
+        if (_runtime == null)
             return;
 
-        if (!CombatSimulationTiming.IsGameplayFixedDeltaTime(Time.fixedDeltaTime))
-        {
-            Debug.LogError(
-                $"ActionSequenceRunner requires Time.fixedDeltaTime to be {CombatSimulationTiming.FixedDeltaTime:R} ({CombatSimulationTiming.FrameRate} Hz), but it was {Time.fixedDeltaTime:R}.",
-                this);
-            Cancel();
-            return;
-        }
-
-        _context.Actor = ResolveActor();
-        _runtime.Tick(_context, Time.fixedDeltaTime, speedScale);
+        ReportRuntimeRejection();
+        Cancel();
     }
 
     public void Play(ActionSequenceAsset asset)
@@ -65,6 +59,13 @@ public sealed class ActionSequenceRunner : MonoBehaviour
     public void Play(ActionSequenceAsset asset, ActionContext context)
     {
         sequence = asset;
+        if (Application.isPlaying)
+        {
+            _runtime = null;
+            ReportRuntimeRejection();
+            return;
+        }
+
         if (sequence != null && !CombatSimulationTiming.IsGameplayFrameRate(sequence.FrameRate))
         {
             Debug.LogError(
@@ -113,5 +114,17 @@ public sealed class ActionSequenceRunner : MonoBehaviour
             actor = GetComponentInParent<Actor>();
 
         return actor;
+    }
+
+    private void ReportRuntimeRejection()
+    {
+        if (_reportedRuntimeRejection)
+            return;
+
+        _reportedRuntimeRejection = true;
+        Debug.LogWarning(
+            "ActionSequenceRunner is deprecated and cannot advance Gameplay Sequence in Play Mode. " +
+            "Use ActionPlayer through CombatSimulationDriver's Action Phase.",
+            this);
     }
 }

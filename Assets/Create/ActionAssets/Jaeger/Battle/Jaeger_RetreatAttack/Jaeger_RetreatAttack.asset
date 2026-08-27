@@ -17,13 +17,16 @@ MonoBehaviour:
   _sequenceData:
     frameRate: 60
     durationMode: 1
-    durationFrames: 60
+    durationFrames: 142
     tracks:
     - rid: 6973414238253744145
     - rid: 6973414238253744138
     - rid: 6973414238253744140
     - rid: 6973414256443654144
     - rid: 6973414275370975232
+    - rid: 6973414300000000000
+    - rid: 6973414300000000002
+    - rid: 6973414300000000004
     - rid: 6973414238253744142
     clips: []
     defaultTracksInitialized: 0
@@ -57,7 +60,7 @@ MonoBehaviour:
       type: {class: ActionSequenceAnimationTrack, ns: , asm: Assembly-CSharp}
       data:
         editorId: 15f6e5dd002f46dcb8ad25e0124f41cf
-        displayName: 
+        displayName:
         muted: 0
         locked: 0
         collapsed: 0
@@ -67,7 +70,7 @@ MonoBehaviour:
       type: {class: ActionSequenceAnimationPoseClipDefinition, ns: , asm: Assembly-CSharp}
       data:
         editorId: 1724cb4220e64a87b2d005b926be7e91
-        displayName: 
+        displayName:
         startFrame: 0
         endFrame: 142
         animationKey: retreat_attack
@@ -80,7 +83,7 @@ MonoBehaviour:
       type: {class: ActionSequenceMotionTrack, ns: , asm: Assembly-CSharp}
       data:
         editorId: 2170ef1865ab47c69f368e9fce65df98
-        displayName: 
+        displayName:
         muted: 0
         locked: 0
         collapsed: 0
@@ -90,7 +93,7 @@ MonoBehaviour:
       type: {class: ActionSequenceRootMotionClipDefinition, ns: , asm: Assembly-CSharp}
       data:
         editorId: c8426e8fd79842978147d52c2f41bcb3
-        displayName: 
+        displayName:
         startFrame: 0
         endFrame: 142
         animationKey: retreat_attack
@@ -100,7 +103,7 @@ MonoBehaviour:
       type: {class: ActionSequenceHitBoxTrack, ns: , asm: Assembly-CSharp}
       data:
         editorId: 9766199fec7b40cb959083ceb8e7bce0
-        displayName: 
+        displayName:
         muted: 0
         locked: 0
         collapsed: 0
@@ -110,7 +113,7 @@ MonoBehaviour:
       type: {class: ActionSequenceHitBoxClipDefinition, ns: , asm: Assembly-CSharp}
       data:
         editorId: 13bd300353ba49ad86ea511371997afc
-        displayName: 
+        displayName:
         startFrame: 16
         endFrame: 35
         boneReference:
@@ -142,7 +145,7 @@ MonoBehaviour:
       type: {class: ActionSequenceStateTrack, ns: , asm: Assembly-CSharp}
       data:
         editorId: d4f869ea7d814b1bbdff9d338fd4a4c7
-        displayName: 
+        displayName:
         muted: 0
         locked: 0
         collapsed: 0
@@ -152,7 +155,7 @@ MonoBehaviour:
       type: {class: ActionSequenceTagClipDefinition, ns: , asm: Assembly-CSharp}
       data:
         editorId: 418231cc579a4dd28045b31b73444e0a
-        displayName: 
+        displayName:
         startFrame: 0
         endFrame: 142
         tag:
@@ -162,7 +165,7 @@ MonoBehaviour:
       type: {class: ActionSequenceMotionTrack, ns: , asm: Assembly-CSharp}
       data:
         editorId: 246f0fe0788544839d83bcca168ff2ca
-        displayName: 
+        displayName:
         muted: 0
         locked: 0
         collapsed: 0
@@ -172,7 +175,7 @@ MonoBehaviour:
       type: {class: ActionSequenceSelfRotationClipDefinition, ns: , asm: Assembly-CSharp}
       data:
         editorId: e8255b2159c04dfcb7cf68808294d38b
-        displayName: 
+        displayName:
         startFrame: 0
         endFrame: 142
         source: 2
@@ -188,8 +191,8 @@ MonoBehaviour:
       type: {class: ActionSequenceMotionTrack, ns: , asm: Assembly-CSharp}
       data:
         editorId: c2e7cacd00a348e58dfad8edf7f86ff0
-        displayName: 
-        muted: 1
+        displayName:
+        muted: 0
         locked: 0
         collapsed: 0
         clips:
@@ -198,16 +201,16 @@ MonoBehaviour:
       type: {class: ActionSequenceVelocityOverrideClipDefinition, ns: , asm: Assembly-CSharp}
       data:
         editorId: be99d50e584742b6b1f6fff50a6db78a
-        displayName: 
+        displayName:
         startFrame: 0
-        endFrame: 108
+        endFrame: 1
         config:
-          directionMode: 0
+          directionMode: 4
           localHorizontalDirection: {x: 0, y: 0, z: 1}
-          useHorizontalVelocity: 0
+          useHorizontalVelocity: 1
           horizontalSpeed: 0
           useVerticalVelocity: 1
-          verticalSpeed: 100
+          verticalSpeed: 0
           horizontalCurve:
             serializedVersion: 2
             m_Curve:
@@ -257,6 +260,77 @@ MonoBehaviour:
             m_PostInfinity: 2
             m_RotationOrder: 4
           debugLog: 0
+    - rid: 6973414300000000000
+      type: {class: ActionSequenceMotionTrack, ns: , asm: Assembly-CSharp}
+      data:
+        editorId: 8794fc1a3cc14f51b11b517c30ba2fa3
+        displayName:
+        muted: 0
+        locked: 0
+        collapsed: 0
+        clips:
+        - rid: 6973414300000000001
+    - rid: 6973414300000000001
+      type: {class: ActionSequenceRootRotationClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId: 5f8b98432a634f93a0363524b0680db1
+        displayName:
+        startFrame: 0
+        endFrame: 142
+        animationKey: retreat_attack
+        startOffsetSeconds: 0
+        playbackSpeed: 1
+    - rid: 6973414300000000002
+      type: {class: ActionSequenceMotionTrack, ns: , asm: Assembly-CSharp}
+      data:
+        editorId: eb7a94e14a614a02a3373bf9cf3a43cb
+        displayName:
+        muted: 0
+        locked: 0
+        collapsed: 0
+        clips:
+        - rid: 6973414300000000003
+    - rid: 6973414300000000003
+      type: {class: ActionSequenceMotionPolicyClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId: eea2a130395140b2abd73f2f18667766
+        displayName:
+        startFrame: 0
+        endFrame: 142
+        useLocomotionScale: 1
+        locomotionScale: 0
+        useAirLocomotionScale: 1
+        airLocomotionScale: 0
+        useGravityScale: 0
+        gravityScale: 1
+    - rid: 6973414300000000004
+      type: {class: ActionSequenceMotionTrack, ns: , asm: Assembly-CSharp}
+      data:
+        editorId: 499ec9c30c3b4e7d935853c484cb7d1c
+        displayName:
+        muted: 0
+        locked: 0
+        collapsed: 0
+        clips:
+        - rid: 6973414300000000005
+    - rid: 6973414300000000005
+      type: {class: ActionSequenceImpulseClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId: 39be991ebf68479aa3d95f2045f6b0f4
+        displayName:
+        startFrame: 0
+        endFrame: 1
+        config:
+          directionMode: 4
+          localHorizontalDirection: {x: 0, y: 0, z: -1}
+          horizontalForce: 0.5
+          verticalForce: 2
+          debugLog: 0
+        useHorizontalImpulse: 1
+        useVerticalBallistic: 1
+        verticalOperation: 1
+        overrideGravityScale: 1
+        gravityScale: 1
     - rid: 8665091256741265418
       type: {class: GroundStateCondition, ns: , asm: Assembly-CSharp}
       data:
