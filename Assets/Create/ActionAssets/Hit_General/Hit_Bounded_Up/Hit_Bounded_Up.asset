@@ -19,8 +19,8 @@ MonoBehaviour:
     durationMode: 0
     durationFrames: 58
     tracks:
-    - rid: 1239727509095580333
-    - rid: 1239727509095580334
+    - rid: 1239727518709711009
+    - rid: 1239727518709711010
     clips: []
     defaultTracksInitialized: 1
   _priorityLayer: 3
@@ -57,30 +57,30 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
-    - rid: 1239727509095580333
+    - rid: 1239727518709711009
       type: {class: ActionSequenceAnimationTrack, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 1f6d63111d06e073b4fa81eca59a7b84
         displayName: Animation
         muted: 0
         locked: 0
         collapsed: 0
         clips:
-        - rid: 1239727509095580335
-    - rid: 1239727509095580334
+        - rid: 1239727518709711011
+    - rid: 1239727518709711010
       type: {class: ActionSequenceMotionTrack, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 0a609f873d041a03290c078c6934c8f9
         displayName: Motion
         muted: 0
         locked: 0
         collapsed: 0
         clips:
-        - rid: 1239727509095580336
-    - rid: 1239727509095580335
+        - rid: 1239727518709711012
+    - rid: 1239727518709711011
       type: {class: ActionSequenceAnimationPoseClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 1b5439133b65f22391ea79f24f9de25a
         displayName: bound_up
         startFrame: 0
         endFrame: 58
@@ -90,10 +90,10 @@ MonoBehaviour:
         fallbackFloat: 0
         startOffsetSeconds: 0
         playbackSpeed: 1
-    - rid: 1239727509095580336
+    - rid: 1239727518709711012
       type: {class: ActionSequenceMotionPolicyClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: b188d8aeaa13b88261a7c3f8b52d6d16
         displayName: Migrated Motion Policy
         startFrame: 0
         endFrame: 58

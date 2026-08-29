@@ -129,6 +129,10 @@ public class ActorCollisionResolver : MonoBehaviour
                 _actors.RemoveAt(i);
         }
 
+        // Registration order depends on enable/disable timing. Resolve pairs in a
+        // stable per-session order so lifecycle timing cannot change world results.
+        _actors.Sort(CompareActorStableId);
+
         int count = _actors.Count;
         if (count < 2) return;
 
@@ -153,6 +157,18 @@ public class ActorCollisionResolver : MonoBehaviour
 
             if (!anyResolved) break;
         }
+    }
+
+    private static int CompareActorStableId(ActorMotor a, ActorMotor b)
+    {
+        if (ReferenceEquals(a, b))
+            return 0;
+        if (a == null)
+            return 1;
+        if (b == null)
+            return -1;
+
+        return a.GetInstanceID().CompareTo(b.GetInstanceID());
     }
 
     private static readonly RaycastHit[] _sweepHitBuffer = new RaycastHit[16];

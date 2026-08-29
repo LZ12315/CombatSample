@@ -19,8 +19,8 @@ MonoBehaviour:
     durationMode: 0
     durationFrames: 10
     tracks:
-    - rid: 1239727509095580530
-    - rid: 1239727509095580531
+    - rid: 1239727518709711206
+    - rid: 1239727518709711207
     clips: []
     defaultTracksInitialized: 1
   _priorityLayer: 3
@@ -57,30 +57,30 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
-    - rid: 1239727509095580530
+    - rid: 1239727518709711206
       type: {class: ActionSequenceAnimationTrack, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 26849ebe92cba6fb382741a2a2b4e5df
         displayName: Animation
         muted: 0
         locked: 0
         collapsed: 0
         clips:
-        - rid: 1239727509095580532
-    - rid: 1239727509095580531
+        - rid: 1239727518709711208
+    - rid: 1239727518709711207
       type: {class: ActionSequenceMotionTrack, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: b52d5be8e5f2fb52c3b69ea9621e6f3e
         displayName: Motion
         muted: 0
         locked: 0
         collapsed: 0
         clips:
-        - rid: 1239727509095580533
-    - rid: 1239727509095580532
+        - rid: 1239727518709711209
+    - rid: 1239727518709711208
       type: {class: ActionSequenceAnimationPoseClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: fce4b9db1308b54ea8f9299b4dcad45b
         displayName: Avatar_Kiana_C2_Ani_Hit_Straining
         startFrame: 0
         endFrame: 10
@@ -90,10 +90,10 @@ MonoBehaviour:
         fallbackFloat: 0
         startOffsetSeconds: 0
         playbackSpeed: 1
-    - rid: 1239727509095580533
+    - rid: 1239727518709711209
       type: {class: ActionSequenceMotionPolicyClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 1181d0cc7b95765761713d768ef8ad55
         displayName: Migrated Motion Policy
         startFrame: 0
         endFrame: 10

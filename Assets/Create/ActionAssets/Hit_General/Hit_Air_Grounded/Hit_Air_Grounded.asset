@@ -19,8 +19,8 @@ MonoBehaviour:
     durationMode: 0
     durationFrames: 50
     tracks:
-    - rid: 1239727509095580396
-    - rid: 1239727509095580397
+    - rid: 1239727518709711072
+    - rid: 1239727518709711073
     clips: []
     defaultTracksInitialized: 1
   _priorityLayer: 1
@@ -57,30 +57,30 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
-    - rid: 1239727509095580396
+    - rid: 1239727518709711072
       type: {class: ActionSequenceAnimationTrack, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: c4d201622adc5c6a6260a4cce020d0de
         displayName: Animation
         muted: 0
         locked: 0
         collapsed: 0
         clips:
-        - rid: 1239727509095580398
-    - rid: 1239727509095580397
+        - rid: 1239727518709711074
+    - rid: 1239727518709711073
       type: {class: ActionSequenceMotionTrack, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: bd02371ccf04bb8b3405d8ee104d7823
         displayName: Motion
         muted: 0
         locked: 0
         collapsed: 0
         clips:
-        - rid: 1239727509095580399
-    - rid: 1239727509095580398
+        - rid: 1239727518709711075
+    - rid: 1239727518709711074
       type: {class: ActionSequenceAnimationPoseClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 6f4e95078e01c77809b4fa6da4f675b5
         displayName: Lucy_Hit_Air_Grounded_Inplace
         startFrame: 0
         endFrame: 50
@@ -90,10 +90,10 @@ MonoBehaviour:
         fallbackFloat: 0
         startOffsetSeconds: 0
         playbackSpeed: 1
-    - rid: 1239727509095580399
+    - rid: 1239727518709711075
       type: {class: ActionSequenceMotionPolicyClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: ed5db22a6aecb2d842875296fa4442dd
         displayName: Migrated Motion Policy
         startFrame: 0
         endFrame: 50

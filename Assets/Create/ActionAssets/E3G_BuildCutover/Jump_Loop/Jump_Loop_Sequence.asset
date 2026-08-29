@@ -19,8 +19,8 @@ MonoBehaviour:
     durationMode: 0
     durationFrames: 48
     tracks:
-    - rid: 1239727509095580214
-    - rid: 1239727509095580215
+    - rid: 1239727518709710890
+    - rid: 1239727518709710891
     clips: []
     defaultTracksInitialized: 1
   _priorityLayer: 0
@@ -67,30 +67,30 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
-    - rid: 1239727509095580214
+    - rid: 1239727518709710890
       type: {class: ActionSequenceAnimationTrack, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 68e667d3cd3bb73df4be85dd401caf2b
         displayName: Animation
         muted: 0
         locked: 0
         collapsed: 0
         clips:
-        - rid: 1239727509095580216
-    - rid: 1239727509095580215
+        - rid: 1239727518709710892
+    - rid: 1239727518709710891
       type: {class: ActionSequenceMotionTrack, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 09c67345d33fb64bbb526c5dc73bcfb5
         displayName: Motion
         muted: 0
         locked: 0
         collapsed: 0
         clips:
-        - rid: 1239727509095580217
-    - rid: 1239727509095580216
+        - rid: 1239727518709710893
+    - rid: 1239727518709710892
       type: {class: ActionSequenceAnimationPoseClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: ee518a643ab0a9141188e03a89bb82e7
         displayName: Jump_Loop 2
         startFrame: 0
         endFrame: 48
@@ -100,10 +100,10 @@ MonoBehaviour:
         fallbackFloat: 0
         startOffsetSeconds: 0
         playbackSpeed: 1
-    - rid: 1239727509095580217
+    - rid: 1239727518709710893
       type: {class: ActionSequenceMotionPolicyClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 326250eaa6167689897ba4c6f8edcc7f
         displayName: Migrated Motion Policy
         startFrame: 0
         endFrame: 48

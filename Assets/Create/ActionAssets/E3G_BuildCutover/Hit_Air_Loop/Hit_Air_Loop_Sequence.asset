@@ -19,8 +19,8 @@ MonoBehaviour:
     durationMode: 0
     durationFrames: 100
     tracks:
-    - rid: 1239727509095580201
-    - rid: 1239727509095580202
+    - rid: 1239727518709710877
+    - rid: 1239727518709710878
     clips: []
     defaultTracksInitialized: 1
   _priorityLayer: 0
@@ -57,30 +57,30 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
-    - rid: 1239727509095580201
+    - rid: 1239727518709710877
       type: {class: ActionSequenceAnimationTrack, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 1d3f63866bacf72dedfde18b6da754d0
         displayName: Animation
         muted: 0
         locked: 0
         collapsed: 0
         clips:
-        - rid: 1239727509095580203
-    - rid: 1239727509095580202
+        - rid: 1239727518709710879
+    - rid: 1239727518709710878
       type: {class: ActionSequenceMotionTrack, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 55ec17102185d877411b6beb16550637
         displayName: Motion
         muted: 0
         locked: 0
         collapsed: 0
         clips:
-        - rid: 1239727509095580204
-    - rid: 1239727509095580203
+        - rid: 1239727518709710880
+    - rid: 1239727518709710879
       type: {class: ActionSequenceAnimationPoseClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 385b59b2e28961573ec817ed94f1d2a0
         displayName: Hit_Air_Loop
         startFrame: 0
         endFrame: 100
@@ -90,10 +90,10 @@ MonoBehaviour:
         fallbackFloat: 0
         startOffsetSeconds: 0
         playbackSpeed: 1
-    - rid: 1239727509095580204
+    - rid: 1239727518709710880
       type: {class: ActionSequenceMotionPolicyClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 645e7616ab328f19f733e800ed5b68ef
         displayName: Migrated Motion Policy
         startFrame: 0
         endFrame: 100

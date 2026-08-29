@@ -19,8 +19,8 @@ MonoBehaviour:
     durationMode: 0
     durationFrames: 36
     tracks:
-    - rid: 1239727509095580455
-    - rid: 1239727509095580456
+    - rid: 1239727518709711131
+    - rid: 1239727518709711132
     clips: []
     defaultTracksInitialized: 1
   _priorityLayer: 3
@@ -58,32 +58,32 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
-    - rid: 1239727509095580455
+    - rid: 1239727518709711131
       type: {class: ActionSequenceAnimationTrack, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 35467b64a6ea726778dd0875165ced91
         displayName: Animation
         muted: 0
         locked: 0
         collapsed: 0
         clips:
-        - rid: 1239727509095580457
-    - rid: 1239727509095580456
+        - rid: 1239727518709711133
+    - rid: 1239727518709711132
       type: {class: ActionSequenceMotionTrack, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: f99bdb01858fa1c92906cdc319f7703b
         displayName: Motion
         muted: 0
         locked: 0
         collapsed: 0
         clips:
-        - rid: 1239727509095580458
-        - rid: 1239727509095580459
-        - rid: 1239727509095580460
-    - rid: 1239727509095580457
+        - rid: 1239727518709711134
+        - rid: 1239727518709711135
+        - rid: 1239727518709711136
+    - rid: 1239727518709711133
       type: {class: ActionSequenceAnimationPoseClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 296c1fd812ec349d9a5088caaf0992df
         displayName: Lucy_Jump_End_Inplace
         startFrame: 0
         endFrame: 36
@@ -93,10 +93,10 @@ MonoBehaviour:
         fallbackFloat: 0
         startOffsetSeconds: 0
         playbackSpeed: 1
-    - rid: 1239727509095580458
+    - rid: 1239727518709711134
       type: {class: ActionSequenceMotionPolicyClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 143843ba7138ed03e8eadf6469f1a229
         displayName: Migrated Motion Policy
         startFrame: 0
         endFrame: 36
@@ -106,20 +106,20 @@ MonoBehaviour:
         airLocomotionScale: 0
         useGravityScale: 0
         gravityScale: 1
-    - rid: 1239727509095580459
+    - rid: 1239727518709711135
       type: {class: ActionSequenceRootMotionClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: bd1d760ca39520fdb3d7ffd7cd86e610
         displayName: Migrated Root Motion
         startFrame: 0
         endFrame: 36
         animationKey: Jump_Land
         startOffsetSeconds: 0
         playbackSpeed: 1
-    - rid: 1239727509095580460
+    - rid: 1239727518709711136
       type: {class: ActionSequenceRootRotationClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 5a60cdb13fd18d12ee1a3b99da1a95f7
         displayName: Migrated Root Rotation
         startFrame: 0
         endFrame: 36

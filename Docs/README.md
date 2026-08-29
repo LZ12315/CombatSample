@@ -1,6 +1,6 @@
 # Documentation Index
 
-> Last documentation authority audit: 2026-08-25 (`FrameWork`)
+> Last documentation authority audit: 2026-08-29 (`FrameWork`)
 
 `Docs` is divided by document authority. Directory placement is part of document status: `Current/` is verified fact/reference, `Proposals/` contains approved architecture baselines and active implementation/design work that is not yet fully reflected by runtime code, and `Archive/` is historical context. Do not treat an old plan as current just because its technical details are still useful.
 
@@ -18,20 +18,22 @@ Reopening a frozen v3 rule requires an explicit Architecture Review; implementat
 
 These documents may be used as current repository/editor references, subject to their own verification dates.
 
-- [Project Structure](Current/Project_Structure.md) — factual repository layout and scene entry points. Last verified 2026-08-02; refresh before relying on it for broad file-migration planning.
+- [Project Structure](Current/Project_Structure.md) — factual repository layout, active Sequence content, animation/locomotion profiles and Actor runtime structure. Last verified 2026-08-29.
 - [Scene Ownership Baseline](Current/Scene_Ownership_Baseline_2026-08-02.md) — current release and targeted validation scene ownership. Refresh before changing scene/build ownership.
+- [Actor Motion v3 Validation](Current/Actor_Motion_Validation.md) — current Translation, Rotation, Root Motion, time-domain and lifecycle validation contract.
+- [E3 v3 Validation Handoff](Current/CombatSample_E3_v3_Validation_Handoff_2026-08-29_zh-CN.md) — completed E3 static, asset and differential acceptance evidence.
 - [ActionSequence Editor Design Spec](Current/ActionSequence_Editor_Design_Spec.md) — ActionSequence fixed-frame editor product-language baseline.
 - [ActionSequence Editor V2 Architecture](Current/ActionSequence_Editor_V2_Architecture.md) — implemented UI Toolkit editor architecture.
 - [ActionSequence 编辑器 V2 架构（中文）](Current/ActionSequence_Editor_V2_Architecture_zh-CN.md) — implemented V2 editor architecture, Chinese edition.
 
 The former Actor Motion validation checklist, Stage 0–7 retrospective, and Prototype implementation audit remain in `Archive/` because their runtime/current-status sections predate the E1/E2/E3 architecture changes.
 
-## Active Architecture / Implementation Work
+## Architecture Authority / Completed Migration
 
-- [Final Architecture v3](Proposals/CombatSample_ActionSequence_Final_Architecture_v3_zh-CN.md) — approved long-term architecture baseline. It is kept in `Proposals/` because major portions are still implementation targets rather than verified current runtime facts.
-- [E3 Architecture Migration Roadmap](Proposals/CombatSample_E3_Architecture_Migration_Roadmap_zh-CN.md) — active stage-level migration roadmap from the current `FrameWork` runtime to v3. It defines dependencies, migration boundaries and Exit Criteria; file/method/test-level plans are intentionally deferred to Codex Plan Mode per Stage.
+- [Final Architecture v3](Proposals/CombatSample_ActionSequence_Final_Architecture_v3_zh-CN.md) — approved and implemented long-term architecture baseline. Frozen Domain, authority, arbitration and phase rules remain the highest architecture authority.
+- [E3 Architecture Migration Roadmap](Archive/CombatSample_E3_Architecture_Migration_Roadmap_zh-CN.md) — completed E3-A～H migration record and Exit Criteria evidence; archived on 2026-08-29.
 
-The Roadmap is subordinate to Final Architecture v3. It may refine implementation sequencing as code evolves, but it must not silently reopen v3 architecture decisions.
+The archived Roadmap remains subordinate to Final Architecture v3 and is no longer an active implementation plan.
 
 ## Archive
 
@@ -39,6 +41,7 @@ The Roadmap is subordinate to Final Architecture v3. It may refine implementatio
 
 The v3 consolidation inputs are now historical and archived:
 
+- [E3 Architecture Migration Roadmap](Archive/CombatSample_E3_Architecture_Migration_Roadmap_zh-CN.md) — completed E3-A～H stage record and final evidence.
 - [E3 Pre-Design Checkpoint](Archive/CombatSample_E3_PreDesign_Checkpoint_zh-CN.md) — decision checkpoint that v3 consolidated and superseded as top-level authority.
 - [v3 Source Audit](Archive/CombatSample_Final_v3_Source_Audit_zh-CN.md) — record of which older material was retained or rejected while authoring v3.
 - [ActionSequence Final Architecture v2](Archive/CombatSample_ActionSequence_Final_Architecture_v2_zh-CN.md) — previous approved baseline and implementation history; superseded by v3.
@@ -57,12 +60,12 @@ Other notable archived records include:
 
 ## Current Follow-ups
 
-These are documentation / implementation follow-ups, not architecture questions:
+These are maintenance follow-ups, not open E3 architecture work:
 
-- Execute E3 stage by stage using the Architecture Migration Roadmap; create a fresh Codex Plan Mode implementation plan for each Stage against the then-current branch.
-- Rebuild the Actor Motion validation checklist against the v3 Translation / Rotation / Ballistic / MotionPolicy contracts before the corresponding refactor is considered complete.
-- Refresh `Project_Structure.md` and scene ownership dates when implementation planning begins if repository/scene facts are material to that plan.
-- Keep editor architecture documents current only for editor/runtime-boundary changes that actually affect them; do not fold ActorMotor design into editor docs.
+- Use Final Architecture v3 and the Current validation documents when extending Actor, ActionSequence, Motion or Hit behavior.
+- Refresh `Project_Structure.md` and scene ownership dates only when repository or build ownership facts change.
+- Keep editor architecture documents current only for editor/runtime-boundary changes that actually affect them; E3-H did not change the editor model.
+- Treat inactive Legacy Timeline content as compatibility-only unless a future scope explicitly activates and migrates it.
 
 ## Maintenance Rules
 
@@ -72,4 +75,4 @@ These are documentation / implementation follow-ups, not architecture questions:
 - Add the verification date when refreshing a Current document.
 - Completed stage implementation plans belong in `Archive/`, not `Proposals/`.
 - Do not infer that a document is current from its Git modification date alone.
-- When architecture and implementation differ during E3 migration: **Final Architecture v3 > current verified implementation facts as a description of present code > Archive history**. Code differences are implementation gaps unless v3 is explicitly reopened through Architecture Review.
+- When architecture and implementation differ: **Final Architecture v3 > current verified implementation facts as a description of present code > Archive history**. Code differences are regressions or new implementation gaps unless v3 is explicitly reopened through Architecture Review.

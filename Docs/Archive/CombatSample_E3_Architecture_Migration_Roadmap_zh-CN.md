@@ -1,8 +1,8 @@
 # CombatSample E3 Architecture Migration Roadmap
 
-> 状态：**Active Migration Roadmap**。本文服从 [`Final Architecture v3`](CombatSample_ActionSequence_Final_Architecture_v3_zh-CN.md)，用于定义 E3 的阶段边界、依赖、迁移约束与 Exit Criteria。
+> 状态：**Completed / Archived**。本文服从 [`Final Architecture v3`](../Proposals/CombatSample_ActionSequence_Final_Architecture_v3_zh-CN.md)，现作为 E3 阶段边界、迁移约束与完成证据的历史记录。
 >
-> 日期：2026-08-25
+> 开始日期：2026-08-25；完成日期：2026-08-29
 >
 > 代码基线快照：`FrameWork @ c1fda94e50aca23abe80243a681586a4e93a3a75`
 >
@@ -1093,3 +1093,29 @@ Legacy
 - Final Architecture v3 不需要因为实现方便而被偷偷改写。
 
 E3 完成后，后续功能开发默认基于 v3 Domain 扩展，而不是继续维护两套过渡架构。
+
+---
+
+# 16. Completion Record
+
+E3-A 至 E3-H 的 Exit Criteria 已于 2026-08-29 全部满足：
+
+| Stage | 状态 | 提交 / 证据 |
+| --- | --- | --- |
+| E3-A～C | Completed | `bfb241d6` |
+| E3-D | Completed | `6b3140c2` |
+| E3-E | Completed | `94cf8051` |
+| E3-F | Completed | `e2c9f7d1` |
+| E3-G | Completed | `0872ac03` |
+| E3-H | Completed | `Docs/Current/CombatSample_E3_v3_Validation_Handoff_2026-08-29_zh-CN.md`；本次最终提交 |
+
+最终证据：
+
+- Driver 保持 Control → Action → Animation → Motion → World → Hit → Finish，并只通过 `ActorSimulationRuntime` 路由 Actor 子系统；
+- active build closure 为 39 个 Sequence Action，Legacy count 为 0，AnimationConfig 与 Sequence Validator 均为零错误；
+- `ActorCollisionResolver` pair 顺序已固定，未改变碰撞数学；
+- Translation、Rotation、Root data、Animation、Hit 与 Combat time contracts 通过静态审计；
+- 多 Actor、Root Motion cover/resume、HitStop 与 lifecycle 差量人工验收通过；
+- compatibility 例外只保留在 inactive Legacy Timeline 内容、serialized shell 与 Editor-only preview/oracle，不拥有 active runtime authority。
+
+后续开发以 Final Architecture v3 与 Current validation 文档为准；本文不再作为 active implementation plan。

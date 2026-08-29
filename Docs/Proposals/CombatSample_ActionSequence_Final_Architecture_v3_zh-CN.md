@@ -1958,51 +1958,41 @@ Driver 不得随着系统增加而直接依赖 `ActorLocomotion / ActionStateMan
 
 ---
 
-# 19. Implementation Gaps：不是 Open Architecture
+# 19. Implementation Status：E3 Completed
 
-以下当前可能尚未落地，但只属于后续 E3 Implementation Plan，不重新开放上述架构：
-
-```text
-ActorLocomotion Component 实现 / prefab migration
-ActorAnimation Component 实现 / Animancer authority migration
-ActorMotor 从旧 Runtime 划分迁到 Translation / Rotation Domain
-Translation 单位 / 坐标合同统一
-BallisticVerticalVelocity 替代旧 vertical state
-Root Motion owner stack
-Root Rotation owner stack
-Scripted Rotation owner stack
-MotionPolicy / MotionPolicyClip
-Animation centralized Evaluate phase
-ActionMotionConfig / ActionInstance whole-action motor rewrite 迁移
-旧 RootMotion + HorizontalImpulse compose 修正
-旧 Animator Gameplay Root Motion 删除
-旧 ActorLogicInput runtime path 清理
-Legacy Timeline 内容迁移
-HitStop / simulation time contract 统一
-CombatSimulationDriver 收敛为 7-Phase façade
-ActorSimulationRuntime 补齐明确 phase routing，避免 Driver 直接认识 Actor 内部 subsystem
-```
-
-已有 `ActionStateManager / ActionPlayer` 的 fixed-tick action arbitration / playback 职责属于应保留并接入 v3 的现有基础，不是需要删除的旧系统。
-
-仍可在 implementation 阶段确定的内容：
+截至 2026-08-29，E3-A 至 E3-H 的 runtime authority、enabled-build content cutover 与最终验证均已落地：
 
 ```text
-ActorAnimation public API 方法名
-Action owner token 具体 struct / generation
-LocomotionAnimationProfile 数据结构
-crossfade 参数具体配置位置
-Pose mixer parameter 数据结构
-MotionPolicy token/container 类型
-ActorSimulationRuntime phase entry 的最终方法名
-Driver 各 Phase helper 的具体代码组织
-serialized authored order 的具体实现
-Inspector validation 细节
-Baker backend 的内部组织方式
-迁移提交切片与测试顺序
+ActorLocomotion
+→ active locomotion profile authority
+
+ActorAnimation
+→ Locomotion Base + Action Override + single manual Evaluate
+
+ActorMotor
+→ Translation / Rotation Domain + MotionPolicy + KCC world result
+
+ActionSequence
+→ fixed-frame time + local Animation / Motion / HitBox / Tag contributions
+
+CombatSimulationDriver + ActorSimulationRuntime
+→ explicit 7-Phase world order + sole per-Actor routing boundary
+
+Active Jaeger / Kiana content
+→ Sequence backend + AnimationConfig / baked trajectory data
 ```
 
-这些实现选择必须服从本文 Domain / authority / arbitration，不得为了局部方便重新引入旧的 whole-domain ownership、Generic Runtime、generic scheduler 或 God Component。
+旧 `ActionMotionConfig`、Timeline 字段、`ActorLogicInput` 与 Timeline runtime 类型仍可为非 active content / Unity serialization 保留，但不再拥有 enabled-build runtime authority。Animator delta 只保留在 `UNITY_EDITOR` Root Motion oracle。
+
+E3-H 最终证据：
+
+- `ActorCollisionResolver` 在 pair resolution 前按 Actor/Motor instance ID 固定排序；
+- enabled-build closure 为 39 个 Sequence Action，Legacy count 为 0；
+- 自动生成的 302 个 Track / Clip editor ID 均非空且无重复，AnimationConfig 与 Sequence Validator 均为零错误；
+- 多 Actor 注册顺序、Root Motion cover/resume、HitStop 与生命周期差量人工验收通过；
+- 当前验证证据记录在 `Docs/Current/CombatSample_E3_v3_Validation_Handoff_2026-08-29_zh-CN.md` 与 `Actor_Motion_Validation.md`。
+
+以上是实现与验证状态，不重新开放本文冻结的 Domain / authority / arbitration。后续修复不得重新引入 whole-domain ownership、Generic Runtime、generic scheduler 或 God Component。
 
 ---
 

@@ -1,7 +1,7 @@
 # Project Structure
 
 > Status: Current  
-> Verified against repository contents: 2026-08-02
+> Verified against repository contents: 2026-08-29
 
 This file describes the repository as it exists today. Proposed reorganizations belong in a separate proposal and must not be presented here as completed structure.
 
@@ -20,14 +20,19 @@ Unity and IDE generated folders such as `Library/`, `Temp/`, `Logs/`, `obj/`, `.
 ## Assets
 
 - `Assets/Create/`: authored gameplay data currently used by the project.
-  - `ActionAssets/`: `ActionAsset` assets and their Timeline `.playable` assets.
+  - `ActionAssets/`: `ActionAsset` assets. Enabled-build Jaeger/Kiana gameplay uses embedded ActionSequence data; retained Timeline references and `.playable` files are non-authoritative compatibility content.
   - `ActionLists/`: action lists assigned to actors.
   - `Animancer/`: Animancer transition assets referenced by actions.
   - `Graphs/`: NodeCanvas and related graph assets.
+  - `Jaeger_AnimationConfig.asset` / `Kiana_AnimationConfig.asset`: active animation key and baked root trajectory registries.
+  - `Jaeger_NormalLocomotionMode.asset` / `Kiana_NormalLocomotionMode.asset`: active locomotion profiles.
 - `Assets/Prefabs/`: reusable actors, camera rigs, effects, gameplay objects, and supporting prefabs.
 - `Assets/Resources/`: runtime and art content still loaded or organized through Unity Resources.
 - `Assets/Scenes/`: release and targeted validation scenes.
 - `Assets/Scripts/`: runtime and editor C# code.
+  - `Actor/`: the CombatSimulationDriver façade, per-Actor routing, ActorLocomotion, ActorAnimation, ActorMotor and KCC world integration.
+  - `ActionSequence/`: fixed-frame action data, runtime and local gameplay contribution clips.
+  - `ActionSystem/`: action selection/playback data plus editor-only active-build migration support.
 - `Assets/Settings/`: Unity package and project asset settings.
 - `Assets/Plugins/`: third-party packages stored under Assets.
 - `Assets/Other/`: miscellaneous project content that has not been placed elsewhere.

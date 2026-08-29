@@ -19,9 +19,9 @@ MonoBehaviour:
     durationMode: 0
     durationFrames: 40
     tracks:
-    - rid: 1239727509095580305
-    - rid: 1239727509095580306
-    - rid: 1239727509095580307
+    - rid: 1239727518709710981
+    - rid: 1239727518709710982
+    - rid: 1239727518709710983
     clips: []
     defaultTracksInitialized: 1
   _priorityLayer: 2
@@ -69,43 +69,43 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
-    - rid: 1239727509095580305
+    - rid: 1239727518709710981
       type: {class: ActionSequenceAnimationTrack, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 2eb4056e410d144af9afc48284fa39b4
         displayName: Animation
         muted: 0
         locked: 0
         collapsed: 0
         clips:
-        - rid: 1239727509095580308
-    - rid: 1239727509095580306
+        - rid: 1239727518709710984
+    - rid: 1239727518709710982
       type: {class: ActionSequenceMotionTrack, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: e5fa59bf972c18ab2c1f0956a9637459
         displayName: Motion
         muted: 0
         locked: 0
         collapsed: 0
         clips:
-        - rid: 1239727509095580309
-        - rid: 1239727509095580310
-        - rid: 1239727509095580311
-        - rid: 1239727509095580312
-    - rid: 1239727509095580307
+        - rid: 1239727518709710985
+        - rid: 1239727518709710986
+        - rid: 1239727518709710987
+        - rid: 1239727518709710988
+    - rid: 1239727518709710983
       type: {class: ActionSequenceHitBoxTrack, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 8393f0ecfb5c6b7f7141de6be6d02e5f
         displayName: HitBox
         muted: 0
         locked: 0
         collapsed: 0
         clips:
-        - rid: 1239727509095580313
-    - rid: 1239727509095580308
+        - rid: 1239727518709710989
+    - rid: 1239727518709710984
       type: {class: ActionSequenceAnimationPoseClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: feb6c562f11c8b0307cf81d6bdf6e39f
         displayName: Lucy_Air_Kick_7_Start_Root
         startFrame: 0
         endFrame: 40
@@ -115,10 +115,10 @@ MonoBehaviour:
         fallbackFloat: 0
         startOffsetSeconds: 0
         playbackSpeed: 1
-    - rid: 1239727509095580309
+    - rid: 1239727518709710985
       type: {class: ActionSequenceMotionPolicyClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 62f22d5cda4f863341d21da551cc405d
         displayName: Migrated Motion Policy
         startFrame: 0
         endFrame: 40
@@ -128,18 +128,18 @@ MonoBehaviour:
         airLocomotionScale: 0
         useGravityScale: 0
         gravityScale: 1
-    - rid: 1239727509095580310
+    - rid: 1239727518709710986
       type: {class: ActionSequenceFacingSnapClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 953bf2f451dac31c05f6e256d07b582f
         displayName: Migrated Facing Snap
         startFrame: 0
         endFrame: 1
         source: 1
-    - rid: 1239727509095580311
+    - rid: 1239727518709710987
       type: {class: ActionSequenceImpulseClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 771e87e2fc7f4d71c28d47ea8a4d52e1
         displayName: ActionImpulseClip
         startFrame: 23
         endFrame: 40
@@ -154,10 +154,10 @@ MonoBehaviour:
         verticalOperation: 0
         overrideGravityScale: 0
         gravityScale: 1
-    - rid: 1239727509095580312
+    - rid: 1239727518709710988
       type: {class: ActionSequenceVelocityOverrideClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 25dc6df667481b2409998941b55ff311
         displayName: ActionVelocityClip
         startFrame: 0
         endFrame: 23
@@ -217,10 +217,10 @@ MonoBehaviour:
             m_PostInfinity: 2
             m_RotationOrder: 4
           debugLog: 0
-    - rid: 1239727509095580313
+    - rid: 1239727518709710989
       type: {class: ActionSequenceHitBoxClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: c66d8a8940bdd40e444b392e061c9f4e
         displayName: ActionHitBoxClip
         startFrame: 23
         endFrame: 28
@@ -241,10 +241,10 @@ MonoBehaviour:
           hitEventTag:
             TagId: 645108757
         effects:
-        - rid: 1239727509095580314
-        - rid: 1239727509095580315
-        - rid: 1239727509095580316
-    - rid: 1239727509095580314
+        - rid: 1239727518709710990
+        - rid: 1239727518709710991
+        - rid: 1239727518709710992
+    - rid: 1239727518709710990
       type: {class: HitVfxConfig, ns: , asm: Assembly-CSharp}
       data:
         enabled: 1
@@ -263,14 +263,14 @@ MonoBehaviour:
         rollMode: 0
         rollPresetDegrees: 0
         rollRandomRange: 360
-    - rid: 1239727509095580315
+    - rid: 1239727518709710991
       type: {class: SpeedEffectConfig, ns: , asm: Assembly-CSharp}
       data:
         enabled: 1
         duration: 0.15
         speedScale: 0.05
         affectBothParties: 1
-    - rid: 1239727509095580316
+    - rid: 1239727518709710992
       type: {class: HitSoundEffectConfig, ns: , asm: Assembly-CSharp}
       data:
         enabled: 1

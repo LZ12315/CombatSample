@@ -19,8 +19,8 @@ MonoBehaviour:
     durationMode: 0
     durationFrames: 16
     tracks:
-    - rid: 1239727509095580256
-    - rid: 1239727509095580257
+    - rid: 1239727518709710932
+    - rid: 1239727518709710933
     clips: []
     defaultTracksInitialized: 1
   _priorityLayer: 2
@@ -50,31 +50,31 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
-    - rid: 1239727509095580256
+    - rid: 1239727518709710932
       type: {class: ActionSequenceAnimationTrack, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: b61c0d191940873bedf1fafefc8a9e85
         displayName: Animation
         muted: 0
         locked: 0
         collapsed: 0
         clips:
-        - rid: 1239727509095580258
-    - rid: 1239727509095580257
+        - rid: 1239727518709710934
+    - rid: 1239727518709710933
       type: {class: ActionSequenceMotionTrack, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: d96f23062644fa8803d8dc53a43ad84b
         displayName: Motion
         muted: 0
         locked: 0
         collapsed: 0
         clips:
-        - rid: 1239727509095580259
-        - rid: 1239727509095580260
-    - rid: 1239727509095580258
+        - rid: 1239727518709710935
+        - rid: 1239727518709710936
+    - rid: 1239727518709710934
       type: {class: ActionSequenceAnimationPoseClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: be5036c051f70fb390da4303fe2f37bd
         displayName: Lucy_Jump_Start_Inplace
         startFrame: 0
         endFrame: 16
@@ -84,10 +84,10 @@ MonoBehaviour:
         fallbackFloat: 0
         startOffsetSeconds: 0
         playbackSpeed: 1
-    - rid: 1239727509095580259
+    - rid: 1239727518709710935
       type: {class: ActionSequenceMotionPolicyClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: ec697449cf52fce17c214a6f6f124d13
         displayName: Migrated Motion Policy
         startFrame: 0
         endFrame: 16
@@ -97,10 +97,10 @@ MonoBehaviour:
         airLocomotionScale: 0
         useGravityScale: 1
         gravityScale: 2.2
-    - rid: 1239727509095580260
+    - rid: 1239727518709710936
       type: {class: ActionSequenceImpulseClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 380ef643eee36b272292c72dded17644
         displayName: ActionImpulseClip
         startFrame: 13
         endFrame: 14

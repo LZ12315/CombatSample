@@ -19,9 +19,9 @@ MonoBehaviour:
     durationMode: 0
     durationFrames: 100
     tracks:
-    - rid: 1239727509095580205
-    - rid: 1239727509095580206
-    - rid: 1239727509095580207
+    - rid: 1239727518709710881
+    - rid: 1239727518709710882
+    - rid: 1239727518709710883
     clips: []
     defaultTracksInitialized: 1
   _priorityLayer: 1
@@ -48,53 +48,53 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
-    - rid: 1239727509095580205
+    - rid: 1239727518709710881
       type: {class: ActionSequenceStateTrack, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 538e2e947cc81922f53474348592bb66
         displayName: State
         muted: 0
         locked: 0
         collapsed: 0
         clips:
-        - rid: 1239727509095580208
-    - rid: 1239727509095580206
+        - rid: 1239727518709710884
+    - rid: 1239727518709710882
       type: {class: ActionSequenceAnimationTrack, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: d224c6efe7af2accbd0d60fd7e03fa5e
         displayName: Animation
         muted: 0
         locked: 0
         collapsed: 0
         clips:
-        - rid: 1239727509095580209
-    - rid: 1239727509095580207
+        - rid: 1239727518709710885
+    - rid: 1239727518709710883
       type: {class: ActionSequenceMotionTrack, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 5d47ec25e712bda6779230eda04d7c6d
         displayName: Motion
         muted: 0
         locked: 0
         collapsed: 0
         clips:
-        - rid: 1239727509095580210
-        - rid: 1239727509095580211
-        - rid: 1239727509095580212
-        - rid: 1239727509095580213
-    - rid: 1239727509095580208
+        - rid: 1239727518709710886
+        - rid: 1239727518709710887
+        - rid: 1239727518709710888
+        - rid: 1239727518709710889
+    - rid: 1239727518709710884
       type: {class: ActionSequenceTagClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 7f8b1d46cdc4010c149285b03d440ea2
         displayName: State.Combat.SuperArmor
         startFrame: 0
         endFrame: 100
         tag:
           TagId: -1070838861
         targetContainer: 0
-    - rid: 1239727509095580209
+    - rid: 1239727518709710885
       type: {class: ActionSequenceAnimationPoseClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: ec038c619dd65651eda1102ae02ef934
         displayName: Take 001
         startFrame: 0
         endFrame: 100
@@ -104,10 +104,10 @@ MonoBehaviour:
         fallbackFloat: 0
         startOffsetSeconds: 0
         playbackSpeed: 1
-    - rid: 1239727509095580210
+    - rid: 1239727518709710886
       type: {class: ActionSequenceMotionPolicyClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 80f6ad2101267ba55f3fc05c9c6088f5
         displayName: Migrated Motion Policy
         startFrame: 0
         endFrame: 100
@@ -117,28 +117,28 @@ MonoBehaviour:
         airLocomotionScale: 0
         useGravityScale: 0
         gravityScale: 1
-    - rid: 1239727509095580211
+    - rid: 1239727518709710887
       type: {class: ActionSequenceFacingSnapClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 84cc90749b9f7209ac213debb06cafc5
         displayName: Migrated Facing Snap
         startFrame: 0
         endFrame: 1
         source: 1
-    - rid: 1239727509095580212
+    - rid: 1239727518709710888
       type: {class: ActionSequenceRootMotionClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 6ae3fb68c916fd28377629a5db001cbd
         displayName: Migrated Root Motion
         startFrame: 0
         endFrame: 100
         animationKey: Jaeger_Hit_Hard
         startOffsetSeconds: 0
         playbackSpeed: 1
-    - rid: 1239727509095580213
+    - rid: 1239727518709710889
       type: {class: ActionSequenceRootRotationClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 1cbda2948d499f5343b3acb3de1245d8
         displayName: Migrated Root Rotation
         startFrame: 0
         endFrame: 100

@@ -19,8 +19,8 @@ MonoBehaviour:
     durationMode: 0
     durationFrames: 59
     tracks:
-    - rid: 1239727509095580172
-    - rid: 1239727509095580173
+    - rid: 1239727518709710848
+    - rid: 1239727518709710849
     clips: []
     defaultTracksInitialized: 1
   _priorityLayer: 2
@@ -88,33 +88,33 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
-    - rid: 1239727509095580172
+    - rid: 1239727518709710848
       type: {class: ActionSequenceAnimationTrack, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 0018179f7573f84aafe58b672b2666e4
         displayName: Animation
         muted: 0
         locked: 0
         collapsed: 0
         clips:
-        - rid: 1239727509095580174
-    - rid: 1239727509095580173
+        - rid: 1239727518709710850
+    - rid: 1239727518709710849
       type: {class: ActionSequenceMotionTrack, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 32fc8ca75771093a1f5fa7e23f2fe407
         displayName: Motion
         muted: 0
         locked: 0
         collapsed: 0
         clips:
-        - rid: 1239727509095580175
-        - rid: 1239727509095580176
-        - rid: 1239727509095580177
-        - rid: 1239727509095580178
-    - rid: 1239727509095580174
+        - rid: 1239727518709710851
+        - rid: 1239727518709710852
+        - rid: 1239727518709710853
+        - rid: 1239727518709710854
+    - rid: 1239727518709710850
       type: {class: ActionSequenceAnimationPoseClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 7c0312b7e74e07b3bc99cf6630200378
         displayName: Lucy_Slide_B_Root
         startFrame: 0
         endFrame: 59
@@ -124,10 +124,10 @@ MonoBehaviour:
         fallbackFloat: 0
         startOffsetSeconds: 0
         playbackSpeed: 1.2
-    - rid: 1239727509095580175
+    - rid: 1239727518709710851
       type: {class: ActionSequenceMotionPolicyClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 64f50248e85dd88146348a7002e2799f
         displayName: Migrated Motion Policy
         startFrame: 0
         endFrame: 59
@@ -137,28 +137,28 @@ MonoBehaviour:
         airLocomotionScale: 0
         useGravityScale: 0
         gravityScale: 1
-    - rid: 1239727509095580176
+    - rid: 1239727518709710852
       type: {class: ActionSequenceFacingSnapClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 272cdb242016f76640b0b67d9e256aec
         displayName: Migrated Facing Snap
         startFrame: 0
         endFrame: 1
         source: 1
-    - rid: 1239727509095580177
+    - rid: 1239727518709710853
       type: {class: ActionSequenceRootMotionClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: a9db3ae8f171d1511639ded4a18d4085
         displayName: Migrated Root Motion
         startFrame: 0
         endFrame: 59
         animationKey: Kiana_Slide_Back
         startOffsetSeconds: 0
         playbackSpeed: 1.2
-    - rid: 1239727509095580178
+    - rid: 1239727518709710854
       type: {class: ActionSequenceRootRotationClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: f489594d6ddfba0e397376a753991d18
         displayName: Migrated Root Rotation
         startFrame: 0
         endFrame: 59

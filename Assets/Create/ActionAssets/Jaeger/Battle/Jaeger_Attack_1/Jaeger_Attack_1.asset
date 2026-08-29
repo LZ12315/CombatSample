@@ -19,10 +19,10 @@ MonoBehaviour:
     durationMode: 0
     durationFrames: 84
     tracks:
-    - rid: 1239727509095580412
-    - rid: 1239727509095580413
-    - rid: 1239727509095580414
-    - rid: 1239727509095580415
+    - rid: 1239727518709711088
+    - rid: 1239727518709711089
+    - rid: 1239727518709711090
+    - rid: 1239727518709711091
     clips: []
     defaultTracksInitialized: 1
   _priorityLayer: 1
@@ -51,65 +51,65 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
-    - rid: 1239727509095580412
+    - rid: 1239727518709711088
       type: {class: ActionSequenceStateTrack, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 56c2aac8d2e52033f014f94631538471
         displayName: State
         muted: 0
         locked: 0
         collapsed: 0
         clips:
-        - rid: 1239727509095580416
-    - rid: 1239727509095580413
+        - rid: 1239727518709711092
+    - rid: 1239727518709711089
       type: {class: ActionSequenceAnimationTrack, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: d6370a7adea63ae5e2f4dfdee93fc184
         displayName: Animation
         muted: 0
         locked: 0
         collapsed: 0
         clips:
-        - rid: 1239727509095580417
-    - rid: 1239727509095580414
+        - rid: 1239727518709711093
+    - rid: 1239727518709711090
       type: {class: ActionSequenceMotionTrack, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: c64d390100f6a983145f25de47ed49bf
         displayName: Motion
         muted: 0
         locked: 0
         collapsed: 0
         clips:
-        - rid: 1239727509095580418
-        - rid: 1239727509095580419
-        - rid: 1239727509095580420
-        - rid: 1239727509095580421
-        - rid: 1239727509095580422
-    - rid: 1239727509095580415
+        - rid: 1239727518709711094
+        - rid: 1239727518709711095
+        - rid: 1239727518709711096
+        - rid: 1239727518709711097
+        - rid: 1239727518709711098
+    - rid: 1239727518709711091
       type: {class: ActionSequenceHitBoxTrack, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: fd2aebf667164d3e157ad8e918ee2ccc
         displayName: HitBox
         muted: 0
         locked: 0
         collapsed: 0
         clips:
-        - rid: 1239727509095580423
-        - rid: 1239727509095580424
-    - rid: 1239727509095580416
+        - rid: 1239727518709711099
+        - rid: 1239727518709711100
+    - rid: 1239727518709711092
       type: {class: ActionSequenceTagClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 7f8b35e4ce35019db7177e22c30c0cee
         displayName: State.Combat.SuperArmor
         startFrame: 0
         endFrame: 75
         tag:
           TagId: -1070838861
         targetContainer: 0
-    - rid: 1239727509095580417
+    - rid: 1239727518709711093
       type: {class: ActionSequenceAnimationPoseClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 2b8d0b6542c8c826d0dc02b91a915fac
         displayName: Take 001
         startFrame: 0
         endFrame: 84
@@ -119,10 +119,10 @@ MonoBehaviour:
         fallbackFloat: 0
         startOffsetSeconds: 0
         playbackSpeed: 1
-    - rid: 1239727509095580418
+    - rid: 1239727518709711094
       type: {class: ActionSequenceMotionPolicyClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 91a789b011ee0abaec22110ec0ba7f20
         displayName: Migrated Motion Policy
         startFrame: 0
         endFrame: 84
@@ -132,38 +132,38 @@ MonoBehaviour:
         airLocomotionScale: 0
         useGravityScale: 0
         gravityScale: 1
-    - rid: 1239727509095580419
+    - rid: 1239727518709711095
       type: {class: ActionSequenceFacingSnapClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 29977e79ba0fea09d9bab782502f6ffe
         displayName: Migrated Facing Snap
         startFrame: 0
         endFrame: 1
         source: 1
-    - rid: 1239727509095580420
+    - rid: 1239727518709711096
       type: {class: ActionSequenceRootMotionClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 5ea211622adbe40bf55c1cf369c1bf89
         displayName: Migrated Root Motion
         startFrame: 0
         endFrame: 84
         animationKey: Jaeger_Attack_1
         startOffsetSeconds: 0
         playbackSpeed: 1
-    - rid: 1239727509095580421
+    - rid: 1239727518709711097
       type: {class: ActionSequenceRootRotationClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 3010c79dfdb0473b232799a152ca6624
         displayName: Migrated Root Rotation
         startFrame: 0
         endFrame: 84
         animationKey: Jaeger_Attack_1
         startOffsetSeconds: 0
         playbackSpeed: 1
-    - rid: 1239727509095580422
+    - rid: 1239727518709711098
       type: {class: ActionSequenceSelfRotationClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 057bb7d9e0899cc017977a8d72884704
         displayName: ActionMagnetismClip
         startFrame: 0
         endFrame: 39
@@ -176,10 +176,10 @@ MonoBehaviour:
         animationKey:
         startOffsetSeconds: 0
         playbackSpeed: 1
-    - rid: 1239727509095580423
+    - rid: 1239727518709711099
       type: {class: ActionSequenceHitBoxClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: ea4a8a6e4ec020e2f1f5aa14513124f3
         displayName: ActionHitBoxClip
         startFrame: 39
         endFrame: 43
@@ -200,13 +200,13 @@ MonoBehaviour:
           hitEventTag:
             TagId: 645108757
         effects:
-        - rid: 1239727509095580425
-        - rid: 1239727509095580426
-        - rid: 1239727509095580427
-    - rid: 1239727509095580424
+        - rid: 1239727518709711101
+        - rid: 1239727518709711102
+        - rid: 1239727518709711103
+    - rid: 1239727518709711100
       type: {class: ActionSequenceHitBoxClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: e8bd94e6c9ceee61f5d68042695e3e1a
         displayName: ActionHitBoxClip
         startFrame: 26
         endFrame: 30
@@ -227,10 +227,10 @@ MonoBehaviour:
           hitEventTag:
             TagId: 645108757
         effects:
-        - rid: 1239727509095580428
-        - rid: 1239727509095580429
-        - rid: 1239727509095580430
-    - rid: 1239727509095580425
+        - rid: 1239727518709711104
+        - rid: 1239727518709711105
+        - rid: 1239727518709711106
+    - rid: 1239727518709711101
       type: {class: HitVfxConfig, ns: , asm: Assembly-CSharp}
       data:
         enabled: 1
@@ -249,14 +249,14 @@ MonoBehaviour:
         rollMode: 0
         rollPresetDegrees: 0
         rollRandomRange: 360
-    - rid: 1239727509095580426
+    - rid: 1239727518709711102
       type: {class: SpeedEffectConfig, ns: , asm: Assembly-CSharp}
       data:
         enabled: 1
         duration: 0.15
         speedScale: 0.05
         affectBothParties: 1
-    - rid: 1239727509095580427
+    - rid: 1239727518709711103
       type: {class: HitSoundEffectConfig, ns: , asm: Assembly-CSharp}
       data:
         enabled: 1
@@ -264,7 +264,7 @@ MonoBehaviour:
         - {fileID: 8300000, guid: 7cbd6cd765888ff418d01d98bd1ce9c2, type: 3}
         volume: 0.8
         pitchVariation: 0.1
-    - rid: 1239727509095580428
+    - rid: 1239727518709711104
       type: {class: HitVfxConfig, ns: , asm: Assembly-CSharp}
       data:
         enabled: 1
@@ -283,14 +283,14 @@ MonoBehaviour:
         rollMode: 0
         rollPresetDegrees: 0
         rollRandomRange: 360
-    - rid: 1239727509095580429
+    - rid: 1239727518709711105
       type: {class: SpeedEffectConfig, ns: , asm: Assembly-CSharp}
       data:
         enabled: 1
         duration: 0.15
         speedScale: 0.05
         affectBothParties: 1
-    - rid: 1239727509095580430
+    - rid: 1239727518709711106
       type: {class: HitSoundEffectConfig, ns: , asm: Assembly-CSharp}
       data:
         enabled: 1

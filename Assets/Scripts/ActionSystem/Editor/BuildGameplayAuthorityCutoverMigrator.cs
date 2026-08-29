@@ -155,6 +155,8 @@ public static class BuildGameplayAuthorityCutoverMigrator
         CutoverReport finalReport = BuildReport();
         if (finalReport.AnimationConfigIssues.Count > 0)
             throw new InvalidOperationException(finalReport.BuildAnimationConfigIssueMessage());
+        if (finalReport.SequenceValidationIssues.Count > 0)
+            throw new InvalidOperationException(finalReport.BuildSequenceValidationIssueMessage());
 
         Debug.Log(
             $"[E3-G] Active build cutover applied. generatedOrRebuilt={generatedOrRebuilt}, " +
@@ -201,6 +203,8 @@ public static class BuildGameplayAuthorityCutoverMigrator
             report.ActiveActionPaths.Add(actionPath);
             if (action.UsesTimeline)
                 report.LegacyActionPaths.Add(actionPath);
+            else if (action.UsesSequence)
+                AppendSequenceValidationIssues(report, action, actionPath);
         }
 
         report.ActiveActionPaths.Sort(StringComparer.Ordinal);
@@ -418,10 +422,39 @@ public static class BuildGameplayAuthorityCutoverMigrator
         AddTrack(data, new ActionSequenceAnimationTrack { displayName = "Animation" }, animationClips);
         AddTrack(data, new ActionSequenceMotionTrack { displayName = "Motion" }, motionClips);
         AddTrack(data, new ActionSequenceHitBoxTrack { displayName = "HitBox" }, hitBoxClips);
+        AssignDeterministicEditorIds(action, data);
 
         action.SetPlaybackBackend(ActionPlaybackBackend.Sequence);
         EditorUtility.SetDirty(action);
         return true;
+    }
+
+    private static void AssignDeterministicEditorIds(ActionAsset action, ActionSequenceData data)
+    {
+        string actionPath = AssetDatabase.GetAssetPath(action);
+        string actionGuid = AssetDatabase.AssetPathToGUID(actionPath);
+        if (string.IsNullOrWhiteSpace(actionGuid))
+            throw new InvalidOperationException($"Cannot assign Sequence editor IDs because '{actionPath}' has no asset GUID.");
+
+        List<ActionSequenceTrackDefinition> tracks = data.EditorTracks;
+        for (int trackIndex = 0; trackIndex < tracks.Count; trackIndex++)
+        {
+            ActionSequenceTrackDefinition track = tracks[trackIndex];
+            if (track == null)
+                continue;
+
+            track.EditorSetEditorId(Hash128.Compute($"{actionGuid}:track:{trackIndex}").ToString());
+            List<ActionSequenceClipDefinition> clips = track.EditorClips;
+            for (int clipIndex = 0; clipIndex < clips.Count; clipIndex++)
+            {
+                ActionSequenceClipDefinition clip = clips[clipIndex];
+                if (clip != null)
+                {
+                    clip.EditorSetEditorId(
+                        Hash128.Compute($"{actionGuid}:track:{trackIndex}:clip:{clipIndex}").ToString());
+                }
+            }
+        }
     }
 
     private static ActionSequenceClipDefinition ConvertTimelineClip(
@@ -1028,6 +1061,32 @@ public static class BuildGameplayAuthorityCutoverMigrator
         return orderedClosure;
     }
 
+    private static void AppendSequenceValidationIssues(
+        CutoverReport report,
+        ActionAsset action,
+        string actionPath)
+    {
+        ActionSequenceEditorValidationResult validation = ActionSequenceValidator.Validate(action);
+        if (!validation.HasErrors)
+            return;
+
+        int errorCount = 0;
+        var summaries = new HashSet<string>(StringComparer.Ordinal);
+        foreach (ActionSequenceEditorValidationIssue issue in validation.Issues)
+        {
+            if (issue.Severity != ActionSequenceEditorValidationSeverity.Error)
+                continue;
+
+            errorCount++;
+            summaries.Add($"{issue.Code}: {issue.Message}");
+        }
+
+        var orderedSummaries = new List<string>(summaries);
+        orderedSummaries.Sort(StringComparer.Ordinal);
+        report.SequenceValidationIssues.Add(
+            $"{actionPath}: {errorCount} error(s) [{string.Join("; ", orderedSummaries)}]");
+    }
+
     private static void AppendAnimationConfigIssues(
         CutoverReport report,
         string actorName,
@@ -1355,6 +1414,7 @@ public static class BuildGameplayAuthorityCutoverMigrator
         public readonly List<string> ActiveActionPaths = new();
         public readonly List<string> LegacyActionPaths = new();
         public readonly List<string> AnimationConfigIssues = new();
+        public readonly List<string> SequenceValidationIssues = new();
 
         public string BuildUnsupportedActionListMessage()
         {
@@ -1366,6 +1426,12 @@ public static class BuildGameplayAuthorityCutoverMigrator
         {
             return "E3-G active Action closure has incomplete AnimationConfig data:\n"
                 + string.Join("\n", AnimationConfigIssues);
+        }
+
+        public string BuildSequenceValidationIssueMessage()
+        {
+            return "E3-G active Action closure has invalid Sequence data:\n"
+                + string.Join("\n", SequenceValidationIssues);
         }
 
         public override string ToString()
@@ -1380,6 +1446,10 @@ public static class BuildGameplayAuthorityCutoverMigrator
 
             builder.AppendLine($"AnimationConfig issues: {AnimationConfigIssues.Count}");
             foreach (string issue in AnimationConfigIssues)
+                builder.AppendLine($"  - {issue}");
+
+            builder.AppendLine($"Sequence validation issues: {SequenceValidationIssues.Count}");
+            foreach (string issue in SequenceValidationIssues)
                 builder.AppendLine($"  - {issue}");
 
             if (UnsupportedActiveActionListPaths.Count > 0)

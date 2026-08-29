@@ -19,9 +19,9 @@ MonoBehaviour:
     durationMode: 0
     durationFrames: 135
     tracks:
-    - rid: 1239727509095580480
-    - rid: 1239727509095580481
-    - rid: 1239727509095580482
+    - rid: 1239727518709711156
+    - rid: 1239727518709711157
+    - rid: 1239727518709711158
     clips: []
     defaultTracksInitialized: 1
   _priorityLayer: 1
@@ -96,45 +96,45 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
-    - rid: 1239727509095580480
+    - rid: 1239727518709711156
       type: {class: ActionSequenceAnimationTrack, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: c94f1af3193636ee1ef244865467960d
         displayName: Animation
         muted: 0
         locked: 0
         collapsed: 0
         clips:
-        - rid: 1239727509095580483
-    - rid: 1239727509095580481
+        - rid: 1239727518709711159
+    - rid: 1239727518709711157
       type: {class: ActionSequenceMotionTrack, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 6ef1894dc01709cde95be0e06c5a6559
         displayName: Motion
         muted: 0
         locked: 0
         collapsed: 0
         clips:
-        - rid: 1239727509095580484
-        - rid: 1239727509095580485
-        - rid: 1239727509095580486
-        - rid: 1239727509095580487
-        - rid: 1239727509095580488
-    - rid: 1239727509095580482
+        - rid: 1239727518709711160
+        - rid: 1239727518709711161
+        - rid: 1239727518709711162
+        - rid: 1239727518709711163
+        - rid: 1239727518709711164
+    - rid: 1239727518709711158
       type: {class: ActionSequenceHitBoxTrack, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 6c26176314e5ce167b814c29eaf498a1
         displayName: HitBox
         muted: 0
         locked: 0
         collapsed: 0
         clips:
-        - rid: 1239727509095580489
-        - rid: 1239727509095580490
-    - rid: 1239727509095580483
+        - rid: 1239727518709711165
+        - rid: 1239727518709711166
+    - rid: 1239727518709711159
       type: {class: ActionSequenceAnimationPoseClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: b86a62dcd3bd3d72056c1214b2e89710
         displayName: Kiana_C2_Ani_Attack_4A
         startFrame: 0
         endFrame: 135
@@ -144,10 +144,10 @@ MonoBehaviour:
         fallbackFloat: 0
         startOffsetSeconds: 0
         playbackSpeed: 1
-    - rid: 1239727509095580484
+    - rid: 1239727518709711160
       type: {class: ActionSequenceMotionPolicyClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 807bbe9f170be3ffa066cee42129fc0c
         displayName: Migrated Motion Policy
         startFrame: 0
         endFrame: 135
@@ -157,38 +157,38 @@ MonoBehaviour:
         airLocomotionScale: 0
         useGravityScale: 0
         gravityScale: 1
-    - rid: 1239727509095580485
+    - rid: 1239727518709711161
       type: {class: ActionSequenceFacingSnapClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 0df65c7a2f9b893ed692ab0a83913811
         displayName: Migrated Facing Snap
         startFrame: 0
         endFrame: 1
         source: 1
-    - rid: 1239727509095580486
+    - rid: 1239727518709711162
       type: {class: ActionSequenceRootMotionClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: a1dc94542bb57f64c5e200872da2eba6
         displayName: Migrated Root Motion
         startFrame: 0
         endFrame: 135
         animationKey: Kiana_Attack_4A
         startOffsetSeconds: 0
         playbackSpeed: 1
-    - rid: 1239727509095580487
+    - rid: 1239727518709711163
       type: {class: ActionSequenceRootRotationClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: c27b62888ef6fc95d6e89d2acbb19204
         displayName: Migrated Root Rotation
         startFrame: 0
         endFrame: 135
         animationKey: Kiana_Attack_4A
         startOffsetSeconds: 0
         playbackSpeed: 1
-    - rid: 1239727509095580488
+    - rid: 1239727518709711164
       type: {class: ActionSequenceSelfRotationClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: ff0a572216e040e090aeb5373e6a9398
         displayName: ActionMagnetismClip
         startFrame: 0
         endFrame: 27
@@ -201,10 +201,10 @@ MonoBehaviour:
         animationKey:
         startOffsetSeconds: 0
         playbackSpeed: 1
-    - rid: 1239727509095580489
+    - rid: 1239727518709711165
       type: {class: ActionSequenceHitBoxClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: d08575e124e8cc7ed35c08ecdafbefd1
         displayName: ActionHitBoxClip
         startFrame: 27
         endFrame: 32
@@ -225,13 +225,13 @@ MonoBehaviour:
           hitEventTag:
             TagId: 1889277012
         effects:
-        - rid: 1239727509095580491
-        - rid: 1239727509095580492
-        - rid: 1239727509095580493
-    - rid: 1239727509095580490
+        - rid: 1239727518709711167
+        - rid: 1239727518709711168
+        - rid: 1239727518709711169
+    - rid: 1239727518709711166
       type: {class: ActionSequenceHitBoxClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 8b33227dbb6b97a38908c112047a3ac0
         displayName: ActionHitBoxClip
         startFrame: 14
         endFrame: 19
@@ -252,10 +252,10 @@ MonoBehaviour:
           hitEventTag:
             TagId: 1889277012
         effects:
-        - rid: 1239727509095580494
-        - rid: 1239727509095580495
-        - rid: 1239727509095580496
-    - rid: 1239727509095580491
+        - rid: 1239727518709711170
+        - rid: 1239727518709711171
+        - rid: 1239727518709711172
+    - rid: 1239727518709711167
       type: {class: HitVfxConfig, ns: , asm: Assembly-CSharp}
       data:
         enabled: 1
@@ -274,14 +274,14 @@ MonoBehaviour:
         rollMode: 0
         rollPresetDegrees: 0
         rollRandomRange: 360
-    - rid: 1239727509095580492
+    - rid: 1239727518709711168
       type: {class: SpeedEffectConfig, ns: , asm: Assembly-CSharp}
       data:
         enabled: 1
         duration: 0.15
         speedScale: 0.05
         affectBothParties: 1
-    - rid: 1239727509095580493
+    - rid: 1239727518709711169
       type: {class: HitSoundEffectConfig, ns: , asm: Assembly-CSharp}
       data:
         enabled: 1
@@ -289,7 +289,7 @@ MonoBehaviour:
         - {fileID: 8300000, guid: 2b019c6187fca1e48b47e28c891dc66c, type: 3}
         volume: 1
         pitchVariation: 0.1
-    - rid: 1239727509095580494
+    - rid: 1239727518709711170
       type: {class: HitVfxConfig, ns: , asm: Assembly-CSharp}
       data:
         enabled: 1
@@ -308,14 +308,14 @@ MonoBehaviour:
         rollMode: 0
         rollPresetDegrees: 0
         rollRandomRange: 360
-    - rid: 1239727509095580495
+    - rid: 1239727518709711171
       type: {class: SpeedEffectConfig, ns: , asm: Assembly-CSharp}
       data:
         enabled: 1
         duration: 0.15
         speedScale: 0.05
         affectBothParties: 1
-    - rid: 1239727509095580496
+    - rid: 1239727518709711172
       type: {class: HitSoundEffectConfig, ns: , asm: Assembly-CSharp}
       data:
         enabled: 1

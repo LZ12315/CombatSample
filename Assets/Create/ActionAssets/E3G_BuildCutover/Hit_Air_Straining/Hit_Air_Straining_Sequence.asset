@@ -19,8 +19,8 @@ MonoBehaviour:
     durationMode: 0
     durationFrames: 6
     tracks:
-    - rid: 1239727509095580218
-    - rid: 1239727509095580219
+    - rid: 1239727518709710894
+    - rid: 1239727518709710895
     clips: []
     defaultTracksInitialized: 1
   _priorityLayer: 3
@@ -66,31 +66,31 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
-    - rid: 1239727509095580218
+    - rid: 1239727518709710894
       type: {class: ActionSequenceAnimationTrack, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 60cc489f0d2f670007917b113c1c610e
         displayName: Animation
         muted: 0
         locked: 0
         collapsed: 0
         clips:
-        - rid: 1239727509095580220
-    - rid: 1239727509095580219
+        - rid: 1239727518709710896
+    - rid: 1239727518709710895
       type: {class: ActionSequenceMotionTrack, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 75b44f38ed09fb5fc7f227e124e2f1d1
         displayName: Motion
         muted: 0
         locked: 0
         collapsed: 0
         clips:
-        - rid: 1239727509095580221
-        - rid: 1239727509095580222
-    - rid: 1239727509095580220
+        - rid: 1239727518709710897
+        - rid: 1239727518709710898
+    - rid: 1239727518709710896
       type: {class: ActionSequenceAnimationPoseClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 5b2497dbed23b01bf4b22b0e4501e0be
         displayName: Avatar_Kiana_C2_Ani_Hit_Straining
         startFrame: 0
         endFrame: 6
@@ -100,10 +100,10 @@ MonoBehaviour:
         fallbackFloat: 0
         startOffsetSeconds: 0
         playbackSpeed: 1
-    - rid: 1239727509095580221
+    - rid: 1239727518709710897
       type: {class: ActionSequenceMotionPolicyClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 1e738726a3da9fae82a5e976328ab851
         displayName: Migrated Motion Policy
         startFrame: 0
         endFrame: 6
@@ -113,10 +113,10 @@ MonoBehaviour:
         airLocomotionScale: 0
         useGravityScale: 0
         gravityScale: 1
-    - rid: 1239727509095580222
+    - rid: 1239727518709710898
       type: {class: ActionSequenceImpulseClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 2a96bf0a4163296e2f97d9a365ee964e
         displayName: ActionImpulseClip
         startFrame: 1
         endFrame: 2

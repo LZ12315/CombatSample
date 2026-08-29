@@ -19,8 +19,8 @@ MonoBehaviour:
     durationMode: 0
     durationFrames: 80
     tracks:
-    - rid: 1239727509095580261
-    - rid: 1239727509095580262
+    - rid: 1239727518709710937
+    - rid: 1239727518709710938
     clips: []
     defaultTracksInitialized: 1
   _priorityLayer: 1
@@ -47,33 +47,33 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
-    - rid: 1239727509095580261
+    - rid: 1239727518709710937
       type: {class: ActionSequenceAnimationTrack, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 23fe47144b2d24e18754396f6d07c55d
         displayName: Animation
         muted: 0
         locked: 0
         collapsed: 0
         clips:
-        - rid: 1239727509095580263
-    - rid: 1239727509095580262
+        - rid: 1239727518709710939
+    - rid: 1239727518709710938
       type: {class: ActionSequenceMotionTrack, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 840538ac00a0c6275e8c28ce388461f9
         displayName: Motion
         muted: 0
         locked: 0
         collapsed: 0
         clips:
-        - rid: 1239727509095580264
-        - rid: 1239727509095580265
-        - rid: 1239727509095580266
-        - rid: 1239727509095580267
-    - rid: 1239727509095580263
+        - rid: 1239727518709710940
+        - rid: 1239727518709710941
+        - rid: 1239727518709710942
+        - rid: 1239727518709710943
+    - rid: 1239727518709710939
       type: {class: ActionSequenceAnimationPoseClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 79ef883bfe518cbb579014e6dcc0aa5e
         displayName: Take 001
         startFrame: 0
         endFrame: 80
@@ -83,10 +83,10 @@ MonoBehaviour:
         fallbackFloat: 0
         startOffsetSeconds: 0
         playbackSpeed: 1
-    - rid: 1239727509095580264
+    - rid: 1239727518709710940
       type: {class: ActionSequenceMotionPolicyClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 4a3475461fab05be38c981de61b0117a
         displayName: Migrated Motion Policy
         startFrame: 0
         endFrame: 80
@@ -96,28 +96,28 @@ MonoBehaviour:
         airLocomotionScale: 0
         useGravityScale: 0
         gravityScale: 1
-    - rid: 1239727509095580265
+    - rid: 1239727518709710941
       type: {class: ActionSequenceFacingSnapClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 570107b403b5a210eb86837dfeed787d
         displayName: Migrated Facing Snap
         startFrame: 0
         endFrame: 1
         source: 1
-    - rid: 1239727509095580266
+    - rid: 1239727518709710942
       type: {class: ActionSequenceRootMotionClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 7e186815f34b6df6b090b9d4356604d4
         displayName: Migrated Root Motion
         startFrame: 0
         endFrame: 80
         animationKey: Jaeger_Hit_Medium
         startOffsetSeconds: 0
         playbackSpeed: 1
-    - rid: 1239727509095580267
+    - rid: 1239727518709710943
       type: {class: ActionSequenceRootRotationClipDefinition, ns: , asm: Assembly-CSharp}
       data:
-        editorId:
+        editorId: 61e028435a91c9e830f1324f190b47b1
         displayName: Migrated Root Rotation
         startFrame: 0
         endFrame: 80
