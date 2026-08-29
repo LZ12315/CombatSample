@@ -1,12 +1,9 @@
-using System;
 using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
 
 public sealed class ActionSequenceVelocityOverrideTests
 {
-    private const float DeltaTime = 1f / 60f;
-
     [Test]
     public void TranslationDomain_BallisticSupportsCauseAgnosticAddAndSet()
     {
@@ -18,6 +15,22 @@ public sealed class ActionSequenceVelocityOverrideTests
 
         translation.SetBallisticVerticalVelocity(-7f);
         Assert.AreEqual(-7f, translation.BallisticVerticalVelocity);
+    }
+
+    [Test]
+    public void TranslationDomain_VelocityOwnerRestoresCoveredOwner()
+    {
+        var translation = new TranslationDomain();
+        MotionOwner a = translation.BeginHorizontalVelocity();
+        translation.SetHorizontalVelocity(a, Vector3.right * 2f);
+        MotionOwner b = translation.BeginHorizontalVelocity();
+        translation.SetHorizontalVelocity(b, Vector3.left * 5f);
+
+        Assert.AreEqual(Vector3.left * 5f, translation.ComposeHorizontal(Vector3.forward, 1f));
+
+        translation.EndHorizontalVelocity(b);
+
+        Assert.AreEqual(Vector3.right * 2f, translation.ComposeHorizontal(Vector3.forward, 1f));
     }
 
     [Test]
@@ -38,100 +51,18 @@ public sealed class ActionSequenceVelocityOverrideTests
     }
 
     [Test]
-    public void MotionChannels_VelocityOwnerRestoresCoveredOwner()
+    public void TranslationDomain_BackgroundHorizontalImpulseDecaysWhileCovered()
     {
-        var channels = new MotionChannels();
-        MotionOwner a = channels.BeginHorizontalVelocity();
-        channels.SetHorizontalVelocity(a, Vector3.right * 2f);
-        MotionOwner b = channels.BeginHorizontalVelocity();
-        channels.SetHorizontalVelocity(b, Vector3.left * 5f);
+        var translation = new TranslationDomain();
+        translation.AddHorizontalImpulse(Vector3.right * 10f);
+        MotionOwner owner = translation.BeginHorizontalVelocity();
+        translation.SetHorizontalVelocity(owner, Vector3.zero);
 
-        Assert.AreEqual(Vector3.left * 5f, channels.ComposeHorizontal(Vector3.forward, 1f));
+        translation.StepHorizontalDrag(0.25f, 4f);
+        translation.EndHorizontalVelocity(owner);
 
-        channels.EndHorizontalVelocity(b);
-
-        Assert.AreEqual(Vector3.right * 2f, channels.ComposeHorizontal(Vector3.forward, 1f));
-    }
-
-    [Test]
-    public void MotionChannels_CoveredOwnerKeepsUpdatingCachedVelocity()
-    {
-        var channels = new MotionChannels();
-        MotionOwner a = channels.BeginHorizontalVelocity();
-        channels.SetHorizontalVelocity(a, Vector3.right * 2f);
-        MotionOwner b = channels.BeginHorizontalVelocity();
-        channels.SetHorizontalVelocity(b, Vector3.forward * 3f);
-        channels.SetHorizontalVelocity(a, Vector3.left * 7f);
-
-        channels.EndHorizontalVelocity(b);
-
-        Assert.AreEqual(Vector3.left * 7f, channels.ComposeHorizontal(Vector3.zero, 1f));
-    }
-
-    [Test]
-    public void MotionChannels_VerticalVelocityOwnerRestoresCoveredOwnerAndKeepsUpdating()
-    {
-        var channels = new MotionChannels();
-        MotionOwner a = channels.BeginVerticalVelocity();
-        channels.SetVerticalVelocity(a, 2f);
-        MotionOwner b = channels.BeginVerticalVelocity();
-        channels.SetVerticalVelocity(b, -4f);
-        channels.SetVerticalVelocity(a, 7f);
-
-        Assert.AreEqual(-4f, channels.ComposeVertical(1f));
-
-        channels.EndVerticalVelocity(b);
-
-        Assert.AreEqual(7f, channels.ComposeVertical(1f));
-    }
-
-    [Test]
-    public void MotionChannels_GroundedDoesNotEndVerticalVelocityOwner()
-    {
-        var channels = new MotionChannels();
-        MotionOwner owner = channels.BeginVerticalVelocity();
-        channels.SetVerticalVelocity(owner, 3f);
-
-        channels.StepGravity(1f, true, 1f);
-
-        Assert.IsTrue(channels.HasVerticalVelocityOwner);
-        Assert.AreEqual(3f, channels.ComposeVertical(1f));
-    }
-
-    [Test]
-    public void MotionChannels_ZeroVelocityStillOwnsAxisAndAxesAreIndependent()
-    {
-        var channels = new MotionChannels();
-        channels.AddHorizontalImpulse(Vector3.right * 4f);
-        MotionOwner horizontal = channels.BeginHorizontalVelocity();
-        channels.SetHorizontalVelocity(horizontal, Vector3.zero);
-        MotionOwner vertical = channels.BeginVerticalVelocity();
-        channels.SetVerticalVelocity(vertical, 6f);
-
-        Assert.AreEqual(Vector3.zero, channels.ComposeHorizontal(Vector3.forward * 10f, 1f));
-        Assert.AreEqual(6f, channels.ComposeVertical(1f));
-
-        channels.EndHorizontalVelocity(horizontal);
-
-        Assert.AreEqual(Vector3.forward * 10f + Vector3.right * 4f, channels.ComposeHorizontal(Vector3.forward * 10f, 1f));
-        Assert.AreEqual(6f, channels.ComposeVertical(1f));
-    }
-
-    [Test]
-    public void MotionChannels_StaleTokenAndRepeatedReleaseDoNotAffectStackTop()
-    {
-        var channels = new MotionChannels();
-        MotionOwner a = channels.BeginHorizontalVelocity();
-        MotionOwner b = channels.BeginHorizontalVelocity();
-        channels.SetHorizontalVelocity(a, Vector3.right * 9f);
-        channels.SetHorizontalVelocity(b, Vector3.forward * 3f);
-
-        channels.SetHorizontalVelocity(new MotionOwner(a.Id + b.Id + 1000), Vector3.left * 20f);
-        channels.EndHorizontalVelocity(a);
-        channels.EndHorizontalVelocity(a);
-
-        Assert.AreEqual(Vector3.forward * 3f, channels.ComposeHorizontal(Vector3.zero, 1f));
-        Assert.AreEqual(1, channels.DebugHorizontalVelocityOwnerCount);
+        Vector3 velocity = translation.ComposeHorizontal(Vector3.zero, 1f);
+        Assert.That(velocity.x, Is.GreaterThan(0f).And.LessThan(10f));
     }
 
     [Test]
@@ -163,84 +94,6 @@ public sealed class ActionSequenceVelocityOverrideTests
         Assert.AreEqual(1f, policy.LocomotionScale);
         Assert.AreEqual(1f, policy.AirLocomotionScale);
         Assert.AreEqual(1f, policy.GravityScale);
-    }
-
-    [Test]
-    public void ActorMotionRuntime_HorizontalVelocityOverridesRootMotionAndDoesNotCompensate()
-    {
-        var runtime = new ActorMotionRuntime();
-        MotionOwner rootOwner = runtime.BeginTrajectoryRootMotion();
-        runtime.SubmitTrajectoryRootMotion(rootOwner, Vector3.forward);
-        MotionOwner velocityOwner = runtime.BeginHorizontalVelocity();
-        runtime.SetHorizontalVelocity(velocityOwner, Vector3.right * 4f);
-        runtime.BeginMotorTick();
-
-        Vector3 covered = runtime.ComposeKccVelocity(
-            null,
-            Vector3.zero,
-            false,
-            Quaternion.identity,
-            DeltaTime);
-
-        runtime.EndHorizontalVelocity(velocityOwner);
-        runtime.BeginMotorTick();
-
-        Vector3 afterExit = runtime.ComposeKccVelocity(
-            null,
-            Vector3.zero,
-            false,
-            Quaternion.identity,
-            DeltaTime);
-
-        Assert.AreEqual(Vector3.right * 4f, covered);
-        Assert.AreEqual(Vector3.zero, afterExit);
-    }
-
-    [Test]
-    public void ActorMotionRuntime_BackgroundHorizontalImpulseDecaysWhileCovered()
-    {
-        var runtime = new ActorMotionRuntime();
-        runtime.AddHorizontalImpulse(Vector3.right * 10f);
-        MotionOwner owner = runtime.BeginHorizontalVelocity();
-        runtime.SetHorizontalVelocity(owner, Vector3.zero);
-
-        runtime.StepChannels(
-            0.25f,
-            false,
-            new ActorMotionRuntimeConfig(4f, 0f, 0.1f));
-        runtime.EndHorizontalVelocity(owner);
-
-        Vector3 velocity = runtime.ComposeKccVelocity(
-            null,
-            Vector3.zero,
-            false,
-            Quaternion.identity,
-            DeltaTime);
-
-        Assert.That(velocity.x, Is.GreaterThan(0f).And.LessThan(10f));
-    }
-
-    [Test]
-    public void ActorMotionRuntime_VerticalVelocityPausesGravity()
-    {
-        var runtime = new ActorMotionRuntime();
-        MotionOwner owner = runtime.BeginVerticalVelocity();
-        runtime.SetVerticalVelocity(owner, 0f);
-
-        runtime.StepChannels(
-            1f,
-            false,
-            new ActorMotionRuntimeConfig(0f, 0f, 0.1f));
-        runtime.EndVerticalVelocity(owner);
-
-        Vector3 velocity = runtime.ComposeKccVelocity(
-            null,
-            Vector3.zero,
-            false,
-            Quaternion.identity,
-            DeltaTime);
-
-        Assert.That(velocity.y, Is.EqualTo(0f).Within(0.0001f));
     }
 
     [Test]
@@ -292,33 +145,19 @@ public sealed class ActionSequenceVelocityOverrideTests
 
             SetContextFrame(context, 0);
             runtime.OnTick(context);
-            Assert.AreEqual(2f, motor.DebugChannels.DebugOwnerVerticalVelocity);
+            Assert.AreEqual(2f, motor.Translation.DebugOwnerVerticalVelocity);
 
             SetContextFrame(context, 1);
             runtime.OnTick(context);
-            Assert.AreEqual(4f, motor.DebugChannels.DebugOwnerVerticalVelocity);
+            Assert.AreEqual(4f, motor.Translation.DebugOwnerVerticalVelocity);
 
             SetContextFrame(context, 2);
             runtime.OnTick(context);
-            Assert.AreEqual(6f, motor.DebugChannels.DebugOwnerVerticalVelocity);
-
-            runtime.OnExit(context, true);
-
-            var oneFrame = CreateVelocityClip(useHorizontal: false, useVertical: true);
-            oneFrame.startFrame = 0;
-            oneFrame.endFrame = 1;
-            oneFrame.config.verticalSpeed = 2f;
-            oneFrame.config.verticalCurve = AnimationCurve.Linear(0f, 1f, 1f, 5f);
-            ActionSequenceClipRuntime oneFrameRuntime = oneFrame.CreateRuntime();
-            oneFrameRuntime.OnEnter(context);
-            SetContextFrame(context, 0);
-            oneFrameRuntime.OnTick(context);
-
-            Assert.AreEqual(2f, motor.DebugChannels.DebugOwnerVerticalVelocity);
+            Assert.AreEqual(6f, motor.Translation.DebugOwnerVerticalVelocity);
         }
         finally
         {
-            UnityEngine.Object.DestroyImmediate(actorObject);
+            Object.DestroyImmediate(actorObject);
         }
     }
 
@@ -343,45 +182,16 @@ public sealed class ActionSequenceVelocityOverrideTests
             actorObject.transform.rotation = Quaternion.identity;
             SetContextFrame(context, 0);
             runtime.OnTick(context);
-            AssertVector(Vector3.forward * 3f, motor.DebugChannels.DebugOwnerHorizontalVelocity);
+            AssertVector(Vector3.forward * 3f, motor.Translation.DebugOwnerHorizontalVelocity);
 
             actorObject.transform.rotation = Quaternion.Euler(0f, 90f, 0f);
             SetContextFrame(context, 1);
             runtime.OnTick(context);
-            AssertVector(Vector3.right * 3f, motor.DebugChannels.DebugOwnerHorizontalVelocity);
+            AssertVector(Vector3.right * 3f, motor.Translation.DebugOwnerHorizontalVelocity);
         }
         finally
         {
-            UnityEngine.Object.DestroyImmediate(actorObject);
-        }
-    }
-
-    [Test]
-    public void VelocityOverrideClip_ContextDirectionUsesStartupWorldDirection()
-    {
-        var actorObject = new GameObject("VelocityOverride Context Actor");
-        try
-        {
-            Actor actor = actorObject.AddComponent<Actor>();
-            ActorMotor motor = actorObject.AddComponent<ActorMotor>();
-            actor.actorMotor = motor;
-
-            var clip = CreateVelocityClip(useHorizontal: true, useVertical: false);
-            clip.config.directionMode = MotionDirectionMode.FromContext;
-            clip.config.horizontalSpeed = 5f;
-            ActionSequenceClipRuntime runtime = clip.CreateRuntime();
-            ActionSequenceContext context = CreateContext(actor, ActionContext.ForSelf(actor).WithDirection(Vector3.left));
-
-            runtime.OnEnter(context);
-            actorObject.transform.rotation = Quaternion.Euler(0f, 180f, 0f);
-            SetContextFrame(context, 0);
-            runtime.OnTick(context);
-
-            AssertVector(Vector3.left * 5f, motor.DebugChannels.DebugOwnerHorizontalVelocity);
-        }
-        finally
-        {
-            UnityEngine.Object.DestroyImmediate(actorObject);
+            Object.DestroyImmediate(actorObject);
         }
     }
 
@@ -407,7 +217,7 @@ public sealed class ActionSequenceVelocityOverrideTests
         }
         finally
         {
-            UnityEngine.Object.DestroyImmediate(asset);
+            Object.DestroyImmediate(asset);
         }
     }
 

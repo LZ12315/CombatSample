@@ -1,0 +1,123 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d4a14c808be2c4f4a8f1b6d45ebd172f, type: 3}
+  m_Name: Hit_Air_Launch_Hard_Sequence
+  m_EditorClassIdentifier:
+  _timelineAsset: {fileID: 11400000, guid: e25437a535c4863388de99a7ff3945bf, type: 2}
+  _playbackBackend: 1
+  _sequenceData:
+    frameRate: 60
+    durationMode: 0
+    durationFrames: 4
+    tracks:
+    - rid: 1239727509095580275
+    - rid: 1239727509095580276
+    clips: []
+    defaultTracksInitialized: 1
+  _priorityLayer: 3
+  _priorityValue: 0
+  _cancelRules: []
+  _selfTags: []
+  _legacySelfTag:
+    TagId: 0
+  _triggerMode: 1
+  _eventTriggerTag:
+    TagId: 1151343024
+  _startContextMode: 0
+  _motionConfig:
+    rootMotionMode: 1
+    suppressLocomotion: 1
+    facingOnStart: 2
+    gravityScale: 2.2
+    horizontalMomentumInheritance: 0
+    verticalMomentumInheritance: 0
+  isLoop: 0
+  _allowReenterWhilePlaying: 0
+  _entryConditions: []
+  _exitConditions: []
+  references:
+    version: 2
+    RefIds:
+    - rid: 1239727509095580275
+      type: {class: ActionSequenceAnimationTrack, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Animation
+        muted: 0
+        locked: 0
+        collapsed: 0
+        clips:
+        - rid: 1239727509095580277
+    - rid: 1239727509095580276
+      type: {class: ActionSequenceMotionTrack, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Motion
+        muted: 0
+        locked: 0
+        collapsed: 0
+        clips:
+        - rid: 1239727509095580278
+        - rid: 1239727509095580279
+        - rid: 1239727509095580280
+    - rid: 1239727509095580277
+      type: {class: ActionSequenceAnimationPoseClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Lucy_Hit_Air_Launch_Root
+        startFrame: 0
+        endFrame: 4
+        animationKey: Hit_Air_Launch
+        parameterMode: 0
+        fallbackVector2: {x: 0, y: 0}
+        fallbackFloat: 0
+        startOffsetSeconds: 0
+        playbackSpeed: 1
+    - rid: 1239727509095580278
+      type: {class: ActionSequenceMotionPolicyClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Migrated Motion Policy
+        startFrame: 0
+        endFrame: 4
+        useLocomotionScale: 1
+        locomotionScale: 0
+        useAirLocomotionScale: 1
+        airLocomotionScale: 0
+        useGravityScale: 1
+        gravityScale: 2.2
+    - rid: 1239727509095580279
+      type: {class: ActionSequenceFacingSnapClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Migrated Facing Snap
+        startFrame: 0
+        endFrame: 1
+        source: 1
+    - rid: 1239727509095580280
+      type: {class: ActionSequenceImpulseClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: ActionImpulseClip
+        startFrame: 2
+        endFrame: 3
+        config:
+          directionMode: 4
+          localHorizontalDirection: {x: 0, y: 0, z: 0}
+          horizontalForce: 0
+          verticalForce: 13
+          debugLog: 0
+        useHorizontalImpulse: 0
+        useVerticalBallistic: 1
+        verticalOperation: 0
+        overrideGravityScale: 0
+        gravityScale: 1

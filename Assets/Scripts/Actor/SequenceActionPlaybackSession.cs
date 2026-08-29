@@ -11,7 +11,6 @@ internal sealed class SequenceActionPlaybackSession : IFixedActionPlaybackSessio
     private ActorAnimationActionOwner _animationOwner;
     private bool _paused;
     private bool _disposed;
-    private bool _animatorRootMotionSuppressed;
     private double _speed = 1.0;
     private double _frameAccumulator;
 
@@ -36,7 +35,6 @@ internal sealed class SequenceActionPlaybackSession : IFixedActionPlaybackSessio
 
     public void Start()
     {
-        SetAnimatorRootMotionSuppressed(true);
         AcquireActionAnimationOwner();
         CreateRuntimeAndContext();
     }
@@ -136,7 +134,6 @@ internal sealed class SequenceActionPlaybackSession : IFixedActionPlaybackSessio
 
         Action.ResetRuntimeData();
         _paused = false;
-        SetAnimatorRootMotionSuppressed(true);
         ReleaseActionAnimationOwner();
         AcquireActionAnimationOwner();
         CreateRuntimeAndContext();
@@ -198,26 +195,9 @@ internal sealed class SequenceActionPlaybackSession : IFixedActionPlaybackSessio
         _runtime.RefreshPose(_sequenceContext, GetCurrentPoseFrame());
     }
 
-    private void SetAnimatorRootMotionSuppressed(bool suppressed)
-    {
-        if (_animatorRootMotionSuppressed == suppressed)
-            return;
-
-        _animatorRootMotionSuppressed = suppressed;
-        if (_actor != null && _actor.actorMotor != null)
-            _actor.actorMotor.SetAnimatorRootMotionSuppressed(suppressed);
-    }
-
     private void ReleaseSessionOwnership()
     {
-        try
-        {
-            ReleaseActionAnimationOwner();
-        }
-        finally
-        {
-            SetAnimatorRootMotionSuppressed(false);
-        }
+        ReleaseActionAnimationOwner();
     }
 
     private void AcquireActionAnimationOwner()

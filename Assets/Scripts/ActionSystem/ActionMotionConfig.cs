@@ -2,33 +2,30 @@ using System;
 using UnityEngine;
 
 /// <summary>
-/// 整招级运动策略 — 配置在 ActionAsset 上，由 ActionInstance.OnEnter/OnExit 应用/恢复。
+/// Legacy Timeline whole-action motion settings. Sequence actions ignore this
+/// data at runtime; E3-G migration bakes equivalent contributions into clips.
 /// </summary>
 [Serializable]
 public struct ActionMotionConfig
 {
-    [Tooltip("RootMotion 应用策略：Managed=由 ActorMotionRuntime/KCC 应用动画根位移和根旋转；External=两者都不应用，由程序或外部系统负责。")]
+    [Tooltip("Legacy Timeline root motion strategy. Sequence actions ignore this field.")]
     public RootMotionApplyMode rootMotionMode;
 
-    [Tooltip("是否压制 Locomotion 的移动和朝向输出")]
+    [Tooltip("Legacy Timeline locomotion suppression. Sequence actions use MotionPolicy clips instead.")]
     public bool suppressLocomotion;
 
-    [Tooltip("动作开始时的朝向行为")]
+    [Tooltip("Legacy Timeline start-facing behavior. Sequence actions use FacingSnap clips instead.")]
     public ActionFacingOnStart facingOnStart;
 
-    [Tooltip("整招期间的重力倍率。-1 = 不覆盖")]
+    [Tooltip("Legacy Timeline gravity scale. Sequence actions use MotionPolicy clips instead. Negative means no override.")]
     public float gravityScale;
 
-    [Range(0f, 1f), Tooltip("入场时继承多少旧水平动量。0=完全清掉，1=完整保留。")]
+    [Range(0f, 1f), Tooltip("Legacy Timeline horizontal momentum inheritance.")]
     public float horizontalMomentumInheritance;
 
-    [Range(0f, 1f), Tooltip("入场时继承多少旧垂直动量。0=完全清掉，1=完整保留。")]
+    [Range(0f, 1f), Tooltip("Legacy Timeline vertical momentum inheritance.")]
     public float verticalMomentumInheritance;
 
-    /// <summary>
-    /// 默认配置：RootMotion 托管、压制 Locomotion、起手朝目标/摇杆、不覆盖重力、不继承旧动作动量。
-    /// 适用于大多数攻击动作。
-    /// </summary>
     public static ActionMotionConfig Default => new()
     {
         rootMotionMode = RootMotionApplyMode.Managed,

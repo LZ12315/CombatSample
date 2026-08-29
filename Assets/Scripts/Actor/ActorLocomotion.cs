@@ -95,6 +95,12 @@ public sealed class ActorLocomotion : MonoBehaviour
             ApplyMode(selected);
     }
 
+    internal void HoldControlTick()
+    {
+        _hasControlIntent = false;
+        _controlIntent = LocomotionIntent.Idle;
+    }
+
     internal void CancelControlTick()
     {
         _hasControlIntent = false;

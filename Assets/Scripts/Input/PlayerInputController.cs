@@ -9,8 +9,6 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
 
     public Actor controlledActor;
 
-    [SerializeField] private ActorLogicInput logicInput;
-
     [Header("Debug")]
     public bool debug = false;
     public float timeScale = 0.1f;
@@ -425,7 +423,6 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
         ClearPendingPlayerLocomotionIntent(_lastControlledActor);
         _lastControlledActor = controlledActor;
         _cachedCameraControl = null;
-        logicInput = controlledActor != null ? controlledActor.GetComponent<ActorLogicInput>() : null;
     }
 
     private ActorCameraControl ResolveCameraControl()

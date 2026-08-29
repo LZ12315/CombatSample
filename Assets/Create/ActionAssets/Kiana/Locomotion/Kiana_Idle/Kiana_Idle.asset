@@ -11,8 +11,18 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d4a14c808be2c4f4a8f1b6d45ebd172f, type: 3}
   m_Name: Kiana_Idle
-  m_EditorClassIdentifier: 
+  m_EditorClassIdentifier:
   _timelineAsset: {fileID: 11400000, guid: e84914fb3d46d6740a57540860f57321, type: 2}
+  _playbackBackend: 1
+  _sequenceData:
+    frameRate: 60
+    durationMode: 0
+    durationFrames: 120
+    tracks:
+    - rid: 1239727499764826140
+    - rid: 1239727499764826141
+    clips: []
+    defaultTracksInitialized: 1
   _priorityLayer: 0
   _priorityValue: 0
   _cancelRules:
@@ -76,6 +86,52 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
+    - rid: 1239727499764826140
+      type: {class: ActionSequenceAnimationTrack, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Animation
+        muted: 0
+        locked: 0
+        collapsed: 0
+        clips:
+        - rid: 1239727499764826142
+    - rid: 1239727499764826141
+      type: {class: ActionSequenceMotionTrack, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Motion
+        muted: 0
+        locked: 0
+        collapsed: 0
+        clips:
+        - rid: 1239727499764826143
+    - rid: 1239727499764826142
+      type: {class: ActionSequenceAnimationPoseClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Take 001
+        startFrame: 0
+        endFrame: 120
+        animationKey: Kiana_Idle
+        parameterMode: 0
+        fallbackVector2: {x: 0, y: 0}
+        fallbackFloat: 0
+        startOffsetSeconds: 0
+        playbackSpeed: 1
+    - rid: 1239727499764826143
+      type: {class: ActionSequenceMotionPolicyClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Migrated Motion Policy
+        startFrame: 0
+        endFrame: 120
+        useLocomotionScale: 1
+        locomotionScale: 0
+        useAirLocomotionScale: 1
+        airLocomotionScale: 0
+        useGravityScale: 0
+        gravityScale: 1
     - rid: 8665091024101048321
       type: {class: GroundStateCondition, ns: , asm: Assembly-CSharp}
       data:

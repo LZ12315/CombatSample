@@ -11,8 +11,19 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d4a14c808be2c4f4a8f1b6d45ebd172f, type: 3}
   m_Name: Jaeger_Hit_Hard
-  m_EditorClassIdentifier: 
+  m_EditorClassIdentifier:
   _timelineAsset: {fileID: 11400000, guid: 67b999b95c05035428931552b68b9e4a, type: 2}
+  _playbackBackend: 1
+  _sequenceData:
+    frameRate: 60
+    durationMode: 0
+    durationFrames: 100
+    tracks:
+    - rid: 1239727509095580205
+    - rid: 1239727509095580206
+    - rid: 1239727509095580207
+    clips: []
+    defaultTracksInitialized: 1
   _priorityLayer: 1
   _priorityValue: 0
   _cancelRules: []
@@ -36,4 +47,101 @@ MonoBehaviour:
   _exitConditions: []
   references:
     version: 2
-    RefIds: []
+    RefIds:
+    - rid: 1239727509095580205
+      type: {class: ActionSequenceStateTrack, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: State
+        muted: 0
+        locked: 0
+        collapsed: 0
+        clips:
+        - rid: 1239727509095580208
+    - rid: 1239727509095580206
+      type: {class: ActionSequenceAnimationTrack, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Animation
+        muted: 0
+        locked: 0
+        collapsed: 0
+        clips:
+        - rid: 1239727509095580209
+    - rid: 1239727509095580207
+      type: {class: ActionSequenceMotionTrack, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Motion
+        muted: 0
+        locked: 0
+        collapsed: 0
+        clips:
+        - rid: 1239727509095580210
+        - rid: 1239727509095580211
+        - rid: 1239727509095580212
+        - rid: 1239727509095580213
+    - rid: 1239727509095580208
+      type: {class: ActionSequenceTagClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: State.Combat.SuperArmor
+        startFrame: 0
+        endFrame: 100
+        tag:
+          TagId: -1070838861
+        targetContainer: 0
+    - rid: 1239727509095580209
+      type: {class: ActionSequenceAnimationPoseClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Take 001
+        startFrame: 0
+        endFrame: 100
+        animationKey: Jaeger_Hit_Hard
+        parameterMode: 0
+        fallbackVector2: {x: 0, y: 0}
+        fallbackFloat: 0
+        startOffsetSeconds: 0
+        playbackSpeed: 1
+    - rid: 1239727509095580210
+      type: {class: ActionSequenceMotionPolicyClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Migrated Motion Policy
+        startFrame: 0
+        endFrame: 100
+        useLocomotionScale: 1
+        locomotionScale: 0
+        useAirLocomotionScale: 1
+        airLocomotionScale: 0
+        useGravityScale: 0
+        gravityScale: 1
+    - rid: 1239727509095580211
+      type: {class: ActionSequenceFacingSnapClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Migrated Facing Snap
+        startFrame: 0
+        endFrame: 1
+        source: 1
+    - rid: 1239727509095580212
+      type: {class: ActionSequenceRootMotionClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Migrated Root Motion
+        startFrame: 0
+        endFrame: 100
+        animationKey: Jaeger_Hit_Hard
+        startOffsetSeconds: 0
+        playbackSpeed: 1
+    - rid: 1239727509095580213
+      type: {class: ActionSequenceRootRotationClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Migrated Root Rotation
+        startFrame: 0
+        endFrame: 100
+        animationKey: Jaeger_Hit_Hard
+        startOffsetSeconds: 0
+        playbackSpeed: 1

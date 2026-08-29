@@ -37,12 +37,24 @@ internal sealed class ActorSimulationRuntime
             return;
 
         ResolveActorAnimation()?.BeginFixedAnimationTick();
-        ResolveActorLocomotion()?.SelectModeForControlTick();
+
+        ActorMotor motor = ResolveActorMotor();
+        ActorLocomotion locomotion = ResolveActorLocomotion();
+        if (motor != null && motor.MovementTimeScale <= 0f)
+        {
+            locomotion?.HoldControlTick();
+            return;
+        }
+
+        locomotion?.SelectModeForControlTick();
     }
 
     public void DecideAction()
     {
         if (!IsActive)
+            return;
+
+        if (ShouldFreezeActionArbitration())
             return;
 
         ResolveActionStateManager()?.DecideAction();
@@ -76,6 +88,9 @@ internal sealed class ActorSimulationRuntime
         bool freezeAnimation = actionPlayer != null
                                && hasAction
                                && (actionPlayer.IsPaused || actionPlayer.PlaybackSpeed <= 0.0);
+        ActorMotor actorMotor = ResolveActorMotor();
+        if (actorMotor != null && actorMotor.MovementTimeScale <= 0f)
+            freezeAnimation = true;
 
         ActorAnimation actorAnimation = ResolveActorAnimation();
         if (actorAnimation == null)
@@ -210,6 +225,15 @@ internal sealed class ActorSimulationRuntime
         return _actorLocomotion != null && _actorLocomotion.isActiveAndEnabled
             ? _actorLocomotion
             : null;
+    }
+
+    private bool ShouldFreezeActionArbitration()
+    {
+        ActionPlayer actionPlayer = ResolveActionPlayer();
+        if (actionPlayer == null || actionPlayer.CurrentAction == null)
+            return false;
+
+        return actionPlayer.IsPaused || actionPlayer.PlaybackSpeed <= 0.0;
     }
 }
 

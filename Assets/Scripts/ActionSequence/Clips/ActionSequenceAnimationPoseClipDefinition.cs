@@ -97,7 +97,24 @@ public sealed class ActionSequenceAnimationPoseClipDefinition : ActionSequenceCl
                     hasFloatParameter = true;
                     floatParameter = _definition.fallbackFloat;
                     break;
+                case AnimancerParameterMode.VerticalVelocity:
+                    hasFloatParameter = true;
+                    floatParameter = TryGetActorVerticalVelocity(context, out float verticalVelocity)
+                        ? verticalVelocity
+                        : _definition.fallbackFloat;
+                    break;
             }
+        }
+
+        private bool TryGetActorVerticalVelocity(ActionSequenceContext context, out float verticalVelocity)
+        {
+            verticalVelocity = _definition.fallbackFloat;
+            ActorMotor motor = context.Actor != null ? context.Actor.actorMotor : null;
+            if (motor == null)
+                return false;
+
+            verticalVelocity = motor.CurrentVerticalSpeed;
+            return true;
         }
 
         private bool TryGetContextDirection2D(ActionSequenceContext context, out Vector2 parameter)

@@ -14,11 +14,6 @@ public class ActionInstance
     /// <summary>当前持有此 ActionInstance 的 Actor，OnEnter 时赋值，OnExit 时清空。</summary>
     public Actor Actor { get; private set; }
 
-    private MotionOwner _locomotionScaleOwner;
-    private MotionOwner _airLocomotionScaleOwner;
-    private MotionOwner _gravityScaleOwner;
-    private bool _motionConfigApplied;
-
     public ActionInstance(ActionAsset config)
     {
         Config = config;
@@ -29,9 +24,6 @@ public class ActionInstance
     {
         Actor = actor;
         Context = context;
-
-        // 应用运动策略（必须在 Tag 之前，因为压制需要立即生效）
-        ApplyMotionConfig(context);
 
         var selfTags = Config.SelfTags;
         if (Actor != null && selfTags != null)
@@ -62,9 +54,6 @@ public class ActionInstance
             }
         }
 
-        // 恢复运动策略（必须在 Tag 之后，因为恢复后 Locomotion 才能重新生效）
-        RestoreMotionConfig();
-
         Actor = null;
         Context = default;
     }
@@ -84,108 +73,4 @@ public class ActionInstance
         };
     }
 
-    #region === 运动策略 ===
-
-    private void ApplyMotionConfig(ActionContext context)
-    {
-        if (Config == null || !Config.UsesTimeline)
-            return;
-
-        if (Actor?.actorMotor == null) return;
-        var motion = Config.MotionConfig;
-        var motor = Actor.actorMotor;
-
-        // Action 入场时清理旧 velocity owner，再按配置继承动量。
-        motor.ClearVelocityOwners();
-        motor.ApplyMotionHandoff(
-            motion.horizontalMomentumInheritance,
-            motion.verticalMomentumInheritance);
-        motor.SetRootMotionApplyMode(motion.rootMotionMode);
-        motor.SetLocomotionSuppressed(motion.suppressLocomotion);
-        if (motion.suppressLocomotion)
-        {
-            _locomotionScaleOwner = motor.BeginLocomotionScale(0f);
-            _airLocomotionScaleOwner = motor.BeginAirLocomotionScale(0f);
-        }
-
-        if (motion.gravityScale >= 0f)
-            _gravityScaleOwner = motor.BeginGravityScale(motion.gravityScale);
-
-        ApplyFacingOnStart(motion.facingOnStart, context);
-        _motionConfigApplied = true;
-    }
-
-    private void RestoreMotionConfig()
-    {
-        if (!_motionConfigApplied)
-            return;
-
-        _motionConfigApplied = false;
-
-        if (Actor?.actorMotor == null) return;
-        var motor = Actor.actorMotor;
-        ReleaseMotionPolicyOwners(motor);
-        motor.SetRootMotionApplyMode(RootMotionApplyMode.External);
-        motor.SetLocomotionSuppressed(false);
-    }
-
-    private void ReleaseMotionPolicyOwners(ActorMotor motor)
-    {
-        if (_locomotionScaleOwner.IsValid)
-            motor.EndLocomotionScale(_locomotionScaleOwner);
-        if (_airLocomotionScaleOwner.IsValid)
-            motor.EndAirLocomotionScale(_airLocomotionScaleOwner);
-        if (_gravityScaleOwner.IsValid)
-            motor.EndGravityScale(_gravityScaleOwner);
-
-        _locomotionScaleOwner = default;
-        _airLocomotionScaleOwner = default;
-        _gravityScaleOwner = default;
-    }
-
-    private void ApplyFacingOnStart(ActionFacingOnStart mode, ActionContext context)
-    {
-        if (mode == ActionFacingOnStart.None) return;
-        Vector3 dir = Vector3.zero;
-
-        if (mode == ActionFacingOnStart.SnapToInputOrTarget)
-        {
-            // 优先朝目标
-            var target = Actor.combater?.CombatTarget?.transform;
-            if (target != null)
-            {
-                dir = target.position - Actor.transform.position;
-                dir.y = 0f;
-            }
-            // 没有目标 → 用 context 方向
-            if (dir.sqrMagnitude < 0.001f)
-                dir = context.Direction;
-            // context 也没有 → 用当前移动意图
-            if (dir.sqrMagnitude < 0.001f)
-                dir = ResolveLatestLocomotionDirection();
-        }
-        else if (mode == ActionFacingOnStart.SnapToInput)
-        {
-            dir = context.Direction;
-            if (dir.sqrMagnitude < 0.001f)
-                dir = ResolveLatestLocomotionDirection();
-        }
-
-        dir.y = 0f;
-        if (dir.sqrMagnitude > 0.001f)
-            Actor.actorMotor.SnapFacing(dir.normalized);
-    }
-
-    private Vector3 ResolveLatestLocomotionDirection()
-    {
-        if (Actor == null)
-            return Vector3.zero;
-
-        if (Actor.actorMotor != null && Actor.actorMotor.HasPendingLocomotionIntent)
-            return Actor.actorMotor.PendingLocomotionIntent.WorldMoveDirection;
-
-        return Actor.actorMotor != null ? Actor.actorMotor.LocomotionIntent.WorldMoveDirection : Vector3.zero;
-    }
-
-    #endregion
 }

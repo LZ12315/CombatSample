@@ -11,8 +11,18 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d4a14c808be2c4f4a8f1b6d45ebd172f, type: 3}
   m_Name: Hit_Air_Launch_Light
-  m_EditorClassIdentifier: 
+  m_EditorClassIdentifier:
   _timelineAsset: {fileID: 11400000, guid: c166509e47318184cb81f2c9666b2f4f, type: 2}
+  _playbackBackend: 1
+  _sequenceData:
+    frameRate: 60
+    durationMode: 0
+    durationFrames: 4
+    tracks:
+    - rid: 1239727509095580223
+    - rid: 1239727509095580224
+    clips: []
+    defaultTracksInitialized: 1
   _priorityLayer: 3
   _priorityValue: 0
   _cancelRules: []
@@ -36,4 +46,78 @@ MonoBehaviour:
   _exitConditions: []
   references:
     version: 2
-    RefIds: []
+    RefIds:
+    - rid: 1239727509095580223
+      type: {class: ActionSequenceAnimationTrack, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Animation
+        muted: 0
+        locked: 0
+        collapsed: 0
+        clips:
+        - rid: 1239727509095580225
+    - rid: 1239727509095580224
+      type: {class: ActionSequenceMotionTrack, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Motion
+        muted: 0
+        locked: 0
+        collapsed: 0
+        clips:
+        - rid: 1239727509095580226
+        - rid: 1239727509095580227
+        - rid: 1239727509095580228
+    - rid: 1239727509095580225
+      type: {class: ActionSequenceAnimationPoseClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Lucy_Hit_Air_Launch_Root
+        startFrame: 0
+        endFrame: 4
+        animationKey: Hit_Air_Launch
+        parameterMode: 0
+        fallbackVector2: {x: 0, y: 0}
+        fallbackFloat: 0
+        startOffsetSeconds: 0
+        playbackSpeed: 1
+    - rid: 1239727509095580226
+      type: {class: ActionSequenceMotionPolicyClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Migrated Motion Policy
+        startFrame: 0
+        endFrame: 4
+        useLocomotionScale: 1
+        locomotionScale: 0
+        useAirLocomotionScale: 1
+        airLocomotionScale: 0
+        useGravityScale: 1
+        gravityScale: 1.5
+    - rid: 1239727509095580227
+      type: {class: ActionSequenceFacingSnapClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Migrated Facing Snap
+        startFrame: 0
+        endFrame: 1
+        source: 1
+    - rid: 1239727509095580228
+      type: {class: ActionSequenceImpulseClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: ActionImpulseClip
+        startFrame: 2
+        endFrame: 3
+        config:
+          directionMode: 4
+          localHorizontalDirection: {x: 0, y: 0, z: 0}
+          horizontalForce: 0
+          verticalForce: 8
+          debugLog: 0
+        useHorizontalImpulse: 0
+        useVerticalBallistic: 1
+        verticalOperation: 0
+        overrideGravityScale: 0
+        gravityScale: 1

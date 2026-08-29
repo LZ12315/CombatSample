@@ -105,7 +105,6 @@ GameObject:
   - component: {fileID: 5124414948518637136}
   - component: {fileID: 4074301134818915425}
   - component: {fileID: 205849317729812308}
-  - component: {fileID: 5728193641590736419}
   m_Layer: 0
   m_Name: ModelRoot
   m_TagString: Untagged
@@ -206,7 +205,7 @@ Animator:
   m_Controller: {fileID: 0}
   m_CullingMode: 1
   m_UpdateMode: 0
-  m_ApplyRootMotion: 1
+  m_ApplyRootMotion: 0
   m_LinearVelocityBlending: 0
   m_StabilizeFeet: 0
   m_WarningMessage: 
@@ -229,19 +228,6 @@ MonoBehaviour:
   _Animator: {fileID: 4074301134818915425}
   _Transitions: {fileID: 0}
   _ActionOnDisable: 1
---- !u!114 &5728193641590736419
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5276626400589506912}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9c5a4d86a98f47f9b5121d94910cf120, type: 3}
-  m_Name:
-  m_EditorClassIdentifier:
-  motor: {fileID: 0}
 --- !u!1 &7899385996058628002
 GameObject:
   m_ObjectHideFlags: 0

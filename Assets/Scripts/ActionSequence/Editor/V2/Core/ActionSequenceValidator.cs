@@ -30,6 +30,7 @@ public enum ActionSequenceEditorValidationCode
     InvalidVelocityConfig,
     InvalidImpulseConfig,
     InvalidMotionPolicyConfig,
+    InvalidFacingSnapConfig,
 }
 
 public sealed class ActionSequenceEditorValidationIssue
@@ -291,6 +292,12 @@ public static class ActionSequenceValidator
         if (property.managedReferenceValue is ActionSequenceMotionPolicyClipDefinition policyClip)
         {
             ValidateMotionPolicyClip(result, clip, kind, policyClip);
+            return;
+        }
+
+        if (property.managedReferenceValue is ActionSequenceFacingSnapClipDefinition facingSnapClip)
+        {
+            ValidateFacingSnapClip(result, clip, kind, facingSnapClip);
         }
     }
 
@@ -352,6 +359,18 @@ public static class ActionSequenceValidator
         if (!policyClip.HasValidValues())
         {
             result.Add(NewIssue(ActionSequenceEditorValidationSeverity.Error, ActionSequenceEditorValidationCode.InvalidMotionPolicyConfig, "MotionPolicyClip values are invalid.", kind, clip.EditorId, clip.TrackIndex, clip.ClipIndex, clip.LegacyClipIndex, clip.ManagedReferenceId));
+        }
+    }
+
+    private static void ValidateFacingSnapClip(
+        ActionSequenceEditorValidationResult result,
+        ActionSequenceClipSnapshot clip,
+        ActionSequenceEditorDocumentItemKind kind,
+        ActionSequenceFacingSnapClipDefinition facingSnapClip)
+    {
+        if (!facingSnapClip.IsOneFrame)
+        {
+            result.Add(NewIssue(ActionSequenceEditorValidationSeverity.Error, ActionSequenceEditorValidationCode.InvalidFacingSnapConfig, "FacingSnapClip must be exactly one frame long.", kind, clip.EditorId, clip.TrackIndex, clip.ClipIndex, clip.LegacyClipIndex, clip.ManagedReferenceId));
         }
     }
 

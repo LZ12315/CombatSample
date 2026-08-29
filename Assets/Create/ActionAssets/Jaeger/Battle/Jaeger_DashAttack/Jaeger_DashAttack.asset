@@ -11,8 +11,20 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d4a14c808be2c4f4a8f1b6d45ebd172f, type: 3}
   m_Name: Jaeger_DashAttack
-  m_EditorClassIdentifier: 
+  m_EditorClassIdentifier:
   _timelineAsset: {fileID: 11400000, guid: 8ad8d3eaf494b5a4c83bd25e53b21440, type: 2}
+  _playbackBackend: 1
+  _sequenceData:
+    frameRate: 60
+    durationMode: 0
+    durationFrames: 252
+    tracks:
+    - rid: 1239727509095580497
+    - rid: 1239727509095580498
+    - rid: 1239727509095580499
+    - rid: 1239727509095580500
+    clips: []
+    defaultTracksInitialized: 1
   _priorityLayer: 1
   _priorityValue: 2
   _cancelRules: []
@@ -39,6 +51,270 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
+    - rid: 1239727509095580497
+      type: {class: ActionSequenceStateTrack, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: State
+        muted: 0
+        locked: 0
+        collapsed: 0
+        clips:
+        - rid: 1239727509095580501
+    - rid: 1239727509095580498
+      type: {class: ActionSequenceAnimationTrack, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Animation
+        muted: 0
+        locked: 0
+        collapsed: 0
+        clips:
+        - rid: 1239727509095580502
+    - rid: 1239727509095580499
+      type: {class: ActionSequenceMotionTrack, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Motion
+        muted: 0
+        locked: 0
+        collapsed: 0
+        clips:
+        - rid: 1239727509095580503
+        - rid: 1239727509095580504
+        - rid: 1239727509095580505
+        - rid: 1239727509095580506
+        - rid: 1239727509095580507
+        - rid: 1239727509095580508
+    - rid: 1239727509095580500
+      type: {class: ActionSequenceHitBoxTrack, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: HitBox
+        muted: 0
+        locked: 0
+        collapsed: 0
+        clips:
+        - rid: 1239727509095580509
+        - rid: 1239727509095580510
+    - rid: 1239727509095580501
+      type: {class: ActionSequenceTagClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: State.Combat.SuperArmor
+        startFrame: 0
+        endFrame: 210
+        tag:
+          TagId: -1070838861
+        targetContainer: 0
+    - rid: 1239727509095580502
+      type: {class: ActionSequenceAnimationPoseClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Take 001
+        startFrame: 0
+        endFrame: 252
+        animationKey: Jaeger_DashAttack
+        parameterMode: 0
+        fallbackVector2: {x: 0, y: 0}
+        fallbackFloat: 0
+        startOffsetSeconds: 0
+        playbackSpeed: 1
+    - rid: 1239727509095580503
+      type: {class: ActionSequenceMotionPolicyClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Migrated Motion Policy
+        startFrame: 0
+        endFrame: 252
+        useLocomotionScale: 1
+        locomotionScale: 0
+        useAirLocomotionScale: 1
+        airLocomotionScale: 0
+        useGravityScale: 0
+        gravityScale: 1
+    - rid: 1239727509095580504
+      type: {class: ActionSequenceFacingSnapClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Migrated Facing Snap
+        startFrame: 0
+        endFrame: 1
+        source: 1
+    - rid: 1239727509095580505
+      type: {class: ActionSequenceRootMotionClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Migrated Root Motion
+        startFrame: 0
+        endFrame: 252
+        animationKey: Jaeger_DashAttack
+        startOffsetSeconds: 0
+        playbackSpeed: 1
+    - rid: 1239727509095580506
+      type: {class: ActionSequenceRootRotationClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Migrated Root Rotation
+        startFrame: 0
+        endFrame: 252
+        animationKey: Jaeger_DashAttack
+        startOffsetSeconds: 0
+        playbackSpeed: 1
+    - rid: 1239727509095580507
+      type: {class: ActionSequenceSelfRotationClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: ActionMagnetismClip
+        startFrame: 0
+        endFrame: 110
+        source: 1
+        mode: 1
+        targetSource: 0
+        directionSource: 1
+        presetLocalDirection: {x: 0, y: 0, z: 1}
+        angularSpeedDegrees: 360
+        animationKey:
+        startOffsetSeconds: 0
+        playbackSpeed: 1
+    - rid: 1239727509095580508
+      type: {class: ActionSequenceSelfRotationClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: ActionMagnetismClip
+        startFrame: 122
+        endFrame: 151
+        source: 1
+        mode: 1
+        targetSource: 0
+        directionSource: 1
+        presetLocalDirection: {x: 0, y: 0, z: 1}
+        angularSpeedDegrees: 720
+        animationKey:
+        startOffsetSeconds: 0
+        playbackSpeed: 1
+    - rid: 1239727509095580509
+      type: {class: ActionSequenceHitBoxClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: ActionHitBoxClip
+        startFrame: 125
+        endFrame: 128
+        boneReference:
+          mode: 2
+          humanBone: 17
+          bonePath: ModelRoot
+        hitboxConfig:
+          center: {x: 0, y: 0.4, z: 0}
+          rotation: {x: 0, y: 0, z: 0, w: 1}
+          height: 1
+          radius: 1
+        dataConfig:
+          targetLayers:
+            serializedVersion: 2
+            m_Bits: 128
+          _baseDamage: 10
+          hitEventTag:
+            TagId: 645108757
+        effects:
+        - rid: 1239727509095580511
+        - rid: 1239727509095580512
+        - rid: 1239727509095580513
+    - rid: 1239727509095580510
+      type: {class: ActionSequenceHitBoxClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: ActionHitBoxClip
+        startFrame: 151
+        endFrame: 155
+        boneReference:
+          mode: 0
+          humanBone: 17
+          bonePath:
+        hitboxConfig:
+          center: {x: -0.05, y: 0, z: -0.1}
+          rotation: {x: 0.42261827, y: 0, z: 0, w: 0.90630776}
+          height: 0.3
+          radius: 0.3
+        dataConfig:
+          targetLayers:
+            serializedVersion: 2
+            m_Bits: 128
+          _baseDamage: 10
+          hitEventTag:
+            TagId: -1300321786
+        effects:
+        - rid: 1239727509095580514
+        - rid: 1239727509095580515
+        - rid: 1239727509095580516
+    - rid: 1239727509095580511
+      type: {class: HitVfxConfig, ns: , asm: Assembly-CSharp}
+      data:
+        enabled: 1
+        prefab: {fileID: 1107029698261400, guid: 6e09e616ba00652ce88f8183147587ed,
+          type: 3}
+        occlusionMode: 1
+        scale: 1
+        lifetime: 1
+        simulationSpeed: 1
+        anchorMode: 0
+        orientationMode: 0
+        screenAngleMode: 1
+        anglePresetDegrees: 0
+        angleRandomRange: 360
+        worldDirectionMode: 0
+        rollMode: 0
+        rollPresetDegrees: 0
+        rollRandomRange: 360
+    - rid: 1239727509095580512
+      type: {class: SpeedEffectConfig, ns: , asm: Assembly-CSharp}
+      data:
+        enabled: 1
+        duration: 0.15
+        speedScale: 0.05
+        affectBothParties: 0
+    - rid: 1239727509095580513
+      type: {class: HitSoundEffectConfig, ns: , asm: Assembly-CSharp}
+      data:
+        enabled: 1
+        clips:
+        - {fileID: 8300000, guid: 3df9bbbc130ccb344af5f3fc793a630f, type: 3}
+        volume: 0.8
+        pitchVariation: 0.1
+    - rid: 1239727509095580514
+      type: {class: HitVfxConfig, ns: , asm: Assembly-CSharp}
+      data:
+        enabled: 1
+        prefab: {fileID: 1107029698261400, guid: 6e09e616ba00652ce88f8183147587ed,
+          type: 3}
+        occlusionMode: 1
+        scale: 1
+        lifetime: 1
+        simulationSpeed: 1
+        anchorMode: 0
+        orientationMode: 0
+        screenAngleMode: 1
+        anglePresetDegrees: 0
+        angleRandomRange: 360
+        worldDirectionMode: 0
+        rollMode: 0
+        rollPresetDegrees: 0
+        rollRandomRange: 360
+    - rid: 1239727509095580515
+      type: {class: SpeedEffectConfig, ns: , asm: Assembly-CSharp}
+      data:
+        enabled: 1
+        duration: 0.15
+        speedScale: 0.05
+        affectBothParties: 0
+    - rid: 1239727509095580516
+      type: {class: HitSoundEffectConfig, ns: , asm: Assembly-CSharp}
+      data:
+        enabled: 1
+        clips:
+        - {fileID: 8300000, guid: 3df9bbbc130ccb344af5f3fc793a630f, type: 3}
+        volume: 0.8
+        pitchVariation: 0.1
     - rid: 8665091256741265417
       type: {class: GroundStateCondition, ns: , asm: Assembly-CSharp}
       data:

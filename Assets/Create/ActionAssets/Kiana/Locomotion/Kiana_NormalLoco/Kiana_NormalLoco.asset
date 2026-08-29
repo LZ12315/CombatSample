@@ -11,8 +11,17 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d4a14c808be2c4f4a8f1b6d45ebd172f, type: 3}
   m_Name: Kiana_NormalLoco
-  m_EditorClassIdentifier: 
+  m_EditorClassIdentifier:
   _timelineAsset: {fileID: 11400000, guid: eb1d357ff14995149aa54ef68f570006, type: 2}
+  _playbackBackend: 1
+  _sequenceData:
+    frameRate: 60
+    durationMode: 0
+    durationFrames: 72
+    tracks:
+    - rid: 1239727499764826170
+    clips: []
+    defaultTracksInitialized: 1
   _priorityLayer: 0
   _priorityValue: 1
   _cancelRules:
@@ -76,6 +85,29 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
+    - rid: 1239727499764826170
+      type: {class: ActionSequenceAnimationTrack, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Animation
+        muted: 0
+        locked: 0
+        collapsed: 0
+        clips:
+        - rid: 1239727499764826171
+    - rid: 1239727499764826171
+      type: {class: ActionSequenceAnimationPoseClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Kiana_NormalLoco
+        startFrame: 0
+        endFrame: 72
+        animationKey: Kiana_NormalLoco
+        parameterMode: 1
+        fallbackVector2: {x: 0, y: 0}
+        fallbackFloat: 0
+        startOffsetSeconds: 0
+        playbackSpeed: 1
     - rid: 8665090978523381764
       type: {class: LocomotionIntentCondition, ns: , asm: Assembly-CSharp}
       data:

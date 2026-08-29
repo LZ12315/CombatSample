@@ -1,0 +1,175 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d4a14c808be2c4f4a8f1b6d45ebd172f, type: 3}
+  m_Name: Hit_Air_Hit_Sequence
+  m_EditorClassIdentifier:
+  _timelineAsset: {fileID: 11400000, guid: cef5f99d48793072aad4364fa2c453c1, type: 2}
+  _playbackBackend: 1
+  _sequenceData:
+    frameRate: 60
+    durationMode: 0
+    durationFrames: 44
+    tracks:
+    - rid: 1239727509095580195
+    - rid: 1239727509095580196
+    clips: []
+    defaultTracksInitialized: 1
+  _priorityLayer: 3
+  _priorityValue: 5
+  _cancelRules: []
+  _selfTags: []
+  _legacySelfTag:
+    TagId: 0
+  _triggerMode: 1
+  _eventTriggerTag:
+    TagId: 645108757
+  _startContextMode: 0
+  _motionConfig:
+    rootMotionMode: 1
+    suppressLocomotion: 1
+    facingOnStart: 2
+    gravityScale: -1
+    horizontalMomentumInheritance: 1
+    verticalMomentumInheritance: 1
+  isLoop: 0
+  _allowReenterWhilePlaying: 1
+  _entryConditions:
+  - rid: 4877214280882585606
+  _exitConditions: []
+  references:
+    version: 2
+    RefIds:
+    - rid: 1239727509095580195
+      type: {class: ActionSequenceAnimationTrack, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Animation
+        muted: 0
+        locked: 0
+        collapsed: 0
+        clips:
+        - rid: 1239727509095580197
+    - rid: 1239727509095580196
+      type: {class: ActionSequenceMotionTrack, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Motion
+        muted: 0
+        locked: 0
+        collapsed: 0
+        clips:
+        - rid: 1239727509095580198
+        - rid: 1239727509095580199
+        - rid: 1239727509095580200
+    - rid: 1239727509095580197
+      type: {class: ActionSequenceAnimationPoseClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Lucy_Hit_Air_Hit_Inplace
+        startFrame: 0
+        endFrame: 44
+        animationKey: Hit_Air_Hit
+        parameterMode: 0
+        fallbackVector2: {x: 0, y: 0}
+        fallbackFloat: 0
+        startOffsetSeconds: 0
+        playbackSpeed: 1
+    - rid: 1239727509095580198
+      type: {class: ActionSequenceMotionPolicyClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Migrated Motion Policy
+        startFrame: 0
+        endFrame: 44
+        useLocomotionScale: 1
+        locomotionScale: 0
+        useAirLocomotionScale: 1
+        airLocomotionScale: 0
+        useGravityScale: 0
+        gravityScale: 1
+    - rid: 1239727509095580199
+      type: {class: ActionSequenceFacingSnapClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Migrated Facing Snap
+        startFrame: 0
+        endFrame: 1
+        source: 1
+    - rid: 1239727509095580200
+      type: {class: ActionSequenceVelocityOverrideClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: ActionVelocityClip
+        startFrame: 0
+        endFrame: 40
+        config:
+          directionMode: 4
+          localHorizontalDirection: {x: 0, y: 0, z: 0}
+          useHorizontalVelocity: 0
+          horizontalSpeed: 0
+          useVerticalVelocity: 1
+          verticalSpeed: 0
+          horizontalCurve:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          verticalCurve:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          debugLog: 0
+    - rid: 4877214280882585606
+      type: {class: GroundStateCondition, ns: , asm: Assembly-CSharp}
+      data:
+        invertResult: 0
+        overrideAll: 0
+        acceptedStates: 4

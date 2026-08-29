@@ -161,6 +161,7 @@ public sealed class ActionSequenceMotionTrack : ActionSequenceTrackDefinition
         typeof(ActionSequenceRootMotionClipDefinition),
         typeof(ActionSequenceRootRotationClipDefinition),
         typeof(ActionSequenceSelfRotationClipDefinition),
+        typeof(ActionSequenceFacingSnapClipDefinition),
         typeof(ActionSequenceVelocityOverrideClipDefinition),
         typeof(ActionSequenceImpulseClipDefinition),
         typeof(ActionSequenceMotionPolicyClipDefinition),

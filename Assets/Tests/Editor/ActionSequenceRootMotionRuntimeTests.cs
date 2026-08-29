@@ -1,6 +1,6 @@
-using NUnit.Framework;
 using System.Reflection;
 using KinematicCharacterController;
+using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
 
@@ -19,126 +19,65 @@ public sealed class ActionSequenceRootMotionRuntimeTests
     }
 
     [Test]
-    public void RootMotionYawUtility_ExtractsTwistFromPitchRollSwing()
+    public void TranslationDomain_TrajectoryOwnerSurvivesZeroDeltaTick()
     {
-        Quaternion source =
-            Quaternion.AngleAxis(25f, Vector3.right) *
-            Quaternion.AngleAxis(60f, Vector3.up);
+        var translation = new TranslationDomain();
+        MotionOwner owner = translation.BeginTrajectoryRootMotion();
 
-        Assert.IsTrue(RootMotionYawUtility.TryExtractLocalYaw(source, out Quaternion yaw));
+        translation.BeginMotionTick();
 
-        AssertQuaternion(Quaternion.Euler(0f, 60f, 0f), yaw);
+        Assert.IsTrue(translation.HasTrajectoryRootMotionTick);
+        Assert.AreEqual(Vector3.zero, translation.TrajectoryRootMotionLocalPosition);
+
+        Assert.IsTrue(translation.EndTrajectoryRootMotion(owner));
+        translation.BeginMotionTick();
+
+        Assert.IsFalse(translation.HasTrajectoryRootMotionTick);
     }
 
     [Test]
-    public void RootMotionYawUtility_NormalizesNegativeQuaternionHemisphere()
+    public void TranslationDomain_UsesRecoverableLifoTrajectoryOwnersWithoutCatchup()
     {
-        Quaternion source = Quaternion.Euler(0f, 35f, 0f);
-        source = new Quaternion(-source.x, -source.y, -source.z, -source.w);
+        var translation = new TranslationDomain();
+        MotionOwner a = translation.BeginTrajectoryRootMotion();
+        translation.SubmitTrajectoryRootMotion(a, Vector3.forward);
+        MotionOwner b = translation.BeginTrajectoryRootMotion();
+        translation.SubmitTrajectoryRootMotion(a, Vector3.right * 2f);
+        translation.SubmitTrajectoryRootMotion(b, Vector3.left);
 
-        Assert.IsTrue(RootMotionYawUtility.TryExtractLocalYaw(source, out Quaternion yaw));
+        translation.BeginMotionTick();
 
-        AssertQuaternion(Quaternion.Euler(0f, 35f, 0f), yaw);
+        Assert.IsTrue(translation.HasTrajectoryRootMotionTick);
+        Assert.AreEqual(Vector3.left, translation.TrajectoryRootMotionLocalPosition);
+
+        translation.SubmitTrajectoryRootMotion(a, Vector3.forward * 3f);
+        translation.EndTrajectoryRootMotion(b);
+        translation.BeginMotionTick();
+
+        Assert.IsTrue(translation.HasTrajectoryRootMotionTick);
+        Assert.AreEqual(Vector3.forward * 3f, translation.TrajectoryRootMotionLocalPosition);
     }
 
     [Test]
-    public void RootMotionYawUtility_RejectsDegenerateQuaternion()
+    public void RotationDomain_UsesRecoverableLifoOwnersAndIgnoresStaleToken()
     {
-        Assert.IsFalse(RootMotionYawUtility.TryExtractLocalYaw(new Quaternion(0f, 0f, 0f, 0f), out _));
-    }
+        var rotation = new RotationDomain();
+        Assert.IsTrue(rotation.BeginScriptedRotation(out MotionOwner first));
+        Assert.IsTrue(rotation.BeginScriptedRotation(out MotionOwner second));
 
-    [Test]
-    public void RootMotionBuffer_TrajectoryOwnerSurvivesZeroDeltaTick()
-    {
-        var buffer = new RootMotionBuffer();
-        MotionOwner owner = buffer.BeginTrajectory();
+        Assert.IsFalse(rotation.SubmitScriptedRotation(new MotionOwner(first.Id + 100), Quaternion.Euler(0f, 90f, 0f)));
+        Assert.IsTrue(rotation.SubmitScriptedRotation(first, Quaternion.Euler(0f, 30f, 0f)));
+        Assert.IsTrue(rotation.SubmitScriptedRotation(second, Quaternion.Euler(0f, 60f, 0f)));
+        rotation.BeginMotionTick();
 
-        buffer.BeginMotorTick();
+        Assert.IsTrue(rotation.HasScriptedRotationTick);
+        AssertQuaternion(Quaternion.Euler(0f, 60f, 0f), rotation.ScriptedRotationLocalYawDelta);
 
-        Assert.IsTrue(buffer.HasTrajectoryTick);
-        Assert.AreEqual(Vector3.zero, buffer.TrajectoryLocalPosition);
+        Assert.IsTrue(rotation.EndScriptedRotation(second));
+        Assert.IsTrue(rotation.SubmitScriptedRotation(first, Quaternion.Euler(0f, 15f, 0f)));
+        rotation.BeginMotionTick();
 
-        buffer.EndTrajectory(owner);
-        buffer.BeginMotorTick();
-
-        Assert.IsFalse(buffer.HasTrajectoryTick);
-    }
-
-    [Test]
-    public void RootMotionBuffer_UsesRecoverableLifoOwnersWithoutCatchup()
-    {
-        var buffer = new RootMotionBuffer();
-        MotionOwner a = buffer.BeginTrajectory();
-        buffer.SubmitTrajectory(a, Vector3.forward);
-        MotionOwner b = buffer.BeginTrajectory();
-        buffer.SubmitTrajectory(a, Vector3.right * 2f);
-        buffer.SubmitTrajectory(b, Vector3.left);
-
-        buffer.BeginMotorTick();
-
-        Assert.IsTrue(buffer.HasTrajectoryTick);
-        Assert.AreEqual(Vector3.left, buffer.TrajectoryLocalPosition);
-
-        buffer.SubmitTrajectory(a, Vector3.forward * 3f);
-        buffer.EndTrajectory(b);
-        buffer.BeginMotorTick();
-
-        Assert.IsTrue(buffer.HasTrajectoryTick);
-        Assert.AreEqual(Vector3.forward * 3f, buffer.TrajectoryLocalPosition);
-    }
-
-    [Test]
-    public void SelfRotationBuffer_UsesRecoverableLifoOwnersAndIgnoresStaleToken()
-    {
-        var buffer = new SelfRotationBuffer();
-        Assert.IsTrue(buffer.TryBegin(out MotionOwner first));
-        Assert.IsTrue(buffer.TryBegin(out MotionOwner second));
-
-        Assert.IsFalse(buffer.Submit(new MotionOwner(first.Id + 100), Quaternion.Euler(0f, 90f, 0f)));
-        Assert.IsTrue(buffer.Submit(first, Quaternion.Euler(0f, 30f, 0f)));
-        Assert.IsTrue(buffer.Submit(second, Quaternion.Euler(0f, 60f, 0f)));
-        buffer.BeginMotorTick();
-
-        Assert.IsTrue(buffer.HasTickOwner);
-        AssertQuaternion(Quaternion.Euler(0f, 60f, 0f), buffer.TickLocalYawDelta);
-
-        Assert.IsTrue(buffer.End(second));
-        Assert.IsTrue(buffer.Submit(first, Quaternion.Euler(0f, 15f, 0f)));
-        buffer.BeginMotorTick();
-
-        AssertQuaternion(Quaternion.Euler(0f, 15f, 0f), buffer.TickLocalYawDelta);
-    }
-
-    [Test]
-    public void SelfRotationBuffer_ActiveOwnerSurvivesZeroDeltaTick()
-    {
-        var buffer = new SelfRotationBuffer();
-        Assert.IsTrue(buffer.TryBegin(out MotionOwner owner));
-
-        buffer.BeginMotorTick();
-
-        Assert.IsTrue(buffer.HasTickOwner);
-        AssertQuaternion(Quaternion.identity, buffer.TickLocalYawDelta);
-
-        Assert.IsTrue(buffer.End(owner));
-        buffer.BeginMotorTick();
-
-        Assert.IsFalse(buffer.HasTickOwner);
-    }
-
-    [Test]
-    public void ActorMotionRuntime_SelfRotationOwnerSnapshotsYawAtMotorTick()
-    {
-        var runtime = new ActorMotionRuntime();
-        Assert.IsTrue(runtime.TryBeginSelfRotation(out MotionOwner owner));
-        Assert.IsTrue(runtime.SubmitSelfRotation(owner, Quaternion.Euler(0f, 45f, 0f)));
-
-        runtime.BeginMotorTick();
-
-        Assert.IsTrue(runtime.HasSelfRotationTick);
-        AssertQuaternion(Quaternion.Euler(0f, 45f, 0f), runtime.SelfRotationLocalYawDelta);
-        Assert.IsTrue(runtime.EndSelfRotation(owner));
-        Assert.IsFalse(runtime.HasSelfRotationTick);
+        AssertQuaternion(Quaternion.Euler(0f, 15f, 0f), rotation.ScriptedRotationLocalYawDelta);
     }
 
     [Test]
@@ -147,30 +86,37 @@ public sealed class ActionSequenceRootMotionRuntimeTests
         var rotation = new RotationDomain();
         Quaternion tickStart = Quaternion.Euler(0f, 10f, 0f);
         Quaternion locomotion = Quaternion.Euler(0f, 80f, 0f);
-        Quaternion rootDelta = Quaternion.Euler(0f, 20f, 0f);
-        Quaternion scriptedDelta = Quaternion.Euler(0f, 40f, 0f);
 
-        rotation.Prepare(tickStart, locomotion, false, Quaternion.identity, true, rootDelta);
+        Assert.IsTrue(rotation.BeginRootRotation(out MotionOwner root));
+        rotation.SubmitRootRotation(root, Quaternion.Euler(0f, 20f, 0f));
+        rotation.BeginMotionTick();
+        rotation.Prepare(tickStart, locomotion);
         AssertQuaternion(Quaternion.Euler(0f, 30f, 0f), rotation.RequestedRotation);
 
-        rotation.Prepare(tickStart, locomotion, true, scriptedDelta, true, rootDelta);
+        Assert.IsTrue(rotation.BeginScriptedRotation(out MotionOwner scripted));
+        rotation.SubmitScriptedRotation(scripted, Quaternion.Euler(0f, 40f, 0f));
+        rotation.BeginMotionTick();
+        rotation.Prepare(tickStart, locomotion);
         AssertQuaternion(Quaternion.Euler(0f, 50f, 0f), rotation.RequestedRotation);
 
-        rotation.Prepare(tickStart, locomotion, false, Quaternion.identity, false, Quaternion.identity);
+        rotation.EndScriptedRotation(scripted);
+        rotation.EndRootRotation(root);
+        rotation.BeginMotionTick();
+        rotation.Prepare(tickStart, locomotion);
         AssertQuaternion(locomotion, rotation.RequestedRotation);
     }
 
     [Test]
-    public void ActorMotor_SelfRotationOverridesFacingAndUsesTickStartRotation()
+    public void ActorMotor_ScriptedRotationOverridesLocomotionAndUsesTickStartRotation()
     {
-        var gameObject = new GameObject("ActorMotorSelfRotationTest");
+        var gameObject = new GameObject("ActorMotorScriptedRotationTest");
         try
         {
             var motor = gameObject.AddComponent<ActorMotor>();
             gameObject.transform.rotation = Quaternion.Euler(0f, 15f, 0f);
-            motor.DebugFacing.Initialize(Quaternion.Euler(0f, 170f, 0f));
-            Assert.IsTrue(motor.TryBeginSelfRotation(out MotionOwner owner));
-            Assert.IsTrue(motor.SubmitSelfRotation(owner, Quaternion.Euler(0f, 60f, 0f)));
+            SyncKccPose(gameObject);
+            Assert.IsTrue(motor.BeginScriptedRotation(out MotionOwner owner));
+            Assert.IsTrue(motor.SubmitScriptedRotation(owner, Quaternion.Euler(0f, 60f, 0f)));
 
             Quaternion rotation = ConsumePreparedRotation(gameObject, motor);
 
@@ -179,227 +125,6 @@ public sealed class ActionSequenceRootMotionRuntimeTests
         finally
         {
             Object.DestroyImmediate(gameObject);
-        }
-    }
-
-    [Test]
-    public void ActorMotor_ActiveSelfRotationWithZeroDeltaKeepsTickStartRotation()
-    {
-        var gameObject = new GameObject("ActorMotorSelfRotationZeroDeltaTest");
-        try
-        {
-            var motor = gameObject.AddComponent<ActorMotor>();
-            gameObject.transform.rotation = Quaternion.Euler(0f, 15f, 0f);
-            motor.DebugFacing.Initialize(Quaternion.Euler(0f, 170f, 0f));
-            Assert.IsTrue(motor.TryBeginSelfRotation(out _));
-
-            Quaternion rotation = ConsumePreparedRotation(gameObject, motor);
-
-            AssertQuaternion(Quaternion.Euler(0f, 15f, 0f), rotation);
-        }
-        finally
-        {
-            Object.DestroyImmediate(gameObject);
-        }
-    }
-
-    [Test]
-    public void ActorMotor_EndSelfRotationSyncsFacingToActualRotation()
-    {
-        var gameObject = new GameObject("ActorMotorSelfRotationSyncTest");
-        try
-        {
-            var motor = gameObject.AddComponent<ActorMotor>();
-            motor.DebugFacing.Initialize(Quaternion.identity);
-            Assert.IsTrue(motor.TryBeginSelfRotation(out MotionOwner owner));
-
-            gameObject.transform.rotation = Quaternion.Euler(0f, 123f, 0f);
-            motor.EndSelfRotation(owner);
-
-            Quaternion rotation = ConsumePreparedRotation(gameObject, motor);
-
-            AssertQuaternion(Quaternion.Euler(0f, 123f, 0f), rotation);
-        }
-        finally
-        {
-            Object.DestroyImmediate(gameObject);
-        }
-    }
-
-    [Test]
-    public void SelfRotationClip_DefaultsToRootRotationSnapForExistingAssets()
-    {
-        var clip = new ActionSequenceSelfRotationClipDefinition();
-
-        Assert.AreEqual(SelfRotationSource.RootRotation, clip.Source);
-        Assert.AreEqual(SelfRotationMode.Snap, clip.Mode);
-        Assert.AreEqual(ActionContextFieldMask.None, clip.RequiredContextFields);
-    }
-
-    [Test]
-    public void TrajectoryRootMotion_UsesTickStartRotationAndDoesNotUseMovementTimeScale()
-    {
-        var runtime = new ActorMotionRuntime();
-        runtime.SetMovementTimeScale(0f);
-        MotionOwner owner = runtime.BeginTrajectoryRootMotion();
-        runtime.SubmitTrajectoryRootMotion(owner, Vector3.forward);
-        runtime.BeginMotorTick();
-
-        Vector3 velocity = runtime.ComposeKccVelocity(
-            null,
-            Vector3.zero,
-            false,
-            Quaternion.Euler(0f, 90f, 0f),
-            DeltaTime);
-
-        Assert.That(velocity.x, Is.EqualTo(60f).Within(0.0001f));
-        Assert.That(velocity.y, Is.EqualTo(0f).Within(0.0001f));
-        Assert.That(velocity.z, Is.EqualTo(0f).Within(0.0001f));
-    }
-
-    [Test]
-    public void TrajectoryRootMotion_DoesNotAddHorizontalImpulseButKeepsVerticalChannel()
-    {
-        var runtime = new ActorMotionRuntime();
-        runtime.AddHorizontalImpulse(Vector3.right * 3f);
-        runtime.AddVerticalImpulse(5f);
-        MotionOwner owner = runtime.BeginTrajectoryRootMotion();
-        runtime.SubmitTrajectoryRootMotion(owner, Vector3.forward);
-        runtime.BeginMotorTick();
-
-        Vector3 velocity = runtime.ComposeKccVelocity(
-            null,
-            Vector3.zero,
-            false,
-            Quaternion.identity,
-            DeltaTime);
-
-        Assert.That(velocity.x, Is.EqualTo(0f).Within(0.0001f));
-        Assert.That(velocity.y, Is.EqualTo(5f).Within(0.0001f));
-        Assert.That(velocity.z, Is.EqualTo(60f).Within(0.0001f));
-    }
-
-    [Test]
-    public void HorizontalVelocityOwnerOverridesTrajectoryRootMotionAndImpulse()
-    {
-        var runtime = new ActorMotionRuntime();
-        runtime.AddHorizontalImpulse(Vector3.right * 3f);
-        MotionOwner velocityOwner = runtime.BeginHorizontalVelocity();
-        runtime.SetHorizontalVelocity(velocityOwner, Vector3.left * 7f);
-        MotionOwner rootOwner = runtime.BeginTrajectoryRootMotion();
-        runtime.SubmitTrajectoryRootMotion(rootOwner, Vector3.forward);
-        runtime.BeginMotorTick();
-
-        Vector3 velocity = runtime.ComposeKccVelocity(
-            null,
-            Vector3.zero,
-            false,
-            Quaternion.identity,
-            DeltaTime);
-
-        Assert.That(velocity.x, Is.EqualTo(-7f).Within(0.0001f));
-        Assert.That(velocity.y, Is.EqualTo(0f).Within(0.0001f));
-        Assert.That(velocity.z, Is.EqualTo(0f).Within(0.0001f));
-    }
-
-    [Test]
-    public void TrajectoryRootMotion_UsesTickStartRotationEvenWhenSelfRotationTurnsSameTick()
-    {
-        var runtime = new ActorMotionRuntime();
-        MotionOwner rootOwner = runtime.BeginTrajectoryRootMotion();
-        runtime.SubmitTrajectoryRootMotion(rootOwner, Vector3.forward);
-        Assert.IsTrue(runtime.TryBeginSelfRotation(out MotionOwner rotationOwner));
-        runtime.SubmitSelfRotation(rotationOwner, Quaternion.Euler(0f, 90f, 0f));
-        runtime.BeginMotorTick();
-
-        Vector3 velocity = runtime.ComposeKccVelocity(
-            null,
-            Vector3.zero,
-            false,
-            Quaternion.identity,
-            DeltaTime);
-
-        Assert.That(velocity.x, Is.EqualTo(0f).Within(0.0001f));
-        Assert.That(velocity.y, Is.EqualTo(0f).Within(0.0001f));
-        Assert.That(velocity.z, Is.EqualTo(60f).Within(0.0001f));
-    }
-
-    [Test]
-    public void SelfRotationClip_RootRotationRotateBySpeedRetainsUnfinishedAngleUntilExit()
-    {
-        var actorObject = new GameObject("SelfRotation RootRotation Actor");
-        var clip = new ActionSequenceSelfRotationClipDefinition { startFrame = 0, endFrame = 2 };
-        var config = ScriptableObject.CreateInstance<AnimationConfig>();
-        try
-        {
-            Actor actor = actorObject.AddComponent<Actor>();
-            ActorMotor motor = actorObject.AddComponent<ActorMotor>();
-            actor.actorMotor = motor;
-            config.EditorSetEntries(new AnimationConfigEntry("turn", null, CreateYawTrajectory(0f, 90f, 180f)));
-            SetPrivateField(actor, "animationConfig", config);
-            SetPrivateField(clip, "animationKey", "turn");
-            SetPrivateField(clip, "mode", SelfRotationMode.RotateBySpeed);
-            SetPrivateField(clip, "angularSpeedDegrees", 600f);
-
-            ActionSequenceClipRuntime runtime = clip.CreateRuntime();
-            var context = CreateContext(actor);
-            runtime.OnEnter(context);
-
-            SetContextFrame(context, 0);
-            runtime.OnTick(context);
-            Quaternion first = ConsumeSelfRotation(actorObject, motor);
-            AssertQuaternion(Quaternion.Euler(0f, 10f, 0f), first);
-
-            actorObject.transform.rotation = first;
-            SetContextFrame(context, 1);
-            runtime.OnTick(context);
-            Quaternion second = ConsumeSelfRotation(actorObject, motor);
-            AssertQuaternion(Quaternion.Euler(0f, 20f, 0f), second);
-
-            actorObject.transform.rotation = second;
-            runtime.OnExit(context, true);
-            Quaternion afterExit = ConsumePreparedRotation(actorObject, motor);
-            AssertQuaternion(second, afterExit);
-        }
-        finally
-        {
-            Object.DestroyImmediate(config);
-            Object.DestroyImmediate(actorObject);
-        }
-    }
-
-    [Test]
-    public void SelfRotationClip_PresetLocalFreezesWorldDirectionAtEnter()
-    {
-        var actorObject = new GameObject("SelfRotation PresetLocal Actor");
-        var clip = new ActionSequenceSelfRotationClipDefinition { startFrame = 0, endFrame = 2 };
-        try
-        {
-            Actor actor = actorObject.AddComponent<Actor>();
-            ActorMotor motor = actorObject.AddComponent<ActorMotor>();
-            actor.actorMotor = motor;
-            SetPrivateField(clip, "source", SelfRotationSource.Direction);
-            SetPrivateField(clip, "directionSource", SelfRotationDirectionSource.PresetLocal);
-            SetPrivateField(clip, "presetLocalDirection", Vector3.right);
-
-            ActionSequenceClipRuntime runtime = clip.CreateRuntime();
-            var context = CreateContext(actor);
-            runtime.OnEnter(context);
-
-            SetContextFrame(context, 0);
-            runtime.OnTick(context);
-            Quaternion first = ConsumeSelfRotation(actorObject, motor);
-            AssertQuaternion(Quaternion.Euler(0f, 90f, 0f), first);
-
-            actorObject.transform.rotation = Quaternion.Euler(0f, 45f, 0f);
-            SetContextFrame(context, 1);
-            runtime.OnTick(context);
-            Quaternion second = ConsumeSelfRotation(actorObject, motor);
-            AssertQuaternion(Quaternion.Euler(0f, 90f, 0f), second);
-        }
-        finally
-        {
-            Object.DestroyImmediate(actorObject);
         }
     }
 
@@ -414,6 +139,7 @@ public sealed class ActionSequenceRootMotionRuntimeTests
             ActorMotor motor = actorObject.AddComponent<ActorMotor>();
             actor.actorMotor = motor;
             actorObject.transform.rotation = Quaternion.Euler(0f, 35f, 0f);
+            SyncKccPose(actorObject);
             SetPrivateField(clip, "source", SelfRotationSource.Target);
             SetPrivateField(clip, "targetSource", SelfRotationTargetSource.ContextTarget);
 
@@ -427,14 +153,8 @@ public sealed class ActionSequenceRootMotionRuntimeTests
 
             SetContextFrame(context, 0);
             runtime.OnTick(context);
-            Quaternion first = ConsumeSelfRotation(actorObject, motor);
+            Quaternion first = ConsumePreparedRotation(actorObject, motor);
             AssertQuaternion(Quaternion.Euler(0f, 35f, 0f), first);
-
-            actorObject.transform.rotation = first;
-            SetContextFrame(context, 1);
-            runtime.OnTick(context);
-            Quaternion second = ConsumeSelfRotation(actorObject, motor);
-            AssertQuaternion(first, second);
         }
         finally
         {
@@ -473,11 +193,6 @@ public sealed class ActionSequenceRootMotionRuntimeTests
         return context;
     }
 
-    private static Quaternion ConsumeSelfRotation(GameObject actorObject, ActorMotor motor)
-    {
-        return ConsumePreparedRotation(actorObject, motor);
-    }
-
     private static Quaternion ConsumePreparedRotation(GameObject actorObject, ActorMotor motor)
     {
         KinematicCharacterMotor kcc = SyncKccPose(actorObject);
@@ -496,33 +211,6 @@ public sealed class ActionSequenceRootMotionRuntimeTests
 
         kcc.SetPositionAndRotation(actorObject.transform.position, actorObject.transform.rotation);
         return kcc;
-    }
-
-    private static RootMotionTrajectory CreateYawTrajectory(params float[] yawDegrees)
-    {
-        var clip = new AnimationClip();
-        int count = yawDegrees != null ? yawDegrees.Length : 0;
-        float[] times = new float[count];
-        Vector3[] positions = new Vector3[count];
-        Quaternion[] rotations = new Quaternion[count];
-        for (int i = 0; i < count; i++)
-        {
-            times[i] = i / 60f;
-            positions[i] = Vector3.zero;
-            rotations[i] = Quaternion.Euler(0f, yawDegrees[i], 0f);
-        }
-
-        var trajectory = new RootMotionTrajectory();
-        trajectory.EditorSetData(
-            clip,
-            60,
-            Mathf.Max(1, count - 1) / 60f,
-            1,
-            "test-hash",
-            times,
-            positions,
-            rotations);
-        return trajectory;
     }
 
     private static void SetPrivateField(object target, string fieldName, object value)

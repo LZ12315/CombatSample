@@ -2,8 +2,8 @@ using UnityEngine;
 using System.Collections.Generic;
 
 /// <summary>
-/// 轻量级运动控制所有权标识。
-/// Clip 只能释放自己用同一个 owner 获取到的控制权。
+/// Lightweight ownership token for ActorMotor motion domains.
+/// Clips may only release the owner they acquired.
 /// </summary>
 public readonly struct MotionOwner
 {
@@ -18,15 +18,13 @@ public readonly struct MotionOwner
 }
 
 /// <summary>
-/// ActorMotor 的 Translation Domain。
-/// 所有水平数据均为 world planar velocity（Root Motion 的 interval displacement
-/// 在 compose boundary 进入这里之前完成换算）；垂直自由运动只有一个
-/// BallisticVerticalVelocity authoritative state。
+/// Translation authority used by ActorMotor.
+/// Horizontal values are world-planar velocities except trajectory root motion,
+/// which enters this domain as actor-local interval displacement before compose.
+/// Vertical free movement is represented by a single ballistic velocity state.
 /// </summary>
 public sealed class TranslationDomain
 {
-    #region === 常量与状态 ===
-
     private const float VelocityEpsilon = 0.001f;
 
     private int _nextOwnerId = 1;
@@ -35,8 +33,11 @@ public sealed class TranslationDomain
     private float _ballisticVerticalVelocity;
 
     private readonly List<HorizontalVelocityOwnerState> _horizontalVelocityOwners = new();
-
     private readonly List<VerticalVelocityOwnerState> _verticalVelocityOwners = new();
+    private readonly List<TrajectoryRootMotionOwnerState> _trajectoryRootMotionOwners = new();
+
+    private MotionOwner _tickTrajectoryRootMotionOwner;
+    private Vector3 _tickTrajectoryRootMotionLocalPosition;
 
     public bool HasHorizontalVelocityOwner => _horizontalVelocityOwners.Count > 0;
     public bool HasVerticalVelocityOwner => _verticalVelocityOwners.Count > 0;
@@ -48,23 +49,8 @@ public sealed class TranslationDomain
     public int DebugHorizontalVelocityOwnerCount => _horizontalVelocityOwners.Count;
     public int DebugVerticalVelocityOwnerCount => _verticalVelocityOwners.Count;
     public Vector3 HorizontalImpulseVelocity => _horizontalImpulseVelocity;
-
-    #endregion
-
-    #region === Velocity Owner 控制 ===
-
-    /// <summary>
-    /// 清空两个轴的 velocity owner 及其缓存速度。
-    /// Action 入场时用它做硬重置，避免旧 Action 的 owner 泄漏到新 Action。
-    /// </summary>
-    public void ClearVelocityOwners()
-    {
-        bool hadVerticalOwners = _verticalVelocityOwners.Count > 0;
-        _horizontalVelocityOwners.Clear();
-        _verticalVelocityOwners.Clear();
-        if (hadVerticalOwners)
-            _ballisticVerticalVelocity = 0f;
-    }
+    public bool HasTrajectoryRootMotionTick => _tickTrajectoryRootMotionOwner.IsValid;
+    public Vector3 TrajectoryRootMotionLocalPosition => _tickTrajectoryRootMotionLocalPosition;
 
     public MotionOwner BeginHorizontalVelocity()
     {
@@ -125,9 +111,41 @@ public sealed class TranslationDomain
             _ballisticVerticalVelocity = 0f;
     }
 
-    #endregion
+    public MotionOwner BeginTrajectoryRootMotion()
+    {
+        MotionOwner owner = NewOwner();
+        _trajectoryRootMotionOwners.Add(new TrajectoryRootMotionOwnerState(owner, Vector3.zero));
+        return owner;
+    }
 
-    #region === Impulse 与 Handoff ===
+    public bool SubmitTrajectoryRootMotion(MotionOwner owner, Vector3 localPositionDelta)
+    {
+        int index = FindTrajectoryRootMotionOwnerIndex(owner);
+        if (index < 0)
+            return false;
+
+        TrajectoryRootMotionOwnerState state = _trajectoryRootMotionOwners[index];
+        _trajectoryRootMotionOwners[index] = new TrajectoryRootMotionOwnerState(
+            owner,
+            state.PendingLocalPosition + localPositionDelta);
+        return true;
+    }
+
+    public bool EndTrajectoryRootMotion(MotionOwner owner)
+    {
+        int index = FindTrajectoryRootMotionOwnerIndex(owner);
+        if (index < 0)
+            return false;
+
+        _trajectoryRootMotionOwners.RemoveAt(index);
+        if (IsCurrent(owner, _tickTrajectoryRootMotionOwner))
+        {
+            _tickTrajectoryRootMotionOwner = default;
+            _tickTrajectoryRootMotionLocalPosition = Vector3.zero;
+        }
+
+        return true;
+    }
 
     public void AddHorizontalImpulse(Vector3 velocity)
     {
@@ -150,26 +168,6 @@ public sealed class TranslationDomain
         _ballisticVerticalVelocity = velocity;
     }
 
-    /// <summary>
-    /// Action 入场时按配置继承已有动量的一部分。
-    /// Velocity owner 不参与继承；ActionInstance 会显式清空它们。
-    /// </summary>
-    public void ApplyHandoff(float horizontalInheritance, float verticalInheritance)
-    {
-        horizontalInheritance = Mathf.Clamp01(horizontalInheritance);
-        verticalInheritance = Mathf.Clamp01(verticalInheritance);
-
-        _horizontalImpulseVelocity *= horizontalInheritance;
-        _ballisticVerticalVelocity *= verticalInheritance;
-    }
-
-    #endregion
-
-    #region === Tick 演化 ===
-
-    /// <summary>
-    /// 演化唯一 Ballistic state。Vertical owner 活跃时冻结；稳定接地时归零。
-    /// </summary>
     public void StepBallistic(
         float dt,
         bool isGrounded,
@@ -198,10 +196,6 @@ public sealed class TranslationDomain
             _ballisticVerticalVelocity = 0f;
     }
 
-    /// <summary>
-    /// 衰减可叠加的水平冲量。dt 是 Actor 本地 motion delta。
-    /// Locomotion 和 velocity owner 不在这里衰减。
-    /// </summary>
     public void StepHorizontalDrag(float dt, float drag)
     {
         if (_horizontalImpulseVelocity.sqrMagnitude <= VelocityEpsilon * VelocityEpsilon)
@@ -214,15 +208,28 @@ public sealed class TranslationDomain
         _horizontalImpulseVelocity *= factor;
     }
 
-    #endregion
+    public void BeginMotionTick()
+    {
+        if (_trajectoryRootMotionOwners.Count > 0)
+        {
+            TrajectoryRootMotionOwnerState top = _trajectoryRootMotionOwners[_trajectoryRootMotionOwners.Count - 1];
+            _tickTrajectoryRootMotionOwner = top.Owner;
+            _tickTrajectoryRootMotionLocalPosition = top.PendingLocalPosition;
+        }
+        else
+        {
+            _tickTrajectoryRootMotionOwner = default;
+            _tickTrajectoryRootMotionLocalPosition = Vector3.zero;
+        }
 
-    #region === 速度合成 ===
+        for (int i = 0; i < _trajectoryRootMotionOwners.Count; i++)
+        {
+            _trajectoryRootMotionOwners[i] = new TrajectoryRootMotionOwnerState(
+                _trajectoryRootMotionOwners[i].Owner,
+                Vector3.zero);
+        }
+    }
 
-    /// <summary>
-    /// 合成送给 ActorMotor 做 KCC 地面投影前的水平请求速度。
-    /// 水平 owner 会完全覆盖 locomotion 和水平冲量。
-    /// timeScale 是 MovementTimeScale，作为统一出口倍率在此应用。
-    /// </summary>
     public Vector3 ComposeHorizontal(Vector3 locomotionVelocity, float timeScale)
     {
         if (TryGetTopHorizontal(out HorizontalVelocityOwnerState owner))
@@ -245,11 +252,6 @@ public sealed class TranslationDomain
         return true;
     }
 
-    /// <summary>
-    /// 合成 ActorMotor 执行接地钳制前的垂直请求速度。
-    /// 垂直 owner 会完全覆盖 BallisticVerticalVelocity。
-    /// timeScale 是 MovementTimeScale，作为统一出口倍率在此应用。
-    /// </summary>
     public float ComposeVertical(float timeScale)
     {
         if (TryGetTopVertical(out VerticalVelocityOwnerState owner))
@@ -257,10 +259,6 @@ public sealed class TranslationDomain
 
         return _ballisticVerticalVelocity * timeScale;
     }
-
-    #endregion
-
-    #region === 内部工具 ===
 
     private MotionOwner NewOwner()
     {
@@ -296,6 +294,25 @@ public sealed class TranslationDomain
         }
 
         return -1;
+    }
+
+    private int FindTrajectoryRootMotionOwnerIndex(MotionOwner owner)
+    {
+        if (!owner.IsValid)
+            return -1;
+
+        for (int i = _trajectoryRootMotionOwners.Count - 1; i >= 0; i--)
+        {
+            if (_trajectoryRootMotionOwners[i].Owner.Id == owner.Id)
+                return i;
+        }
+
+        return -1;
+    }
+
+    private static bool IsCurrent(MotionOwner owner, MotionOwner current)
+    {
+        return owner.IsValid && current.IsValid && owner.Id == current.Id;
     }
 
     private bool TryGetTopHorizontal(out HorizontalVelocityOwnerState owner)
@@ -346,7 +363,17 @@ public sealed class TranslationDomain
         }
     }
 
-    #endregion
+    private readonly struct TrajectoryRootMotionOwnerState
+    {
+        public readonly MotionOwner Owner;
+        public readonly Vector3 PendingLocalPosition;
+
+        public TrajectoryRootMotionOwnerState(MotionOwner owner, Vector3 pendingLocalPosition)
+        {
+            Owner = owner;
+            PendingLocalPosition = pendingLocalPosition;
+        }
+    }
 }
 
 /// <summary>
@@ -431,13 +458,6 @@ public sealed class MotionPolicyState
     public bool EndGravityScale(MotionOwner owner)
     {
         return End(_gravityScaleOwners, owner);
-    }
-
-    public void ClearPolicyOwners()
-    {
-        _locomotionScaleOwners.Clear();
-        _airLocomotionScaleOwners.Clear();
-        _gravityScaleOwners.Clear();
     }
 
     private MotionOwner Begin(List<PolicyOwnerState> owners, float value)
@@ -534,61 +554,4 @@ public sealed class MotionPolicyState
             Value = value;
         }
     }
-}
-
-/// <summary>
-/// E3-B compatibility façade。旧调用方和 Editor 暂时仍可使用 MotionChannels，
-/// authoritative state 与 compose 规则全部由 TranslationDomain 持有。
-/// </summary>
-public sealed class MotionChannels
-{
-    private readonly TranslationDomain _translation;
-
-    public MotionChannels()
-        : this(new TranslationDomain())
-    {
-    }
-
-    internal MotionChannels(TranslationDomain translation)
-    {
-        _translation = translation;
-    }
-
-    public TranslationDomain Domain => _translation;
-    public bool HasHorizontalVelocityOwner => _translation.HasHorizontalVelocityOwner;
-    public bool HasVerticalVelocityOwner => _translation.HasVerticalVelocityOwner;
-    public Vector3 DebugHorizontalImpulse => _translation.DebugHorizontalImpulse;
-    public float DebugVerticalImpulse => _translation.BallisticVerticalVelocity;
-    public float DebugGravityAccumulator => 0f;
-    public float DebugBallisticVerticalVelocity => _translation.BallisticVerticalVelocity;
-    public Vector3 DebugOwnerHorizontalVelocity => _translation.DebugOwnerHorizontalVelocity;
-    public float DebugOwnerVerticalVelocity => _translation.DebugOwnerVerticalVelocity;
-    public int DebugHorizontalVelocityOwnerCount => _translation.DebugHorizontalVelocityOwnerCount;
-    public int DebugVerticalVelocityOwnerCount => _translation.DebugVerticalVelocityOwnerCount;
-    public Vector3 HorizontalImpulseVelocity => _translation.HorizontalImpulseVelocity;
-
-    public void ClearVelocityOwners() => _translation.ClearVelocityOwners();
-    public MotionOwner BeginHorizontalVelocity() => _translation.BeginHorizontalVelocity();
-    public void SetHorizontalVelocity(MotionOwner owner, Vector3 velocity) => _translation.SetHorizontalVelocity(owner, velocity);
-    public void EndHorizontalVelocity(MotionOwner owner) => _translation.EndHorizontalVelocity(owner);
-    public MotionOwner BeginVerticalVelocity() => _translation.BeginVerticalVelocity();
-    public bool SetVerticalVelocity(MotionOwner owner, float velocity) => _translation.SetVerticalVelocity(owner, velocity);
-    public bool IsTopVerticalVelocityOwner(MotionOwner owner) => _translation.IsTopVerticalVelocityOwner(owner);
-    public void EndVerticalVelocity(MotionOwner owner) => _translation.EndVerticalVelocity(owner);
-    public void AddHorizontalImpulse(Vector3 velocity) => _translation.AddHorizontalImpulse(velocity);
-    public void ClearHorizontalImpulse() => _translation.ClearHorizontalImpulse();
-    public void ApplyVerticalImpulse(float velocity) => _translation.AddBallisticVerticalVelocity(velocity);
-    public void AddBallisticVerticalVelocity(float velocity) => _translation.AddBallisticVerticalVelocity(velocity);
-    public void SetBallisticVerticalVelocity(float velocity) => _translation.SetBallisticVerticalVelocity(velocity);
-    public void ApplyHandoff(float horizontalInheritance, float verticalInheritance) => _translation.ApplyHandoff(horizontalInheritance, verticalInheritance);
-    public void StepGravity(float dt, bool isGrounded, float gravityScale) =>
-        _translation.StepBallistic(dt, isGrounded, false, gravityScale, 0f);
-    public void StepHorizontalDrag(float dt, float drag) => _translation.StepHorizontalDrag(dt, drag);
-    public void StepVerticalImpulse(float dt, bool isAirborne, bool isGrounded, bool hitCeiling, float airDrag) =>
-        _translation.StepBallistic(dt, isGrounded, hitCeiling, 0f, isAirborne ? airDrag : 0f);
-    public Vector3 ComposeHorizontal(Vector3 locomotionVelocity, float timeScale) =>
-        _translation.ComposeHorizontal(locomotionVelocity, timeScale);
-    public bool TryComposeHorizontalVelocityOwner(float timeScale, out Vector3 velocity) =>
-        _translation.TryComposeHorizontalVelocityOwner(timeScale, out velocity);
-    public float ComposeVertical(float timeScale) => _translation.ComposeVertical(timeScale);
 }

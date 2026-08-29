@@ -11,8 +11,19 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d4a14c808be2c4f4a8f1b6d45ebd172f, type: 3}
   m_Name: Kiana_RiderKick_Start
-  m_EditorClassIdentifier: 
+  m_EditorClassIdentifier:
   _timelineAsset: {fileID: 11400000, guid: 1532973fef450be49930493cd6625430, type: 2}
+  _playbackBackend: 1
+  _sequenceData:
+    frameRate: 60
+    durationMode: 0
+    durationFrames: 40
+    tracks:
+    - rid: 1239727509095580305
+    - rid: 1239727509095580306
+    - rid: 1239727509095580307
+    clips: []
+    defaultTracksInitialized: 1
   _priorityLayer: 2
   _priorityValue: 0
   _cancelRules:
@@ -58,6 +69,215 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
+    - rid: 1239727509095580305
+      type: {class: ActionSequenceAnimationTrack, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Animation
+        muted: 0
+        locked: 0
+        collapsed: 0
+        clips:
+        - rid: 1239727509095580308
+    - rid: 1239727509095580306
+      type: {class: ActionSequenceMotionTrack, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Motion
+        muted: 0
+        locked: 0
+        collapsed: 0
+        clips:
+        - rid: 1239727509095580309
+        - rid: 1239727509095580310
+        - rid: 1239727509095580311
+        - rid: 1239727509095580312
+    - rid: 1239727509095580307
+      type: {class: ActionSequenceHitBoxTrack, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: HitBox
+        muted: 0
+        locked: 0
+        collapsed: 0
+        clips:
+        - rid: 1239727509095580313
+    - rid: 1239727509095580308
+      type: {class: ActionSequenceAnimationPoseClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Lucy_Air_Kick_7_Start_Root
+        startFrame: 0
+        endFrame: 40
+        animationKey: Kiana_RiderKick_Start
+        parameterMode: 0
+        fallbackVector2: {x: 0, y: 0}
+        fallbackFloat: 0
+        startOffsetSeconds: 0
+        playbackSpeed: 1
+    - rid: 1239727509095580309
+      type: {class: ActionSequenceMotionPolicyClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Migrated Motion Policy
+        startFrame: 0
+        endFrame: 40
+        useLocomotionScale: 1
+        locomotionScale: 0
+        useAirLocomotionScale: 1
+        airLocomotionScale: 0
+        useGravityScale: 0
+        gravityScale: 1
+    - rid: 1239727509095580310
+      type: {class: ActionSequenceFacingSnapClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Migrated Facing Snap
+        startFrame: 0
+        endFrame: 1
+        source: 1
+    - rid: 1239727509095580311
+      type: {class: ActionSequenceImpulseClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: ActionImpulseClip
+        startFrame: 23
+        endFrame: 40
+        config:
+          directionMode: 5
+          localHorizontalDirection: {x: 0, y: 0, z: 1}
+          horizontalForce: 60
+          verticalForce: 40
+          debugLog: 0
+        useHorizontalImpulse: 1
+        useVerticalBallistic: 1
+        verticalOperation: 0
+        overrideGravityScale: 0
+        gravityScale: 1
+    - rid: 1239727509095580312
+      type: {class: ActionSequenceVelocityOverrideClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: ActionVelocityClip
+        startFrame: 0
+        endFrame: 23
+        config:
+          directionMode: 4
+          localHorizontalDirection: {x: 0, y: 0, z: 0}
+          useHorizontalVelocity: 0
+          horizontalSpeed: 0
+          useVerticalVelocity: 1
+          verticalSpeed: 0
+          horizontalCurve:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          verticalCurve:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          debugLog: 0
+    - rid: 1239727509095580313
+      type: {class: ActionSequenceHitBoxClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: ActionHitBoxClip
+        startFrame: 23
+        endFrame: 28
+        boneReference:
+          mode: 0
+          humanBone: 3
+          bonePath:
+        hitboxConfig:
+          center: {x: -0.1, y: 0, z: 0}
+          rotation: {x: 0, y: 0, z: 0.38268346, w: 0.9238795}
+          height: 1.2
+          radius: 0.15
+        dataConfig:
+          targetLayers:
+            serializedVersion: 2
+            m_Bits: 64
+          _baseDamage: 10
+          hitEventTag:
+            TagId: 645108757
+        effects:
+        - rid: 1239727509095580314
+        - rid: 1239727509095580315
+        - rid: 1239727509095580316
+    - rid: 1239727509095580314
+      type: {class: HitVfxConfig, ns: , asm: Assembly-CSharp}
+      data:
+        enabled: 1
+        prefab: {fileID: 1107029698261400, guid: 6e09e616ba00652ce88f8183147587ed,
+          type: 3}
+        occlusionMode: 1
+        scale: 1
+        lifetime: 1
+        simulationSpeed: 1
+        anchorMode: 0
+        orientationMode: 0
+        screenAngleMode: 1
+        anglePresetDegrees: 0
+        angleRandomRange: 360
+        worldDirectionMode: 0
+        rollMode: 0
+        rollPresetDegrees: 0
+        rollRandomRange: 360
+    - rid: 1239727509095580315
+      type: {class: SpeedEffectConfig, ns: , asm: Assembly-CSharp}
+      data:
+        enabled: 1
+        duration: 0.15
+        speedScale: 0.05
+        affectBothParties: 1
+    - rid: 1239727509095580316
+      type: {class: HitSoundEffectConfig, ns: , asm: Assembly-CSharp}
+      data:
+        enabled: 1
+        clips:
+        - {fileID: 8300000, guid: 1e3312d22540aa14597a1fb4739f2782, type: 3}
+        volume: 1
+        pitchVariation: 0.1
     - rid: 8665091256741265419
       type: {class: InputSequenceCondition, ns: , asm: Assembly-CSharp}
       data:

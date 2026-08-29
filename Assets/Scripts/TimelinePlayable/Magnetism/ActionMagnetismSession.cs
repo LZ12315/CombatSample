@@ -12,6 +12,7 @@ public sealed class ActionMagnetismSession
 
     private Vector3 _cachedHorizontalDir = Vector3.forward;
     private bool _hasCachedHorizontalDir;
+    private MotionOwner _rotationOwner;
 
     public ActionMagnetismSession(Actor actor, Transform combatTarget, MagnetismConfig config)
     {
@@ -23,6 +24,7 @@ public sealed class ActionMagnetismSession
     public void Begin()
     {
         _hasCachedHorizontalDir = false;
+        TryAcquireRotationOwner();
     }
 
     public void Tick()
@@ -56,23 +58,52 @@ public sealed class ActionMagnetismSession
         }
 
         if (!_config.rotateToTarget || _config.rotationMode == MagnetismRotationMode.None) return;
-        if (_actor.actorMotor == null) return;
+        if (!TryAcquireRotationOwner()) return;
 
         Vector3 faceDir = dir;
         if (_config.rotationAxis == MagnetismRotationAxis.YawOnly)
             faceDir.y = 0f;
 
-        if (_config.rotationMode == MagnetismRotationMode.InstantSnap || _config.rotationAngularSpeed <= 0f)
-            _actor.actorMotor.SnapFacing(faceDir);
-        else
+        Quaternion currentRotation = _actor.actorMotor.Motor != null && Application.isPlaying
+            ? _actor.actorMotor.Motor.TransientRotation
+            : _actor.transform.rotation;
+        Vector3 currentForward = currentRotation * Vector3.forward;
+        currentForward.y = 0f;
+        if (currentForward.sqrMagnitude <= 0.000001f || faceDir.sqrMagnitude <= 0.000001f)
+            return;
+
+        currentForward.Normalize();
+        faceDir.Normalize();
+
+        float signedYaw = Vector3.SignedAngle(currentForward, faceDir, Vector3.up);
+        if (_config.rotationMode != MagnetismRotationMode.InstantSnap && _config.rotationAngularSpeed > 0f)
         {
-            _actor.actorMotor.SetFacingOverride(faceDir, _config.rotationAngularSpeed);
+            float maxDelta = _config.rotationAngularSpeed * Mathf.Max(Time.deltaTime, 0f);
+            signedYaw = Mathf.Clamp(signedYaw, -maxDelta, maxDelta);
         }
+
+        _actor.actorMotor.SubmitScriptedRotation(
+            _rotationOwner,
+            Quaternion.AngleAxis(signedYaw, Vector3.up));
     }
 
     public void End()
     {
         _hasCachedHorizontalDir = false;
-        _actor?.actorMotor?.ClearFacingOverride();
+        if (_actor != null && _actor.actorMotor != null && _rotationOwner.IsValid)
+            _actor.actorMotor.EndScriptedRotation(_rotationOwner);
+
+        _rotationOwner = default;
+    }
+
+    private bool TryAcquireRotationOwner()
+    {
+        if (_rotationOwner.IsValid)
+            return true;
+
+        if (_actor == null || _actor.actorMotor == null)
+            return false;
+
+        return _actor.actorMotor.BeginScriptedRotation(out _rotationOwner);
     }
 }

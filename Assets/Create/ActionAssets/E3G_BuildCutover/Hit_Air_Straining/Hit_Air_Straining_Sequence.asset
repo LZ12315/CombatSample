@@ -1,0 +1,139 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d4a14c808be2c4f4a8f1b6d45ebd172f, type: 3}
+  m_Name: Hit_Air_Straining_Sequence
+  m_EditorClassIdentifier:
+  _timelineAsset: {fileID: 11400000, guid: 8f1d8161da1eed54eab3aae537054817, type: 2}
+  _playbackBackend: 1
+  _sequenceData:
+    frameRate: 60
+    durationMode: 0
+    durationFrames: 6
+    tracks:
+    - rid: 1239727509095580218
+    - rid: 1239727509095580219
+    clips: []
+    defaultTracksInitialized: 1
+  _priorityLayer: 3
+  _priorityValue: 0
+  _cancelRules:
+  - targetKind: 0
+    specificTarget: {fileID: 11400000, guid: 847bd0222859a3e4fb176cdb1f12752c, type: 2}
+    targetTag:
+      TagId: 0
+    window:
+      startAnchor: 0
+      startFrame: 3
+      endAnchor: 2
+      endFrame: 0
+  - targetKind: 0
+    specificTarget: {fileID: 11400000, guid: d0180c1c7b8a3be4499b7306ae09ed53, type: 2}
+    targetTag:
+      TagId: 0
+    window:
+      startAnchor: 0
+      startFrame: 3
+      endAnchor: 2
+      endFrame: 0
+  _selfTags: []
+  _legacySelfTag:
+    TagId: 0
+  _triggerMode: 1
+  _eventTriggerTag:
+    TagId: 1065683385
+  _startContextMode: 0
+  _motionConfig:
+    rootMotionMode: 1
+    suppressLocomotion: 1
+    facingOnStart: 0
+    gravityScale: -1
+    horizontalMomentumInheritance: 0
+    verticalMomentumInheritance: 0
+  isLoop: 0
+  _allowReenterWhilePlaying: 0
+  _entryConditions:
+  - rid: 8665091234364653572
+  _exitConditions: []
+  references:
+    version: 2
+    RefIds:
+    - rid: 1239727509095580218
+      type: {class: ActionSequenceAnimationTrack, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Animation
+        muted: 0
+        locked: 0
+        collapsed: 0
+        clips:
+        - rid: 1239727509095580220
+    - rid: 1239727509095580219
+      type: {class: ActionSequenceMotionTrack, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Motion
+        muted: 0
+        locked: 0
+        collapsed: 0
+        clips:
+        - rid: 1239727509095580221
+        - rid: 1239727509095580222
+    - rid: 1239727509095580220
+      type: {class: ActionSequenceAnimationPoseClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Avatar_Kiana_C2_Ani_Hit_Straining
+        startFrame: 0
+        endFrame: 6
+        animationKey: Hit_Air_Straining
+        parameterMode: 0
+        fallbackVector2: {x: 0, y: 0}
+        fallbackFloat: 0
+        startOffsetSeconds: 0
+        playbackSpeed: 1
+    - rid: 1239727509095580221
+      type: {class: ActionSequenceMotionPolicyClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Migrated Motion Policy
+        startFrame: 0
+        endFrame: 6
+        useLocomotionScale: 1
+        locomotionScale: 0
+        useAirLocomotionScale: 1
+        airLocomotionScale: 0
+        useGravityScale: 0
+        gravityScale: 1
+    - rid: 1239727509095580222
+      type: {class: ActionSequenceImpulseClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: ActionImpulseClip
+        startFrame: 1
+        endFrame: 2
+        config:
+          directionMode: 0
+          localHorizontalDirection: {x: 0, y: 0, z: 1}
+          horizontalForce: 40
+          verticalForce: -30
+          debugLog: 0
+        useHorizontalImpulse: 1
+        useVerticalBallistic: 1
+        verticalOperation: 0
+        overrideGravityScale: 0
+        gravityScale: 1
+    - rid: 8665091234364653572
+      type: {class: GroundStateCondition, ns: , asm: Assembly-CSharp}
+      data:
+        invertResult: 0
+        overrideAll: 0
+        acceptedStates: 4

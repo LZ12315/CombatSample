@@ -11,8 +11,18 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d4a14c808be2c4f4a8f1b6d45ebd172f, type: 3}
   m_Name: Kiana_Slide
-  m_EditorClassIdentifier: 
+  m_EditorClassIdentifier:
   _timelineAsset: {fileID: 11400000, guid: e5feb38f5a698ac40816b6c64981f222, type: 2}
+  _playbackBackend: 1
+  _sequenceData:
+    frameRate: 60
+    durationMode: 0
+    durationFrames: 52
+    tracks:
+    - rid: 1239727509095580268
+    - rid: 1239727509095580269
+    clips: []
+    defaultTracksInitialized: 1
   _priorityLayer: 2
   _priorityValue: 10
   _cancelRules:
@@ -78,6 +88,83 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
+    - rid: 1239727509095580268
+      type: {class: ActionSequenceAnimationTrack, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Animation
+        muted: 0
+        locked: 0
+        collapsed: 0
+        clips:
+        - rid: 1239727509095580270
+    - rid: 1239727509095580269
+      type: {class: ActionSequenceMotionTrack, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Motion
+        muted: 0
+        locked: 0
+        collapsed: 0
+        clips:
+        - rid: 1239727509095580271
+        - rid: 1239727509095580272
+        - rid: 1239727509095580273
+        - rid: 1239727509095580274
+    - rid: 1239727509095580270
+      type: {class: ActionSequenceAnimationPoseClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Lucy_Slide_F_Root
+        startFrame: 0
+        endFrame: 52
+        animationKey: Kiana_Slide
+        parameterMode: 0
+        fallbackVector2: {x: 0, y: 0}
+        fallbackFloat: 0
+        startOffsetSeconds: 0
+        playbackSpeed: 1
+    - rid: 1239727509095580271
+      type: {class: ActionSequenceMotionPolicyClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Migrated Motion Policy
+        startFrame: 0
+        endFrame: 52
+        useLocomotionScale: 1
+        locomotionScale: 0
+        useAirLocomotionScale: 1
+        airLocomotionScale: 0
+        useGravityScale: 0
+        gravityScale: 1
+    - rid: 1239727509095580272
+      type: {class: ActionSequenceFacingSnapClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Migrated Facing Snap
+        startFrame: 0
+        endFrame: 1
+        source: 2
+    - rid: 1239727509095580273
+      type: {class: ActionSequenceRootMotionClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Migrated Root Motion
+        startFrame: 0
+        endFrame: 52
+        animationKey: Kiana_Slide
+        startOffsetSeconds: 0
+        playbackSpeed: 1
+    - rid: 1239727509095580274
+      type: {class: ActionSequenceRootRotationClipDefinition, ns: , asm: Assembly-CSharp}
+      data:
+        editorId:
+        displayName: Migrated Root Rotation
+        startFrame: 0
+        endFrame: 52
+        animationKey: Kiana_Slide
+        startOffsetSeconds: 0
+        playbackSpeed: 1
     - rid: 4877214280882585603
       type: {class: GroundStateCondition, ns: , asm: Assembly-CSharp}
       data:
