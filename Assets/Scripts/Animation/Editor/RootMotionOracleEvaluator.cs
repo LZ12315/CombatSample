@@ -18,6 +18,33 @@ public static class RootMotionOracleEvaluator
         out RootMotionOracleResult result,
         out RootMotionOracleDiagnostic diagnostic)
     {
+        return TryEvaluate(
+            clip,
+            RootMotionBakeSettings.FromLegacy(config),
+            config,
+            sampleTimes,
+            out result,
+            out diagnostic);
+    }
+
+    public static bool TryEvaluate(
+        AnimationClip clip,
+        RootMotionBakeSettings settings,
+        IReadOnlyList<float> sampleTimes,
+        out RootMotionOracleResult result,
+        out RootMotionOracleDiagnostic diagnostic)
+    {
+        return TryEvaluate(clip, settings, null, sampleTimes, out result, out diagnostic);
+    }
+
+    private static bool TryEvaluate(
+        AnimationClip clip,
+        RootMotionBakeSettings settings,
+        AnimationConfig legacyConfig,
+        IReadOnlyList<float> sampleTimes,
+        out RootMotionOracleResult result,
+        out RootMotionOracleDiagnostic diagnostic)
+    {
         result = null;
         diagnostic = default;
 
@@ -27,13 +54,13 @@ public static class RootMotionOracleEvaluator
             return false;
         }
 
-        if (config == null)
+        if (settings == null)
         {
-            diagnostic = new RootMotionOracleDiagnostic(RootMotionOracleDiagnosticCode.MissingAnimationConfig, "AnimationConfig is missing.");
+            diagnostic = new RootMotionOracleDiagnostic(RootMotionOracleDiagnosticCode.MissingBakeSettings, "Root Motion Bake Settings are missing.");
             return false;
         }
 
-        RootMotionBakeSettingsValidationResult settingsValidation = config.ValidateRootMotionBakeSettings();
+        RootMotionBakeSettingsValidationResult settingsValidation = settings.Validate();
         if (!settingsValidation.IsValid)
         {
             diagnostic = new RootMotionOracleDiagnostic(
@@ -55,8 +82,8 @@ public static class RootMotionOracleEvaluator
                 HideFlags.HideAndDontSave);
             previewRoot.SetActive(false);
 
-            GameObject instance = Object.Instantiate(config.RootMotionReferenceRigPrefab, previewRoot.transform, false);
-            instance.name = config.RootMotionReferenceRigPrefab.name;
+            GameObject instance = Object.Instantiate(settings.ReferenceRigPrefab, previewRoot.transform, false);
+            instance.name = settings.ReferenceRigPrefab.name;
             instance.hideFlags = HideFlags.HideAndDontSave;
             instance.transform.localPosition = Vector3.zero;
             instance.transform.localRotation = Quaternion.identity;
@@ -129,12 +156,9 @@ public static class RootMotionOracleEvaluator
                 cumulativeRotations.Add(recorder.CumulativeRotation);
             }
 
-            result = new RootMotionOracleResult(
-                clip,
-                config,
-                resultTimes,
-                cumulativePositions,
-                cumulativeRotations);
+            result = legacyConfig != null
+                ? new RootMotionOracleResult(clip, legacyConfig, resultTimes, cumulativePositions, cumulativeRotations)
+                : new RootMotionOracleResult(clip, settings, resultTimes, cumulativePositions, cumulativeRotations);
             diagnostic = RootMotionOracleDiagnostic.Success;
             return true;
         }
@@ -225,6 +249,7 @@ public enum RootMotionOracleDiagnosticCode
     None,
     MissingAnimationClip,
     MissingAnimationConfig,
+    MissingBakeSettings,
     InvalidBakeSettings,
     InvalidSampleTimes,
     InvalidInstantiatedRig,

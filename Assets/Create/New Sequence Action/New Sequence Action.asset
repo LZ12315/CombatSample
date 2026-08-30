@@ -1,0 +1,100 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d4a14c808be2c4f4a8f1b6d45ebd172f, type: 3}
+  m_Name: New Sequence Action
+  m_EditorClassIdentifier: 
+  _actionTimeline:
+    _animationSegments: []
+    _gameplayLanes: []
+  _timelineAsset: {fileID: 0}
+  _playbackBackend: 1
+  _sequenceData:
+    frameRate: 60
+    durationMode: 1
+    durationFrames: 60
+    tracks:
+    - rid: 1239727540105117697
+    - rid: 1239727540105117698
+    - rid: 1239727540105117699
+    - rid: 1239727540105117700
+    - rid: 1239727540105117701
+    clips: []
+    defaultTracksInitialized: 1
+  _priorityLayer: 1
+  _priorityValue: 0
+  _cancelRules: []
+  _selfTags: []
+  _legacySelfTag:
+    TagId: 0
+  _triggerMode: 0
+  _eventTriggerTag:
+    TagId: 0
+  _startContextMode: 0
+  _motionConfig:
+    rootMotionMode: 0
+    suppressLocomotion: 1
+    facingOnStart: 2
+    gravityScale: -1
+    horizontalMomentumInheritance: 0
+    verticalMomentumInheritance: 0
+  isLoop: 0
+  _allowReenterWhilePlaying: 0
+  _entryConditions: []
+  _exitConditions: []
+  references:
+    version: 2
+    RefIds:
+    - rid: 1239727540105117697
+      type: {class: ActionSequenceStateTrack, ns: , asm: Assembly-CSharp}
+      data:
+        editorId: e584111dfd5a4cc8a3876f1b6d76ad81
+        displayName: 
+        muted: 0
+        locked: 0
+        collapsed: 0
+        clips: []
+    - rid: 1239727540105117698
+      type: {class: ActionSequenceAnimationTrack, ns: , asm: Assembly-CSharp}
+      data:
+        editorId: 721e11d582d04e2e930d549c431d4dad
+        displayName: 
+        muted: 0
+        locked: 0
+        collapsed: 0
+        clips: []
+    - rid: 1239727540105117699
+      type: {class: ActionSequenceMotionTrack, ns: , asm: Assembly-CSharp}
+      data:
+        editorId: 618dbcc1fb864e22ad5ccb5de6b36999
+        displayName: 
+        muted: 0
+        locked: 0
+        collapsed: 0
+        clips: []
+    - rid: 1239727540105117700
+      type: {class: ActionSequenceHitBoxTrack, ns: , asm: Assembly-CSharp}
+      data:
+        editorId: b4792bc315f34046908576df6ebb2a13
+        displayName: 
+        muted: 0
+        locked: 0
+        collapsed: 0
+        clips: []
+    - rid: 1239727540105117701
+      type: {class: ActionSequenceCleanupTrack, ns: , asm: Assembly-CSharp}
+      data:
+        editorId: d1da92bfab0e4cf7a183b9af9b32bf92
+        displayName: 
+        muted: 0
+        locked: 0
+        collapsed: 0
+        clips: []

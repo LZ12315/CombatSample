@@ -20,18 +20,18 @@ public static class RootMotionBakeValidator
             return false;
         }
 
-        AnimationConfig config = bakeResult.AnimationConfig;
-        if (config == null)
+        RootMotionBakeSettings settings = bakeResult.Settings;
+        if (settings == null)
         {
             diagnostic = new RootMotionValidationDiagnostic(
-                RootMotionValidationDiagnosticCode.MissingAnimationConfig,
-                "Bake result has no AnimationConfig.");
+                RootMotionValidationDiagnosticCode.MissingBakeSettings,
+                "Bake result has no Root Motion Bake Settings.");
             return false;
         }
 
         if (!RootMotionOracleEvaluator.TryEvaluate(
                 bakeResult.SourceClip,
-                config,
+                settings,
                 bakeResult.SampleTimes,
                 out RootMotionOracleResult oracle,
                 out RootMotionOracleDiagnostic oracleDiagnostic))
@@ -122,16 +122,16 @@ public static class RootMotionBakeValidator
             failures |= RootMotionValidationFailure.DurationMismatch;
         }
 
-        if (maximumPositionError > config.RootMotionPositionTolerance)
+        if (maximumPositionError > settings.PositionTolerance)
             failures |= RootMotionValidationFailure.PositionToleranceExceeded;
-        if (maximumRotationError > config.RootMotionRotationToleranceDegrees)
+        if (maximumRotationError > settings.RotationToleranceDegrees)
             failures |= RootMotionValidationFailure.RotationToleranceExceeded;
 
         report = new RootMotionValidationReport(
             failures,
             bakeResult.SampleCount,
-            config.RootMotionPositionTolerance,
-            config.RootMotionRotationToleranceDegrees,
+            settings.PositionTolerance,
+            settings.RotationToleranceDegrees,
             maximumPositionError,
             maximumPositionErrorTime,
             maximumPositionErrorIndex,
@@ -228,6 +228,7 @@ public enum RootMotionValidationDiagnosticCode
     None,
     MissingBakeResult,
     MissingAnimationConfig,
+    MissingBakeSettings,
     OracleEvaluationFailed,
     SampleCountMismatch,
     SampleTimeMismatch,

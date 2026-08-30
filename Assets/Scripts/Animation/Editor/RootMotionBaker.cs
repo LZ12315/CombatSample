@@ -20,6 +20,30 @@ public static class RootMotionBaker
         out RootMotionBakeResult result,
         out RootMotionBakeDiagnostic diagnostic)
     {
+        return TryBake(
+            clip,
+            RootMotionBakeSettings.FromLegacy(config),
+            config,
+            out result,
+            out diagnostic);
+    }
+
+    public static bool TryBake(
+        AnimationClip clip,
+        RootMotionBakeSettings settings,
+        out RootMotionBakeResult result,
+        out RootMotionBakeDiagnostic diagnostic)
+    {
+        return TryBake(clip, settings, null, out result, out diagnostic);
+    }
+
+    private static bool TryBake(
+        AnimationClip clip,
+        RootMotionBakeSettings settings,
+        AnimationConfig legacyConfig,
+        out RootMotionBakeResult result,
+        out RootMotionBakeDiagnostic diagnostic)
+    {
         result = null;
         diagnostic = default;
 
@@ -37,13 +61,13 @@ public static class RootMotionBaker
             return false;
         }
 
-        if (config == null)
+        if (settings == null)
         {
-            diagnostic = new RootMotionBakeDiagnostic(RootMotionBakeDiagnosticCode.MissingAnimationConfig, "AnimationConfig is missing.");
+            diagnostic = new RootMotionBakeDiagnostic(RootMotionBakeDiagnosticCode.MissingBakeSettings, "Root Motion Bake Settings are missing.");
             return false;
         }
 
-        RootMotionBakeSettingsValidationResult settingsValidation = config.ValidateRootMotionBakeSettings();
+        RootMotionBakeSettingsValidationResult settingsValidation = settings.Validate();
         if (!settingsValidation.IsValid)
         {
             diagnostic = new RootMotionBakeDiagnostic(
@@ -62,8 +86,8 @@ public static class RootMotionBaker
                 HideFlags.HideAndDontSave);
             previewRoot.SetActive(false);
 
-            GameObject instance = Object.Instantiate(config.RootMotionReferenceRigPrefab, previewRoot.transform, false);
-            instance.name = config.RootMotionReferenceRigPrefab.name;
+            GameObject instance = Object.Instantiate(settings.ReferenceRigPrefab, previewRoot.transform, false);
+            instance.name = settings.ReferenceRigPrefab.name;
             instance.hideFlags = HideFlags.HideAndDontSave;
             instance.transform.localPosition = Vector3.zero;
             instance.transform.localRotation = Quaternion.identity;
@@ -120,7 +144,7 @@ public static class RootMotionBaker
             var cumulativeRotations = new List<Quaternion> { Quaternion.identity };
 
             double duration = clip.length;
-            double sampleInterval = 1d / config.RootMotionSampleRate;
+            double sampleInterval = 1d / settings.SampleRate;
             double currentTime = 0d;
             int sampleIndex = 1;
 
@@ -164,15 +188,25 @@ public static class RootMotionBaker
                 return false;
             }
 
-            result = new RootMotionBakeResult(
-                clip,
-                config,
-                CurrentBakerVersion,
-                config.RootMotionSampleRate,
-                clip.length,
-                sampleTimes,
-                cumulativePositions,
-                cumulativeRotations);
+            result = legacyConfig != null
+                ? new RootMotionBakeResult(
+                    clip,
+                    legacyConfig,
+                    CurrentBakerVersion,
+                    settings.SampleRate,
+                    clip.length,
+                    sampleTimes,
+                    cumulativePositions,
+                    cumulativeRotations)
+                : new RootMotionBakeResult(
+                    clip,
+                    settings,
+                    CurrentBakerVersion,
+                    settings.SampleRate,
+                    clip.length,
+                    sampleTimes,
+                    cumulativePositions,
+                    cumulativeRotations);
             diagnostic = RootMotionBakeDiagnostic.Success;
             return true;
         }
@@ -234,6 +268,7 @@ public enum RootMotionBakeDiagnosticCode
     MissingAnimationClip,
     InvalidAnimationClipDuration,
     MissingAnimationConfig,
+    MissingBakeSettings,
     InvalidBakeSettings,
     InvalidInstantiatedRig,
     EvaluationDidNotReachDuration,

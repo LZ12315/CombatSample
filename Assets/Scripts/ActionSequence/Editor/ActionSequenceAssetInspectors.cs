@@ -102,6 +102,7 @@ internal sealed class ActionSequenceInspectorV2Builder : IDisposable
         DrawSelectedContext(root, document);
         DrawSequenceSection(root, document);
         DrawActionAssetSettings(root);
+        DrawActionV1Timeline(root);
         DrawDebugRawData(root, document);
         BindRoot();
     }
@@ -281,6 +282,24 @@ internal sealed class ActionSequenceInspectorV2Builder : IDisposable
         AddProperty(parent, "_timelineAsset");
         AddProperty(parent, "_playbackBackend");
         DrawActionAssetSettings(parent);
+        DrawActionV1Timeline(parent);
+    }
+
+    private void DrawActionV1Timeline(VisualElement parent)
+    {
+        if (!(target is ActionAsset))
+            return;
+
+        SerializedProperty timeline = serializedObject.FindProperty("_actionTimeline");
+        if (timeline == null)
+            return;
+
+        var foldout = new Foldout { text = "Action V1 Timeline", value = true };
+        foldout.Add(new HelpBox(
+            "Stage 1 authoring data. It is serialized and validated here, but current Legacy/Sequence playback does not read it yet.",
+            HelpBoxMessageType.Info));
+        foldout.Add(new PropertyField(timeline.Copy()));
+        parent.Add(foldout);
     }
 
     private void DrawDebugRawData(VisualElement parent, ActionSequenceSerializedDocument document)

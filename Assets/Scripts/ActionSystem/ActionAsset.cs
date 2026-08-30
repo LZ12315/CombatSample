@@ -25,6 +25,10 @@ public enum ActionPlaybackBackend
 
 public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
 {
+    [Header("Action V1 Authoring")]
+    [SerializeField, Tooltip("Inline Action V1 timeline data. It is authoring-only until the ActionRuntime migration is cut over.")]
+    private ActionTimelineData _actionTimeline = new ActionTimelineData();
+
     [Header("Core")]
     [SerializeField, Tooltip("Main Timeline asset")]
     private TimelineAsset _timelineAsset;
@@ -87,6 +91,12 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
         get => _timelineAsset;
         set { if (_timelineAsset != value) _timelineAsset = value; }
     }
+
+    /// <summary>
+    /// Inline Action V1 authoring source. Stage 1 deliberately does not connect
+    /// this data to the legacy Timeline/Sequence playback backends.
+    /// </summary>
+    public ActionTimelineData Timeline => _actionTimeline;
 
     public ActionPlaybackBackend PlaybackBackend => _playbackBackend;
     public ActionSequenceData SequenceData => _sequenceData;
@@ -348,23 +358,27 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
     {
         EnsureLists();
         EnsureSequenceData();
+        EnsureActionTimeline();
     }
 
     private void OnValidate()
     {
         EnsureLists();
         EnsureSequenceData();
+        EnsureActionTimeline();
     }
 
     public void OnBeforeSerialize()
     {
         EnsureSequenceData();
+        EnsureActionTimeline();
     }
 
     public void OnAfterDeserialize()
     {
         EnsureLists();
         EnsureSequenceData();
+        EnsureActionTimeline();
         MigrateLegacySelfTag();
     }
 
@@ -386,6 +400,12 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
             _sequenceData = new ActionSequenceData();
 
         _sequenceData.Normalize();
+    }
+
+    private void EnsureActionTimeline()
+    {
+        if (_actionTimeline == null)
+            _actionTimeline = new ActionTimelineData();
     }
 
     private void MigrateLegacySelfTag()

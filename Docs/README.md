@@ -32,6 +32,9 @@ These documents describe verified current repository/editor state and remain cur
 - [Scene Ownership Baseline](Current/Scene_Ownership_Baseline_2026-08-02.md) — current release and targeted validation scene ownership.
 - [Actor Motion v3 Validation](Current/Actor_Motion_Validation.md) — current Translation, Rotation, Root Motion, time-domain and lifecycle validation contract.
 - [E3 v3 Validation Handoff](Current/CombatSample_E3_v3_Validation_Handoff_2026-08-29_zh-CN.md) — completed E3 static, asset and differential acceptance evidence.
+- [Action V1 Stage 0 Baseline & Inventory](Current/CombatSample_Action_V1_Stage_0_Baseline_Inventory_2026-08-30_zh-CN.md) — Action V1 migration baseline, Legacy dependency inventory and ActionAsset migration inventory; Unity repeatability recheck completed.
+- [Action V1 Stage 1 Handoff](Current/CombatSample_Action_V1_Stage_1_Handoff_2026-08-30_zh-CN.md) — new inline authoring data, validation and AnimationAsset bake implementation; Unity workstation acceptance confirmed.
+- [Action V1 Stage 2 Handoff](Current/CombatSample_Action_V1_Stage_2_Handoff_2026-08-30_zh-CN.md) — ActionRuntime and fixed-frame Scheduler side path; not connected to production ActionPlayer or gameplay domains.
 - [ActionSequence Editor Design Spec](Current/ActionSequence_Editor_Design_Spec.md) — current implemented ActionSequence fixed-frame editor product-language baseline. This becomes historical when Stage 7 replaces the old editor.
 - [ActionSequence Editor V2 Architecture](Current/ActionSequence_Editor_V2_Architecture.md) — current implemented UI Toolkit editor architecture. This becomes historical when Stage 7 replaces the old editor.
 - [ActionSequence 编辑器 V2 架构（中文）](Current/ActionSequence_Editor_V2_Architecture_zh-CN.md) — current implemented V2 editor architecture, Chinese edition. This becomes historical when Stage 7 replaces the old editor.

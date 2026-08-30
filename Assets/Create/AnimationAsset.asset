@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2fb589b8fd064b95b2feff521d1c2c92, type: 3}
+  m_Name: AnimationAsset
+  m_EditorClassIdentifier: 
+  _clip: {fileID: 0}
+  _hasRootMotionData: 0
+  _rootMotionData:
+    sourceClip: {fileID: 0}
+    sampleRate: 60
+    duration: 0
+    bakerVersion: 0
+    dependencyHash: 
+    sampleTimes: []
+    cumulativePositions: []
+    cumulativeRotations: []
+  _rootMotionBakeSettings:
+    _referenceRigPrefab: {fileID: 0}
+    _sampleRate: 60
+    _positionTolerance: 0.001
+    _rotationToleranceDegrees: 0.1

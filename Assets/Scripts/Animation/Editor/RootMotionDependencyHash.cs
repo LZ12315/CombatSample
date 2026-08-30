@@ -12,6 +12,15 @@ public static class RootMotionDependencyHash
         out string dependencyHash,
         out string diagnostic)
     {
+        return TryCompute(clip, RootMotionBakeSettings.FromLegacy(config), out dependencyHash, out diagnostic);
+    }
+
+    public static bool TryCompute(
+        AnimationClip clip,
+        RootMotionBakeSettings settings,
+        out string dependencyHash,
+        out string diagnostic)
+    {
         dependencyHash = string.Empty;
         diagnostic = string.Empty;
 
@@ -21,32 +30,32 @@ public static class RootMotionDependencyHash
             return false;
         }
 
-        if (config == null)
+        if (settings == null)
         {
-            diagnostic = "AnimationConfig is missing.";
+            diagnostic = "Root Motion Bake Settings are missing.";
             return false;
         }
 
-        RootMotionBakeSettingsValidationResult validation = config.ValidateRootMotionBakeSettings();
+        RootMotionBakeSettingsValidationResult validation = settings.Validate();
         if (!validation.IsValid)
         {
             diagnostic = JoinSettingsIssues(validation);
             return false;
         }
 
-        config.TryGetRootMotionAnimator(out Animator animator);
+        settings.TryGetAnimator(out Animator animator);
         var material = new StringBuilder(512);
         material.Append("RootMotionBakerVersion=").Append(RootMotionBaker.CurrentBakerVersion).Append('\n');
-        material.Append("SampleRate=").Append(config.RootMotionSampleRate).Append('\n');
+        material.Append("SampleRate=").Append(settings.SampleRate).Append('\n');
         material.Append("PositionTolerance=")
-            .Append(config.RootMotionPositionTolerance.ToString("R", CultureInfo.InvariantCulture)).Append('\n');
+            .Append(settings.PositionTolerance.ToString("R", CultureInfo.InvariantCulture)).Append('\n');
         material.Append("RotationTolerance=")
-            .Append(config.RootMotionRotationToleranceDegrees.ToString("R", CultureInfo.InvariantCulture)).Append('\n');
+            .Append(settings.RotationToleranceDegrees.ToString("R", CultureInfo.InvariantCulture)).Append('\n');
         if (!AppendAssetIdentity(material, "Clip", clip, out diagnostic))
             return false;
         material.Append("ClipLength=").Append(clip.length.ToString("R", CultureInfo.InvariantCulture)).Append('\n');
         material.Append("ClipFrameRate=").Append(clip.frameRate.ToString("R", CultureInfo.InvariantCulture)).Append('\n');
-        if (!AppendAssetIdentity(material, "ReferenceRig", config.RootMotionReferenceRigPrefab, out diagnostic)
+        if (!AppendAssetIdentity(material, "ReferenceRig", settings.ReferenceRigPrefab, out diagnostic)
             || !AppendAssetIdentity(material, "Avatar", animator != null ? animator.avatar : null, out diagnostic))
         {
             return false;

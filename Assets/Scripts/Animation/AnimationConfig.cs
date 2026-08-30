@@ -111,75 +111,12 @@ public sealed class AnimationConfig : ScriptableObject
 #if UNITY_EDITOR
     public RootMotionBakeSettingsValidationResult ValidateRootMotionBakeSettings()
     {
-        var result = new RootMotionBakeSettingsValidationResult();
-
-        if (rootMotionSampleRate <= 0)
-            result.Add(RootMotionBakeSettingsValidationCode.InvalidSampleRate, "Sample rate must be greater than zero.");
-
-        if (!IsFinite(rootMotionPositionTolerance) || rootMotionPositionTolerance < 0f)
-            result.Add(RootMotionBakeSettingsValidationCode.InvalidPositionTolerance, "Position tolerance must be finite and non-negative.");
-
-        if (!IsFinite(rootMotionRotationToleranceDegrees) || rootMotionRotationToleranceDegrees < 0f)
-            result.Add(RootMotionBakeSettingsValidationCode.InvalidRotationTolerance, "Rotation tolerance must be finite and non-negative.");
-
-        if (rootMotionReferenceRigPrefab == null)
-        {
-            result.Add(RootMotionBakeSettingsValidationCode.MissingReferenceRig, "Reference Rig Prefab is missing.");
-            return result;
-        }
-
-        Animator[] animators = rootMotionReferenceRigPrefab.GetComponentsInChildren<Animator>(true);
-        if (animators.Length == 0)
-        {
-            result.Add(RootMotionBakeSettingsValidationCode.MissingAnimator, "Reference Rig must contain one Animator.");
-            return result;
-        }
-
-        if (animators.Length != 1)
-        {
-            result.Add(
-                RootMotionBakeSettingsValidationCode.MultipleAnimators,
-                $"Reference Rig must contain exactly one Animator, but found {animators.Length}.");
-            return result;
-        }
-
-        Animator animator = animators[0];
-        if (animator.avatar == null || !animator.avatar.isValid)
-            result.Add(RootMotionBakeSettingsValidationCode.InvalidAvatar, "Reference Animator must use a valid Avatar.");
-
-        Vector3 scale = animator.transform.lossyScale;
-        if (!ApproximatelyOne(scale.x) || !ApproximatelyOne(scale.y) || !ApproximatelyOne(scale.z))
-        {
-            result.Add(
-                RootMotionBakeSettingsValidationCode.NonUnitAnimatorScale,
-                $"Reference Animator must have unit world scale, but found {scale}.");
-        }
-
-        MonoBehaviour[] behaviours = rootMotionReferenceRigPrefab.GetComponentsInChildren<MonoBehaviour>(true);
-        for (int i = 0; i < behaviours.Length; i++)
-        {
-            MonoBehaviour behaviour = behaviours[i];
-            string typeName = behaviour != null ? behaviour.GetType().Name : "Missing Script";
-            result.Add(
-                RootMotionBakeSettingsValidationCode.ContainsMonoBehaviour,
-                $"Reference Rig must be animation-only and cannot contain {typeName}.");
-        }
-
-        return result;
+        return RootMotionBakeSettings.FromLegacy(this).Validate();
     }
 
     public bool TryGetRootMotionAnimator(out Animator animator)
     {
-        animator = null;
-        if (rootMotionReferenceRigPrefab == null)
-            return false;
-
-        Animator[] animators = rootMotionReferenceRigPrefab.GetComponentsInChildren<Animator>(true);
-        if (animators.Length != 1)
-            return false;
-
-        animator = animators[0];
-        return true;
+        return RootMotionBakeSettings.FromLegacy(this).TryGetAnimator(out animator);
     }
 
     public void EditorSetRootMotionBakeSettings(
@@ -202,15 +139,6 @@ public sealed class AnimationConfig : ScriptableObject
         InvalidateLookup();
     }
 
-    private static bool ApproximatelyOne(float value)
-    {
-        return Mathf.Abs(value - 1f) <= 1e-4f;
-    }
-
-    private static bool IsFinite(float value)
-    {
-        return !float.IsNaN(value) && !float.IsInfinity(value);
-    }
 #endif
 
     private void OnEnable()

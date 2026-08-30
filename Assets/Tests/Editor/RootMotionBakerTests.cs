@@ -68,6 +68,25 @@ public sealed class RootMotionBakerTests
     }
 
     [Test]
+    public void NewBakeSettings_ProduceTheSameSamplingContractAsLegacyConfig()
+    {
+        GameObject rig = CreateGenericReferenceRig();
+        AnimationConfig config = CreateConfig(rig, 10);
+        AnimationClip clip = CreateRootMotionClip(1f, 2f, 90f);
+
+        Assert.IsTrue(RootMotionBaker.TryBake(clip, config, out RootMotionBakeResult legacy, out RootMotionBakeDiagnostic legacyDiagnostic), legacyDiagnostic.Message);
+        RootMotionBakeSettings settings = RootMotionBakeSettings.FromLegacy(config);
+        Assert.IsTrue(RootMotionBaker.TryBake(clip, settings, out RootMotionBakeResult current, out RootMotionBakeDiagnostic currentDiagnostic), currentDiagnostic.Message);
+
+        CollectionAssert.AreEqual(legacy.SampleTimes, current.SampleTimes);
+        CollectionAssert.AreEqual(legacy.CumulativePositions, current.CumulativePositions);
+        CollectionAssert.AreEqual(legacy.CumulativeRotations, current.CumulativeRotations);
+        Assert.IsTrue(RootMotionBakeValidator.TryValidate(current, out RootMotionValidationReport report, out RootMotionValidationDiagnostic validationDiagnostic), validationDiagnostic.Message);
+        Assert.IsTrue(report.IsValid, report.Summary);
+        AssertNoPreviewRoots();
+    }
+
+    [Test]
     public void Validator_RejectsTamperedSyntheticBake()
     {
         GameObject rig = CreateGenericReferenceRig();
