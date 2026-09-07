@@ -130,10 +130,20 @@ public sealed class ActionAuthoringDataTests
         Assert.IsFalse(validation.IsValid);
         Assert.IsTrue(System.Array.Exists(
             System.Linq.Enumerable.ToArray(validation.Issues),
-            issue => issue.Code == ActionAuthoringValidationCode.InvalidTiming));
+            issue => issue.Code == ActionAuthoringValidationCode.InvalidTiming
+                && issue.AuthoringPath == "GameplayLanes[0].Items[0]"));
         Assert.IsTrue(System.Array.Exists(
             System.Linq.Enumerable.ToArray(validation.Issues),
-            issue => issue.Code == ActionAuthoringValidationCode.InvalidConfig));
+            issue => issue.Code == ActionAuthoringValidationCode.InvalidConfig
+                && issue.AuthoringPath == "GameplayLanes[0].Items[0]"));
+        Assert.IsTrue(System.Array.Exists(
+            System.Linq.Enumerable.ToArray(validation.Issues),
+            issue => issue.Code == ActionAuthoringValidationCode.MissingEditorId
+                && issue.AuthoringPath == "GameplayLanes[0]"));
+        Assert.IsTrue(System.Array.Exists(
+            System.Linq.Enumerable.ToArray(validation.Issues),
+            issue => issue.Code == ActionAuthoringValidationCode.MissingEditorId
+                && issue.AuthoringPath == "GameplayLanes[0].Items[0]"));
         Object.DestroyImmediate(asset);
     }
 }

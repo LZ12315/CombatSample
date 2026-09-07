@@ -133,8 +133,16 @@ public sealed class ActionRuntimeSchedulerTests
         GameplayLane lane = AddLane(asset);
         var point = new ProbePointItem(events, "snapshot", 1);
         lane.EditorItems.Add(point);
+        AnimationClip clip = new AnimationClip();
+        clip.SetCurve(
+            string.Empty,
+            typeof(Transform),
+            "m_LocalPosition.x",
+            AnimationCurve.Linear(0f, 0f, 1f, 1f));
+        AnimationAsset animationAsset = ScriptableObject.CreateInstance<AnimationAsset>();
+        animationAsset.EditorSetClip(clip);
         var segment = new AnimationSegment();
-        segment.EditorSetData(0, null, 0f, 2f / 60f, 1f);
+        segment.EditorSetData(0, animationAsset, 0f, 2f / 60f, 1f);
         asset.Timeline.EditorAnimationSegments.Add(segment);
         var runtime = new ActionRuntime(asset, null, ActionContext.None);
 
@@ -150,6 +158,23 @@ public sealed class ActionRuntimeSchedulerTests
         Assert.IsTrue(runtime.Advance());
         CollectionAssert.AreEqual(new[] { "snapshot:execute" }, events);
         runtime.Finish();
+        Destroy(animationAsset);
+        Destroy(clip);
+        Destroy(asset);
+    }
+
+    [Test]
+    public void RangeEnterFailure_AbortsThePartiallyEnteredRuntime()
+    {
+        var events = new List<string>();
+        ActionAsset asset = CreateAsset();
+        AddLane(asset).EditorItems.Add(new FailingEnterRangeItem(events));
+        var runtime = new ActionRuntime(asset, null, ActionContext.None);
+
+        Assert.Throws<InvalidOperationException>(() => runtime.Begin());
+        CollectionAssert.AreEqual(new[] { "enter", "abort" }, events);
+        Assert.AreEqual(ActionRuntimeState.Aborted, runtime.State);
+        Assert.AreEqual(ActionRuntimeTerminationResult.Aborted, runtime.TerminationResult);
         Destroy(asset);
     }
 
@@ -292,6 +317,37 @@ public sealed class ActionRuntimeSchedulerTests
         public void Tick(ActionRuntimeContext context, int localFrame) => _events.Add($"{_name}:tick:{localFrame}");
         public void Exit(ActionRuntimeContext context, ActionRangeExitReason reason) => _events.Add($"{_name}:exit:{reason}");
         public void Abort(ActionRuntimeContext context) => _events.Add($"{_name}:abort");
+    }
+
+    [Serializable]
+    private sealed class FailingEnterRangeItem : RangeGameplayItem
+    {
+        private readonly List<string> _events;
+
+        public FailingEnterRangeItem(List<string> events)
+        {
+            _events = events;
+            EditorSetTiming(0, 1);
+        }
+
+        protected internal override IActionRangeRuntime CreateRuntime() => new FailingEnterRangeRuntime(_events);
+    }
+
+    private sealed class FailingEnterRangeRuntime : IActionRangeRuntime
+    {
+        private readonly List<string> _events;
+
+        public FailingEnterRangeRuntime(List<string> events) => _events = events;
+
+        public void Enter(ActionRuntimeContext context)
+        {
+            _events.Add("enter");
+            throw new InvalidOperationException("Probe Enter failure.");
+        }
+
+        public void Tick(ActionRuntimeContext context, int localFrame) { }
+        public void Exit(ActionRuntimeContext context, ActionRangeExitReason reason) { }
+        public void Abort(ActionRuntimeContext context) => _events.Add("abort");
     }
 }
 #endif

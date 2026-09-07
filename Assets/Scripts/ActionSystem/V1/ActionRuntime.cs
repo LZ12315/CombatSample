@@ -51,11 +51,13 @@ public readonly struct ActionRuntimeContext
         Actor = actor;
         ActionContext = actionContext;
         Motor = actor != null ? actor.actorMotor : null;
+        HitBoxes = actor != null ? actor.HitBoxes : null;
     }
 
     public Actor Actor { get; }
     public ActionContext ActionContext { get; }
     public ActorMotor Motor { get; }
+    internal ActorHitBoxRuntime HitBoxes { get; }
 }
 
 /// <summary>Immutable timing data retained by a scheduler for one execution.</summary>
@@ -79,6 +81,19 @@ public readonly struct ActionRuntimeAnimationRecord
     public float SourceStartTime { get; }
     public float SourceEndTime { get; }
     public float PlayRate { get; }
+}
+
+/// <summary>One fixed-time clip sample resolved from a runtime animation snapshot.</summary>
+internal readonly struct ActionRuntimeAnimationSample
+{
+    internal ActionRuntimeAnimationSample(AnimationClip clip, float sourceTime)
+    {
+        Clip = clip;
+        SourceTime = sourceTime;
+    }
+
+    public AnimationClip Clip { get; }
+    public float SourceTime { get; }
 }
 
 /// <summary>
@@ -113,6 +128,81 @@ public sealed class ActionRuntimeScheduler
     public bool HasOpenFrame => _hasOpenFrame;
     public bool IsCompleted => _isCompleted;
     public IReadOnlyList<ActionRuntimeAnimationRecord> AnimationRecords => _animationRecords;
+
+    /// <summary>
+    /// Resolves the clip pose for the scheduler's immutable snapshot at its current
+    /// continuous action position. It has no animation-player side effects.
+    /// </summary>
+    internal bool TryResolveAnimationSample(out ActionRuntimeAnimationSample sample)
+    {
+        sample = default;
+        ActionRuntimeAnimationRecord previous = default;
+        bool hasPrevious = false;
+
+        for (int i = 0; i < _animationRecords.Count; i++)
+        {
+            ActionRuntimeAnimationRecord record = _animationRecords[i];
+            if (_continuousPosition >= record.StartFrame
+                && _continuousPosition < record.EndFrameExclusive)
+            {
+                double sourceTime = record.SourceStartTime
+                                    + (_continuousPosition - record.StartFrame)
+                                    / ActionTimelineData.FrameRate
+                                    * record.PlayRate;
+                sample = new ActionRuntimeAnimationSample(
+                    record.AnimationAsset.Clip,
+                    Mathf.Clamp((float)sourceTime, record.SourceStartTime, record.SourceEndTime));
+                return true;
+            }
+
+            if (_continuousPosition >= record.EndFrameExclusive
+                && (!hasPrevious || record.EndFrameExclusive > previous.EndFrameExclusive))
+            {
+                previous = record;
+                hasPrevious = true;
+            }
+        }
+
+        if (!hasPrevious)
+            return false;
+
+        sample = new ActionRuntimeAnimationSample(previous.AnimationAsset.Clip, previous.SourceEndTime);
+        return true;
+    }
+
+    /// <summary>Rejects malformed animation snapshots without modifying authoring data.</summary>
+    internal void ValidateAnimationSnapshot()
+    {
+        var ordered = new List<ActionRuntimeAnimationRecord>(_animationRecords);
+        ordered.Sort((left, right) => left.StartFrame.CompareTo(right.StartFrame));
+
+        int previousEndExclusive = -1;
+        for (int i = 0; i < ordered.Count; i++)
+        {
+            ActionRuntimeAnimationRecord record = ordered[i];
+            AnimationClip clip = record.AnimationAsset != null ? record.AnimationAsset.Clip : null;
+            if (record.StartFrame < 0
+                || record.EndFrameExclusive <= record.StartFrame
+                || clip == null
+                || !IsFinite(clip.length)
+                || clip.length <= 0f
+                || !IsFinite(record.SourceStartTime)
+                || !IsFinite(record.SourceEndTime)
+                || record.SourceStartTime < 0f
+                || record.SourceEndTime <= record.SourceStartTime
+                || record.SourceEndTime > clip.length + 1e-5f
+                || !IsFinite(record.PlayRate)
+                || record.PlayRate <= 0f)
+            {
+                throw new InvalidOperationException("ActionRuntime animation snapshot contains an invalid AnimationSegment.");
+            }
+
+            if (record.StartFrame < previousEndExclusive)
+                throw new InvalidOperationException("ActionRuntime animation snapshot contains overlapping AnimationSegments.");
+
+            previousEndExclusive = record.EndFrameExclusive;
+        }
+    }
 
     internal void Begin()
     {
@@ -211,8 +301,10 @@ public sealed class ActionRuntimeScheduler
         for (int i = 0; segments != null && i < segments.Count; i++)
         {
             AnimationSegment segment = segments[i];
-            if (segment != null)
-                _animationRecords.Add(new ActionRuntimeAnimationRecord(segment));
+            if (segment == null)
+                throw new InvalidOperationException($"ActionRuntime animation snapshot contains a null AnimationSegment at index {i}.");
+
+            _animationRecords.Add(new ActionRuntimeAnimationRecord(segment));
         }
 
         IReadOnlyList<GameplayLane> lanes = timeline.GameplayLanes;
@@ -266,11 +358,28 @@ public sealed class ActionRuntimeScheduler
             for (int i = 0; i < starts.Count; i++)
             {
                 RangeRecord record = starts[i];
-                IActionRangeRuntime runtime = record.Item.CreateRuntime();
+                IActionRangeRuntime runtime = record.Item.CreateRuntime(record.DurationFrames);
                 if (runtime == null)
                     continue;
 
-                runtime.Enter(_context);
+                try
+                {
+                    runtime.Enter(_context);
+                }
+                catch
+                {
+                    try
+                    {
+                        runtime.Abort(_context);
+                    }
+                    catch (Exception exception)
+                    {
+                        Debug.LogException(exception);
+                    }
+
+                    throw;
+                }
+
                 _activeRanges.Add(new ActiveRange(record, runtime));
             }
         }
@@ -323,6 +432,7 @@ public sealed class ActionRuntimeScheduler
         public RangeGameplayItem Item { get; }
         public int StartFrame { get; }
         public int EndFrameExclusive { get; }
+        public int DurationFrames => EndFrameExclusive - StartFrame;
     }
 
     private readonly struct ActiveRange
@@ -339,14 +449,16 @@ public sealed class ActionRuntimeScheduler
 }
 
 /// <summary>
-/// One V1 Action execution. This Stage 2 type is intentionally not yet bound
-/// to the existing ActionPlayer/Legacy playback chain.
+/// One V1 Action execution on the migration side path. It is intentionally not
+/// yet bound to the existing ActionPlayer/Legacy playback chain.
 /// </summary>
 public sealed class ActionRuntime
 {
     private readonly List<Tag> _acquiredSelfTags = new List<Tag>();
     private readonly Actor _actor;
     private readonly ActionContext _actionContext;
+    private ActorAnimation _actorAnimation;
+    private ActorAnimationActionOwner _animationOwner;
     private bool _paused;
     private float _speed = 1f;
 
@@ -382,11 +494,15 @@ public sealed class ActionRuntime
 
         try
         {
-            AcquireSelfTags();
+            ActionRuntimeItemRequirements.Validate(ActionAsset.Timeline, _actionContext);
             var context = new ActionRuntimeContext(_actor, _actionContext);
             Scheduler = new ActionRuntimeScheduler(ActionAsset.Timeline, context);
+            Scheduler.ValidateAnimationSnapshot();
+            AcquireSelfTags();
+            AcquireAnimationOwner();
             State = ActionRuntimeState.Running;
             Scheduler.Begin();
+            RefreshAnimationPose();
         }
         catch
         {
@@ -397,12 +513,14 @@ public sealed class ActionRuntime
 
     public bool Advance()
     {
-        if (!IsPlaying || _paused)
+        if (!IsPlaying)
             return false;
 
         try
         {
-            return Scheduler.Advance(_speed);
+            bool advanced = !_paused && Scheduler.Advance(_speed);
+            RefreshAnimationPose();
+            return advanced;
         }
         catch
         {
@@ -432,13 +550,25 @@ public sealed class ActionRuntime
 
     public bool Interrupt()
     {
-        if (!IsPlaying || !Scheduler.Interrupt())
+        if (!IsPlaying)
             return false;
 
-        State = ActionRuntimeState.Interrupted;
-        TerminationResult = ActionRuntimeTerminationResult.Interrupted;
-        ReleaseSelfTags();
-        return true;
+        try
+        {
+            if (!Scheduler.Interrupt())
+                return false;
+
+            State = ActionRuntimeState.Interrupted;
+            TerminationResult = ActionRuntimeTerminationResult.Interrupted;
+            ReleaseSelfTags();
+            ReleaseAnimationOwner();
+            return true;
+        }
+        catch
+        {
+            Abort();
+            throw;
+        }
     }
 
     public void Abort()
@@ -457,6 +587,7 @@ public sealed class ActionRuntime
             State = ActionRuntimeState.Aborted;
             TerminationResult = ActionRuntimeTerminationResult.Aborted;
             ReleaseSelfTags();
+            ReleaseAnimationOwner();
         }
     }
 
@@ -484,6 +615,52 @@ public sealed class ActionRuntime
         State = ActionRuntimeState.Completed;
         TerminationResult = ActionRuntimeTerminationResult.Completed;
         ReleaseSelfTags();
+        ReleaseAnimationOwner();
+    }
+
+    private void RefreshAnimationPose()
+    {
+        if (!_animationOwner.IsValid
+            || Scheduler == null
+            || !Scheduler.TryResolveAnimationSample(out ActionRuntimeAnimationSample sample))
+        {
+            return;
+        }
+
+        _actorAnimation?.SubmitActionClipPose(_animationOwner, sample.Clip, sample.SourceTime);
+    }
+
+    private void AcquireAnimationOwner()
+    {
+        if (_animationOwner.IsValid)
+            return;
+
+        _actorAnimation = ResolveActorAnimation();
+        if (_actorAnimation != null)
+            _animationOwner = _actorAnimation.BeginActionOverride();
+    }
+
+    private void ReleaseAnimationOwner()
+    {
+        if (!_animationOwner.IsValid)
+            return;
+
+        _actorAnimation?.EndActionOverride(_animationOwner);
+        _animationOwner = default;
+    }
+
+    private ActorAnimation ResolveActorAnimation()
+    {
+        if (_actorAnimation == null && _actor != null)
+        {
+            _actorAnimation = _actor.actorAnimation != null
+                ? _actor.actorAnimation
+                : _actor.GetComponent<ActorAnimation>();
+        }
+
+        return _actorAnimation != null && _actorAnimation.isActiveAndEnabled
+            ? _actorAnimation
+            : null;
     }
 
     private void AcquireSelfTags()

@@ -188,6 +188,12 @@ public abstract class RangeGameplayItem : GameplayItem
     /// </summary>
     protected internal virtual IActionRangeRuntime CreateRuntime() => null;
 
+    /// <summary>
+    /// Snapshot-aware factory used by the scheduler. Existing fixtures can
+    /// retain the zero-argument hook; production V1 ranges capture duration.
+    /// </summary>
+    protected internal virtual IActionRangeRuntime CreateRuntime(int durationFrames) => CreateRuntime();
+
 #if UNITY_EDITOR
     public void EditorSetTiming(int startFrame, int durationFrames)
     {
@@ -202,6 +208,7 @@ public sealed class ImpulseItem : PointGameplayItem
 {
     [SerializeField] private ImpulseItemConfig _config = new ImpulseItemConfig();
     public ImpulseItemConfig Config => _config;
+    protected internal override IActionPointRuntime CreateRuntime() => new ActionImpulseItemRuntime(_config);
 }
 
 [Serializable]
@@ -209,6 +216,8 @@ public sealed class HitBoxItem : RangeGameplayItem
 {
     [SerializeField] private HitBoxItemConfig _config = new HitBoxItemConfig();
     public HitBoxItemConfig Config => _config;
+    protected internal override IActionRangeRuntime CreateRuntime(int durationFrames) =>
+        new ActionHitBoxItemRuntime(_config, EditorId);
 }
 
 [Serializable]
@@ -216,6 +225,8 @@ public sealed class RootMotionItem : RangeGameplayItem
 {
     [SerializeField] private RootMotionItemConfig _config = new RootMotionItemConfig();
     public RootMotionItemConfig Config => _config;
+    protected internal override IActionRangeRuntime CreateRuntime(int durationFrames) =>
+        new ActionRootMotionItemRuntime(_config, durationFrames);
 }
 
 [Serializable]
@@ -223,6 +234,8 @@ public sealed class SelfRotationItem : RangeGameplayItem
 {
     [SerializeField] private SelfRotationItemConfig _config = new SelfRotationItemConfig();
     public SelfRotationItemConfig Config => _config;
+    protected internal override IActionRangeRuntime CreateRuntime(int durationFrames) =>
+        new ActionSelfRotationItemRuntime(_config, durationFrames);
 }
 
 [Serializable]
@@ -230,6 +243,8 @@ public sealed class VelocityOverrideItem : RangeGameplayItem
 {
     [SerializeField] private VelocityOverrideItemConfig _config = new VelocityOverrideItemConfig();
     public VelocityOverrideItemConfig Config => _config;
+    protected internal override IActionRangeRuntime CreateRuntime(int durationFrames) =>
+        new ActionVelocityOverrideItemRuntime(_config, durationFrames);
 }
 
 [Serializable]
@@ -237,6 +252,7 @@ public sealed class MotionPolicyItem : RangeGameplayItem
 {
     [SerializeField] private MotionPolicyItemConfig _config = new MotionPolicyItemConfig();
     public MotionPolicyItemConfig Config => _config;
+    protected internal override IActionRangeRuntime CreateRuntime() => new ActionMotionPolicyItemRuntime(_config);
 }
 
 [Serializable]
@@ -244,6 +260,7 @@ public sealed class TagItem : RangeGameplayItem
 {
     [SerializeField] private TagItemConfig _config = new TagItemConfig();
     public TagItemConfig Config => _config;
+    protected internal override IActionRangeRuntime CreateRuntime() => new ActionTagItemRuntime(_config);
 }
 
 [Serializable]

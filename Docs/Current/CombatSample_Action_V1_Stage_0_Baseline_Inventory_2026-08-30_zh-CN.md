@@ -1,6 +1,6 @@
 # CombatSample Action V1 Stage 0 — Baseline & Inventory
 
-> 状态：**Stage 0 静态清点完成；Unity 重复验证待人工执行**  
+> 状态：**Stage 0 Exit Criteria 与 Unity 基线复验均已通过**
 > 分支 / HEAD：`FrameWork` / `cdec51509ec8a8a237277a8ccbd3e45c5131c3ec`  
 > 记录日期：2026-08-30  
 > 实施依据：[Action Implementation Roadmap v1](../Proposals/CombatSample_Action_Implementation_Roadmap_v1_zh-CN.md) Stage 0  

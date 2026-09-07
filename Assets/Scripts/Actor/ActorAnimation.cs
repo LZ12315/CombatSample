@@ -27,6 +27,8 @@ public sealed class ActorAnimation : MonoBehaviour
     private AnimancerState _actionState;
     private string _baseStateKey;
     private string _actionStateKey;
+    private AnimationClip _actionStateClip;
+    private ActionStateSource _actionStateSource;
 
     public bool HasActiveActionOwner => _actionOwnerActive;
 
@@ -167,10 +169,14 @@ public sealed class ActorAnimation : MonoBehaviour
         if (_actionLayer == null)
             return false;
 
-        if (_actionState == null || !string.Equals(_actionStateKey, pose.AnimationKey, StringComparison.Ordinal))
+        if (_actionState == null
+            || _actionStateSource != ActionStateSource.LegacyTransition
+            || !string.Equals(_actionStateKey, pose.AnimationKey, StringComparison.Ordinal))
         {
             _actionState = _actionLayer.Play(transitionAsset.Transition);
             _actionStateKey = pose.AnimationKey;
+            _actionStateClip = null;
+            _actionStateSource = ActionStateSource.LegacyTransition;
         }
 
         if (_actionState == null)
@@ -179,6 +185,50 @@ public sealed class ActorAnimation : MonoBehaviour
         ApplyMixerParameter(_actionState, pose);
         _actionState.Speed = 0f;
         _actionState.Time = Mathf.Max(0f, pose.SampleTime);
+        _actionState.IsPlaying = true;
+        _hasActionPoseThisTick = true;
+        return true;
+    }
+
+    /// <summary>
+    /// Submits a V1 Action pose directly from an AnimationClip. This deliberately
+    /// bypasses AnimationConfig and Legacy action-animation keys.
+    /// </summary>
+    internal bool SubmitActionClipPose(ActorAnimationActionOwner owner, AnimationClip clip, float sampleTime)
+    {
+        if (!IsActiveOwner(owner) || clip == null || float.IsNaN(sampleTime) || float.IsInfinity(sampleTime))
+            return false;
+
+        if (_hasActionPoseThisTick)
+        {
+            Debug.LogError(
+                "[ActorAnimation] Multiple Action Pose submissions were received for one Actor in the same combat tick. " +
+                "Animation pose overlap is an authoring error.",
+                this);
+            return false;
+        }
+
+        ResolveDependencies();
+        ApplyManualUpdateMode();
+        EnsureLayers();
+        if (_actionLayer == null)
+            return false;
+
+        if (_actionState == null
+            || _actionStateSource != ActionStateSource.DirectClip
+            || _actionStateClip != clip)
+        {
+            _actionState = _actionLayer.Play(clip);
+            _actionStateKey = null;
+            _actionStateClip = clip;
+            _actionStateSource = ActionStateSource.DirectClip;
+        }
+
+        if (_actionState == null)
+            return false;
+
+        _actionState.Speed = 0f;
+        _actionState.Time = Mathf.Clamp(sampleTime, 0f, clip.length);
         _actionState.IsPlaying = true;
         _hasActionPoseThisTick = true;
         return true;
@@ -277,6 +327,8 @@ public sealed class ActorAnimation : MonoBehaviour
 
         _actionState = null;
         _actionStateKey = null;
+        _actionStateClip = null;
+        _actionStateSource = ActionStateSource.None;
     }
 
     private void ApplyMixerParameter(AnimancerState state, ActionAnimationPose pose)
@@ -289,6 +341,13 @@ public sealed class ActorAnimation : MonoBehaviour
         {
             mixer1D.Parameter = pose.FloatParameter;
         }
+    }
+
+    private enum ActionStateSource
+    {
+        None,
+        LegacyTransition,
+        DirectClip,
     }
 
     private void ApplyMixerParameter(AnimancerState state, LocomotionAnimationPose pose)

@@ -1,6 +1,6 @@
 # CombatSample Action V1 — Stage 1 Handoff
 
-> 状态：**Implementation complete; Unity acceptance pending**  
+> 状态：**Implementation and Unity workstation acceptance confirmed**
 > 日期：2026-08-30  
 > 前置：Stage 0 E3 baseline 已完成 Unity 人工复验  
 > 架构目标：[Action Final Architecture v1](../Proposals/CombatSample_Action_Final_Architecture_v1_zh-CN.md)  
@@ -39,3 +39,7 @@
 4. 运行 `MiHoYo_Release`，确认旧 Action、Root Motion、HitStop、cancel/switch 无行为差量和新增 Console 错误。
 
 完成以上验收前，不进入 Stage 2。
+
+## 5. Acceptance update
+
+The project owner subsequently confirmed the Stage 1 Inspector, serialization, AnimationAsset Bake/Rebuild, compilation, and existing-scene regression checks. The earlier pending checklist above is retained as the historical handoff procedure; it is no longer an open Stage 1 gate. A Stage 0–4 review on 2026-09-01 added an explicit Inspector validation summary and EditorId repair action, and strengthened config validation without changing serialized data.
