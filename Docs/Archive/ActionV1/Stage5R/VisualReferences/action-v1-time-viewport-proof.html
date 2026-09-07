@@ -1,0 +1,758 @@
+<div id="action-v1-zoom-proof" aria-label="Action V1 time viewport interaction proof">
+  <style>
+    #action-v1-zoom-proof {
+      color-scheme: light dark;
+      width: 100%;
+      overflow: hidden;
+      color: light-dark(#252a31, #d7dce4);
+      background: light-dark(#eef0f3, #1c1e22);
+      border: 1px solid light-dark(#c8ccd2, #454950);
+      border-radius: 6px;
+      font-family: Inter, "Segoe UI", system-ui, sans-serif;
+      user-select: none;
+    }
+    #action-v1-zoom-proof * { box-sizing: border-box; }
+    #action-v1-zoom-proof button { font: inherit; }
+    #action-v1-zoom-proof .az-titlebar {
+      height: 30px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 10px;
+      color: light-dark(#303640, #e0e4ea);
+      background: light-dark(#e0e3e7, #292c31);
+      border-bottom: 1px solid light-dark(#c4c8ce, #3e4248);
+      font-size: 12px;
+      font-weight: 500;
+    }
+    #action-v1-zoom-proof .az-app-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: light-dark(#778394, #8090a4);
+    }
+    #action-v1-zoom-proof .az-contextbar,
+    #action-v1-zoom-proof .az-transport {
+      min-height: 29px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 8px;
+      background: light-dark(#f3f4f6, #25282c);
+      border-bottom: 1px solid light-dark(#d0d4d9, #393d43);
+      font-size: 11px;
+    }
+    #action-v1-zoom-proof .az-context-name {
+      min-width: 0;
+      flex: 1;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      color: light-dark(#303640, #dce1e8);
+    }
+    #action-v1-zoom-proof .az-muted { color: light-dark(#737c89, #969fab); }
+    #action-v1-zoom-proof .az-spacer { flex: 1; }
+    #action-v1-zoom-proof .az-button {
+      min-height: 22px;
+      padding: 2px 8px;
+      color: light-dark(#3e4652, #c8ced7);
+      background: light-dark(#e5e8eb, #32363c);
+      border: 1px solid light-dark(#c4c9cf, #4b5058);
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    #action-v1-zoom-proof .az-button:hover { background: light-dark(#dce1e6, #3b4047); }
+    #action-v1-zoom-proof .az-transport .az-button { min-width: 27px; padding: 2px 6px; }
+    #action-v1-zoom-proof .az-readout {
+      min-width: 118px;
+      color: light-dark(#4d5663, #b9c1cc);
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+      white-space: nowrap;
+    }
+    #action-v1-zoom-proof .az-main {
+      display: grid;
+      grid-template-columns: 202px minmax(0, 1fr);
+      grid-template-rows: 25px auto;
+      min-height: 286px;
+    }
+    #action-v1-zoom-proof .az-corner {
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+      color: light-dark(#707986, #929ba8);
+      background: light-dark(#e8eaed, #282b30);
+      border-right: 1px solid light-dark(#c9cdd3, #41454c);
+      border-bottom: 1px solid light-dark(#c9cdd3, #41454c);
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: .06em;
+    }
+    #action-v1-zoom-proof .az-ruler {
+      position: relative;
+      overflow: hidden;
+      background: light-dark(#e9ebee, #24272b);
+      border-bottom: 1px solid light-dark(#c9cdd3, #41454c);
+      cursor: ew-resize;
+    }
+    #action-v1-zoom-proof .az-ruler-tick {
+      position: absolute;
+      bottom: 0;
+      width: 1px;
+      background: light-dark(#9da5af, #626a76);
+      pointer-events: none;
+    }
+    #action-v1-zoom-proof .az-ruler-tick.az-major { height: 8px; }
+    #action-v1-zoom-proof .az-ruler-tick.az-minor { height: 4px; opacity: .7; }
+    #action-v1-zoom-proof .az-ruler-label {
+      position: absolute;
+      top: 2px;
+      width: 64px;
+      color: light-dark(#6a7481, #919ba8);
+      font-size: 10px;
+      font-variant-numeric: tabular-nums;
+      pointer-events: none;
+    }
+    #action-v1-zoom-proof .az-headers {
+      background: light-dark(#e7e9ec, #25282d);
+      border-right: 1px solid light-dark(#c9cdd3, #41454c);
+    }
+    #action-v1-zoom-proof .az-header-row {
+      height: 42px;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 0 10px;
+      border-bottom: 1px solid light-dark(#cfd3d8, #373b41);
+    }
+    #action-v1-zoom-proof .az-header-row b {
+      display: block;
+      overflow: hidden;
+      color: light-dark(#333a44, #d9dee6);
+      font-size: 11px;
+      font-weight: 500;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+    #action-v1-zoom-proof .az-header-row small {
+      display: block;
+      margin-top: 2px;
+      color: light-dark(#7a838f, #8e98a5);
+      font-size: 10px;
+      white-space: nowrap;
+    }
+    #action-v1-zoom-proof .az-viewport {
+      position: relative;
+      overflow: hidden;
+      height: 252px;
+      background: light-dark(#f7f8f9, #202226);
+      cursor: default;
+      touch-action: none;
+    }
+    #action-v1-zoom-proof .az-grid,
+    #action-v1-zoom-proof .az-items,
+    #action-v1-zoom-proof .az-guides {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+    #action-v1-zoom-proof .az-grid-line {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background: light-dark(rgba(80,89,100,.12), rgba(148,157,170,.11));
+    }
+    #action-v1-zoom-proof .az-grid-line.az-major {
+      background: light-dark(rgba(80,89,100,.2), rgba(148,157,170,.18));
+    }
+    #action-v1-zoom-proof .az-row-line {
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: light-dark(#d5d9de, #34383e);
+    }
+    #action-v1-zoom-proof .az-after-duration {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      background: light-dark(rgba(78,97,118,.035), rgba(94,119,145,.055));
+      pointer-events: none;
+    }
+    #action-v1-zoom-proof .az-duration-line,
+    #action-v1-zoom-proof .az-horizon-line,
+    #action-v1-zoom-proof .az-playhead {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      pointer-events: none;
+    }
+    #action-v1-zoom-proof .az-duration-line { background: light-dark(#4e96bd, #58b6e8); }
+    #action-v1-zoom-proof .az-horizon-line { background: light-dark(#9aa2ad, #6f7884); opacity: .7; }
+    #action-v1-zoom-proof .az-playhead { width: 2px; background: light-dark(#d64c47, #ff625b); z-index: 9; }
+    #action-v1-zoom-proof .az-horizon-label {
+      position: absolute;
+      bottom: 4px;
+      transform: translateX(-100%);
+      padding-right: 4px;
+      color: light-dark(#78818d, #8f99a5);
+      font-size: 10px;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+    #action-v1-zoom-proof .az-item {
+      position: absolute;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      overflow: hidden;
+      padding: 0 7px;
+      color: light-dark(#f5f8fc, #e8edf4);
+      border: 1px solid light-dark(#42698d, #6187ae);
+      border-radius: 3px;
+      background: light-dark(#5d83a7, #345f8c);
+      font-size: 10px;
+      font-weight: 500;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      pointer-events: auto;
+    }
+    #action-v1-zoom-proof .az-item.az-gameplay {
+      border-color: light-dark(#826244, #a07952);
+      background: light-dark(#9a7651, #66482e);
+    }
+    #action-v1-zoom-proof .az-item.az-motion {
+      border-color: light-dark(#48745f, #60977d);
+      background: light-dark(#588b72, #315f4c);
+    }
+    #action-v1-zoom-proof .az-point {
+      position: absolute;
+      width: 16px;
+      height: 30px;
+      margin-left: -8px;
+      pointer-events: auto;
+      cursor: pointer;
+    }
+    #action-v1-zoom-proof .az-point::before {
+      content: "";
+      position: absolute;
+      left: 3px;
+      top: 10px;
+      width: 10px;
+      height: 10px;
+      transform: rotate(45deg);
+      background: light-dark(#c37b35, #dc8943);
+      border: 1px solid light-dark(#754419, #ffd09a);
+    }
+    #action-v1-zoom-proof .az-point:hover::before {
+      background: light-dark(#dd903f, #f3a95b);
+    }
+    #action-v1-zoom-proof .az-point span {
+      display: none;
+      position: absolute;
+      left: 15px;
+      top: 7px;
+      padding: 2px 5px;
+      color: light-dark(#61411e, #f0d1aa);
+      background: light-dark(rgba(255,248,236,.96), rgba(38,32,25,.96));
+      border: 1px solid light-dark(#d4ad78, #79512d);
+      border-radius: 3px;
+      font-size: 10px;
+      white-space: nowrap;
+    }
+    #action-v1-zoom-proof .az-point:hover span { display: block; }
+    #action-v1-zoom-proof .az-navigator-wrap {
+      grid-column: 1 / -1;
+      min-height: 38px;
+      display: grid;
+      grid-template-columns: 202px minmax(0, 1fr);
+      background: light-dark(#e7e9ec, #25282d);
+      border-top: 1px solid light-dark(#c6cbd1, #3e4248);
+    }
+    #action-v1-zoom-proof .az-nav-caption {
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+      color: light-dark(#717a86, #929ba7);
+      border-right: 1px solid light-dark(#c9cdd3, #41454c);
+      font-size: 10px;
+    }
+    #action-v1-zoom-proof .az-navigator {
+      position: relative;
+      height: 16px;
+      margin: 10px 9px;
+      background: light-dark(#d2d6db, #191b1f);
+      border-radius: 2px;
+      touch-action: none;
+    }
+    #action-v1-zoom-proof .az-nav-horizon {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      background: light-dark(rgba(73,111,146,.14), rgba(73,132,181,.18));
+      pointer-events: none;
+    }
+    #action-v1-zoom-proof .az-nav-window {
+      position: absolute;
+      top: 2px;
+      bottom: 2px;
+      min-width: 18px;
+      background: light-dark(#8795a5, #657587);
+      border-radius: 2px;
+      cursor: grab;
+    }
+    #action-v1-zoom-proof .az-nav-window:active { cursor: grabbing; }
+    #action-v1-zoom-proof .az-nav-handle {
+      position: absolute;
+      top: -2px;
+      bottom: -2px;
+      width: 8px;
+      background: light-dark(#687789, #93a2b3);
+      border-radius: 2px;
+      cursor: ew-resize;
+    }
+    #action-v1-zoom-proof .az-nav-handle.az-left { left: 0; }
+    #action-v1-zoom-proof .az-nav-handle.az-right { right: 0; }
+    #action-v1-zoom-proof .az-status {
+      min-height: 27px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 4px 9px;
+      color: light-dark(#68717e, #959eaa);
+      background: light-dark(#f0f2f4, #282b2f);
+      border-top: 1px solid light-dark(#d0d4d9, #3c4046);
+      font-size: 10px;
+    }
+    #action-v1-zoom-proof .az-status-output {
+      color: light-dark(#39424e, #c8cfd8);
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    #action-v1-zoom-proof .az-input-help { margin-left: auto; white-space: nowrap; }
+    #action-v1-zoom-proof.az-panning .az-viewport { cursor: grabbing; }
+    @media (max-width: 620px) {
+      #action-v1-zoom-proof .az-main { grid-template-columns: 142px minmax(0, 1fr); }
+      #action-v1-zoom-proof .az-navigator-wrap { grid-template-columns: 142px minmax(0, 1fr); }
+      #action-v1-zoom-proof .az-header-row small,
+      #action-v1-zoom-proof .az-input-help { display: none; }
+      #action-v1-zoom-proof .az-readout { min-width: 0; }
+    }
+    @media (max-width: 420px) {
+      #action-v1-zoom-proof .az-main { grid-template-columns: 108px minmax(0, 1fr); }
+      #action-v1-zoom-proof .az-navigator-wrap { grid-template-columns: 108px minmax(0, 1fr); }
+      #action-v1-zoom-proof .az-contextbar .az-muted,
+      #action-v1-zoom-proof .az-nav-caption { overflow: hidden; white-space: nowrap; }
+      #action-v1-zoom-proof .az-transport { flex-wrap: wrap; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #action-v1-zoom-proof * { scroll-behavior: auto; }
+    }
+  </style>
+
+  <div class="az-titlebar"><span class="az-app-dot"></span>Action Timeline · Time Viewport Proof</div>
+  <div class="az-contextbar">
+    <span class="az-context-name">Attack_Light_01 (Action Asset)</span>
+    <span class="az-muted">60 FPS · Duration 60 · Horizon 90</span>
+  </div>
+  <div class="az-transport">
+    <button class="az-button" type="button" data-step="first" aria-label="First frame">|‹</button>
+    <button class="az-button" type="button" data-step="previous" aria-label="Previous frame">‹</button>
+    <button class="az-button" type="button" data-step="next" aria-label="Next frame">›</button>
+    <button class="az-button" type="button" data-step="last" aria-label="Last frame">›|</button>
+    <button class="az-button" type="button" data-fit>Fit</button>
+    <span class="az-spacer"></span>
+    <span class="az-readout" data-readout>Frame 14 · 0–90</span>
+  </div>
+
+  <div class="az-main">
+    <div class="az-corner">LANES</div>
+    <div class="az-ruler" data-ruler aria-label="Timeline ruler. Drag to scrub."></div>
+    <div class="az-headers">
+      <div class="az-header-row"><div><b>Animation</b><small>POSE</small></div></div>
+      <div class="az-header-row"><div><b>Movement</b><small>2 items</small></div></div>
+      <div class="az-header-row"><div><b>Combat</b><small>3 items</small></div></div>
+      <div class="az-header-row"><div><b>State</b><small>2 items</small></div></div>
+      <div class="az-header-row"><div><b>Events</b><small>3 points</small></div></div>
+      <div class="az-header-row"><div><b>Recovery</b><small>1 item</small></div></div>
+    </div>
+    <div class="az-viewport" data-viewport aria-label="Timeline content. Use the mouse wheel to zoom at the pointer; middle-drag or Alt-drag to pan.">
+      <div class="az-after-duration" data-after-duration></div>
+      <div class="az-grid" data-grid></div>
+      <div class="az-items" data-items></div>
+      <div class="az-guides">
+        <div class="az-duration-line" data-duration-line></div>
+        <div class="az-horizon-line" data-horizon-line></div>
+        <div class="az-horizon-label" data-horizon-label>Horizon 90</div>
+        <div class="az-playhead" data-playhead></div>
+      </div>
+    </div>
+    <div class="az-navigator-wrap">
+      <div class="az-nav-caption">TIME RANGE</div>
+      <div class="az-navigator" data-navigator aria-label="Visible time range. Drag the body to pan or either edge to zoom.">
+        <div class="az-nav-horizon" data-nav-horizon></div>
+        <div class="az-nav-window" data-nav-window>
+          <span class="az-nav-handle az-left" data-nav-left></span>
+          <span class="az-nav-handle az-right" data-nav-right></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="az-status" aria-live="polite">
+    <span class="az-status-output" data-status>Visible 0.0–90.0 · 1.00× Fit</span>
+    <span class="az-input-help">Wheel zoom · Horizontal trackpad pan · MMB / Alt-drag pan · Navigator drag/resize</span>
+  </div>
+
+  <script>
+    (() => {
+      const root = document.getElementById('action-v1-zoom-proof');
+      const viewport = root.querySelector('[data-viewport]');
+      const ruler = root.querySelector('[data-ruler]');
+      const grid = root.querySelector('[data-grid]');
+      const itemsLayer = root.querySelector('[data-items]');
+      const navigator = root.querySelector('[data-navigator]');
+      const navWindow = root.querySelector('[data-nav-window]');
+      const navHorizon = root.querySelector('[data-nav-horizon]');
+      const durationLine = root.querySelector('[data-duration-line]');
+      const horizonLine = root.querySelector('[data-horizon-line]');
+      const horizonLabel = root.querySelector('[data-horizon-label]');
+      const afterDuration = root.querySelector('[data-after-duration]');
+      const playhead = root.querySelector('[data-playhead]');
+      const status = root.querySelector('[data-status]');
+      const readout = root.querySelector('[data-readout]');
+
+      const rowHeight = 42;
+      const edgeInset = 10;
+      const state = {
+        start: 0,
+        span: 90,
+        duration: 60,
+        horizon: 90,
+        domainEnd: 180,
+        minSpan: 4,
+        maxSpan: 180,
+        current: 14,
+        wheelResponse: 0.0018,
+        horizontalWheelPan: true
+      };
+      const entries = [
+        { row: 0, start: 0, end: 48, label: 'Attack_Slash_A', kind: 'animation' },
+        { row: 1, start: 0, end: 48, label: 'Root Motion', kind: 'motion' },
+        { row: 1, start: 32, end: 52, label: 'Self Rotation', kind: 'motion' },
+        { row: 2, start: 12, end: 27, label: 'HitBox', kind: 'gameplay' },
+        { row: 2, start: 30, end: 38, label: 'HitBox', kind: 'gameplay' },
+        { row: 2, frame: 8, label: 'Impulse', kind: 'point' },
+        { row: 3, start: 0, end: 34, label: 'Motion Policy', kind: 'gameplay' },
+        { row: 3, start: 20, end: 49, label: 'Velocity Override', kind: 'gameplay' },
+        { row: 4, frame: 14, label: 'Tag: CanCancel', kind: 'point' },
+        { row: 4, frame: 26, label: 'Tag: HitConfirm', kind: 'point' },
+        { row: 4, frame: 45, label: 'Impulse', kind: 'point' },
+        { row: 5, start: 48, end: 60, label: 'Recovery', kind: 'gameplay' }
+      ];
+      let panGesture = null;
+      let navGesture = null;
+      let scrubGesture = false;
+      let wheelFocus = null;
+
+      function usableWidth() {
+        return Math.max(1, viewport.clientWidth - edgeInset * 2);
+      }
+
+      function frameToX(frame) {
+        return edgeInset + (frame - state.start) / state.span * usableWidth();
+      }
+
+      function xToFrame(x) {
+        return state.start + (x - edgeInset) / usableWidth() * state.span;
+      }
+
+      function clampView(start, span) {
+        const nextSpan = Math.max(state.minSpan, Math.min(state.maxSpan, span));
+        const maxStart = Math.max(0, state.domainEnd - nextSpan);
+        return {
+          span: nextSpan,
+          start: Math.max(0, Math.min(maxStart, start))
+        };
+      }
+
+      function setView(start, span, message) {
+        const next = clampView(start, span);
+        state.start = next.start;
+        state.span = next.span;
+        render(message);
+      }
+
+      function chooseTickStep() {
+        const candidates = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600];
+        const pixelsPerFrame = usableWidth() / state.span;
+        return candidates.find(value => value * pixelsPerFrame >= 74) || candidates[candidates.length - 1];
+      }
+
+      function renderRulerAndGrid() {
+        ruler.replaceChildren();
+        grid.replaceChildren();
+        const major = chooseTickStep();
+        const minor = Math.max(1, major >= 5 ? major / 5 : 1);
+        const first = Math.max(0, Math.floor(state.start / minor) * minor);
+        const last = state.start + state.span;
+        for (let frame = first; frame <= last + minor; frame += minor) {
+          const x = frameToX(frame);
+          if (x < -2 || x > viewport.clientWidth + 2) continue;
+          const isMajor = Math.abs(frame / major - Math.round(frame / major)) < 0.0001;
+          const rulerTick = document.createElement('span');
+          rulerTick.className = `az-ruler-tick ${isMajor ? 'az-major' : 'az-minor'}`;
+          rulerTick.style.left = `${x}px`;
+          ruler.appendChild(rulerTick);
+          const gridLine = document.createElement('span');
+          gridLine.className = `az-grid-line${isMajor ? ' az-major' : ''}`;
+          gridLine.style.left = `${x}px`;
+          grid.appendChild(gridLine);
+          if (isMajor) {
+            const label = document.createElement('span');
+            label.className = 'az-ruler-label';
+            label.style.left = `${x + 4}px`;
+            label.textContent = Math.round(frame).toString();
+            ruler.appendChild(label);
+          }
+        }
+        for (let row = 1; row <= 6; row += 1) {
+          const line = document.createElement('span');
+          line.className = 'az-row-line';
+          line.style.top = `${row * rowHeight}px`;
+          grid.appendChild(line);
+        }
+      }
+
+      function renderItems() {
+        itemsLayer.replaceChildren();
+        const viewportWidth = viewport.clientWidth;
+        for (const entry of entries) {
+          if (entry.kind === 'point') {
+            const x = frameToX(entry.frame);
+            if (x < -10 || x > viewportWidth + 10) continue;
+            const point = document.createElement('div');
+            point.className = 'az-point';
+            point.style.left = `${x}px`;
+            point.style.top = `${entry.row * rowHeight + 6}px`;
+            point.setAttribute('aria-label', `${entry.label} at frame ${entry.frame}`);
+            point.innerHTML = `<span>${entry.label} · F${entry.frame}</span>`;
+            itemsLayer.appendChild(point);
+            continue;
+          }
+          const left = Math.max(edgeInset, frameToX(entry.start));
+          const right = Math.min(viewportWidth - edgeInset, frameToX(entry.end));
+          if (right <= edgeInset || left >= viewportWidth - edgeInset || right <= left) continue;
+          const item = document.createElement('div');
+          item.className = `az-item${entry.kind === 'gameplay' ? ' az-gameplay' : entry.kind === 'motion' ? ' az-motion' : ''}`;
+          item.style.left = `${left}px`;
+          item.style.top = `${entry.row * rowHeight + 9}px`;
+          item.style.width = `${Math.max(2, right - left)}px`;
+          item.textContent = entry.label;
+          item.setAttribute('aria-label', `${entry.label}, frames ${entry.start} to ${entry.end}`);
+          itemsLayer.appendChild(item);
+        }
+      }
+
+      function positionGuide(element, frame, hideOutside) {
+        const x = frameToX(frame);
+        const outside = x < 0 || x > viewport.clientWidth;
+        element.style.display = hideOutside && outside ? 'none' : '';
+        element.style.left = `${Math.max(0, Math.min(viewport.clientWidth, x))}px`;
+        return x;
+      }
+
+      function renderGuides() {
+        const durationX = positionGuide(durationLine, state.duration, true);
+        positionGuide(horizonLine, state.horizon, true);
+        positionGuide(horizonLabel, state.horizon, true);
+        positionGuide(playhead, state.current, true);
+        const shadeLeft = Math.max(0, Math.min(viewport.clientWidth, durationX));
+        afterDuration.style.display = durationX >= viewport.clientWidth ? 'none' : '';
+        afterDuration.style.left = `${shadeLeft}px`;
+        afterDuration.style.width = `${Math.max(0, viewport.clientWidth - shadeLeft)}px`;
+      }
+
+      function renderNavigator() {
+        const width = Math.max(1, navigator.clientWidth);
+        const left = state.start / state.domainEnd * width;
+        const right = (state.start + state.span) / state.domainEnd * width;
+        navWindow.style.left = `${left}px`;
+        navWindow.style.width = `${Math.max(18, right - left)}px`;
+        navHorizon.style.width = `${state.horizon / state.domainEnd * 100}%`;
+      }
+
+      function render(message) {
+        renderRulerAndGrid();
+        renderItems();
+        renderGuides();
+        renderNavigator();
+        const end = state.start + state.span;
+        const fitScale = state.horizon / state.span;
+        status.textContent = message || `Visible ${state.start.toFixed(1)}–${end.toFixed(1)} · ${fitScale.toFixed(2)}× Fit`;
+        readout.textContent = `Frame ${state.current} · ${Math.round(state.start)}–${Math.round(end)}`;
+      }
+
+      function localX(event, element) {
+        return event.clientX - element.getBoundingClientRect().left;
+      }
+
+      function normalizeWheel(event) {
+        const scale = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? viewport.clientHeight : 1;
+        return { x: event.deltaX * scale, y: event.deltaY * scale };
+      }
+
+      function onWheel(event) {
+        const delta = normalizeWheel(event);
+        event.preventDefault();
+        event.stopPropagation();
+        const x = localX(event, viewport);
+        if (state.horizontalWheelPan && Math.abs(delta.x) > Math.abs(delta.y) && Math.abs(delta.x) > 0.1) {
+          const frameDelta = delta.x / usableWidth() * state.span;
+          setView(state.start + frameDelta, state.span, `Horizontal pan · Visible ${(state.start + frameDelta).toFixed(1)}–${(state.start + frameDelta + state.span).toFixed(1)}`);
+          wheelFocus = null;
+          return;
+        }
+        if (Math.abs(delta.y) < 0.01) return;
+        const now = performance.now();
+        if (!wheelFocus || now - wheelFocus.time > 220 || Math.abs(wheelFocus.x - x) > 1) {
+          wheelFocus = { x, frame: xToFrame(x), time: now };
+        } else {
+          wheelFocus.time = now;
+        }
+        const ratio = Math.max(0, Math.min(1, (x - edgeInset) / usableWidth()));
+        const factor = Math.exp(delta.y * state.wheelResponse);
+        const newSpan = Math.max(state.minSpan, Math.min(state.maxSpan, state.span * factor));
+        const newStart = wheelFocus.frame - ratio * newSpan;
+        setView(newStart, newSpan, `Wheel zoom · Anchor F${wheelFocus.frame.toFixed(2)} · ${newSpan.toFixed(1)} frames visible`);
+      }
+
+      function beginPan(event) {
+        const isMiddle = event.button === 1;
+        const isAltLeft = event.button === 0 && event.altKey;
+        if (!isMiddle && !isAltLeft) return;
+        event.preventDefault();
+        panGesture = { id: event.pointerId, x: event.clientX, start: state.start };
+        viewport.setPointerCapture(event.pointerId);
+        root.classList.add('az-panning');
+      }
+
+      function movePan(event) {
+        if (!panGesture || panGesture.id !== event.pointerId) return;
+        const deltaFrames = (event.clientX - panGesture.x) / usableWidth() * state.span;
+        setView(panGesture.start - deltaFrames, state.span, 'Pan · Time viewport moves without resizing the canvas');
+      }
+
+      function endPan(event) {
+        if (!panGesture || panGesture.id !== event.pointerId) return;
+        if (viewport.hasPointerCapture(event.pointerId)) viewport.releasePointerCapture(event.pointerId);
+        panGesture = null;
+        root.classList.remove('az-panning');
+        render();
+      }
+
+      function scrubAt(event) {
+        const frame = Math.round(Math.max(0, Math.min(state.duration - 1, xToFrame(localX(event, ruler)))));
+        state.current = frame;
+        render(`Scrub · Frame ${frame}`);
+      }
+
+      function beginScrub(event) {
+        if (event.button !== 0) return;
+        scrubGesture = true;
+        ruler.setPointerCapture(event.pointerId);
+        scrubAt(event);
+        event.preventDefault();
+      }
+
+      function moveScrub(event) {
+        if (!scrubGesture || !ruler.hasPointerCapture(event.pointerId)) return;
+        scrubAt(event);
+      }
+
+      function endScrub(event) {
+        if (!scrubGesture) return;
+        if (ruler.hasPointerCapture(event.pointerId)) ruler.releasePointerCapture(event.pointerId);
+        scrubGesture = false;
+        render();
+      }
+
+      function beginNavigator(event, mode) {
+        event.preventDefault();
+        event.stopPropagation();
+        navGesture = {
+          id: event.pointerId,
+          mode,
+          x: event.clientX,
+          start: state.start,
+          span: state.span,
+          end: state.start + state.span
+        };
+        navigator.setPointerCapture(event.pointerId);
+      }
+
+      function moveNavigator(event) {
+        if (!navGesture || navGesture.id !== event.pointerId) return;
+        const deltaFrames = (event.clientX - navGesture.x) / Math.max(1, navigator.clientWidth) * state.domainEnd;
+        if (navGesture.mode === 'pan') {
+          setView(navGesture.start + deltaFrames, navGesture.span, 'Navigator pan');
+        } else if (navGesture.mode === 'left') {
+          const newStart = Math.min(navGesture.end - state.minSpan, navGesture.start + deltaFrames);
+          setView(newStart, navGesture.end - newStart, 'Navigator left edge zoom');
+        } else {
+          const newEnd = Math.max(navGesture.start + state.minSpan, navGesture.end + deltaFrames);
+          setView(navGesture.start, newEnd - navGesture.start, 'Navigator right edge zoom');
+        }
+      }
+
+      function endNavigator(event) {
+        if (!navGesture || navGesture.id !== event.pointerId) return;
+        if (navigator.hasPointerCapture(event.pointerId)) navigator.releasePointerCapture(event.pointerId);
+        navGesture = null;
+        render();
+      }
+
+      viewport.addEventListener('wheel', onWheel, { passive: false });
+      viewport.addEventListener('pointerdown', beginPan);
+      viewport.addEventListener('pointermove', movePan);
+      viewport.addEventListener('pointerup', endPan);
+      viewport.addEventListener('pointercancel', endPan);
+      viewport.addEventListener('contextmenu', event => { if (event.altKey) event.preventDefault(); });
+      ruler.addEventListener('wheel', onWheel, { passive: false });
+      ruler.addEventListener('pointerdown', beginScrub);
+      ruler.addEventListener('pointermove', moveScrub);
+      ruler.addEventListener('pointerup', endScrub);
+      ruler.addEventListener('pointercancel', endScrub);
+      navWindow.addEventListener('pointerdown', event => {
+        if (event.target.matches('[data-nav-left]')) beginNavigator(event, 'left');
+        else if (event.target.matches('[data-nav-right]')) beginNavigator(event, 'right');
+        else beginNavigator(event, 'pan');
+      });
+      navigator.addEventListener('pointermove', moveNavigator);
+      navigator.addEventListener('pointerup', endNavigator);
+      navigator.addEventListener('pointercancel', endNavigator);
+
+      root.querySelector('[data-fit]').addEventListener('click', () => setView(0, state.horizon, 'Fit · Authoring horizon fills the viewport'));
+      root.querySelectorAll('[data-step]').forEach(button => button.addEventListener('click', () => {
+        const command = button.dataset.step;
+        if (command === 'first') state.current = 0;
+        if (command === 'previous') state.current = Math.max(0, state.current - 1);
+        if (command === 'next') state.current = Math.min(state.duration - 1, state.current + 1);
+        if (command === 'last') state.current = state.duration - 1;
+        render(`Navigate · Frame ${state.current}`);
+      }));
+
+      new ResizeObserver(() => render()).observe(viewport);
+      render();
+
+      if (globalThis.Tweak) {
+        const tweak = new Tweak({ container: root, onChange: () => render('Tuning updated') });
+        tweak.addSlider(state, 'wheelResponse', { label: 'Wheel response', min: 0.0008, max: 0.004, step: 0.0001, reference: 'timeViewport.wheelResponse' });
+        tweak.addToggle(state, 'horizontalWheelPan', { label: 'Horizontal trackpad pan', reference: 'timeViewport.horizontalWheelPan' });
+      }
+    })();
+  </script>
+</div>

@@ -35,6 +35,10 @@ These documents describe verified current repository/editor state and remain cur
 - [Action V1 Stage 0 Baseline & Inventory](Current/CombatSample_Action_V1_Stage_0_Baseline_Inventory_2026-08-30_zh-CN.md) — Action V1 migration baseline, Legacy dependency inventory and ActionAsset migration inventory; Unity repeatability recheck completed.
 - [Action V1 Stage 1 Handoff](Current/CombatSample_Action_V1_Stage_1_Handoff_2026-08-30_zh-CN.md) — new inline authoring data, validation and AnimationAsset bake implementation; Unity workstation acceptance confirmed.
 - [Action V1 Stage 2 Handoff](Current/CombatSample_Action_V1_Stage_2_Handoff_2026-08-30_zh-CN.md) — ActionRuntime and fixed-frame Scheduler side path; not connected to production ActionPlayer or gameplay domains.
+- [Action V1 Stage 3 Handoff](Current/CombatSample_Action_V1_Stage_3_Handoff_2026-09-01_zh-CN.md) — real V1 gameplay-item runtimes connected to existing receivers on the same side path; Unity workstation acceptance confirmed.
+- [Action V1 Stage 4 Handoff](Current/CombatSample_Action_V1_Stage_4_Handoff_2026-09-01_zh-CN.md) — V1 AnimationSegment pose sampling reaches ActorAnimation on the side path; no ActionPlayer or combat-loop cutover.
+- [Action V1 Stage 0–4 Review](Current/CombatSample_Action_V1_Stage_0_4_Review_2026-09-01_zh-CN.md) — architecture and implementation review, corrections, evidence, and remaining intentional boundaries before Stage 5.
+- [Action V1 Pre-Preview Editor Checkpoint](Current/CombatSample_Action_V1_Editor_PrePreview_Checkpoint_2026-09-08_zh-CN.md) — current verified boundary: Stage 0–4 plus accepted Timeline/Details are retained; Editor Preview is a non-running placeholder and its design is paused.
 - [ActionSequence Editor Design Spec](Current/ActionSequence_Editor_Design_Spec.md) — current implemented ActionSequence fixed-frame editor product-language baseline. This becomes historical when Stage 7 replaces the old editor.
 - [ActionSequence Editor V2 Architecture](Current/ActionSequence_Editor_V2_Architecture.md) — current implemented UI Toolkit editor architecture. This becomes historical when Stage 7 replaces the old editor.
 - [ActionSequence 编辑器 V2 架构（中文）](Current/ActionSequence_Editor_V2_Architecture_zh-CN.md) — current implemented V2 editor architecture, Chinese edition. This becomes historical when Stage 7 replaces the old editor.
@@ -43,9 +47,12 @@ These documents describe verified current repository/editor state and remain cur
 
 - [Action Final Architecture v1](Proposals/CombatSample_Action_Final_Architecture_v1_zh-CN.md) — frozen target for the new Action authoring / playback architecture.
 - [Action Implementation Roadmap v1](Proposals/CombatSample_Action_Implementation_Roadmap_v1_zh-CN.md) — active Stage 0–7 migration plan and acceptance criteria.
+- [Action V1 Stage 5 Editor Redesign](Proposals/CombatSample_Action_V1_Stage_5_Editor_Redesign_Draft_2026-09-01_zh-CN.md) — frozen remediation authority for the three-window editor information architecture and interaction contracts.
 - [ActionSequence Final Architecture v3](Proposals/CombatSample_ActionSequence_Final_Architecture_v3_zh-CN.md) — approved and implemented E3 baseline whose Domain / authority / phase rules remain in force during migration where explicitly preserved.
 
 Implementation convenience alone is not sufficient to reopen a frozen Action v1 rule or an E3 v3 Domain rule.
+
+Stage 5R.6 status correction (2026-09-08): both Preview implementations have been withdrawn from the active code path. Preview remains a requirement, but no archived implementation or P2 continuation is currently approved.
 
 ## Completed Migration / Archive References
 
@@ -53,6 +60,7 @@ Implementation convenience alone is not sufficient to reopen a frozen Action v1 
 - [E3 Pre-Design Checkpoint](Archive/CombatSample_E3_PreDesign_Checkpoint_zh-CN.md) — historical decision checkpoint consolidated by v3.
 - [v3 Source Audit](Archive/CombatSample_Final_v3_Source_Audit_zh-CN.md) — historical consolidation record.
 - [ActionSequence Final Architecture v2](Archive/CombatSample_ActionSequence_Final_Architecture_v2_zh-CN.md) — previous baseline superseded by v3.
+- [Action V1 Stage 5R Archive](Archive/ActionV1/Stage5R/) — completed Timeline/Details implementation records, the superseded original Stage 5 handoff, visual prototypes, open-source audit and withdrawn Preview experiments. Historical evidence only.
 - [Root Motion Final Design v1](Archive/CombatSample_RootMotion_Final_Design_v1.md) — historical Root Motion design source; retained bake/data principles were consolidated into later architecture.
 
 Other notable archived records include completed D5 / E1 / E2 implementation plans, the historical frame-table migration draft, older Actor Motion validation, Stage 0–7 retrospective, prototype editor audit, KCC migration/refactor reports and older project recommendations.

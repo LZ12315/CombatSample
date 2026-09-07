@@ -1,5 +1,6 @@
 #if UNITY_EDITOR
 using System;
+using System.Linq;
 using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine;
@@ -296,9 +297,57 @@ internal sealed class ActionSequenceInspectorV2Builder : IDisposable
 
         var foldout = new Foldout { text = "Action V1 Timeline", value = true };
         foldout.Add(new HelpBox(
-            "Stage 1 authoring data. It is serialized and validated here, but current Legacy/Sequence playback does not read it yet.",
+            "Action V1 authoring data. Use the dedicated Action Timeline and Details windows. Preview is currently paused; current Legacy/Sequence playback still does not read V1 authoring data.",
             HelpBoxMessageType.Info));
-        foldout.Add(new PropertyField(timeline.Copy()));
+
+        var actionAsset = (ActionAsset)target;
+        foldout.Add(new Button(() => ActionV1TimelineWindow.Open(actionAsset)) { text = "Open Action V1 Editor" });
+        foldout.Add(ReadOnly("Frame Rate", $"{ActionTimelineData.FrameRate} FPS (Fixed)"));
+        foldout.Add(ReadOnly("Duration Frames", Mathf.Max(1, actionAsset.Timeline?.DurationFrames ?? 1).ToString()));
+        ActionAuthoringValidationResult validation = ActionAuthoringValidator.Validate(actionAsset);
+        int identityIssues = validation.Issues.Count(issue => ActionV1ValidationIndex.IsIdentity(issue.Code));
+        int setupIssues = validation.Issues.Count(issue => ActionV1ValidationIndex.SeverityOf(issue.Code) == ActionV1ValidationSeverity.NeedsSetup);
+        int errors = validation.Issues.Count - identityIssues - setupIssues;
+        if (validation.IsValid)
+        {
+            foldout.Add(new HelpBox("Action V1 authoring validation passed.", HelpBoxMessageType.Info));
+        }
+        else
+        {
+            foldout.Add(new HelpBox(
+                $"Action V1 authoring: {identityIssues} identity block, {errors} error, {setupIssues} needs setup. " +
+                "Repair identity explicitly; edit other issues through the Action Timeline or Action Details window.",
+                identityIssues > 0 || errors > 0 ? HelpBoxMessageType.Error : HelpBoxMessageType.Warning));
+
+            int visibleIssueCount = Mathf.Min(8, validation.Issues.Count);
+            for (int i = 0; i < visibleIssueCount; i++)
+            {
+                ActionAuthoringValidationIssue issue = validation.Issues[i];
+                string path = string.IsNullOrEmpty(issue.AuthoringPath) ? "Timeline" : issue.AuthoringPath;
+                foldout.Add(new Label($"{path} · {issue.Code}: {issue.Message}"));
+            }
+            if (validation.Issues.Count > visibleIssueCount)
+                foldout.Add(new Label($"... {validation.Issues.Count - visibleIssueCount} more issue(s)"));
+        }
+
+        var repairIds = new Button(() =>
+        {
+            if (ActionV1EditorCommands.RepairEditorIds(actionAsset, out int repaired, out string message))
+            {
+                Debug.Log($"[Action V1 Authoring] {message} Asset: '{actionAsset.name}'.", actionAsset);
+            }
+            ScheduleRebuild();
+        })
+        {
+            text = identityIssues > 0
+                ? $"Repair {identityIssues} Missing / Malformed / Duplicate V1 Editor ID{(identityIssues == 1 ? string.Empty : "s")}"
+                : "V1 Editor IDs Are Valid",
+        };
+        repairIds.SetEnabled(identityIssues > 0);
+        repairIds.tooltip = identityIssues > 0
+            ? "Changes only damaged IDs in one Undo step. Other authoring data is preserved."
+            : "No missing, malformed, or duplicate V1 Editor IDs were found.";
+        foldout.Add(repairIds);
         parent.Add(foldout);
     }
 

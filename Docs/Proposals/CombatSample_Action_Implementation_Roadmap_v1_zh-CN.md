@@ -5,6 +5,8 @@
 > 日期：2026-08-30  
 > 计划路径：`Docs/Proposals/CombatSample_Action_Implementation_Roadmap_v1_zh-CN.md`
 
+> 2026-09-08 状态说明：Stage 0–4 与 Timeline / Details 已形成 [Preview 前编辑器检查点](../Current/CombatSample_Action_V1_Editor_PrePreview_Checkpoint_2026-09-08_zh-CN.md)。Editor Preview 实现已撤下并暂停重新设计，因此不得自动进入 Preview 后续切片、Stage 5R.7、Stage 6 或 Stage 7。
+
 ## 0. 文档目的与权威关系
 
 本文回答：

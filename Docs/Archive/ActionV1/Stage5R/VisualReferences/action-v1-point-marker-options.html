@@ -1,0 +1,129 @@
+<div id="action-point-compare" aria-label="Action V1 Point marker design comparison">
+  <style>
+    #action-point-compare { width: 100%; color: light-dark(#20242b, #d7dce5); font-family: Inter, "Segoe UI", sans-serif; }
+    #action-point-compare * { box-sizing: border-box; }
+    #action-point-compare .apc-window { width: 100%; overflow: hidden; background: light-dark(#eef0f3, #1d1f23); border: 1px solid light-dark(#c9cdd4, #454951); border-radius: 7px; box-shadow: 0 12px 30px light-dark(rgba(23,31,44,.12), rgba(0,0,0,.32)); }
+    #action-point-compare .apc-titlebar { height: 32px; display: flex; align-items: center; gap: 9px; padding: 0 11px; background: light-dark(#e2e5e9, #292c31); border-bottom: 1px solid light-dark(#c4c8cf, #3e4249); font-size: 12px; font-weight: 500; }
+    #action-point-compare .apc-dot { width: 9px; height: 9px; border-radius: 50%; background: light-dark(#637083, #788698); }
+    #action-point-compare .apc-toolbar { height: 30px; display: flex; align-items: center; gap: 6px; padding: 0 10px; color: light-dark(#596170, #a7afbc); background: light-dark(#f4f5f7, #24272b); border-bottom: 1px solid light-dark(#d4d7dc, #393d43); font-size: 11px; }
+    #action-point-compare .apc-toolbar strong { color: light-dark(#282d35, #e0e4ea); font-weight: 500; }
+    #action-point-compare .apc-toolbar span:last-child { margin-left: auto; }
+    #action-point-compare .apc-timeline { display: grid; grid-template-columns: 210px minmax(0, 1fr); }
+    #action-point-compare .apc-corner, #action-point-compare .apc-ruler { height: 29px; background: light-dark(#e9ebee, #272a2f); border-bottom: 1px solid light-dark(#cbd0d6, #41454c); }
+    #action-point-compare .apc-corner { display: flex; align-items: center; padding: 0 12px; color: light-dark(#646d7a, #8f98a6); border-right: 1px solid light-dark(#cbd0d6, #41454c); font-size: 10px; font-weight: 500; letter-spacing: .06em; }
+    #action-point-compare .apc-ruler { position: relative; overflow: hidden; }
+    #action-point-compare .apc-ruler-inner { position: relative; height: 100%; }
+    #action-point-compare .apc-tick { position: absolute; bottom: 0; width: 1px; height: 7px; background: light-dark(#9ca4ae, #626a76); }
+    #action-point-compare .apc-tick span { position: absolute; left: 4px; top: -14px; color: light-dark(#747d8a, #929ba8); font-size: 10px; font-variant-numeric: tabular-nums; }
+    #action-point-compare .apc-header { height: 44px; display: flex; align-items: center; gap: 9px; padding: 0 12px; background: light-dark(#e8eaed, #25282d); border-right: 1px solid light-dark(#cbd0d6, #41454c); border-bottom: 1px solid light-dark(#d0d4da, #353940); }
+    #action-point-compare .apc-choice { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 4px; color: light-dark(#626b79, #9ca5b3); background: light-dark(#dce0e5, #30343a); font-size: 10px; font-weight: 500; }
+    #action-point-compare .apc-choice.apc-recommended { color: light-dark(#725214, #f1ca70); background: light-dark(#f6e7bf, #4b4025); }
+    #action-point-compare .apc-header-copy { min-width: 0; }
+    #action-point-compare .apc-header-copy b { display: block; overflow: hidden; color: light-dark(#303640, #dde2e9); font-size: 11px; font-weight: 500; white-space: nowrap; text-overflow: ellipsis; }
+    #action-point-compare .apc-header-copy small { display: block; overflow: hidden; margin-top: 2px; color: light-dark(#747d89, #8993a1); font-size: 10px; white-space: nowrap; text-overflow: ellipsis; }
+    #action-point-compare .apc-lane { position: relative; height: 44px; overflow: hidden; background-color: light-dark(#f7f8f9, #202226); border-bottom: 1px solid light-dark(#d8dbe0, #34383e); background-image: linear-gradient(to right, light-dark(rgba(88,99,112,.13), rgba(144,154,168,.12)) 1px, transparent 1px); }
+    #action-point-compare .apc-duration { position: absolute; inset: 0 auto 0 0; width: 74%; background: light-dark(rgba(91,126,163,.025), rgba(101,146,190,.025)); }
+    #action-point-compare .apc-playhead { position: absolute; top: 0; bottom: 0; width: 1px; background: light-dark(#d94d49, #ff675f); z-index: 8; pointer-events: none; }
+    #action-point-compare .apc-marker { position: absolute; top: 0; bottom: 0; width: 16px; margin-left: -8px; color: light-dark(#b46c27, #e39950); cursor: pointer; z-index: 3; }
+    #action-point-compare .apc-marker:hover { z-index: 9; color: light-dark(#d17d2e, #ffb069); }
+    #action-point-compare .apc-label { position: absolute; left: 13px; top: 12px; display: none; width: max-content; padding: 2px 6px; border-radius: 3px; color: light-dark(#59401f, #f2d3aa); background: light-dark(rgba(255,248,235,.96), rgba(35,31,26,.94)); border: 1px solid light-dark(#d9b47e, #79512c); font-size: 10px; font-weight: 500; white-space: nowrap; }
+    #action-point-compare .apc-marker:hover .apc-label, #action-point-compare .apc-marker.apc-selected .apc-label { display: block; }
+    #action-point-compare .apc-diamond-shape { position: absolute; left: 3px; top: 17px; width: 10px; height: 10px; transform: rotate(45deg); background: currentColor; border: 1px solid light-dark(#794719, #ffd19c); }
+    #action-point-compare .apc-selected .apc-diamond-shape { box-shadow: 0 0 0 2px light-dark(#fff2b7, #f7d66f); }
+    #action-point-compare .apc-flag-line { position: absolute; left: 7px; top: 7px; bottom: 6px; width: 2px; background: currentColor; }
+    #action-point-compare .apc-flag-shape { position: absolute; left: 8px; top: 7px; width: 14px; height: 9px; border-radius: 1px 3px 3px 1px; background: currentColor; }
+    #action-point-compare .apc-flag-shape::after { content: ""; position: absolute; right: -4px; top: 0; border-top: 4.5px solid transparent; border-bottom: 4.5px solid transparent; border-left: 4px solid currentColor; }
+    #action-point-compare .apc-selected .apc-flag-line { width: 3px; background: light-dark(#9a701c, #f6d26f); }
+    #action-point-compare .apc-selected .apc-flag-shape { background: light-dark(#9a701c, #f6d26f); box-shadow: 0 0 0 1px light-dark(#68470d, #fff0ae); }
+    #action-point-compare .apc-notch-line { position: absolute; left: 7px; top: 5px; bottom: 5px; width: 2px; background: currentColor; }
+    #action-point-compare .apc-notch-shape { position: absolute; left: 2px; top: 4px; width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 7px solid currentColor; }
+    #action-point-compare .apc-notch-dot { position: absolute; left: 4px; bottom: 3px; width: 8px; height: 3px; border-radius: 2px; background: currentColor; opacity: .72; }
+    #action-point-compare .apc-selected .apc-notch-line { width: 3px; background: light-dark(#9a701c, #f6d26f); }
+    #action-point-compare .apc-selected .apc-notch-shape { border-top-color: light-dark(#9a701c, #f6d26f); filter: drop-shadow(0 0 2px light-dark(#d9ad49, #f6d26f)); }
+    #action-point-compare .apc-issue::after { content: "!"; position: absolute; left: 10px; top: 4px; display: grid; place-items: center; width: 11px; height: 11px; border-radius: 6px; color: light-dark(#fff, #fff); background: light-dark(#bd3e45, #e15259); font-size: 8px; font-weight: 500; }
+    #action-point-compare .apc-legend { display: flex; align-items: center; gap: 18px; min-height: 32px; padding: 6px 12px; color: light-dark(#6d7683, #939ca9); background: light-dark(#f0f2f4, #272a2f); font-size: 10px; }
+    #action-point-compare .apc-legend strong { color: light-dark(#3b424c, #d9dde4); font-weight: 500; }
+    @media (max-width: 600px) {
+      #action-point-compare .apc-timeline { grid-template-columns: 142px minmax(0, 1fr); }
+      #action-point-compare .apc-header-copy small { display: none; }
+      #action-point-compare .apc-label { display: none !important; }
+      #action-point-compare .apc-legend { flex-wrap: wrap; gap: 7px 14px; }
+    }
+  </style>
+
+  <section class="apc-window">
+    <div class="apc-titlebar"><span class="apc-dot"></span>Action Timeline · Point marker comparison</div>
+    <div class="apc-toolbar"><strong>Frame 14</strong><span>Same timing · same states · different visual language</span><span>60 FPS</span></div>
+    <div class="apc-timeline">
+      <div class="apc-corner">POINT STYLE</div>
+      <div class="apc-ruler"><div class="apc-ruler-inner" id="apc-ruler-inner"></div></div>
+
+      <div class="apc-header"><span class="apc-choice">A</span><span class="apc-header-copy"><b>Keyframe diamond</b><small>Familiar · compact · neutral</small></span></div>
+      <div class="apc-lane" data-style="diamond"><div class="apc-duration"></div><div class="apc-playhead"></div></div>
+
+      <div class="apc-header"><span class="apc-choice apc-recommended">B</span><span class="apc-header-copy"><b>Event flag</b><small>Recommended · clear event identity</small></span></div>
+      <div class="apc-lane" data-style="flag"><div class="apc-duration"></div><div class="apc-playhead"></div></div>
+
+      <div class="apc-header"><span class="apc-choice">C</span><span class="apc-header-copy"><b>Timeline notch</b><small>Minimal · precise · high density</small></span></div>
+      <div class="apc-lane" data-style="notch"><div class="apc-duration"></div><div class="apc-playhead"></div></div>
+    </div>
+    <div class="apc-legend"><strong>Shown in every row</strong><span>Frame 6 · normal</span><span>Frame 14 · selected</span><span>Frame 22 · issue</span><span>Hover any marker for its label</span></div>
+  </section>
+
+  <script>
+    (() => {
+      const root = document.getElementById('action-point-compare');
+      const state = { zoom: 18, labelsOnSelection: true };
+      const frames = [6, 14, 22];
+
+      function marker(style, frame, index) {
+        const mark = document.createElement('div');
+        mark.className = `apc-marker${index === 1 ? ' apc-selected' : ''}${index === 2 ? ' apc-issue' : ''}`;
+        mark.style.left = `${frame * state.zoom}px`;
+        mark.setAttribute('aria-label', `Impulse at Frame ${frame}${index === 1 ? ', selected' : index === 2 ? ', issue' : ''}`);
+        if (style === 'diamond') mark.innerHTML = '<span class="apc-diamond-shape"></span>';
+        if (style === 'flag') mark.innerHTML = '<span class="apc-flag-line"></span><span class="apc-flag-shape"></span>';
+        if (style === 'notch') mark.innerHTML = '<span class="apc-notch-line"></span><span class="apc-notch-shape"></span><span class="apc-notch-dot"></span>';
+        const label = document.createElement('span');
+        label.className = 'apc-label';
+        label.textContent = `Impulse · F${frame}`;
+        mark.appendChild(label);
+        mark.addEventListener('click', () => {
+          mark.parentElement.querySelectorAll('.apc-marker').forEach(item => item.classList.remove('apc-selected'));
+          mark.classList.add('apc-selected');
+        });
+        return mark;
+      }
+
+      function render() {
+        const width = 30 * state.zoom;
+        const ruler = root.querySelector('#apc-ruler-inner');
+        ruler.style.width = `${width}px`;
+        ruler.replaceChildren();
+        for (let frame = 0; frame <= 28; frame += 4) {
+          const tick = document.createElement('span');
+          tick.className = 'apc-tick';
+          tick.style.left = `${frame * state.zoom}px`;
+          tick.innerHTML = `<span>${frame}</span>`;
+          ruler.appendChild(tick);
+        }
+        root.querySelectorAll('.apc-lane').forEach(lane => {
+          lane.style.backgroundSize = `${state.zoom}px 100%`;
+          lane.querySelector('.apc-playhead').style.left = `${14 * state.zoom}px`;
+          lane.querySelectorAll('.apc-marker').forEach(item => item.remove());
+          frames.forEach((frame, index) => lane.appendChild(marker(lane.dataset.style, frame, index)));
+        });
+        root.querySelectorAll('.apc-marker.apc-selected .apc-label').forEach(label => {
+          label.style.display = state.labelsOnSelection ? '' : 'none';
+        });
+      }
+
+      render();
+      if (globalThis.Tweak) {
+        const tweak = new Tweak({ container: root, onChange: render });
+        tweak.addSlider(state, 'zoom', { label: 'Timeline zoom', min: 8, max: 24, step: 1, unit: 'px/frame', reference: 'timeline.zoom' });
+        tweak.addToggle(state, 'labelsOnSelection', { label: 'Selected labels', reference: 'point.selectedLabel' });
+      }
+    })();
+  </script>
+</div>
