@@ -1,0 +1,231 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d4a14c808be2c4f4a8f1b6d45ebd172f, type: 3}
+  m_Name: TestAction
+  m_EditorClassIdentifier: 
+  _actionTimeline:
+    _animationSegments:
+    - _editorId: f809d0045615485cbaa4ec8158f75c49
+      _startFrame: 0
+      _animationAsset: {fileID: 11400000, guid: 1bb89230dfa40d648ba1ccdda5a6fc9c,
+        type: 2}
+      _sourceStartTime: 0
+      _sourceEndTime: 4.2000003
+      _playRate: 1
+    _gameplayLanes:
+    - _editorId: 1ab83909097149d9986774ad7283a7b1
+      _name: Gameplay
+      _muted: 0
+      _items:
+      - rid: 4981112385426685953
+      - rid: 4981112429197918208
+    - _editorId: 300df6e6effa4b16930f2bda6eeada1d
+      _name: Gameplay 2
+      _muted: 0
+      _items:
+      - rid: 4981112385426685952
+  _timelineAsset: {fileID: 0}
+  _playbackBackend: 2
+  _sequenceData:
+    frameRate: 60
+    durationMode: 1
+    durationFrames: 60
+    tracks:
+    - rid: 4981112296715845632
+    - rid: 4981112296715845633
+    - rid: 4981112296715845634
+    - rid: 4981112296715845635
+    - rid: 4981112296715845636
+    clips: []
+    defaultTracksInitialized: 1
+  _priorityLayer: 2
+  _priorityValue: 0
+  _cancelRules:
+  - targetKind: 2
+    specificTarget: {fileID: 0}
+    targetTag:
+      TagId: 0
+    window:
+      startAnchor: 0
+      startFrame: 0
+      endAnchor: 2
+      endFrame: 0
+  - targetKind: 0
+    specificTarget: {fileID: 0}
+    targetTag:
+      TagId: 0
+    window:
+      startAnchor: 0
+      startFrame: 0
+      endAnchor: 2
+      endFrame: 0
+  _selfTags: []
+  _legacySelfTag:
+    TagId: 0
+  _triggerMode: 0
+  _eventTriggerTag:
+    TagId: 0
+  _startContextMode: 0
+  _motionConfig:
+    rootMotionMode: 0
+    suppressLocomotion: 1
+    facingOnStart: 2
+    gravityScale: -1
+    horizontalMomentumInheritance: 0
+    verticalMomentumInheritance: 0
+  isLoop: 0
+  _allowReenterWhilePlaying: 0
+  _entryConditions:
+  - rid: 4981112385426685954
+  _exitConditions: []
+  references:
+    version: 2
+    RefIds:
+    - rid: 4981112296715845632
+      type: {class: ActionSequenceStateTrack, ns: , asm: Assembly-CSharp}
+      data:
+        editorId: 8205bb9d7f5a44cfaf1b7dd20755b9d9
+        displayName: 
+        muted: 0
+        locked: 0
+        collapsed: 0
+        clips: []
+    - rid: 4981112296715845633
+      type: {class: ActionSequenceAnimationTrack, ns: , asm: Assembly-CSharp}
+      data:
+        editorId: 98dfc13bfd3c4569ad548246edcf3ae7
+        displayName: 
+        muted: 0
+        locked: 0
+        collapsed: 0
+        clips: []
+    - rid: 4981112296715845634
+      type: {class: ActionSequenceMotionTrack, ns: , asm: Assembly-CSharp}
+      data:
+        editorId: 7402234784fa4ec9a964c671c4f44c48
+        displayName: 
+        muted: 0
+        locked: 0
+        collapsed: 0
+        clips: []
+    - rid: 4981112296715845635
+      type: {class: ActionSequenceHitBoxTrack, ns: , asm: Assembly-CSharp}
+      data:
+        editorId: 6faeea60b9894dee8ea538bfa2d703d0
+        displayName: 
+        muted: 0
+        locked: 0
+        collapsed: 0
+        clips: []
+    - rid: 4981112296715845636
+      type: {class: ActionSequenceCleanupTrack, ns: , asm: Assembly-CSharp}
+      data:
+        editorId: 82ead74c8b8d4f369edf3f98679522be
+        displayName: 
+        muted: 0
+        locked: 0
+        collapsed: 0
+        clips: []
+    - rid: 4981112385426685952
+      type: {class: RootMotionItem, ns: , asm: Assembly-CSharp}
+      data:
+        _editorId: ca48dd8126de49c9aaaa999ec42bd5f4
+        _muted: 0
+        _startFrame: 0
+        _durationFrames: 253
+        _config:
+          animationAsset: {fileID: 11400000, guid: 1bb89230dfa40d648ba1ccdda5a6fc9c,
+            type: 2}
+          sourceStartTime: 0
+          playRate: 1
+    - rid: 4981112385426685953
+      type: {class: HitBoxItem, ns: , asm: Assembly-CSharp}
+      data:
+        _editorId: c31f912c77534873a7d20e219ed60532
+        _muted: 0
+        _startFrame: 127
+        _durationFrames: 4
+        _config:
+          anchor: 0
+          hitboxConfig:
+            shape: 1
+            center: {x: 0, y: 1, z: 0.5}
+            rotation: {x: 0, y: 0, z: 0, w: 1}
+            size: {x: 1.5, y: 1.5, z: 1.25}
+            height: 0.5
+            radius: 0.1
+          dataConfig:
+            targetLayers:
+              serializedVersion: 2
+              m_Bits: 128
+            _baseDamage: 10
+            hitEventTag:
+              TagId: -1300321786
+          effects:
+          - rid: 4981112429197918209
+          - rid: 4981112456990162945
+    - rid: 4981112385426685954
+      type: {class: GroundStateCondition, ns: , asm: Assembly-CSharp}
+      data:
+        invertResult: 0
+        overrideAll: 0
+        acceptedStates: 3
+    - rid: 4981112429197918208
+      type: {class: HitBoxItem, ns: , asm: Assembly-CSharp}
+      data:
+        _editorId: 5163b9200cfc4f3bac145ca28aeec52a
+        _muted: 0
+        _startFrame: 151
+        _durationFrames: 5
+        _config:
+          anchor: 0
+          hitboxConfig:
+            shape: 1
+            center: {x: 0, y: 1, z: 0.5}
+            rotation: {x: 0, y: 0, z: 0, w: 1}
+            size: {x: 1.5, y: 1.5, z: 1.5}
+            height: 0.5
+            radius: 0.1
+          dataConfig:
+            targetLayers:
+              serializedVersion: 2
+              m_Bits: 128
+            _baseDamage: 10
+            hitEventTag:
+              TagId: -1300321786
+          effects: []
+    - rid: 4981112429197918209
+      type: {class: SpeedEffectConfig, ns: , asm: Assembly-CSharp}
+      data:
+        enabled: 1
+        duration: 0.2
+        speedScale: 0.05
+        affectBothParties: 1
+    - rid: 4981112456990162945
+      type: {class: HitVfxConfig, ns: , asm: Assembly-CSharp}
+      data:
+        enabled: 1
+        prefab: {fileID: 1107029698261400, guid: 6e09e616ba00652ce88f8183147587ed,
+          type: 3}
+        occlusionMode: 1
+        scale: 1
+        lifetime: 1
+        simulationSpeed: 1
+        anchorMode: 0
+        orientationMode: 0
+        screenAngleMode: 1
+        anglePresetDegrees: 0
+        angleRandomRange: 360
+        worldDirectionMode: 0
+        rollMode: 0
+        rollPresetDegrees: 0
+        rollRandomRange: 360
