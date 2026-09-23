@@ -1,0 +1,428 @@
+.action-editor-root {
+    flex-grow: 1;
+    background-color: var(--unity-colors-window-background);
+    --action-surface: rgb(56, 56, 56);
+    --action-canvas: rgb(40, 40, 40);
+    --action-border: rgb(32, 32, 32);
+    --action-track: rgb(64, 64, 64);
+    --action-track-hover: rgb(69, 69, 69);
+    --action-track-selected: rgb(74, 74, 74);
+    --action-controls: rgb(45, 45, 45);
+    --action-secondary-text: rgb(170, 170, 170);
+    --action-control-text: rgb(196, 196, 196);
+    --action-thumb: rgb(94, 94, 94);
+    --action-thumb-hover: rgb(110, 110, 110);
+    --action-handle: rgb(140, 140, 140);
+    --action-heading: rgb(140, 181, 218);
+}
+
+.action-editor-root.action-editor-light {
+    --action-surface: rgb(194, 194, 194);
+    --action-canvas: rgb(180, 180, 180);
+    --action-border: rgb(146, 146, 146);
+    --action-track: rgb(205, 205, 205);
+    --action-track-hover: rgb(212, 212, 212);
+    --action-track-selected: rgb(218, 218, 218);
+    --action-controls: rgb(174, 174, 174);
+    --action-secondary-text: rgb(80, 80, 80);
+    --action-control-text: rgb(50, 50, 50);
+    --action-thumb: rgb(138, 138, 138);
+    --action-thumb-hover: rgb(124, 124, 124);
+    --action-handle: rgb(100, 100, 100);
+    --action-heading: rgb(43, 98, 153);
+}
+
+.action-editor-context-bar,
+.action-editor-transport-bar,
+.action-editor-status-bar,
+.action-editor-character-bar {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+    padding-left: 6px;
+    padding-right: 6px;
+    border-bottom-width: 1px;
+    border-bottom-color: var(--action-border);
+    background-color: var(--unity-colors-toolbar-background);
+}
+
+.action-editor-context-bar { height: 28px; }
+.action-editor-transport-bar { height: 24px; min-height: 24px; padding-left: 4px; padding-right: 4px; }
+.action-editor-playback-group { flex-direction: row; align-items: center; flex-shrink: 0; height: 20px; background-color: var(--action-controls); }
+.action-editor-playback-options { flex-direction: row; align-items: center; flex-shrink: 0; height: 20px; margin-right: 5px; }
+.action-editor-transport-bar .action-editor-action-field { flex-grow: 1; flex-shrink: 1; flex-basis: 0; min-width: 64px; max-width: none; margin: 0; height: 20px; }
+.action-editor-transport-bar .action-editor-action-field .unity-base-field__input { min-width: 0; }
+.action-editor-status-bar { height: 22px; padding-left: 8px; color: var(--action-secondary-text); font-size: 10px; }
+
+.action-editor-action-field { min-width: 140px; max-width: 520px; flex-grow: 1; }
+.action-editor-spacer { flex-grow: 1; }
+.action-editor-chrome-button { height: 22px; min-width: 58px; margin-left: 3px; }
+.action-editor-compact .action-editor-chrome-button { min-width: 42px; }
+.action-editor-transport-bar .unity-button { margin: 0; }
+.action-editor-transport-bar .action-editor-transport-button,
+.action-editor-transport-bar .action-editor-transport-button:hover,
+.action-editor-transport-bar .action-editor-transport-button:active,
+.action-editor-transport-bar .action-editor-transport-button:focus { width: 26px; min-width: 26px; height: 20px; padding: 2px; flex-shrink: 0; background-color: transparent; background-image: none; border-width: 0; border-radius: 0; justify-content: center; }
+.action-editor-toolbar-icon { width: 16px; height: 16px; align-self: center; }
+.action-editor-lane-mute .action-editor-toolbar-icon { opacity: 0.4; }
+.action-editor-playback-options .unity-toolbar-toggle { height: 20px; margin: 0; padding-left: 6px; padding-right: 6px; border-width: 0; }
+.action-editor-frame-label { min-width: 48px; height: 18px; flex-shrink: 0; margin-left: 4px; margin-right: 4px; padding-left: 5px; padding-right: 5px; -unity-text-align: middle-left; background-color: var(--action-canvas); border-width: 1px; border-color: var(--action-border); }
+.action-editor-compact .action-editor-transport-button { width: 22px; min-width: 22px; }
+.action-editor-compact .action-editor-frame-label { min-width: 36px; }
+
+.action-editor-identity-banner {
+    min-height: 34px;
+    flex-direction: row;
+    align-items: center;
+    padding-left: 10px;
+    padding-right: 8px;
+    background-color: rgb(75, 39, 42);
+    border-bottom-width: 1px;
+    border-bottom-color: rgb(142, 62, 67);
+}
+.action-editor-banner-text { flex-grow: 1; color: rgb(244, 180, 180); }
+
+.action-editor-timeline-main { flex-grow: 1; min-height: 120px; overflow: hidden; }
+.action-editor-timeline-top-row { height: 24px; min-height: 24px; flex-direction: row; flex-shrink: 0; }
+.action-editor-timeline-corner {
+    min-width: 180px;
+    max-width: 320px;
+    height: 24px;
+    flex-shrink: 0;
+    flex-direction: row;
+    align-items: center;
+    padding-left: 12px;
+    padding-right: 8px;
+    background-color: var(--action-surface);
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-right-color: var(--action-border);
+    border-bottom-color: var(--action-border);
+    color: var(--action-secondary-text);
+    font-size: 9px;
+    -unity-font-style: bold;
+}
+.action-editor-timeline-corner .action-editor-lane-actions { margin-left: 0; height: 20px; }
+.action-editor-timeline-corner .action-editor-lane-command { height: 20px; }
+.action-editor-header-resize-handle { position: absolute; right: -3px; top: 0; bottom: 0; width: 6px; }
+.action-editor-ruler-viewport { flex-grow: 1; height: 24px; overflow: hidden; background-color: var(--action-controls); border-bottom-width: 1px; border-bottom-color: var(--action-border); }
+.action-editor-ruler-canvas { position: absolute; top: 0; left: 0; height: 24px; }
+.action-editor-ruler-playhead { position: absolute; top: 0; bottom: 0; width: 1px; background-color: rgb(255, 98, 91); }
+.action-editor-timeline-body-row { flex-grow: 1; flex-direction: row; min-height: 0; }
+.action-editor-header-viewport { min-width: 180px; max-width: 320px; flex-shrink: 0; overflow: hidden; background-color: var(--action-controls); border-right-width: 1px; border-right-color: var(--action-border); }
+.action-editor-header-content { position: absolute; left: 0; right: 0; top: 0; }
+.action-editor-lane-header { flex-direction: row; align-items: center; flex-shrink: 0; padding-left: 22px; padding-right: 8px; }
+.action-editor-lane-surface { position: absolute; left: 12px; right: 4px; top: 3px; bottom: 3px; background-color: var(--action-track); border-left-width: 3px; border-left-color: transparent; }
+.action-editor-lane-header:hover .action-editor-lane-surface { background-color: var(--action-track-hover); }
+.action-editor-lane-header-selected .action-editor-lane-surface { background-color: var(--action-track-selected); border-left-color: rgb(69, 138, 207); }
+.action-editor-animation-header .action-editor-lane-surface { border-left-color: rgb(91, 147, 202); }
+.action-editor-lane-header.action-editor-invalid-identity .action-editor-lane-surface { border-left-color: rgb(218, 80, 86); }
+.action-editor-lane-title { flex-grow: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.action-editor-lane-meta { margin-left: 6px; color: var(--action-secondary-text); font-size: 9px; }
+.action-editor-lane-actions { flex-direction: row; align-items: center; flex-shrink: 0; width: 24px; height: 22px; margin-left: 6px; background-color: var(--action-controls); border-radius: 2px; }
+.action-editor-lane-actions > * { width: 24px; min-width: 24px; flex-shrink: 0; height: 22px; }
+.action-editor-lane-command { margin: 0; padding: 3px; border-width: 0; border-radius: 0; background-image: none; background-color: transparent; justify-content: center; -unity-text-align: middle-center; color: var(--action-control-text); font-size: 16px; }
+.action-editor-lane-command:hover,
+.action-editor-lane-command:active,
+.action-editor-lane-command:focus { background-color: transparent; background-image: none; border-width: 0; color: var(--action-control-text); }
+.action-editor-lane-command:disabled { opacity: 0.4; }
+.action-editor-lane-menu { width: 20px; min-width: 20px; height: 22px; flex-shrink: 0; margin-left: 2px; }
+.action-editor-inline-rename { flex-grow: 1; min-width: 60px; height: 22px; margin-left: -5px; margin-right: 4px; }
+.action-editor-invalid-identity { border-left-width: 2px; border-left-color: rgb(218, 80, 86); }
+
+.action-editor-content-scroll { flex-grow: 1; min-width: 0; min-height: 0; background-color: var(--action-canvas); }
+.action-editor-content-scroll .unity-scroll-view__horizontal-scroller { display: none; }
+.action-editor-content-canvas { position: relative; flex-shrink: 0; min-height: 100%; }
+.action-editor-time-navigator-row { height: 18px; min-height: 18px; flex-shrink: 0; flex-direction: row; background-color: var(--action-surface); border-top-width: 1px; border-top-color: var(--action-border); }
+.action-editor-time-navigator-corner { min-width: 180px; max-width: 320px; flex-shrink: 0; border-right-width: 1px; border-right-color: var(--action-border); }
+.action-editor-time-navigator { position: relative; flex-grow: 1; min-width: 0; margin-left: 5px; margin-right: 5px; margin-top: 4px; margin-bottom: 4px; background-color: var(--action-border); border-top-left-radius: 3px; border-top-right-radius: 3px; border-bottom-left-radius: 3px; border-bottom-right-radius: 3px; }
+.action-editor-time-navigator-thumb { position: absolute; top: 0; bottom: 0; min-width: 18px; background-color: var(--action-thumb); border-top-left-radius: 3px; border-top-right-radius: 3px; border-bottom-left-radius: 3px; border-bottom-right-radius: 3px; }
+.action-editor-time-navigator-thumb:hover { background-color: var(--action-thumb-hover); }
+.action-editor-time-navigator-handle { position: absolute; top: -2px; bottom: -2px; width: 8px; background-color: var(--action-handle); border-top-left-radius: 2px; border-top-right-radius: 2px; border-bottom-left-radius: 2px; border-bottom-right-radius: 2px; }
+.action-editor-time-navigator-handle-left { left: 0; }
+.action-editor-time-navigator-handle-right { right: 0; }
+.action-editor-grid-canvas { position: absolute; left: 0; top: 0; }
+.action-editor-content-layer { position: absolute; left: 0; top: 0; }
+.action-editor-post-duration { position: absolute; top: 0; bottom: 0; background-color: rgba(128, 128, 128, 0.10); }
+.action-editor-duration-line { position: absolute; top: 0; bottom: 0; width: 1px; background-color: rgba(88, 182, 232, 0.78); }
+.action-editor-horizon-line { position: absolute; top: 0; bottom: 0; width: 1px; background-color: rgba(150, 150, 150, 0.42); }
+.action-editor-playhead { position: absolute; top: 0; bottom: 0; width: 1px; background-color: rgb(255, 91, 84); }
+.action-editor-snap-guide { position: absolute; top: 0; bottom: 0; width: 1px; background-color: rgb(89, 181, 240); }
+.action-editor-operation-label { position: absolute; min-width: 120px; height: 20px; padding-left: 6px; padding-right: 6px; color: rgb(225, 225, 225); background-color: rgba(38, 38, 38, 0.94); border-left-width: 1px; border-left-color: rgb(89, 181, 240); -unity-text-align: middle-left; font-size: 10px; }
+.action-editor-operation-invalid { color: rgb(255, 201, 201); border-left-color: rgb(230, 86, 91); }
+.action-editor-marquee { position: absolute; background-color: rgba(65, 141, 229, 0.18); border-left-width: 1px; border-right-width: 1px; border-top-width: 1px; border-bottom-width: 1px; border-color: rgb(81, 155, 239); }
+.action-editor-geometry-overflow { position: absolute; top: 0; width: 88px; padding-top: 5px; color: rgb(230, 183, 105); background-color: rgba(83, 57, 28, 0.55); border-left-width: 1px; border-left-color: rgb(188, 126, 48); -unity-text-align: upper-center; font-size: 9px; -unity-font-style: bold; }
+
+.action-editor-entry {
+    position: absolute;
+    min-width: 10px;
+    flex-direction: row;
+    align-items: center;
+    overflow: hidden;
+    padding-left: 7px;
+    padding-right: 4px;
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-top-left-radius: 3px;
+    border-top-right-radius: 3px;
+    border-bottom-left-radius: 3px;
+    border-bottom-right-radius: 3px;
+    border-color: rgba(255, 255, 255, 0.13);
+    background-color: rgb(63, 81, 105);
+}
+.action-editor-entry:hover, .action-editor-entry-hover { border-color: rgb(177, 203, 235); }
+.action-editor-resize-cursor { cursor: resize-horizontal; }
+.action-editor-entry-selected { border-color: rgb(112, 181, 239); border-left-width: 2px; border-right-width: 2px; border-top-width: 2px; border-bottom-width: 2px; }
+.action-editor-entry-transient { border-color: rgb(255, 130, 124); }
+.action-editor-entry-active { background-color: rgb(71, 104, 139); }
+.action-editor-entry-hold { border-bottom-color: rgb(112, 190, 238); }
+.action-editor-placeholder { background-color: rgb(65, 57, 59); border-color: rgb(164, 85, 89); }
+.action-editor-placeholder-null { background-color: rgb(61, 47, 50); color: rgb(236, 173, 176); }
+.action-editor-placeholder-negative { border-left-width: 3px; border-left-color: rgb(231, 114, 88); }
+.action-editor-placeholder-duration { background-color: rgb(76, 48, 51); }
+.action-editor-placeholder-source { background-color: rgb(71, 51, 55); border-color: rgb(201, 100, 106); }
+.action-editor-placeholder-overflow { border-right-width: 3px; border-right-color: rgb(224, 158, 68); background-color: rgb(78, 59, 42); }
+.action-editor-placeholder-header { background-color: rgb(57, 43, 46); color: rgb(230, 171, 175); }
+.action-editor-entry.action-editor-validation-setup { border-right-color: rgb(196, 154, 65); }
+.action-editor-entry.action-editor-validation-identity { border-right-color: rgb(224, 76, 83); }
+.action-editor-entry-label { flex-grow: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: rgb(226, 231, 238); font-size: 10px; }
+.action-editor-entry-handle { position: absolute; top: 0; bottom: 0; width: 6px; background-color: transparent; }
+.action-editor-entry-handle-left { left: 0; border-left-width: 1px; border-left-color: transparent; }
+.action-editor-entry-handle-right { right: 0; border-right-width: 1px; border-right-color: transparent; }
+.action-editor-entry:hover .action-editor-entry-handle,
+.action-editor-entry-selected .action-editor-entry-handle { background-color: rgba(255, 255, 255, 0.10); }
+.action-editor-entry:hover .action-editor-entry-handle-left,
+.action-editor-entry-selected .action-editor-entry-handle-left { border-left-color: rgba(255, 255, 255, 0.58); }
+.action-editor-entry:hover .action-editor-entry-handle-right,
+.action-editor-entry-selected .action-editor-entry-handle-right { border-right-color: rgba(255, 255, 255, 0.58); }
+.action-editor-drag-ghost { position: absolute; }
+.action-editor-drag-invalid { border-color: rgb(255, 104, 104); background-color: rgba(151, 49, 55, 0.78); color: rgb(255, 225, 225); }
+.action-editor-animation-entry { background-color: rgb(63, 91, 119); }
+.action-editor-entry.action-editor-point-entry {
+    padding-left: 0;
+    padding-right: 0;
+    overflow: visible;
+    background-color: transparent;
+    border-left-width: 0;
+    border-right-width: 0;
+    border-top-width: 0;
+    border-bottom-width: 0;
+}
+.action-editor-point-entry.action-editor-item-impulse { background-color: transparent; }
+.action-editor-point-diamond {
+    position: absolute;
+    top: 8px;
+    width: 10px;
+    height: 10px;
+    rotate: 45deg;
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-color: rgb(255, 205, 131);
+    border-top-left-radius: 1px;
+    border-top-right-radius: 1px;
+    border-bottom-left-radius: 1px;
+    border-bottom-right-radius: 1px;
+    background-color: rgb(220, 137, 67);
+}
+.action-editor-point-label {
+    display: none;
+    position: absolute;
+    left: 15px;
+    top: 5px;
+    width: 76px;
+    color: rgb(236, 224, 205);
+    font-size: 9px;
+    -unity-font-style: bold;
+    white-space: nowrap;
+}
+.action-editor-point-entry:hover .action-editor-point-label,
+.action-editor-point-entry.action-editor-entry-primary .action-editor-point-label,
+.action-editor-point-ghost .action-editor-point-label { display: flex; }
+.action-editor-point-entry:hover .action-editor-point-diamond,
+.action-editor-point-entry-hover .action-editor-point-diamond { background-color: rgb(247, 170, 91); border-color: rgb(255, 232, 188); }
+.action-editor-point-entry.action-editor-entry-selected .action-editor-point-diamond {
+    border-left-width: 2px;
+    border-right-width: 2px;
+    border-top-width: 2px;
+    border-bottom-width: 2px;
+    border-color: rgb(76, 151, 224);
+}
+.action-editor-point-entry.action-editor-entry-primary .action-editor-point-diamond { background-color: rgb(226, 145, 75); border-color: rgb(103, 174, 237); }
+.action-editor-point-entry.action-editor-entry-active .action-editor-point-diamond { background-color: rgb(255, 181, 94); }
+.action-editor-drag-ghost.action-editor-point-ghost {
+    overflow: visible;
+    padding-left: 0;
+    padding-right: 0;
+    background-color: transparent;
+    border-left-width: 0;
+    border-right-width: 0;
+    border-top-width: 0;
+    border-bottom-width: 0;
+}
+.action-editor-point-ghost .action-editor-point-diamond { background-color: rgb(91, 188, 247); border-color: rgb(180, 226, 255); }
+.action-editor-point-ghost.action-editor-drag-invalid .action-editor-point-diamond { background-color: rgb(225, 79, 84); border-color: rgb(255, 173, 176); }
+.action-editor-point-ghost.action-editor-drag-invalid .action-editor-point-label { color: rgb(255, 188, 190); }
+.action-editor-point-density-member .action-editor-point-label { display: none; }
+.action-editor-point-density-cluster {
+    position: absolute;
+    height: 20px;
+    min-width: 24px;
+    padding-left: 0;
+    padding-right: 0;
+    background-color: transparent;
+    border-left-width: 0;
+    border-right-width: 0;
+    border-top-width: 0;
+    border-bottom-width: 0;
+}
+.action-editor-point-density-diamond-back,
+.action-editor-point-density-diamond-front {
+    position: absolute;
+    width: 9px;
+    height: 9px;
+    rotate: 45deg;
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-color: rgb(255, 205, 131);
+    background-color: rgb(128, 83, 50);
+}
+.action-editor-point-density-diamond-back { left: 3px; top: 7px; opacity: 0.72; }
+.action-editor-point-density-diamond-front { left: 6px; top: 5px; background-color: rgb(220, 137, 67); }
+.action-editor-point-density-count {
+    position: absolute;
+    right: 0;
+    top: 0;
+    min-width: 13px;
+    height: 13px;
+    padding-left: 2px;
+    padding-right: 2px;
+    color: rgb(255, 242, 214);
+    background-color: rgb(111, 76, 48);
+    border-top-left-radius: 7px;
+    border-top-right-radius: 7px;
+    border-bottom-left-radius: 7px;
+    border-bottom-right-radius: 7px;
+    -unity-text-align: middle-center;
+    -unity-font-style: bold;
+    font-size: 8px;
+}
+.action-editor-point-density-cluster:hover .action-editor-point-density-diamond-front { background-color: rgb(247, 170, 91); border-color: rgb(255, 232, 188); }
+.action-editor-point-density-cluster:hover .action-editor-point-density-count { background-color: rgb(145, 96, 53); }
+.action-editor-point-density-focused .action-editor-point-density-diamond-front { border-left-width: 2px; border-right-width: 2px; border-top-width: 2px; border-bottom-width: 2px; border-color: rgb(103, 174, 237); }
+.action-editor-item-impulse { background-color: rgb(132, 86, 49); }
+.action-editor-item-hitbox { background-color: rgb(137, 93, 61); }
+.action-editor-item-root-motion { background-color: rgb(66, 100, 87); }
+.action-editor-item-self-rotation { background-color: rgb(91, 82, 113); }
+.action-editor-item-velocity { background-color: rgb(68, 99, 90); }
+.action-editor-item-motion-policy { background-color: rgb(93, 83, 113); }
+.action-editor-item-tag { background-color: rgb(93, 80, 109); }
+.action-editor-item-unknown { background-color: rgb(76, 78, 84); }
+
+/* Range entries separate their semantic visual from a wider transparent hit target. */
+.action-editor-entry.action-editor-range-entry {
+    min-width: 0;
+    padding-left: 0;
+    padding-right: 0;
+    overflow: visible;
+    background-color: transparent;
+    border-left-width: 0;
+    border-right-width: 0;
+    border-top-width: 0;
+    border-bottom-width: 0;
+}
+.action-editor-range-body {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    min-width: 1px;
+    flex-direction: row;
+    align-items: center;
+    overflow: hidden;
+    padding-left: 7px;
+    padding-right: 4px;
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-top-left-radius: 3px;
+    border-top-right-radius: 3px;
+    border-bottom-left-radius: 3px;
+    border-bottom-right-radius: 3px;
+    border-color: rgba(255, 255, 255, 0.13);
+    background-color: rgb(63, 81, 105);
+}
+.action-editor-range-entry:hover .action-editor-range-body,
+.action-editor-range-entry.action-editor-entry-hover .action-editor-range-body { border-color: rgb(177, 203, 235); }
+.action-editor-range-entry.action-editor-entry-selected .action-editor-range-body { border-color: rgb(112, 181, 239); border-left-width: 2px; border-right-width: 2px; border-top-width: 2px; border-bottom-width: 2px; }
+.action-editor-range-entry.action-editor-entry-transient .action-editor-range-body { border-color: rgb(255, 130, 124); }
+.action-editor-range-entry.action-editor-entry-active .action-editor-range-body { background-color: rgb(71, 104, 139); }
+.action-editor-range-entry.action-editor-entry-hold .action-editor-range-body { border-bottom-color: rgb(112, 190, 238); }
+.action-editor-range-entry.action-editor-placeholder .action-editor-range-body { background-color: rgb(65, 57, 59); border-color: rgb(164, 85, 89); }
+.action-editor-range-entry.action-editor-placeholder-null .action-editor-range-body { background-color: rgb(61, 47, 50); color: rgb(236, 173, 176); }
+.action-editor-range-entry.action-editor-placeholder-negative .action-editor-range-body { border-left-width: 3px; border-left-color: rgb(231, 114, 88); }
+.action-editor-range-entry.action-editor-placeholder-duration .action-editor-range-body,
+.action-editor-range-entry.action-editor-placeholder-source .action-editor-range-body { background-color: rgb(71, 51, 55); border-color: rgb(201, 100, 106); }
+.action-editor-range-entry.action-editor-placeholder-overflow .action-editor-range-body { border-right-width: 3px; border-right-color: rgb(224, 158, 68); background-color: rgb(78, 59, 42); }
+.action-editor-range-entry.action-editor-validation-setup .action-editor-range-body { border-right-color: rgb(196, 154, 65); }
+.action-editor-range-entry.action-editor-validation-identity .action-editor-range-body { border-right-color: rgb(224, 76, 83); }
+.action-editor-range-entry.action-editor-animation-entry .action-editor-range-body { background-color: rgb(63, 91, 119); }
+.action-editor-range-entry.action-editor-item-impulse .action-editor-range-body { background-color: rgb(132, 86, 49); }
+.action-editor-range-entry.action-editor-item-hitbox .action-editor-range-body { background-color: rgb(137, 93, 61); }
+.action-editor-range-entry.action-editor-item-root-motion .action-editor-range-body { background-color: rgb(66, 100, 87); }
+.action-editor-range-entry.action-editor-item-self-rotation .action-editor-range-body { background-color: rgb(91, 82, 113); }
+.action-editor-range-entry.action-editor-item-velocity .action-editor-range-body { background-color: rgb(68, 99, 90); }
+.action-editor-range-entry.action-editor-item-motion-policy .action-editor-range-body { background-color: rgb(93, 83, 113); }
+.action-editor-range-entry.action-editor-item-tag .action-editor-range-body { background-color: rgb(93, 80, 109); }
+.action-editor-range-entry.action-editor-item-unknown .action-editor-range-body { background-color: rgb(76, 78, 84); }
+.action-editor-range-entry.action-editor-drag-ghost .action-editor-range-body { opacity: 0.82; border-color: rgb(129, 202, 255); }
+.action-editor-range-entry.action-editor-drag-invalid .action-editor-range-body { background-color: rgba(151, 49, 55, 0.90); border-color: rgb(255, 104, 104); }
+.action-editor-muted { opacity: 0.42; }
+.action-editor-lane-header.action-editor-muted { opacity: 1; }
+.action-editor-lane-header.action-editor-muted .action-editor-lane-title { opacity: 0.42; }
+
+.action-editor-empty-state { flex-grow: 1; align-items: center; justify-content: center; padding: 24px; }
+.action-editor-empty-title { font-size: 16px; -unity-font-style: bold; margin-bottom: 7px; }
+.action-editor-empty-body { max-width: 440px; white-space: normal; -unity-text-align: upper-center; color: var(--action-secondary-text); }
+
+.action-editor-details-scroll { flex-grow: 1; }
+.action-editor-details-center { width: 100%; max-width: 720px; min-height: 100%; flex-grow: 1; align-self: center; padding: 14px 18px 24px 18px; }
+.action-editor-details-heading { font-size: 17px; -unity-font-style: bold; margin-bottom: 2px; }
+.action-editor-details-subtitle { color: var(--action-secondary-text); margin-bottom: 12px; }
+.action-editor-section { margin-bottom: 10px; padding: 10px; }
+.action-editor-details-window .action-editor-section {
+    background-color: var(--action-track);
+    border-width: 1px;
+    border-color: var(--action-border);
+    border-radius: 4px;
+}
+.action-editor-section-title { margin-bottom: 7px; color: var(--action-heading); -unity-font-style: bold; }
+.action-editor-readonly-row { min-height: 24px; flex-direction: row; align-items: flex-start; padding-top: 3px; padding-bottom: 3px; }
+.action-editor-readonly-label { width: 170px; color: var(--action-secondary-text); }
+.action-editor-readonly-value { flex-grow: 1; white-space: normal; }
+.action-editor-details-narrow .action-editor-readonly-row { flex-direction: column; }
+.action-editor-details-narrow .action-editor-readonly-label { width: auto; margin-bottom: 2px; }
+.action-editor-selection-summary { min-height: 26px; padding-left: 18px; padding-right: 18px; color: var(--action-secondary-text); background-color: var(--action-surface); border-bottom-width: 1px; border-bottom-color: var(--action-border); -unity-text-align: middle-left; }
+.action-editor-local-issue { margin-top: 4px; padding: 7px; white-space: normal; color: rgb(228, 178, 180); background-color: rgb(62, 42, 45); border-left-width: 2px; border-left-color: rgb(176, 78, 83); }
+.action-editor-local-setup { margin-top: 4px; padding: 7px; white-space: normal; color: rgb(218, 201, 159); background-color: rgb(56, 51, 39); border-left-width: 2px; border-left-color: rgb(150, 116, 53); }
+.action-editor-edit-field { margin-top: 2px; margin-bottom: 3px; }
+.action-editor-edit-field > .unity-base-field__label { width: 170px; min-width: 170px; }
+.action-editor-details-narrow .action-editor-edit-field { flex-direction: column; align-items: stretch; }
+.action-editor-details-narrow .action-editor-edit-field > .unity-base-field__label { width: auto; min-width: 0; margin-bottom: 3px; }
+.action-editor-nested-card { margin-top: 5px; padding: 7px; }
+.action-editor-details-window .action-editor-nested-card {
+    background-color: var(--action-surface);
+    border-width: 1px;
+    border-color: var(--action-border);
+    border-radius: 3px;
+}
+.action-editor-mini-buttons { flex-direction: row; justify-content: flex-end; margin-top: 7px; }
+.action-editor-mini-buttons > Button { margin-left: 4px; min-width: 58px; }
+.action-editor-draft-status { margin-top: 8px; padding: 6px 8px; white-space: normal; background-color: var(--action-controls); border-left-width: 2px; border-left-color: rgb(79, 139, 199); }
+.action-editor-draft-error { color: rgb(232, 180, 182); background-color: rgb(62, 42, 45); border-left-color: rgb(176, 78, 83); }
+.action-editor-page-status { margin-bottom: 10px; padding: 7px 9px; white-space: normal; background-color: var(--action-controls); border-left-width: 2px; border-left-color: rgb(79, 139, 199); }

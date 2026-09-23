@@ -1,8 +1,5 @@
 using System;
-using System.Collections.Generic;
-using Animancer;
 using UnityEngine;
-using UnityEngine.Playables;
 
 /// <summary>
 /// 角色动作播放器 - 管理 Action 播放载体、速度与生命周期。
@@ -16,12 +13,10 @@ using UnityEngine.Playables;
 /// 申请和释放 token。这样多个 SpeedVFX 重叠时不会互相把旧快照恢复错。
 /// </para>
 /// </summary>
-[RequireComponent(typeof(PlayableDirector))]
 public class ActionPlayer : MonoBehaviour
 {
     [SerializeField] private Actor _actor;
 
-    private PlayableDirector _director;
     private IActionPlaybackSession _session;
     private IFixedActionPlaybackSession _fixedTickSession;
     private bool _isFinalizingAction;
@@ -79,9 +74,6 @@ public class ActionPlayer : MonoBehaviour
 
     private void Awake()
     {
-        _director = GetComponent<PlayableDirector>();
-        _director.extrapolationMode = DirectorWrapMode.None;
-        _director.playableAsset = null;
         if (_actor == null)
             _actor = GetComponentInParent<Actor>();
     }
@@ -104,29 +96,29 @@ public class ActionPlayer : MonoBehaviour
 
         IActionPlaybackSession session = _session;
         SafeStopSession(session, ActionPlaybackStopMode.Explicit);
-        FinalizeCurrentAction(action, session, clearTimeline: true, disposeSession: true);
+        FinalizeCurrentAction(action, session);
     }
 
-    /// <summary>播放指定动作：先 StopAction，再按配置绑定 Timeline 或 Sequence。</summary>
+    /// <summary>播放指定动作：先停止当前动作，再启动 ActionRuntime 会话。</summary>
     public void BeginAction(ActionAsset actionAsset, ActionContext context)
     {
+        if (!TryBeginAction(actionAsset, context, out string failureReason))
+            Debug.LogWarning(failureReason, this);
+    }
+
+    /// <summary>
+    /// Starts an Action after basic input checks; runtime initialization owns its own validation and cleanup.
+    /// A false result never consumes entry input and never reports a successful start.
+    /// </summary>
+    public bool TryBeginAction(ActionAsset actionAsset, ActionContext context, out string failureReason)
+    {
+        failureReason = null;
+        if (!TryValidateActionAsset(actionAsset, out failureReason))
+            return false;
+
         StopAction();
         _currentContext = context;
         _isPaused = false;
-
-        if (!TryValidateActionAsset(actionAsset, out string warning))
-        {
-            Debug.LogWarning(warning, this);
-            ResetPublicPlaybackState();
-            return;
-        }
-
-        if (!actionAsset.CheckContextRequirements(_currentContext, out warning))
-        {
-            Debug.LogWarning(warning, this);
-            ResetPublicPlaybackState();
-            return;
-        }
 
         ActionInstance action = actionAsset.CreateActionInstance();
         CurrentAction = action;
@@ -137,15 +129,17 @@ public class ActionPlayer : MonoBehaviour
             action.OnEnter(_actor, _currentContext);
             session = CreateSession(action, _currentContext);
             BindSession(session);
-            session.Start();
             session.SetSpeed(PlaybackSpeed);
+            session.Start();
             SyncPublicPlaybackState();
-            LogSequenceDiagnosticsOnce(session);
+            return true;
         }
         catch (Exception exception)
         {
-            Debug.LogException(exception, this);
-            HandleSessionException(action, session);
+            failureReason = $"Action '{actionAsset.name}' failed to start: {exception.Message}";
+            SafeStopSession(session, ActionPlaybackStopMode.Interrupted);
+            FinalizeCurrentAction(action, session);
+            return false;
         }
     }
 
@@ -256,7 +250,10 @@ public class ActionPlayer : MonoBehaviour
         try
         {
             fixedSession.SetSpeed(PlaybackSpeed);
-            if (!fixedSession.TryPlayFrame(deltaSeconds))
+            bool openedFrame = fixedSession.TryPlayFrame(deltaSeconds);
+            if (ReferenceEquals(fixedSession, _session))
+                SyncPublicPlaybackState();
+            if (!openedFrame)
                 return false;
 
             _fixedTickSession = fixedSession;
@@ -314,371 +311,39 @@ public class ActionPlayer : MonoBehaviour
     {
         if (actionAsset == null)
         {
-            warning = "Action 播放失败：ActionAsset 为空。";
+            warning = "Action playback failed: ActionAsset is null.";
             return false;
         }
 
-        if (actionAsset.UsesTimeline)
+        if (actionAsset.Timeline == null)
         {
-            if (actionAsset.TimelineAsset == null)
-            {
-                warning = "Action 播放失败：LegacyTimeline Action 缺少 TimelineAsset。";
-                return false;
-            }
-
-            warning = null;
-            return true;
+            warning = "Action playback failed: Action is missing ActionTimelineData.";
+            return false;
         }
 
-        if (actionAsset.UsesSequence)
-        {
-            if (actionAsset.SequenceData == null)
-            {
-                warning = "Action 播放失败：Sequence Action 缺少 SequenceData。";
-                return false;
-            }
+        if (!TryValidateFixedPlaybackSpeed(out warning))
+            return false;
 
-            if (!CombatSimulationTiming.IsGameplayFrameRate(actionAsset.SequenceData.FrameRate))
-            {
-                warning =
-                    $"Action 播放失败：Gameplay Sequence 必须使用 {CombatSimulationTiming.FrameRate} Hz，当前为 {actionAsset.SequenceData.FrameRate} Hz。";
-                return false;
-            }
-
-            if (!TryValidateSequenceAnimationDependencies(actionAsset.SequenceData, out warning))
-                return false;
-
-            warning = null;
-            return true;
-        }
-
-        warning = $"Action 播放失败：不支持的播放后端 {actionAsset.PlaybackBackend}。";
-        return false;
-    }
-
-    private bool TryValidateSequenceAnimationDependencies(ActionSequenceData sequenceData, out string warning)
-    {
         warning = null;
-        if (sequenceData == null)
-            return true;
-
-        AnimationConfig config = _actor != null ? _actor.AnimationConfig : null;
-        var animationPoseIntervals = new List<ActionSequenceAnimationPoseClipDefinition>();
-        var rootMotionIntervals = new List<ActionSequenceRootMotionClipDefinition>();
-        var selfRotationIntervals = new List<ActionSequenceSelfRotationClipDefinition>();
-
-        IReadOnlyList<ActionSequenceTrackDefinition> tracks = sequenceData.Tracks;
-        for (int trackIndex = 0; tracks != null && trackIndex < tracks.Count; trackIndex++)
-        {
-            ActionSequenceTrackDefinition track = tracks[trackIndex];
-            if (track == null || track.muted)
-                continue;
-
-            if (!TryValidateSequenceClips(track.Clips, config, animationPoseIntervals, rootMotionIntervals, selfRotationIntervals, out warning))
-                return false;
-        }
-
-        if (!TryValidateSequenceClips(sequenceData.LegacyClips, config, animationPoseIntervals, rootMotionIntervals, selfRotationIntervals, out warning))
-            return false;
-
-        for (int i = 0; i < animationPoseIntervals.Count; i++)
-        {
-            ActionSequenceAnimationPoseClipDefinition a = animationPoseIntervals[i];
-            for (int j = i + 1; j < animationPoseIntervals.Count; j++)
-            {
-                ActionSequenceAnimationPoseClipDefinition b = animationPoseIntervals[j];
-                if (a.StartFrame < b.EndFrame && b.StartFrame < a.EndFrame)
-                {
-                    warning =
-                        $"Action 播放失败：AnimationPoseClip 区间重叠 [{a.StartFrame}, {a.EndFrame}) 与 [{b.StartFrame}, {b.EndFrame})。";
-                    return false;
-                }
-            }
-        }
-
-        for (int i = 0; i < rootMotionIntervals.Count; i++)
-        {
-            ActionSequenceRootMotionClipDefinition a = rootMotionIntervals[i];
-            for (int j = i + 1; j < rootMotionIntervals.Count; j++)
-            {
-                ActionSequenceRootMotionClipDefinition b = rootMotionIntervals[j];
-                if (a.StartFrame < b.EndFrame && b.StartFrame < a.EndFrame)
-                {
-                    warning =
-                        $"Action 播放失败：RootMotionClip 区间重叠 [{a.StartFrame}, {a.EndFrame}) 与 [{b.StartFrame}, {b.EndFrame})。";
-                    return false;
-                }
-            }
-        }
-
-        for (int i = 0; i < selfRotationIntervals.Count; i++)
-        {
-            ActionSequenceSelfRotationClipDefinition a = selfRotationIntervals[i];
-            for (int j = i + 1; j < selfRotationIntervals.Count; j++)
-            {
-                ActionSequenceSelfRotationClipDefinition b = selfRotationIntervals[j];
-                if (a.StartFrame < b.EndFrame && b.StartFrame < a.EndFrame)
-                {
-                    warning =
-                        $"Action 播放失败：SelfRotationClip 区间重叠 [{a.StartFrame}, {a.EndFrame}) 与 [{b.StartFrame}, {b.EndFrame})。";
-                    return false;
-                }
-            }
-        }
-
         return true;
     }
 
-    private static bool TryValidateSequenceClips(
-        IReadOnlyList<ActionSequenceClipDefinition> clips,
-        AnimationConfig config,
-        List<ActionSequenceAnimationPoseClipDefinition> animationPoseIntervals,
-        List<ActionSequenceRootMotionClipDefinition> rootMotionIntervals,
-        List<ActionSequenceSelfRotationClipDefinition> selfRotationIntervals,
-        out string warning)
+    private bool TryValidateFixedPlaybackSpeed(out string warning)
     {
+        double speed = PlaybackSpeed;
+        if (double.IsNaN(speed) || double.IsInfinity(speed) || speed < 0d || speed > 1d)
+        {
+            warning = $"Fixed Action playback speed must be within [0, 1], current value is {speed}.";
+            return false;
+        }
+
         warning = null;
-        for (int i = 0; clips != null && i < clips.Count; i++)
-        {
-            ActionSequenceClipDefinition clip = clips[i];
-            if (clip is ActionSequenceAnimationPoseClipDefinition poseClip)
-            {
-                if (config == null)
-                {
-                    warning = "Action 播放失败：Sequence 动画 Clip 需要 Actor.AnimationConfig。";
-                    return false;
-                }
-
-                if (!config.TryGetTransition(poseClip.AnimationKey, out TransitionAsset transition)
-                    || transition == null
-                    || transition.Transition == null)
-                {
-                    warning = $"Action 播放失败：AnimationConfig 找不到动画 key '{poseClip.AnimationKey}' 的 Transition。";
-                    return false;
-                }
-
-                animationPoseIntervals?.Add(poseClip);
-            }
-            else if (clip is ActionSequenceRootMotionClipDefinition rootMotionClip)
-            {
-                if (config == null)
-                {
-                    warning = "Action 播放失败：RootMotionClip 需要 Actor.AnimationConfig。";
-                    return false;
-                }
-
-                if (!config.TryGetTrajectory(rootMotionClip.AnimationKey, out RootMotionTrajectory trajectory)
-                    || trajectory == null)
-                {
-                    warning = $"Action 播放失败：AnimationConfig 找不到动画 key '{rootMotionClip.AnimationKey}' 的 RootMotionTrajectory。";
-                    return false;
-                }
-
-                RootMotionTrajectoryValidationResult validation = trajectory.ValidateData();
-                if (!validation.IsValid)
-                {
-                    warning = $"Action 播放失败：动画 key '{rootMotionClip.AnimationKey}' 的 RootMotionTrajectory 数据无效。";
-                    return false;
-                }
-
-                rootMotionIntervals?.Add(rootMotionClip);
-            }
-            else if (clip is ActionSequenceSelfRotationClipDefinition selfRotationClip)
-            {
-                if (!selfRotationClip.HasValidAngularSpeed())
-                {
-                    warning = "Action 播放失败：SelfRotationClip RotateBySpeed 需要 Angular Speed > 0。";
-                    return false;
-                }
-
-                if (selfRotationClip.Source == SelfRotationSource.Direction
-                    && selfRotationClip.DirectionSource == SelfRotationDirectionSource.PresetLocal
-                    && !selfRotationClip.HasValidPresetLocalDirection())
-                {
-                    warning = "Action 播放失败：SelfRotationClip PresetLocal 方向无效。";
-                    return false;
-                }
-
-                if (selfRotationClip.Source != SelfRotationSource.RootRotation)
-                {
-                    selfRotationIntervals?.Add(selfRotationClip);
-                    continue;
-                }
-
-                if (config == null)
-                {
-                    warning = "Action 播放失败：RootRotation SelfRotationClip 需要 Actor.AnimationConfig。";
-                    return false;
-                }
-
-                if (!config.TryGetTrajectory(selfRotationClip.AnimationKey, out RootMotionTrajectory trajectory)
-                    || trajectory == null)
-                {
-                    warning = $"Action 播放失败：AnimationConfig 找不到动画 key '{selfRotationClip.AnimationKey}' 的 RootMotionTrajectory。";
-                    return false;
-                }
-
-                RootMotionTrajectoryValidationResult validation = trajectory.ValidateData();
-                if (!validation.IsValid)
-                {
-                    warning = $"Action 播放失败：动画 key '{selfRotationClip.AnimationKey}' 的 RootMotionTrajectory 数据无效。";
-                    return false;
-                }
-
-                if (!TryValidateSelfRotationExtraction(selfRotationClip, trajectory))
-                {
-                    warning = $"Action 播放失败：SelfRotationClip 无法从动画 key '{selfRotationClip.AnimationKey}' 提取有效 Yaw。";
-                    return false;
-                }
-
-                selfRotationIntervals?.Add(selfRotationClip);
-            }
-            else if (clip is ActionSequenceRootRotationClipDefinition rootRotationClip)
-            {
-                if (config == null)
-                {
-                    warning = "Action 播放失败：RootRotationClip 需要 Actor.AnimationConfig。";
-                    return false;
-                }
-
-                if (!config.TryGetTrajectory(rootRotationClip.AnimationKey, out RootMotionTrajectory trajectory)
-                    || trajectory == null)
-                {
-                    warning = $"Action 播放失败：AnimationConfig 找不到动画 key '{rootRotationClip.AnimationKey}' 的 RootMotionTrajectory。";
-                    return false;
-                }
-
-                RootMotionTrajectoryValidationResult validation = trajectory.ValidateData();
-                if (!validation.IsValid)
-                {
-                    warning = $"Action 播放失败：动画 key '{rootRotationClip.AnimationKey}' 的 RootMotionTrajectory 数据无效。";
-                    return false;
-                }
-
-                if (!TryValidateRootRotationExtraction(rootRotationClip, trajectory))
-                {
-                    warning = $"Action 播放失败：RootRotationClip 无法从动画 key '{rootRotationClip.AnimationKey}' 提取有效 Yaw。";
-                    return false;
-                }
-            }
-            else if (clip is ActionSequenceVelocityOverrideClipDefinition velocityClip)
-            {
-                if (!velocityClip.HasAnyAxis)
-                {
-                    warning = "Action 播放失败：VelocityOverrideClip 至少需要启用一个速度轴。";
-                    return false;
-                }
-
-                if (!velocityClip.HasFiniteSpeeds())
-                {
-                    warning = "Action 播放失败：VelocityOverrideClip 速度必须是有限数值。";
-                    return false;
-                }
-
-                if (!velocityClip.HasValidPresetLocalDirection())
-                {
-                    warning = "Action 播放失败：VelocityOverrideClip PresetLocal 方向无效。";
-                    return false;
-                }
-            }
-            else if (clip is ActionSequenceImpulseClipDefinition impulseClip)
-            {
-                if (!impulseClip.HasAnyContribution)
-                {
-                    warning = "Action 播放失败：ImpulseClip 至少需要启用一个 contribution。";
-                    return false;
-                }
-
-                if (!impulseClip.HasFiniteValues())
-                {
-                    warning = "Action 播放失败：ImpulseClip 数值必须是有限数值。";
-                    return false;
-                }
-
-                if (!impulseClip.HasValidPresetLocalDirection())
-                {
-                    warning = "Action 播放失败：ImpulseClip PresetLocal 方向无效。";
-                    return false;
-                }
-            }
-            else if (clip is ActionSequenceMotionPolicyClipDefinition motionPolicyClip)
-            {
-                if (!motionPolicyClip.HasAnyPolicy)
-                {
-                    warning = "Action 播放失败：MotionPolicyClip 至少需要启用一个 policy。";
-                    return false;
-                }
-
-                if (!motionPolicyClip.HasValidValues())
-                {
-                    warning = "Action 播放失败：MotionPolicyClip 数值无效。";
-                    return false;
-                }
-            }
-        }
-
-        return true;
-    }
-
-    private static bool TryValidateSelfRotationExtraction(
-        ActionSequenceSelfRotationClipDefinition clip,
-        RootMotionTrajectory trajectory)
-    {
-        if (clip == null || trajectory == null)
-            return false;
-
-        int frameRate = CombatSimulationTiming.FrameRate;
-        for (int frame = clip.StartFrame; frame < clip.EndFrame; frame++)
-        {
-            float localFrame = frame - clip.StartFrame;
-            float speed = Mathf.Max(0f, clip.playbackSpeed);
-            float startTime = Mathf.Max(0f, clip.startOffsetSeconds) + localFrame / frameRate * speed;
-            float endTime = Mathf.Max(0f, clip.startOffsetSeconds) + (localFrame + 1f) / frameRate * speed;
-
-            if (!trajectory.TryExtract(startTime, endTime, out RootMotionTransform delta)
-                || !RootMotionYawUtility.TryExtractLocalYaw(delta.Rotation, out _))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private static bool TryValidateRootRotationExtraction(
-        ActionSequenceRootRotationClipDefinition clip,
-        RootMotionTrajectory trajectory)
-    {
-        if (clip == null || trajectory == null)
-            return false;
-
-        int frameRate = CombatSimulationTiming.FrameRate;
-        for (int frame = clip.StartFrame; frame < clip.EndFrame; frame++)
-        {
-            float localFrame = frame - clip.StartFrame;
-            float speed = Mathf.Max(0f, clip.playbackSpeed);
-            float startTime = Mathf.Max(0f, clip.startOffsetSeconds) + localFrame / frameRate * speed;
-            float endTime = Mathf.Max(0f, clip.startOffsetSeconds) + (localFrame + 1f) / frameRate * speed;
-
-            if (!trajectory.TryExtract(startTime, endTime, out RootMotionTransform delta)
-                || !RootMotionYawUtility.TryExtractLocalYaw(delta.Rotation, out _))
-            {
-                return false;
-            }
-        }
-
         return true;
     }
 
     private IActionPlaybackSession CreateSession(ActionInstance action, ActionContext context)
     {
-        if (action.Config.UsesTimeline)
-            return new TimelineActionPlaybackSession(action, _director);
-
-        if (action.Config.UsesSequence)
-            return new SequenceActionPlaybackSession(action, _actor, context);
-
-        throw new InvalidOperationException($"Unsupported action playback backend {action.Config.PlaybackBackend}.");
+        return new ActionRuntimePlaybackSession(action, _actor, context);
     }
 
     private void BindSession(IActionPlaybackSession session)
@@ -744,7 +409,7 @@ public class ActionPlayer : MonoBehaviour
             return;
         }
 
-        FinalizeCurrentAction(finished, session, clearTimeline: true, disposeSession: true);
+        FinalizeCurrentAction(finished, session);
         OnActionFinished?.Invoke(finished);
     }
 
@@ -754,7 +419,7 @@ public class ActionPlayer : MonoBehaviour
             return;
 
         ActionInstance interrupted = CurrentAction;
-        FinalizeCurrentAction(interrupted, session, clearTimeline: false, disposeSession: true);
+        FinalizeCurrentAction(interrupted, session);
         OnActionInterrupted?.Invoke(interrupted);
     }
 
@@ -768,7 +433,7 @@ public class ActionPlayer : MonoBehaviour
         }
 
         SafeStopSession(session, ActionPlaybackStopMode.Interrupted);
-        FinalizeCurrentAction(action, session, clearTimeline: true, disposeSession: true);
+        FinalizeCurrentAction(action, session);
         OnActionInterrupted?.Invoke(action);
     }
 
@@ -793,7 +458,7 @@ public class ActionPlayer : MonoBehaviour
 
         IActionPlaybackSession session = _session;
         SafeStopSession(session, ActionPlaybackStopMode.Disable);
-        FinalizeCurrentAction(action, session, clearTimeline: true, disposeSession: true);
+        FinalizeCurrentAction(action, session);
     }
 
     private void SafeStopSession(IActionPlaybackSession session, ActionPlaybackStopMode stopMode)
@@ -811,7 +476,7 @@ public class ActionPlayer : MonoBehaviour
         }
     }
 
-    private void FinalizeCurrentAction(ActionInstance action, IActionPlaybackSession session, bool clearTimeline, bool disposeSession)
+    private void FinalizeCurrentAction(ActionInstance action, IActionPlaybackSession session)
     {
         if (action == null || _isFinalizingAction)
             return;
@@ -825,17 +490,13 @@ public class ActionPlayer : MonoBehaviour
             _isPaused = false;
             action.OnExit();
 
-            if (clearTimeline && _director != null)
-                _director.playableAsset = null;
-
             _currentContext = default;
             ResetPublicPlaybackState();
         }
         finally
         {
             _isFinalizingAction = false;
-            if (disposeSession)
-                DisposeSession(session);
+            DisposeSession(session);
         }
     }
 
@@ -881,18 +542,6 @@ public class ActionPlayer : MonoBehaviour
         CurrentFrame = 0;
         CurrentFrameRate = 0;
         TotalFrames = 0;
-    }
-
-    private void LogSequenceDiagnosticsOnce(IActionPlaybackSession session)
-    {
-        if (session is not SequenceActionPlaybackSession sequenceSession)
-            return;
-
-        ActionSequenceRuntimeDiagnostics diagnostics = sequenceSession.Diagnostics;
-        if (diagnostics == null || !diagnostics.HasIssues)
-            return;
-
-        Debug.LogWarning(diagnostics.ToSummary("Sequence Action runtime diagnostics"), this);
     }
 
     private static double SanitizeSpeed(double speed)

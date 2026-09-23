@@ -1,16 +1,18 @@
 #if UNITY_EDITOR
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Editor-only extraction settings shared by legacy AnimationConfig and the
-/// Action V1 AnimationAsset. The type stays in the runtime assembly so the
+/// Editor-only extraction settings used by AnimationAsset root-motion baking.
+/// The type stays in the runtime assembly so the
 /// serialized AnimationAsset can expose it to editor tooling without a reverse
 /// reference to Assembly-CSharp-Editor.
 /// </summary>
 [System.Serializable]
 public sealed class RootMotionBakeSettings
 {
-    [SerializeField] private GameObject _referenceRigPrefab;
+    // Retained for existing AnimationAsset inline bake settings. New assets use AnimationRigAsset.
+    [SerializeField, HideInInspector] private GameObject _referenceRigPrefab;
     [SerializeField, Min(1)] private int _sampleRate = 60;
     [SerializeField, Min(0f)] private float _positionTolerance = 0.001f;
     [SerializeField, Min(0f)] private float _rotationToleranceDegrees = 0.1f;
@@ -19,20 +21,6 @@ public sealed class RootMotionBakeSettings
     public int SampleRate => _sampleRate;
     public float PositionTolerance => _positionTolerance;
     public float RotationToleranceDegrees => _rotationToleranceDegrees;
-
-    public static RootMotionBakeSettings FromLegacy(AnimationConfig config)
-    {
-        if (config == null)
-            return null;
-
-        return new RootMotionBakeSettings
-        {
-            _referenceRigPrefab = config.RootMotionReferenceRigPrefab,
-            _sampleRate = config.RootMotionSampleRate,
-            _positionTolerance = config.RootMotionPositionTolerance,
-            _rotationToleranceDegrees = config.RootMotionRotationToleranceDegrees,
-        };
-    }
 
     public RootMotionBakeSettingsValidationResult Validate()
     {
@@ -108,5 +96,43 @@ public sealed class RootMotionBakeSettings
 
     private static bool ApproximatelyOne(float value) => Mathf.Abs(value - 1f) <= 1e-4f;
     private static bool IsFinite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
+}
+
+public enum RootMotionBakeSettingsValidationCode
+{
+    MissingReferenceRig,
+    InvalidSampleRate,
+    InvalidPositionTolerance,
+    InvalidRotationTolerance,
+    MissingAnimator,
+    MultipleAnimators,
+    InvalidAvatar,
+    NonUnitAnimatorScale,
+    ContainsMonoBehaviour,
+}
+
+public readonly struct RootMotionBakeSettingsValidationIssue
+{
+    public RootMotionBakeSettingsValidationCode Code { get; }
+    public string Message { get; }
+
+    public RootMotionBakeSettingsValidationIssue(RootMotionBakeSettingsValidationCode code, string message)
+    {
+        Code = code;
+        Message = message;
+    }
+}
+
+public sealed class RootMotionBakeSettingsValidationResult
+{
+    private readonly List<RootMotionBakeSettingsValidationIssue> _issues = new();
+
+    public bool IsValid => _issues.Count == 0;
+    public IReadOnlyList<RootMotionBakeSettingsValidationIssue> Issues => _issues;
+
+    internal void Add(RootMotionBakeSettingsValidationCode code, string message)
+    {
+        _issues.Add(new RootMotionBakeSettingsValidationIssue(code, message));
+    }
 }
 #endif

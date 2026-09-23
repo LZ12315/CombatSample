@@ -1,85 +1,28 @@
 # Documentation Index
 
-> Last documentation authority audit: 2026-08-30 (`FrameWork`)
+Verified against the repository on 2026-09-24. Current code and the user's latest decisions take precedence over older plans.
 
-`Docs` is divided by document authority:
+- [Current](Current/) contains descriptions of the implemented system and current validation records.
+- [Proposals](Proposals/) contains design history and future work; the old Action roadmap is superseded.
+- [Archive](Archive/) contains retired ActionSequence and Timeline documents, Action V1 stage records, and historical audits.
 
-- `Current/` — verified repository facts, implemented editor/runtime behavior, repeatable current validation.
-- `Proposals/` — approved architecture targets and active implementation work that are not yet fully reflected by runtime code.
-- `Archive/` — historical context, completed plans, superseded designs and migration records.
+## Action and animation
 
-Directory placement is part of document status. Do not treat an old plan as current just because some technical details remain useful.
+- [Formal Action editor and playback architecture](Current/CombatSample_Action_Editor_Architecture_2026-09-19_zh-CN.md) describes the sole ActionAsset / ActionRuntime path, editor ownership, Preview boundary and code layout.
+- [Animation → Action → Actor closure audit](Current/CombatSample_Animation_Action_Actor_Closure_Audit_2026-09-23_zh-CN.md) records the code review, current validation status and remaining manual checks.
+- [Actor motion validation](Current/Actor_Motion_Validation.md) records the motion-domain and ownership contract.
+- [HitStop boundary fixes](Current/CombatSample_HitStop_Boundary_Fixes_2026-09-19_zh-CN.md) records the current fixed-tick effect rules.
 
-## Architecture Authority During Action V1 Migration
+## Project context
 
-The Action V1 migration uses a **split authority model** until Stage 7 cutover is complete:
+- [Scene ownership baseline](Current/Scene_Ownership_Baseline_2026-08-02.md).
+- [E3 v3 validation handoff](Current/CombatSample_E3_v3_Validation_Handoff_2026-08-29_zh-CN.md).
 
-1. [Action Final Architecture v1](Proposals/CombatSample_Action_Final_Architecture_v1_zh-CN.md) — **Approved / Frozen Design Target** for the future Action authoring and playback architecture: `ActionAsset` inline Timeline, `ActionRuntime`, `ActionRuntimeScheduler`, `AnimationAsset`, GameplayLane / GameplayItem, editor workflow, migration target and Legacy retirement rules.
-2. [Action Implementation Roadmap v1](Proposals/CombatSample_Action_Implementation_Roadmap_v1_zh-CN.md) — **Approved Implementation Roadmap** for moving the current `FrameWork` baseline to Action Final Architecture v1. It defines Stage 0–7 scope, validation and Exit Criteria; it may not override the frozen architecture.
-3. [ActionSequence Final Architecture v3](Proposals/CombatSample_ActionSequence_Final_Architecture_v3_zh-CN.md) — **current implemented E3 Runtime / Domain baseline**. It remains authoritative for already validated `CombatSimulationDriver` phase order, ActorAnimation / ActorMotor ownership, Translation / Rotation / MotionPolicy domains, Hit ordering, fixed combat time and related E3 runtime semantics until an explicit migration stage replaces a specific Action authoring / playback path.
-4. Current verified code facts — describe what the branch actually implements today. Differences from approved targets are implementation gaps, not automatic architecture changes.
-5. `Archive/` — historical input only.
+## Historical Action records
 
-`Action Final Architecture v1` is a new Action architecture version line; its `v1` does not mean it is older than `ActionSequence Final Architecture v3`.
+- [Action V1 stage and editor checkpoints](Archive/ActionV1/) document the route by which the current system was built. Their placeholder Preview, old validator and side-path Runtime statements no longer describe current code.
+- [ActionSequence editor design](Archive/ActionSequence_Editor_Design_Spec.md) and [V2 architecture](Archive/ActionSequence_Editor_V2_Architecture_zh-CN.md) describe a deleted editor.
+- [Old project structure](Archive/Project_Structure.md) and [editor formalization inventory](Archive/CombatSample_Action_Editor_Formalization_Inventory_2026-09-19_zh-CN.md) are snapshots.
+- [Action final architecture proposal](Proposals/CombatSample_Action_Final_Architecture_v1_zh-CN.md) is design history, not a substitute for the formal current architecture.
 
-If the new Action v1 target conflicts with v3 specifically on Action authoring / playback data structures, Action v1 is the migration target. If the question concerns E3 Domain authority / phase semantics that Action v1 explicitly preserves, the validated v3 rule remains authoritative unless separately reopened through Architecture Review.
-
-## Current
-
-These documents describe verified current repository/editor state and remain current until the Action V1 migration reaches the corresponding cutover stage.
-
-- [Project Structure](Current/Project_Structure.md) — factual repository layout, active Sequence content, animation/locomotion profiles and Actor runtime structure. Last verified 2026-08-29.
-- [Scene Ownership Baseline](Current/Scene_Ownership_Baseline_2026-08-02.md) — current release and targeted validation scene ownership.
-- [Actor Motion v3 Validation](Current/Actor_Motion_Validation.md) — current Translation, Rotation, Root Motion, time-domain and lifecycle validation contract.
-- [E3 v3 Validation Handoff](Current/CombatSample_E3_v3_Validation_Handoff_2026-08-29_zh-CN.md) — completed E3 static, asset and differential acceptance evidence.
-- [Action V1 Stage 0 Baseline & Inventory](Current/CombatSample_Action_V1_Stage_0_Baseline_Inventory_2026-08-30_zh-CN.md) — Action V1 migration baseline, Legacy dependency inventory and ActionAsset migration inventory; Unity repeatability recheck completed.
-- [Action V1 Stage 1 Handoff](Current/CombatSample_Action_V1_Stage_1_Handoff_2026-08-30_zh-CN.md) — new inline authoring data, validation and AnimationAsset bake implementation; Unity workstation acceptance confirmed.
-- [Action V1 Stage 2 Handoff](Current/CombatSample_Action_V1_Stage_2_Handoff_2026-08-30_zh-CN.md) — ActionRuntime and fixed-frame Scheduler side path; not connected to production ActionPlayer or gameplay domains.
-- [Action V1 Stage 3 Handoff](Current/CombatSample_Action_V1_Stage_3_Handoff_2026-09-01_zh-CN.md) — real V1 gameplay-item runtimes connected to existing receivers on the same side path; Unity workstation acceptance confirmed.
-- [Action V1 Stage 4 Handoff](Current/CombatSample_Action_V1_Stage_4_Handoff_2026-09-01_zh-CN.md) — V1 AnimationSegment pose sampling reaches ActorAnimation on the side path; no ActionPlayer or combat-loop cutover.
-- [Action V1 Stage 0–4 Review](Current/CombatSample_Action_V1_Stage_0_4_Review_2026-09-01_zh-CN.md) — architecture and implementation review, corrections, evidence, and remaining intentional boundaries before Stage 5.
-- [Action V1 Pre-Preview Editor Checkpoint](Current/CombatSample_Action_V1_Editor_PrePreview_Checkpoint_2026-09-08_zh-CN.md) — current verified boundary: Stage 0–4 plus accepted Timeline/Details are retained; Editor Preview is a non-running placeholder and its design is paused.
-- [ActionSequence Editor Design Spec](Current/ActionSequence_Editor_Design_Spec.md) — current implemented ActionSequence fixed-frame editor product-language baseline. This becomes historical when Stage 7 replaces the old editor.
-- [ActionSequence Editor V2 Architecture](Current/ActionSequence_Editor_V2_Architecture.md) — current implemented UI Toolkit editor architecture. This becomes historical when Stage 7 replaces the old editor.
-- [ActionSequence 编辑器 V2 架构（中文）](Current/ActionSequence_Editor_V2_Architecture_zh-CN.md) — current implemented V2 editor architecture, Chinese edition. This becomes historical when Stage 7 replaces the old editor.
-
-## Proposals / Approved Migration Work
-
-- [Action Final Architecture v1](Proposals/CombatSample_Action_Final_Architecture_v1_zh-CN.md) — frozen target for the new Action authoring / playback architecture.
-- [Action Implementation Roadmap v1](Proposals/CombatSample_Action_Implementation_Roadmap_v1_zh-CN.md) — active Stage 0–7 migration plan and acceptance criteria.
-- [Action V1 Stage 5 Editor Redesign](Proposals/CombatSample_Action_V1_Stage_5_Editor_Redesign_Draft_2026-09-01_zh-CN.md) — frozen remediation authority for the three-window editor information architecture and interaction contracts.
-- [ActionSequence Final Architecture v3](Proposals/CombatSample_ActionSequence_Final_Architecture_v3_zh-CN.md) — approved and implemented E3 baseline whose Domain / authority / phase rules remain in force during migration where explicitly preserved.
-
-Implementation convenience alone is not sufficient to reopen a frozen Action v1 rule or an E3 v3 Domain rule.
-
-Stage 5R.6 status correction (2026-09-08): both Preview implementations have been withdrawn from the active code path. Preview remains a requirement, but no archived implementation or P2 continuation is currently approved.
-
-## Completed Migration / Archive References
-
-- [E3 Architecture Migration Roadmap](Archive/CombatSample_E3_Architecture_Migration_Roadmap_zh-CN.md) — completed E3-A～H migration record and Exit Criteria evidence; archived on 2026-08-29.
-- [E3 Pre-Design Checkpoint](Archive/CombatSample_E3_PreDesign_Checkpoint_zh-CN.md) — historical decision checkpoint consolidated by v3.
-- [v3 Source Audit](Archive/CombatSample_Final_v3_Source_Audit_zh-CN.md) — historical consolidation record.
-- [ActionSequence Final Architecture v2](Archive/CombatSample_ActionSequence_Final_Architecture_v2_zh-CN.md) — previous baseline superseded by v3.
-- [Action V1 Stage 5R Archive](Archive/ActionV1/Stage5R/) — completed Timeline/Details implementation records, the superseded original Stage 5 handoff, visual prototypes, open-source audit and withdrawn Preview experiments. Historical evidence only.
-- [Root Motion Final Design v1](Archive/CombatSample_RootMotion_Final_Design_v1.md) — historical Root Motion design source; retained bake/data principles were consolidated into later architecture.
-
-Other notable archived records include completed D5 / E1 / E2 implementation plans, the historical frame-table migration draft, older Actor Motion validation, Stage 0–7 retrospective, prototype editor audit, KCC migration/refactor reports and older project recommendations.
-
-## Action V1 Migration Maintenance Rules
-
-- New Action authoring / playback work must follow Action Final Architecture v1 and the active Roadmap.
-- Do not add new dependencies on Legacy Sequence / typed Track / Clip / PlaybackBackend / ActionMotionConfig / Action-side `animationKey` paths unless a migration stage explicitly requires temporary read access.
-- Migration-time coexistence is a temporary construction state, not a long-term Runtime compatibility architecture.
-- Before Stage 7, current Sequence editor documents remain factual references for the currently implemented editor; after Stage 7 they must move to `Archive/`.
-- Stage 7 must update this index again so the completed Action v1 implementation becomes the current Action authoring / playback authority and the completed Roadmap is archived or marked completed.
-- Locomotion Animation remains outside the Action V1 scope; existing Locomotion `AnimationConfig` usage may remain until its separate redesign.
-
-## General Maintenance Rules
-
-- `Current/` documents must describe verified repository facts, implemented architecture, or repeatable current validation procedures.
-- `Proposals/` may contain approved architecture targets and active implementation/design work not yet fully implemented; such documents must state status, assumptions, migration scope and validation requirements.
-- `Archive/` documents are historical context and should not override approved Current / Proposal authority.
-- Add or refresh verification dates when current repository facts change.
-- Completed stage implementation plans belong in `Archive/`, not as active Roadmaps.
-- Do not infer document authority from Git modification date alone.
-- When architecture and implementation differ, record the difference as an implementation gap unless an explicit Architecture Review changes the approved rule.
+The ActionSequence, Legacy Timeline and AnimationConfig playback/editor paths have been removed. Locomotion animation presentation remains a separate follow-up; do not revive the old AnimationConfig lookup to fill that gap.

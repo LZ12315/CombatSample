@@ -4,7 +4,7 @@ using UnityEngine;
 /// Reusable Action animation resource. Runtime reads only the clip and baked
 /// trajectory; bake inputs exist only in the Unity Editor.
 /// </summary>
-[CreateAssetMenu(fileName = "AnimationAsset", menuName = "Combat/Animation/Animation Asset")]
+[CreateAssetMenu(fileName = "AnimationAsset", menuName = "CombatSample/Animation/Animation")]
 public sealed class AnimationAsset : ScriptableObject
 {
     [SerializeField] private AnimationClip _clip;
@@ -16,11 +16,19 @@ public sealed class AnimationAsset : ScriptableObject
 
 #if UNITY_EDITOR
     [Header("Root Motion Bake Context")]
-    [SerializeField] private RootMotionBakeSettings _rootMotionBakeSettings = new RootMotionBakeSettings();
+    [SerializeField] private AnimationRigAsset _animationRigAsset;
 
-    public RootMotionBakeSettings RootMotionBakeSettings => _rootMotionBakeSettings;
+    public AnimationRigAsset AnimationRigAsset => _animationRigAsset;
+    public RootMotionBakeSettings RootMotionBakeSettings => _animationRigAsset != null
+        ? _animationRigAsset.CreateEffectiveBakeSettings()
+        : null;
 
     public void EditorSetClip(AnimationClip clip) => _clip = clip;
+
+    public void EditorSetAnimationRigAsset(AnimationRigAsset animationRigAsset)
+    {
+        _animationRigAsset = animationRigAsset;
+    }
 
     public void EditorSetRootMotionData(RootMotionTrajectory rootMotionData)
     {

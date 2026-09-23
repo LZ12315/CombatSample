@@ -26,11 +26,11 @@ public sealed class RootMotionBakerTests
     public void BakerAndValidator_MatchSyntheticGenericRootMotion()
     {
         GameObject rig = CreateGenericReferenceRig();
-        AnimationConfig config = CreateConfig(rig, 10);
+        RootMotionBakeSettings settings = CreateSettings(rig, 10);
         AnimationClip clip = CreateRootMotionClip(1f, 2f, 90f);
 
         Assert.IsTrue(
-            RootMotionBaker.TryBake(clip, config, out RootMotionBakeResult bake, out RootMotionBakeDiagnostic diagnostic),
+            RootMotionBaker.TryBake(clip, settings, out RootMotionBakeResult bake, out RootMotionBakeDiagnostic diagnostic),
             diagnostic.Message);
 
         Assert.AreEqual(11, bake.SampleCount);
@@ -55,11 +55,11 @@ public sealed class RootMotionBakerTests
     public void Baker_UsesExactPartialFinalStep()
     {
         GameObject rig = CreateGenericReferenceRig();
-        AnimationConfig config = CreateConfig(rig, 4);
+        RootMotionBakeSettings settings = CreateSettings(rig, 4);
         AnimationClip clip = CreateRootMotionClip(0.6f, 1.2f, 30f);
 
         Assert.IsTrue(
-            RootMotionBaker.TryBake(clip, config, out RootMotionBakeResult bake, out RootMotionBakeDiagnostic diagnostic),
+            RootMotionBaker.TryBake(clip, settings, out RootMotionBakeResult bake, out RootMotionBakeDiagnostic diagnostic),
             diagnostic.Message);
 
         CollectionAssert.AreEqual(new[] { 0f, 0.25f, 0.5f, 0.6f }, bake.SampleTimes.ToArray());
@@ -68,20 +68,39 @@ public sealed class RootMotionBakerTests
     }
 
     [Test]
-    public void NewBakeSettings_ProduceTheSameSamplingContractAsLegacyConfig()
+    public void BakeSettings_ProduceTheExpectedSamplingContract()
     {
         GameObject rig = CreateGenericReferenceRig();
-        AnimationConfig config = CreateConfig(rig, 10);
+        RootMotionBakeSettings settings = CreateSettings(rig, 10);
         AnimationClip clip = CreateRootMotionClip(1f, 2f, 90f);
 
-        Assert.IsTrue(RootMotionBaker.TryBake(clip, config, out RootMotionBakeResult legacy, out RootMotionBakeDiagnostic legacyDiagnostic), legacyDiagnostic.Message);
-        RootMotionBakeSettings settings = RootMotionBakeSettings.FromLegacy(config);
-        Assert.IsTrue(RootMotionBaker.TryBake(clip, settings, out RootMotionBakeResult current, out RootMotionBakeDiagnostic currentDiagnostic), currentDiagnostic.Message);
+        Assert.IsTrue(RootMotionBaker.TryBake(
+            clip, settings, out RootMotionBakeResult bake, out RootMotionBakeDiagnostic diagnostic), diagnostic.Message);
+        Assert.AreSame(settings, bake.Settings);
+        Assert.AreEqual(11, bake.SampleCount);
+        Assert.IsTrue(RootMotionBakeValidator.TryValidate(bake, out RootMotionValidationReport report, out RootMotionValidationDiagnostic validationDiagnostic), validationDiagnostic.Message);
+        Assert.IsTrue(report.IsValid, report.Summary);
+        AssertNoPreviewRoots();
+    }
 
-        CollectionAssert.AreEqual(legacy.SampleTimes, current.SampleTimes);
-        CollectionAssert.AreEqual(legacy.CumulativePositions, current.CumulativePositions);
-        CollectionAssert.AreEqual(legacy.CumulativeRotations, current.CumulativeRotations);
-        Assert.IsTrue(RootMotionBakeValidator.TryValidate(current, out RootMotionValidationReport report, out RootMotionValidationDiagnostic validationDiagnostic), validationDiagnostic.Message);
+    [Test]
+    public void AnimationRigAsset_ProvidesTheBakeRigAndNumericSettingsToExistingPipeline()
+    {
+        GameObject rig = CreateGenericReferenceRig();
+        AnimationRigAsset rigAsset = Track(ScriptableObject.CreateInstance<AnimationRigAsset>());
+        rigAsset.EditorSet(rig, rig, 10, 0.001f, 0.1f);
+        AnimationClip clip = CreateRootMotionClip(1f, 2f, 90f);
+
+        Assert.AreEqual(10, rigAsset.BakeSettings.SampleRate);
+        RootMotionBakeSettings effective = rigAsset.CreateEffectiveBakeSettings();
+        Assert.AreSame(rig, effective.ReferenceRigPrefab);
+        Assert.IsTrue(RootMotionBaker.TryBake(
+            clip, effective, out RootMotionBakeResult bake, out RootMotionBakeDiagnostic diagnostic),
+            diagnostic.Message);
+        Assert.AreEqual(11, bake.SampleCount);
+        Assert.IsTrue(RootMotionBakeValidator.TryValidate(
+            bake, out RootMotionValidationReport report, out RootMotionValidationDiagnostic validationDiagnostic),
+            validationDiagnostic.Message);
         Assert.IsTrue(report.IsValid, report.Summary);
         AssertNoPreviewRoots();
     }
@@ -90,18 +109,18 @@ public sealed class RootMotionBakerTests
     public void Validator_RejectsTamperedSyntheticBake()
     {
         GameObject rig = CreateGenericReferenceRig();
-        AnimationConfig config = CreateConfig(rig, 10);
+        RootMotionBakeSettings settings = CreateSettings(rig, 10);
         AnimationClip clip = CreateRootMotionClip(0.5f, 1f, 45f);
 
         Assert.IsTrue(
-            RootMotionBaker.TryBake(clip, config, out RootMotionBakeResult original, out RootMotionBakeDiagnostic diagnostic),
+            RootMotionBaker.TryBake(clip, settings, out RootMotionBakeResult original, out RootMotionBakeDiagnostic diagnostic),
             diagnostic.Message);
 
         var positions = original.CumulativePositions.ToList();
         positions[2] += Vector3.right * 0.2f;
         var tampered = new RootMotionBakeResult(
             original.SourceClip,
-            original.AnimationConfig,
+            original.Settings,
             original.BakerVersion,
             original.SampleRate,
             original.Duration,
@@ -116,7 +135,7 @@ public sealed class RootMotionBakerTests
                 out RootMotionValidationDiagnostic validationDiagnostic),
             validationDiagnostic.Message);
         Assert.IsFalse(report.IsValid);
-        Assert.Greater(report.MaximumPositionError, config.RootMotionPositionTolerance);
+        Assert.Greater(report.MaximumPositionError, settings.PositionTolerance);
         AssertNoPreviewRoots();
     }
 
@@ -133,11 +152,11 @@ public sealed class RootMotionBakerTests
         return rig;
     }
 
-    private AnimationConfig CreateConfig(GameObject rig, int sampleRate)
+    private static RootMotionBakeSettings CreateSettings(GameObject rig, int sampleRate)
     {
-        AnimationConfig config = Track(ScriptableObject.CreateInstance<AnimationConfig>());
-        config.EditorSetRootMotionBakeSettings(rig, sampleRate, 0.001f, 0.1f);
-        return config;
+        var settings = new RootMotionBakeSettings();
+        settings.EditorSet(rig, sampleRate, 0.001f, 0.1f);
+        return settings;
     }
 
     private AnimationClip CreateRootMotionClip(float duration, float distance, float yaw)

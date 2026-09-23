@@ -34,6 +34,7 @@ public class ImpactSystem : MonoBehaviour
 
     void OnDestroy()
     {
+        ClearAllEffects();
         if (_instance == this)
         {
             _instance = null;
@@ -67,7 +68,8 @@ public class ImpactSystem : MonoBehaviour
     }
 
     #region 效果管理
-    private List<ImpactEffect> activeEffects = new List<ImpactEffect>();
+    private readonly List<ImpactEffect> activeEffects = new List<ImpactEffect>();
+    private readonly List<ActionSpeedEffect> activeSpeedEffects = new List<ActionSpeedEffect>();
 
     public void ApplyImpact(ImpactData impactData, IReadOnlyList<ImpactEffectConfig> clipEffects)
     {
@@ -95,41 +97,122 @@ public class ImpactSystem : MonoBehaviour
         // 处理新的 SpeedEffectConfig（推荐）
         if (gathered.SpeedEffect != null)
         {
-            var speedEffect = new ActionSpeedEffect();
-            speedEffect.Execute(impactData, gathered.SpeedEffect);
-            if (speedEffect.IsActive)
-                activeEffects.Add(speedEffect);
+            TryStartSpeedEffect(impactData, gathered.SpeedEffect);
         }
         // 兼容旧配置：如果配置了旧版 HitStop/HitStick 但没有 SpeedEffect
         else if (gathered.HitStop != null || gathered.HitStick != null)
         {
-            var speedEffect = new ActionSpeedEffect();
-            // 合并旧配置：取最慢速度，最长时长，仅攻击者（旧行为）
-            float duration = Mathf.Max(
-                gathered.HitStop?.duration ?? 0f,
-                gathered.HitStick?.duration ?? 0f);
-            float speed = 1f;
-            if (gathered.HitStop != null && gathered.HitStick != null)
-                speed = Mathf.Min(gathered.HitStop.timeScale, gathered.HitStick.speedScale);
-            else if (gathered.HitStop != null)
-                speed = gathered.HitStop.timeScale;
-            else if (gathered.HitStick != null)
-                speed = gathered.HitStick.speedScale;
-
-            var legacyConfig = new SpeedEffectConfig
+            if (!TryValidateLegacySpeedEffects(gathered.HitStop, gathered.HitStick, out string failureReason))
             {
-                enabled = true,
-                duration = duration,
-                speedScale = speed,
-                affectBothParties = false // 旧配置默认仅攻击者
-            };
-            speedEffect.Execute(impactData, legacyConfig);
-            if (speedEffect.IsActive)
-                activeEffects.Add(speedEffect);
+                Debug.LogWarning($"[ActionSpeedEffect] Legacy effect was rejected: {failureReason}", this);
+            }
+            else
+            {
+                // 合并旧配置：取最慢速度，最长时长，仅攻击者（旧行为）
+                float duration = Mathf.Max(
+                    gathered.HitStop?.duration ?? 0f,
+                    gathered.HitStick?.duration ?? 0f);
+                float speed = 1f;
+                if (gathered.HitStop != null && gathered.HitStick != null)
+                    speed = Mathf.Min(gathered.HitStop.timeScale, gathered.HitStick.speedScale);
+                else if (gathered.HitStop != null)
+                    speed = gathered.HitStop.timeScale;
+                else if (gathered.HitStick != null)
+                    speed = gathered.HitStick.speedScale;
+
+                var legacyConfig = new SpeedEffectConfig
+                {
+                    enabled = true,
+                    duration = duration,
+                    speedScale = speed,
+                    affectBothParties = false // 旧配置默认仅攻击者
+                };
+                TryStartSpeedEffect(impactData, legacyConfig);
+            }
         }
 
         if (gathered.ScreenShake != null)
             TriggerScreenShake(impactData, gathered.ScreenShake);
+    }
+
+    private void TryStartSpeedEffect(ImpactData impactData, SpeedEffectConfig config)
+    {
+        if (!isActiveAndEnabled || !CombatSimulationDriver.HasActiveSpeedEffectClock)
+            return;
+
+        var speedEffect = new ActionSpeedEffect();
+        speedEffect.Execute(impactData, config);
+        if (!speedEffect.IsActive)
+        {
+            speedEffect.Reset();
+            return;
+        }
+
+        try
+        {
+            activeSpeedEffects.Add(speedEffect);
+        }
+        catch
+        {
+            speedEffect.Reset();
+            throw;
+        }
+    }
+
+#pragma warning disable CS0618 // Legacy HitStop/HitStick remain an intentional compatibility path.
+    private static bool TryValidateLegacySpeedEffects(
+        HitStopEffectConfig hitStop,
+        HitStickEffectConfig hitStick,
+        out string failureReason)
+    {
+        failureReason = null;
+        if (hitStop != null
+            && (!IsFiniteNonNegative(hitStop.duration) || !IsFiniteUnitScale(hitStop.timeScale)))
+        {
+            failureReason = "HitStop duration and time scale must be finite; duration must be non-negative and scale within [0, 1].";
+            return false;
+        }
+
+        if (hitStick != null
+            && (!IsFiniteNonNegative(hitStick.duration) || !IsFiniteUnitScale(hitStick.speedScale)))
+        {
+            failureReason = "HitStick duration and speed scale must be finite; duration must be non-negative and scale within [0, 1].";
+            return false;
+        }
+
+        return true;
+    }
+#pragma warning restore CS0618
+
+    private static bool IsFiniteNonNegative(float value)
+    {
+        return !float.IsNaN(value) && !float.IsInfinity(value) && value >= 0f;
+    }
+
+    private static bool IsFiniteUnitScale(float value)
+    {
+        return !float.IsNaN(value) && !float.IsInfinity(value) && value >= 0f && value <= 1f;
+    }
+
+    internal void AdvanceFixedSpeedEffects()
+    {
+        for (int i = activeSpeedEffects.Count - 1; i >= 0; i--)
+        {
+            ActionSpeedEffect effect = activeSpeedEffects[i];
+            if (effect != null && effect.AdvanceFixedTick())
+                continue;
+
+            effect?.Reset();
+            activeSpeedEffects.RemoveAt(i);
+        }
+    }
+
+    internal void ClearFixedSpeedEffects()
+    {
+        for (int i = 0; i < activeSpeedEffects.Count; i++)
+            activeSpeedEffects[i]?.Reset();
+
+        activeSpeedEffects.Clear();
     }
 
     void HandleEffect(
@@ -354,6 +437,11 @@ public class ImpactSystem : MonoBehaviour
     #region Unity事件
     private void Initialize() { }
 
+    private void OnDisable()
+    {
+        ClearAllEffects();
+    }
+
     void Update()
     {
         for (int i = activeEffects.Count - 1; i >= 0; i--)
@@ -376,11 +464,12 @@ public class ImpactSystem : MonoBehaviour
             effect.Reset();
         }
         activeEffects.Clear();
+        ClearFixedSpeedEffects();
     }
 
     public bool HasActiveEffects()
     {
-        return activeEffects.Count > 0;
+        return activeEffects.Count > 0 || activeSpeedEffects.Count > 0;
     }
     #endregion
 }

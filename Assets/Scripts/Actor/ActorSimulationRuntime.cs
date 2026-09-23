@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using DeiveEx.TagTree;
 using UnityEngine;
@@ -79,39 +80,50 @@ internal sealed class ActorSimulationRuntime
         if (!IsActive)
             return;
 
-        float animationDeltaSeconds = deltaSeconds;
         ActionPlayer actionPlayer = _tickActionPlayer ?? ResolveActionPlayer();
         bool hasAction = actionPlayer != null && actionPlayer.CurrentAction != null;
-        bool usesTimeline = hasAction
-                            && actionPlayer.CurrentAction.Config != null
-                            && actionPlayer.CurrentAction.Config.UsesTimeline;
-        bool freezeAnimation = actionPlayer != null
-                               && hasAction
-                               && (actionPlayer.IsPaused || actionPlayer.PlaybackSpeed <= 0.0);
         ActorMotor actorMotor = ResolveActorMotor();
-        if (actorMotor != null && actorMotor.MovementTimeScale <= 0f)
-            freezeAnimation = true;
-
+        float? movementTimeScale = actorMotor != null ? actorMotor.MovementTimeScale : (float?)null;
+        float animationDeltaSeconds = CalculateAnimationDeltaSeconds(
+            deltaSeconds,
+            hasAction,
+            actionPlayer != null && actionPlayer.IsPaused,
+            actionPlayer != null ? actionPlayer.PlaybackSpeed : 1d,
+            movementTimeScale);
         ActorAnimation actorAnimation = ResolveActorAnimation();
         if (actorAnimation == null)
             return;
 
-        ActorLocomotion actorLocomotion = ResolveActorLocomotion();
-        if (!usesTimeline
-            && !freezeAnimation
-            && actorLocomotion != null
-            && actorLocomotion.TryBuildLocomotionAnimationPose(out LocomotionAnimationPose locomotionPose))
-        {
-            actorAnimation.SetLocomotionBase(locomotionPose);
-        }
-
-        if (freezeAnimation)
-        {
-            animationDeltaSeconds = 0f;
-        }
-
         actorAnimation.Evaluate(animationDeltaSeconds);
     }
+
+    internal static float CalculateAnimationDeltaSeconds(
+        float deltaSeconds,
+        bool hasAction,
+        bool actionPaused,
+        double playbackSpeed,
+        float? movementTimeScale)
+    {
+        if (deltaSeconds <= 0f || float.IsNaN(deltaSeconds) || float.IsInfinity(deltaSeconds))
+            return 0f;
+
+        float safeMovementScale = movementTimeScale.HasValue && IsFiniteNonNegative(movementTimeScale.Value)
+            ? movementTimeScale.Value : 1f;
+        if (!hasAction)
+            return deltaSeconds * safeMovementScale;
+        if (actionPaused)
+            return 0f;
+
+        float safePlaybackScale = double.IsNaN(playbackSpeed) || double.IsInfinity(playbackSpeed) || playbackSpeed < 0d
+            ? 1f
+            : (float)Math.Min(playbackSpeed, float.MaxValue);
+        return deltaSeconds * (movementTimeScale.HasValue
+            ? Mathf.Min(safePlaybackScale, safeMovementScale)
+            : safePlaybackScale);
+    }
+
+    private static bool IsFiniteNonNegative(float value) =>
+        !float.IsNaN(value) && !float.IsInfinity(value) && value >= 0f;
 
     public void PrepareMotion(float deltaSeconds)
     {
@@ -254,7 +266,7 @@ internal sealed class ActorHitBoxRuntime
     {
         public HitBoxHandle Handle;
         public string ClipStableId;
-        public Transform Bone;
+        public Transform Binding;
         public ActionHitBoxConfig HitBoxConfig;
         public AttackDataConfig AttackConfig;
         public IReadOnlyList<ImpactEffectConfig> Effects;
@@ -305,7 +317,7 @@ internal sealed class ActorHitBoxRuntime
 
     public HitBoxHandle Activate(
         string clipStableId,
-        BoneReference boneReference,
+        ActionHitBoxAnchor anchor,
         ActionHitBoxConfig hitBoxConfig,
         AttackDataConfig attackConfig,
         IReadOnlyList<ImpactEffectConfig> effects)
@@ -313,15 +325,39 @@ internal sealed class ActorHitBoxRuntime
         if (_actor == null || attackConfig == null)
             return default;
 
-        Transform bone = boneReference.Resolve(_actor);
-        if (bone == null)
+        Animator animator = _actor.animancer != null ? _actor.animancer.Animator : null;
+        if (!ActionHitBoxAnchorResolver.TryResolve(
+                anchor, _actor.transform, animator, out Transform binding, out string failureReason))
+        {
+            Debug.LogWarning(
+                $"[Action HitBox] Item '{clipStableId}' could not resolve anchor '{anchor}': {failureReason} Hit query is skipped.",
+                _actor);
             return default;
+        }
+
+        return ActivateResolved(clipStableId, binding, hitBoxConfig, attackConfig, effects);
+    }
+
+    private HitBoxHandle ActivateResolved(
+        string clipStableId,
+        Transform binding,
+        ActionHitBoxConfig hitBoxConfig,
+        AttackDataConfig attackConfig,
+        IReadOnlyList<ImpactEffectConfig> effects)
+    {
+        if (!ActionHitBoxGeometry.TryBuild(binding, hitBoxConfig, out _, out string shapeFailure))
+        {
+            Debug.LogWarning(
+                $"[Action HitBox] Item '{clipStableId}' has an invalid shape: {shapeFailure} Hit query is skipped.",
+                _actor);
+            return default;
+        }
 
         var active = new ActiveHitBox
         {
             Handle = new HitBoxHandle(++_nextHandleId),
             ClipStableId = string.IsNullOrEmpty(clipStableId) ? string.Empty : clipStableId,
-            Bone = bone,
+            Binding = binding,
             HitBoxConfig = hitBoxConfig ?? new ActionHitBoxConfig(),
             AttackConfig = attackConfig,
             Effects = effects,
@@ -364,19 +400,14 @@ internal sealed class ActorHitBoxRuntime
 
     private void DetectHits(ActiveHitBox hitBox, CombatHitBuffer buffer)
     {
-        if (hitBox == null || hitBox.Bone == null || hitBox.AttackConfig == null)
+        if (hitBox == null || hitBox.Binding == null || hitBox.AttackConfig == null)
             return;
 
-        BuildCapsule(hitBox, out Vector3 pointA, out Vector3 pointB, out float radius);
-        Vector3 queryCenter = (pointA + pointB) * 0.5f;
-
-        int hitCount = Physics.OverlapCapsuleNonAlloc(
-            pointA,
-            pointB,
-            radius,
-            OverlapResults,
-            hitBox.AttackConfig.targetLayers,
-            QueryTriggerInteraction.Collide);
+        if (!ActionHitBoxGeometry.TryBuild(hitBox.Binding, hitBox.HitBoxConfig, out ActionHitBoxWorldShape shape, out _))
+            return;
+        Vector3 queryCenter = shape.Center;
+        int hitCount = ActionHitBoxGeometry.QueryNonAlloc(
+            shape, OverlapResults, hitBox.AttackConfig.targetLayers, QueryTriggerInteraction.Collide);
 
         _candidates.Clear();
         _orderedCandidates.Clear();
@@ -443,20 +474,6 @@ internal sealed class ActorHitBoxRuntime
             if (buffer.Add(pendingHit))
                 hitBox.AttemptedTargets.Add(candidate.Damageable);
         }
-    }
-
-    private static void BuildCapsule(ActiveHitBox hitBox, out Vector3 pointA, out Vector3 pointB, out float radius)
-    {
-        ActionHitBoxConfig config = hitBox.HitBoxConfig ?? new ActionHitBoxConfig();
-        radius = Mathf.Max(0.001f, config.radius);
-
-        Vector3 center = hitBox.Bone.TransformPoint(config.center);
-        Quaternion rotation = hitBox.Bone.rotation * config.rotation;
-        float halfSegment = Mathf.Max(0f, config.height * 0.5f - radius);
-        Vector3 axis = rotation * Vector3.up * halfSegment;
-
-        pointA = center + axis;
-        pointB = center - axis;
     }
 
     private bool IsOwnCollider(Collider collider)

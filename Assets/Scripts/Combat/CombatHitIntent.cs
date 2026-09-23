@@ -110,15 +110,15 @@ internal sealed class CombatHitBuffer
 
     private static void TriggerImpactEffect(in PendingHit hit)
     {
-        if (hit.Effects == null || hit.Effects.Count == 0)
+        AttackHitData hitData = hit.HitData;
+        ImpactData impactData = ImpactData.FromAttackHit(hitData);
+        if (!HasConfiguredImpactFeedback(impactData, hit.Effects))
             return;
 
         ImpactSystem.EnsureExists();
         if (ImpactSystem.Instance == null)
             return;
 
-        AttackHitData hitData = hit.HitData;
-        ImpactData impactData = ImpactData.FromAttackHit(hitData);
         impactData.VfxSpawnPoint = hitData.HitPoint;
         impactData.FacingReferenceWorldPosition = HitVfxFacingUtility.ResolveFacingWorldPosition(
             impactData.TargetReceiver != null ? impactData.TargetReceiver.HitFacingTargetOverride : null,
@@ -128,5 +128,17 @@ internal sealed class CombatHitBuffer
         impactData.PopulateDirectionalReferences(attackerReference);
 
         ImpactSystem.Instance.ApplyImpact(impactData, hit.Effects);
+    }
+
+    internal static bool HasConfiguredImpactFeedback(
+        ImpactData impactData,
+        IReadOnlyList<ImpactEffectConfig> clipEffects)
+    {
+        for (int i = 0; clipEffects != null && i < clipEffects.Count; i++)
+            if (clipEffects[i] != null && clipEffects[i].enabled)
+                return true;
+
+        return impactData?.TargetProfile != null
+               && impactData.TargetProfile.HasConfiguredImpactEffects();
     }
 }

@@ -33,6 +33,8 @@ public sealed class CombatSimulationDriver : MonoBehaviour
 
     public bool IsSimulationOwner => _ownsSimulation;
     public bool IsSimulationFaulted => _simulationFaulted;
+    internal static bool HasActiveSpeedEffectClock => _owner != null
+        && _owner.isActiveAndEnabled && _owner._ownsSimulation && !_owner._simulationFaulted;
 
     internal static void RegisterActor(ActorSimulationRuntime runtime)
     {
@@ -79,11 +81,7 @@ public sealed class CombatSimulationDriver : MonoBehaviour
 
     private void FixedUpdate()
     {
-        if (!_ownsSimulation)
-            return;
-
-        EnsureAutoSimulationDisabled();
-        if (_simulationFaulted)
+        if (!_ownsSimulation || _simulationFaulted)
             return;
 
         SimulateFixedStep(Time.fixedDeltaTime);
@@ -95,31 +93,30 @@ public sealed class CombatSimulationDriver : MonoBehaviour
     /// </summary>
     private void SimulateFixedStep(float deltaTime)
     {
-        if (!_ownsSimulation)
-            throw new InvalidOperationException("Only the active CombatSimulationDriver can simulate KCC.");
-
-        if (_collisionResolver == null)
-            throw new InvalidOperationException("CombatSimulationDriver requires ActorCollisionResolver on the same GameObject.");
-
-        if (deltaTime <= 0f || float.IsNaN(deltaTime) || float.IsInfinity(deltaTime))
-            throw new ArgumentOutOfRangeException(nameof(deltaTime), deltaTime, "Simulation delta time must be finite and positive.");
-        if (!CombatSimulationTiming.IsGameplayFixedDeltaTime(deltaTime))
-            throw new InvalidOperationException($"CombatSimulationDriver requires Time.fixedDeltaTime to be {CombatSimulationTiming.FixedDeltaTime:R} ({CombatSimulationTiming.FrameRate} Hz), but it was {deltaTime:R}.");
-
-        KCCSettings settings = KinematicCharacterSystem.Settings;
-        if (settings == null)
-            throw new InvalidOperationException("KinematicCharacterSystem settings are unavailable.");
-
-        EnsureAutoSimulationDisabled();
         bool interpolationPrepared = false;
-        bool interpolateThisStep = settings.Interpolate;
         Exception simulationException = null;
 
         try
         {
+            CaptureActorSnapshot();
+            if (!_ownsSimulation)
+                throw new InvalidOperationException("Only the active CombatSimulationDriver can simulate KCC.");
+            if (_collisionResolver == null)
+                throw new InvalidOperationException("CombatSimulationDriver requires ActorCollisionResolver on the same GameObject.");
+            if (deltaTime <= 0f || float.IsNaN(deltaTime) || float.IsInfinity(deltaTime))
+                throw new ArgumentOutOfRangeException(nameof(deltaTime), deltaTime, "Simulation delta time must be finite and positive.");
+            if (!CombatSimulationTiming.IsGameplayFixedDeltaTime(deltaTime))
+                throw new InvalidOperationException($"CombatSimulationDriver requires Time.fixedDeltaTime to be {CombatSimulationTiming.FixedDeltaTime:R} ({CombatSimulationTiming.FrameRate} Hz), but it was {deltaTime:R}.");
+
+            KCCSettings settings = KinematicCharacterSystem.Settings;
+            if (settings == null)
+                throw new InvalidOperationException("KinematicCharacterSystem settings are unavailable.");
+            EnsureAutoSimulationDisabled();
+
+            ImpactSystem.Instance?.AdvanceFixedSpeedEffects();
             _hitBuffer.Begin();
 
-            RunTickBoundarySetup(deltaTime, interpolateThisStep, out interpolationPrepared);
+            RunTickBoundarySetup(deltaTime, settings.Interpolate, out interpolationPrepared);
             RunInputControlPhase(deltaTime);
             RunActionPhase(deltaTime);
             RunAnimationPhase(deltaTime);
@@ -131,6 +128,7 @@ public sealed class CombatSimulationDriver : MonoBehaviour
         catch (Exception exception)
         {
             simulationException = exception;
+            _simulationFaulted = true;
             AbortActorFrames();
         }
         finally
@@ -144,6 +142,7 @@ public sealed class CombatSimulationDriver : MonoBehaviour
         if (simulationException != null)
         {
             _simulationFaulted = true;
+            ImpactSystem.Instance?.ClearFixedSpeedEffects();
             Debug.LogException(simulationException, this);
         }
     }
@@ -154,7 +153,6 @@ public sealed class CombatSimulationDriver : MonoBehaviour
         out bool interpolationPrepared)
     {
         interpolationPrepared = false;
-        CaptureActorSnapshot();
 
         if (!interpolateThisStep)
             return;
@@ -238,6 +236,7 @@ public sealed class CombatSimulationDriver : MonoBehaviour
             if (simulationException == null)
             {
                 simulationException = exception;
+                _simulationFaulted = true;
                 AbortActorFrames();
             }
             else
@@ -350,6 +349,9 @@ public sealed class CombatSimulationDriver : MonoBehaviour
     {
         if (!_ownsSimulation)
             return;
+
+        _ownsSimulation = false;
+        ImpactSystem.Instance?.ClearFixedSpeedEffects();
 
         if (_owner == this)
             _owner = null;

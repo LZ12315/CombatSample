@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Baked cumulative root motion owned and serialized inline by an AnimationConfig entry.
+/// Baked cumulative root motion owned and serialized inline by an AnimationAsset.
 /// </summary>
 [Serializable]
 public sealed class RootMotionTrajectory : ISerializationCallbackReceiver

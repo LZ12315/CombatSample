@@ -5,7 +5,7 @@ using UnityEngine;
 /// 受击反馈配置 — 挂在不同类型目标上，决定被打时的表现。
 /// 在 <see cref="effects"/> 中配置与 Clip 相同的 <see cref="ImpactEffectConfig"/>（常用 Hit Sound / Hit VFX）。
 /// </summary>
-[CreateAssetMenu(fileName = "NewHitFeedbackProfile", menuName = "Combat/Hit Feedback Profile")]
+[CreateAssetMenu(fileName = "NewHitFeedbackProfile", menuName = "CombatSample/Feedback/Hit Feedback")]
 public class HitFeedbackProfile : ScriptableObject
 {
     [Tooltip("On each hit, runs enabled items in order after clip effects. Leave Receiver empty to skip hit feedback.")]

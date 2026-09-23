@@ -87,7 +87,7 @@ public sealed class ActionAuthoringDataTests
     }
 
     [Test]
-    public void SerializeReference_PreservesAllV1ItemTypes()
+    public void SerializeReference_PreservesAllActionRuntimeItemTypes()
     {
         ActionAsset asset = ScriptableObject.CreateInstance<ActionAsset>();
         GameplayLane lane = new GameplayLane();
@@ -117,34 +117,28 @@ public sealed class ActionAuthoringDataTests
     }
 
     [Test]
-    public void Validator_ReportsInvalidRangeAndRootMotionData()
+    public void DocumentKeepsCorruptTimingVisibleAndBlocksAmbiguousEditorIds()
     {
         ActionAsset asset = ScriptableObject.CreateInstance<ActionAsset>();
-        GameplayLane lane = new GameplayLane();
-        var rootMotion = new RootMotionItem();
-        rootMotion.EditorSetTiming(-1, 0);
-        lane.EditorItems.Add(rootMotion);
-        asset.Timeline.EditorGameplayLanes.Add(lane);
+        try
+        {
+            var lane = new GameplayLane();
+            var rootMotion = new RootMotionItem();
+            rootMotion.EditorSetTiming(-1, 0);
+            lane.EditorItems.Add(rootMotion);
+            asset.Timeline.EditorGameplayLanes.Add(lane);
 
-        ActionAuthoringValidationResult validation = ActionAuthoringValidator.Validate(asset);
-        Assert.IsFalse(validation.IsValid);
-        Assert.IsTrue(System.Array.Exists(
-            System.Linq.Enumerable.ToArray(validation.Issues),
-            issue => issue.Code == ActionAuthoringValidationCode.InvalidTiming
-                && issue.AuthoringPath == "GameplayLanes[0].Items[0]"));
-        Assert.IsTrue(System.Array.Exists(
-            System.Linq.Enumerable.ToArray(validation.Issues),
-            issue => issue.Code == ActionAuthoringValidationCode.InvalidConfig
-                && issue.AuthoringPath == "GameplayLanes[0].Items[0]"));
-        Assert.IsTrue(System.Array.Exists(
-            System.Linq.Enumerable.ToArray(validation.Issues),
-            issue => issue.Code == ActionAuthoringValidationCode.MissingEditorId
-                && issue.AuthoringPath == "GameplayLanes[0]"));
-        Assert.IsTrue(System.Array.Exists(
-            System.Linq.Enumerable.ToArray(validation.Issues),
-            issue => issue.Code == ActionAuthoringValidationCode.MissingEditorId
-                && issue.AuthoringPath == "GameplayLanes[0].Items[0]"));
-        Object.DestroyImmediate(asset);
+            ActionEditorDocument document = ActionEditorDocument.Build(asset);
+            Assert.AreEqual(ActionEditorReadiness.IdentityBlocked, document.Readiness);
+            Assert.AreEqual(0, document.GameplayItems[0].SafeDisplayStart);
+            Assert.AreEqual(1, document.GameplayItems[0].SafeDisplayDuration);
+            Assert.AreNotEqual(ActionEntryDisplayState.Normal, document.GameplayItems[0].DisplayState);
+        }
+        finally
+        {
+            Object.DestroyImmediate(asset);
+        }
     }
+
 }
 #endif

@@ -17,9 +17,6 @@ public class Actor : MonoBehaviour
     public AnimancerComponent animancer;
     public ActorCombater combater;
 
-    [Header("Animation")]
-    [SerializeField] private AnimationConfig animationConfig;
-    public AnimationConfig AnimationConfig => animationConfig;
     internal ActorHitBoxRuntime HitBoxes => _simulationRuntime?.HitBoxes;
 
     [Header("Camera")]

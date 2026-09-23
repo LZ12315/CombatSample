@@ -16,31 +16,7 @@ public static class RootMotionBaker
 
     public static bool TryBake(
         AnimationClip clip,
-        AnimationConfig config,
-        out RootMotionBakeResult result,
-        out RootMotionBakeDiagnostic diagnostic)
-    {
-        return TryBake(
-            clip,
-            RootMotionBakeSettings.FromLegacy(config),
-            config,
-            out result,
-            out diagnostic);
-    }
-
-    public static bool TryBake(
-        AnimationClip clip,
         RootMotionBakeSettings settings,
-        out RootMotionBakeResult result,
-        out RootMotionBakeDiagnostic diagnostic)
-    {
-        return TryBake(clip, settings, null, out result, out diagnostic);
-    }
-
-    private static bool TryBake(
-        AnimationClip clip,
-        RootMotionBakeSettings settings,
-        AnimationConfig legacyConfig,
         out RootMotionBakeResult result,
         out RootMotionBakeDiagnostic diagnostic)
     {
@@ -188,25 +164,15 @@ public static class RootMotionBaker
                 return false;
             }
 
-            result = legacyConfig != null
-                ? new RootMotionBakeResult(
-                    clip,
-                    legacyConfig,
-                    CurrentBakerVersion,
-                    settings.SampleRate,
-                    clip.length,
-                    sampleTimes,
-                    cumulativePositions,
-                    cumulativeRotations)
-                : new RootMotionBakeResult(
-                    clip,
-                    settings,
-                    CurrentBakerVersion,
-                    settings.SampleRate,
-                    clip.length,
-                    sampleTimes,
-                    cumulativePositions,
-                    cumulativeRotations);
+            result = new RootMotionBakeResult(
+                clip,
+                settings,
+                CurrentBakerVersion,
+                settings.SampleRate,
+                clip.length,
+                sampleTimes,
+                cumulativePositions,
+                cumulativeRotations);
             diagnostic = RootMotionBakeDiagnostic.Success;
             return true;
         }
@@ -267,7 +233,6 @@ public enum RootMotionBakeDiagnosticCode
     None,
     MissingAnimationClip,
     InvalidAnimationClipDuration,
-    MissingAnimationConfig,
     MissingBakeSettings,
     InvalidBakeSettings,
     InvalidInstantiatedRig,

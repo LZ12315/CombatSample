@@ -227,7 +227,6 @@ public enum RootMotionValidationDiagnosticCode
 {
     None,
     MissingBakeResult,
-    MissingAnimationConfig,
     MissingBakeSettings,
     OracleEvaluationFailed,
     SampleCountMismatch,

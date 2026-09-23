@@ -1,3 +1,5 @@
+> Historical proposal: superseded by the current Action editor architecture (2026-09-24).
+
 # CombatSample Action V1 — Stage 5 Editor Redesign（Frozen）
 
 > 状态：**Frozen；Stage 5 remediation 实施权威**
@@ -10,7 +12,7 @@ Timeline 与 Details 的冻结设计和已接受实现继续有效。两轮 Prev
 
 Preview 仍是产品目标，但本文不再指定其当前技术路线。SceneView / Animancer 方案、早期 PreviewRenderUtility 方案、审查和失败证据均已移入 [Stage 5R 历史记录](../Archive/ActionV1/Stage5R/)，不得据此自动继续 P2 或 5R.7。
 
-以下 Preview 章节只描述目标能力；重新实施前必须形成新的、明确批准的技术计划。当前实现边界见 [Preview 前编辑器检查点](../Current/CombatSample_Action_V1_Editor_PrePreview_Checkpoint_2026-09-08_zh-CN.md)。
+以下 Preview 章节只描述目标能力；重新实施前必须形成新的、明确批准的技术计划。当前实现边界见 [Preview 前编辑器检查点](../Archive/ActionV1/CombatSample_Action_V1_Editor_PrePreview_Checkpoint_2026-09-08_zh-CN.md)。
 
 ## 1. 目标
 

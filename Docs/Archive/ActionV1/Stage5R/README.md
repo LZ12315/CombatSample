@@ -5,7 +5,7 @@
 
 本目录保存 Stage 5 原始实现、5R.0–5R.5 Timeline/Details 迭代、开源 Timeline 调研、两份 HTML 交互原型，以及已经撤下的两轮 Preview 尝试。
 
-当前可用边界请阅读 [Preview 前编辑器检查点](../../../Current/CombatSample_Action_V1_Editor_PrePreview_Checkpoint_2026-09-08_zh-CN.md)。Timeline / Details 的行为事实仍可从这些实施记录追溯，但发生冲突时以当前代码和 Current 检查点为准。
+当前可用边界请阅读 [Preview 前编辑器检查点](../CombatSample_Action_V1_Editor_PrePreview_Checkpoint_2026-09-08_zh-CN.md)。Timeline / Details 的行为事实仍可从这些实施记录追溯，但发生冲突时以当前代码和 Current 检查点为准。
 
 ## 归档分组
 

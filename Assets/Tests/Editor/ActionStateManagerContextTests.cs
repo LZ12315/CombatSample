@@ -4,7 +4,6 @@ using System.Reflection;
 using DeiveEx.TagTree;
 using NUnit.Framework;
 using UnityEngine;
-using UnityEngine.Playables;
 using UnityEngine.TestTools;
 
 public sealed class ActionStateManagerContextTests
@@ -40,7 +39,7 @@ public sealed class ActionStateManagerContextTests
     public void PollCandidate_FreezesContextFromPendingLocomotionIntent()
     {
         TestRig rig = CreateRig();
-        ActionAsset action = CreateSequenceAction("Poll Locomotion", ActionTriggerMode.Poll);
+        ActionAsset action = CreateAction("Poll Locomotion", ActionTriggerMode.Poll);
         SetPrivateField(action, "_startContextMode", ActionStartContextMode.LocomotionIntent);
         rig.SetActionList(action);
 
@@ -64,7 +63,7 @@ public sealed class ActionStateManagerContextTests
     public void PollCandidate_MissingPendingLocomotionIntentInvalidatesLocomotionContext()
     {
         TestRig rig = CreateRig();
-        ActionAsset action = CreateSequenceAction("Poll Locomotion Missing Input", ActionTriggerMode.Poll);
+        ActionAsset action = CreateAction("Poll Locomotion Missing Input", ActionTriggerMode.Poll);
         SetPrivateField(action, "_startContextMode", ActionStartContextMode.LocomotionIntent);
         rig.SetActionList(action);
 
@@ -79,8 +78,8 @@ public sealed class ActionStateManagerContextTests
         TestRig rig = CreateRig();
         Tag eventTag = CreateTag("Tests.ActionContext.Event");
         TagReference eventRef = CreateTagReference(eventTag);
-        ActionAsset high = CreateSequenceAction("High Event", ActionTriggerMode.Event, priorityValue: 10);
-        ActionAsset low = CreateSequenceAction("Low Event", ActionTriggerMode.Event, priorityValue: 0);
+        ActionAsset high = CreateAction("High Event", ActionTriggerMode.Event, priorityValue: 10);
+        ActionAsset low = CreateAction("Low Event", ActionTriggerMode.Event, priorityValue: 0);
         SetPrivateField(high, "_eventTriggerTag", eventRef);
         SetPrivateField(low, "_eventTriggerTag", eventRef);
         rig.SetActionList(high, low);
@@ -99,7 +98,7 @@ public sealed class ActionStateManagerContextTests
     public void ExternalRequest_WaitsUntilFixedDecideAction()
     {
         TestRig rig = CreateRig();
-        ActionAsset action = CreateSequenceAction("External Deferred", ActionTriggerMode.Poll);
+        ActionAsset action = CreateAction("External Deferred", ActionTriggerMode.Poll);
 
         bool? result = null;
         rig.Asm.RequestExternalAction(action, ActionContext.ForSelf(rig.Actor), value => result = value);
@@ -114,10 +113,73 @@ public sealed class ActionStateManagerContextTests
     }
 
     [Test]
+    public void ExternalRequest_RuntimeBeginFailureReportsFalseAndDoesNotClaimEntry()
+    {
+        TestRig rig = CreateRig();
+        ActionAsset action = CreateInvalidActionRuntimeAction("Invalid ActionRuntime");
+        bool? result = null;
+        LogAssert.Expect(
+            LogType.Warning,
+            $"Action '{action.name}' failed to start: ActionRuntime animation snapshot contains an invalid AnimationSegment.");
+
+        rig.Asm.RequestExternalAction(
+            action,
+            ActionContext.ForSelf(rig.Actor),
+            value => result = value);
+        rig.RunActionStateManager();
+
+        Assert.AreEqual(false, result);
+        Assert.IsNull(rig.Player.CurrentAction);
+        Assert.AreEqual(0, ContextRecordingCondition.ClaimCount);
+    }
+
+    [Test]
+    public void ExternalRequest_ValidActionRuntimeActionUsesFixedSessionAndCompletes()
+    {
+        TestRig rig = CreateRig();
+        ActionAsset action = CreateValidActionRuntimeAction("Valid ActionRuntime");
+        bool? result = null;
+
+        rig.Asm.RequestExternalAction(
+            action,
+            ActionContext.ForSelf(rig.Actor),
+            value => result = value);
+        rig.RunActionStateManager();
+
+        Assert.AreEqual(true, result);
+        Assert.IsNotNull(rig.Player.CurrentAction);
+        Assert.AreSame(action, rig.Player.CurrentAction.Config);
+        Assert.AreEqual(1, ContextRecordingCondition.ClaimCount);
+
+        Assert.IsTrue(rig.Player.PlayActionFrame(CombatSimulationTiming.FixedDeltaTime));
+        rig.Player.FinishActionFrame();
+
+        Assert.IsNull(rig.Player.CurrentAction);
+    }
+
+    [Test]
+    public void TryBeginAction_RuntimeBeginFailureCleansUpReplacement()
+    {
+        TestRig rig = CreateRig();
+        ActionAsset current = CreateAction("Current", ActionTriggerMode.Poll);
+        ActionAsset invalid = CreateInvalidActionRuntimeAction("Invalid Replacement");
+        rig.Player.BeginAction(current, ActionContext.ForSelf(rig.Actor));
+
+        bool started = rig.Player.TryBeginAction(
+            invalid,
+            ActionContext.ForSelf(rig.Actor),
+            out string failureReason);
+
+        Assert.IsFalse(started);
+        StringAssert.Contains("failed to start", failureReason);
+        Assert.IsNull(rig.Player.CurrentAction);
+    }
+
+    [Test]
     public void ExternalRequests_ReportOnlyTheExactWinningRequest()
     {
         TestRig rig = CreateRig();
-        ActionAsset action = CreateSequenceAction("External", ActionTriggerMode.Poll);
+        ActionAsset action = CreateAction("External", ActionTriggerMode.Poll);
 
         bool? first = null;
         bool? second = null;
@@ -136,8 +198,8 @@ public sealed class ActionStateManagerContextTests
     public void ExternalRequest_OutsideCancelWindowFailsOnceAndDoesNotPersist()
     {
         TestRig rig = CreateRig();
-        ActionAsset current = CreateSequenceAction("Current", ActionTriggerMode.Poll);
-        ActionAsset requested = CreateSequenceAction("Requested", ActionTriggerMode.Poll);
+        ActionAsset current = CreateAction("Current", ActionTriggerMode.Poll);
+        ActionAsset requested = CreateAction("Requested", ActionTriggerMode.Poll);
 
         rig.Player.BeginAction(current, ActionContext.ForSelf(rig.Actor));
 
@@ -161,8 +223,8 @@ public sealed class ActionStateManagerContextTests
     public void ExternalRequest_SubmittedDuringCallbackWaitsForNextDecideAction()
     {
         TestRig rig = CreateRig();
-        ActionAsset firstAction = CreateSequenceAction("First External", ActionTriggerMode.Poll, priorityValue: 10);
-        ActionAsset secondAction = CreateSequenceAction("Second External", ActionTriggerMode.Poll, priorityValue: 20);
+        ActionAsset firstAction = CreateAction("First External", ActionTriggerMode.Poll, priorityValue: 10);
+        ActionAsset secondAction = CreateAction("Second External", ActionTriggerMode.Poll, priorityValue: 20);
 
         bool? first = null;
         bool? second = null;
@@ -189,7 +251,7 @@ public sealed class ActionStateManagerContextTests
     public void ExternalCallbackException_DoesNotBlockOtherCallbacks()
     {
         TestRig rig = CreateRig();
-        ActionAsset action = CreateSequenceAction("External Callback Exception", ActionTriggerMode.Poll);
+        ActionAsset action = CreateAction("External Callback Exception", ActionTriggerMode.Poll);
 
         bool? second = null;
         LogAssert.Expect(LogType.Exception, "InvalidOperationException: Injected callback exception.");
@@ -210,7 +272,7 @@ public sealed class ActionStateManagerContextTests
     public void Disable_FailsQueuedExternalRequestExactlyOnce()
     {
         TestRig rig = CreateRig();
-        ActionAsset action = CreateSequenceAction("External Disable", ActionTriggerMode.Poll);
+        ActionAsset action = CreateAction("External Disable", ActionTriggerMode.Poll);
 
         int callbackCount = 0;
         bool? result = null;
@@ -228,31 +290,29 @@ public sealed class ActionStateManagerContextTests
     }
 
     [Test]
-    public void CandidateWithMissingRequiredContext_IsRejectedBeforeClaim()
+    public void ActionRuntimeCandidateWithMissingFutureContext_CanStart()
     {
         TestRig rig = CreateRig();
-        ActionAsset action = CreateSequenceAction(
-            "Requires Direction",
-            ActionTriggerMode.Poll,
-            priorityValue: 0,
-            clips: new ActionSequenceClipDefinition[] { new RequiresDirectionClipDefinition() });
+        ActionAsset action = CreateValidActionRuntimeAction("ActionRuntime Requires Direction");
+        var lane = new GameplayLane();
+        var impulse = new ImpulseItem();
+        impulse.Config.useHorizontalImpulse = true;
+        impulse.Config.impulse.directionMode = ImpulseDirectionMode.FromContext;
+        lane.EditorItems.Add(impulse);
+        action.Timeline.EditorGameplayLanes.Add(lane);
         rig.SetActionList(action);
-
-        LogAssert.Expect(
-            LogType.Error,
-            $"Action '{action.name}' requires context fields Direction but the candidate context does not provide them.");
 
         rig.RunActionStateManager();
 
-        Assert.IsNull(rig.Player.CurrentAction);
-        Assert.AreEqual(0, ContextRecordingCondition.ClaimCount);
+        Assert.AreSame(action, rig.Player.CurrentAction.Config);
+        Assert.AreEqual(1, ContextRecordingCondition.ClaimCount);
     }
 
     [Test]
     public void EntryConditionReceivesCandidateContext()
     {
         TestRig rig = CreateRig();
-        ActionAsset action = CreateSequenceAction("External Context", ActionTriggerMode.Poll);
+        ActionAsset action = CreateAction("External Context", ActionTriggerMode.Poll);
 
         ActionContext context = ActionContext.ForSelf(rig.Actor).WithMagnitude(7f);
         rig.Asm.RequestExternalAction(action, context, _ => { });
@@ -267,7 +327,6 @@ public sealed class ActionStateManagerContextTests
         var owner = new GameObject("ActionStateManagerContextTests Actor");
         _objects.Add(owner);
 
-        owner.AddComponent<PlayableDirector>();
         Actor actor = owner.AddComponent<Actor>();
         ActorMotor motor = owner.AddComponent<ActorMotor>();
         ActionPlayer player = owner.AddComponent<ActionPlayer>();
@@ -285,27 +344,36 @@ public sealed class ActionStateManagerContextTests
         return new TestRig(actor, motor, player, asm, this);
     }
 
-    private ActionAsset CreateSequenceAction(
+    private ActionAsset CreateAction(
         string name,
         ActionTriggerMode triggerMode,
-        int priorityValue = 0,
-        params ActionSequenceClipDefinition[] clips)
+        int priorityValue = 0)
     {
         ActionAsset action = ScriptableObject.CreateInstance<ActionAsset>();
         action.name = name;
         _objects.Add(action);
 
-        action.SetPlaybackBackend(ActionPlaybackBackend.Sequence);
-        action.SequenceData.EditorSetTiming(60, 1);
-        action.SequenceData.EditorTracks.Clear();
-        if (clips != null && clips.Length > 0)
-        {
-            var track = new TestTrackDefinition(ActionSequenceTrackKind.State, clips);
-            action.SequenceData.EditorTracks.Add(track);
-        }
-
         SetPrivateField(action, "_triggerMode", triggerMode);
         SetPrivateField(action, "_priorityValue", priorityValue);
+        SetPrivateField(action, "_entryConditions", new List<ActionCondition> { new ContextRecordingCondition() });
+        return action;
+    }
+
+    private ActionAsset CreateInvalidActionRuntimeAction(string name)
+    {
+        ActionAsset action = CreateValidActionRuntimeAction(name);
+        var segment = new AnimationSegment();
+        segment.EditorSetData(0, null, 0f, 1f, 1f);
+        action.Timeline.EditorAnimationSegments.Add(segment);
+        return action;
+    }
+
+    private ActionAsset CreateValidActionRuntimeAction(string name)
+    {
+        ActionAsset action = ScriptableObject.CreateInstance<ActionAsset>();
+        action.name = name;
+        _objects.Add(action);
+        SetPrivateField(action, "_triggerMode", ActionTriggerMode.Poll);
         SetPrivateField(action, "_entryConditions", new List<ActionCondition> { new ContextRecordingCondition() });
         return action;
     }
@@ -411,34 +479,4 @@ public sealed class ActionStateManagerContextTests
         }
     }
 
-    private sealed class RequiresDirectionClipDefinition : ActionSequenceClipDefinition
-    {
-        public override ActionSequenceTrackKind Kind => ActionSequenceTrackKind.State;
-        public override ActionContextFieldMask RequiredContextFields => ActionContextFieldMask.Direction;
-
-        public override ActionSequenceClipRuntime CreateRuntime()
-        {
-            return new EmptyRuntime();
-        }
-
-        private sealed class EmptyRuntime : ActionSequenceClipRuntime
-        {
-        }
-    }
-
-    private sealed class TestTrackDefinition : ActionSequenceTrackDefinition
-    {
-        private static readonly Type[] ClipTypes = { typeof(RequiresDirectionClipDefinition) };
-        private readonly ActionSequenceTrackKind _phase;
-
-        public TestTrackDefinition(ActionSequenceTrackKind phase, params ActionSequenceClipDefinition[] clips)
-        {
-            _phase = phase;
-            for (int i = 0; clips != null && i < clips.Length; i++)
-                EditorClips.Add(clips[i]);
-        }
-
-        public override ActionSequenceTrackKind Kind => _phase;
-        public override Type[] AllowedClipTypes => ClipTypes;
-    }
 }

@@ -11,16 +11,12 @@ public sealed class ActorLocomotion : MonoBehaviour
 
     private readonly List<Tag> _acquiredTags = new();
     private readonly HashSet<LocomotionModeAsset> _candidateScanSet = new();
-    private LocomotionIntent _controlIntent = LocomotionIntent.Idle;
-    private bool _hasControlIntent;
     private bool _warnedInvalidFallback;
     private bool _warnedInvalidCandidate;
     private bool _warnedInvalidList;
 
     public LocomotionModeAsset CurrentMode { get; private set; }
     public LocomotionTuning CurrentTuning { get; private set; } = LocomotionTuning.Default;
-    public LocomotionAnimationProfile CurrentAnimationProfile { get; private set; } =
-        LocomotionAnimationProfile.Default;
 
     private void Awake()
     {
@@ -85,64 +81,21 @@ public sealed class ActorLocomotion : MonoBehaviour
             return;
 
         ActorMotor motor = actor.actorMotor;
-        _controlIntent = motor != null && motor.HasPendingLocomotionIntent
+        LocomotionIntent controlIntent = motor != null && motor.HasPendingLocomotionIntent
             ? motor.PendingLocomotionIntent
             : LocomotionIntent.Idle;
-        _hasControlIntent = true;
 
-        LocomotionModeAsset selected = SelectMode(new LocomotionModeContext(actor, _controlIntent));
+        LocomotionModeAsset selected = SelectMode(new LocomotionModeContext(actor, controlIntent));
         if (selected != CurrentMode)
             ApplyMode(selected);
     }
 
     internal void HoldControlTick()
     {
-        _hasControlIntent = false;
-        _controlIntent = LocomotionIntent.Idle;
     }
 
     internal void CancelControlTick()
     {
-        _hasControlIntent = false;
-        _controlIntent = LocomotionIntent.Idle;
-    }
-
-    internal bool TryBuildLocomotionAnimationPose(out LocomotionAnimationPose pose)
-    {
-        pose = default;
-        if (CurrentMode == null || !_hasControlIntent)
-            return false;
-
-        LocomotionAnimationProfile profile = CurrentAnimationProfile.Sanitize();
-        if (string.IsNullOrWhiteSpace(profile.IdleKey) || string.IsNullOrWhiteSpace(profile.MoveKey))
-            return false;
-
-        float moveStrength = Mathf.Clamp01(_controlIntent.MoveStrength);
-        Vector3 moveDirection = _controlIntent.WorldMoveDirection;
-        moveDirection.y = 0f;
-        bool isMoving = moveStrength > profile.MoveThreshold && moveDirection.sqrMagnitude > 0.0001f;
-
-        bool hasVector2Parameter = profile.ParameterSource == LocomotionAnimationParameterSource.LocalDirection2D;
-        bool hasFloatParameter = profile.ParameterSource == LocomotionAnimationParameterSource.MoveStrength1D;
-        Vector2 vector2Parameter = Vector2.zero;
-        float floatParameter = isMoving ? moveStrength : 0f;
-
-        if (hasVector2Parameter && isMoving)
-        {
-            moveDirection.Normalize();
-            Vector3 localDirection = actor.transform.InverseTransformDirection(moveDirection);
-            vector2Parameter = new Vector2(localDirection.x, localDirection.z) * moveStrength;
-            if (vector2Parameter.sqrMagnitude > 1f)
-                vector2Parameter.Normalize();
-        }
-
-        pose = new LocomotionAnimationPose(
-            isMoving ? profile.MoveKey : profile.IdleKey,
-            hasVector2Parameter,
-            vector2Parameter,
-            hasFloatParameter,
-            floatParameter);
-        return true;
     }
 
     private LocomotionModeAsset SelectMode(in LocomotionModeContext context)
@@ -218,7 +171,6 @@ public sealed class ActorLocomotion : MonoBehaviour
         if (CurrentMode == null)
         {
             CurrentTuning = LocomotionTuning.Default;
-            CurrentAnimationProfile = LocomotionAnimationProfile.Default;
             actor?.actorMotor?.RestoreCompatibilityLocomotionTuning();
             return;
         }
@@ -226,7 +178,6 @@ public sealed class ActorLocomotion : MonoBehaviour
         AcquireModeTags(CurrentMode);
         CurrentTuning = CurrentMode.Tuning;
         actor?.actorMotor?.ApplyLocomotionTuning(CurrentTuning);
-        CurrentAnimationProfile = CurrentMode.AnimationProfile;
     }
 
     private void ClearCurrentMode(bool restoreTuning)
@@ -234,7 +185,6 @@ public sealed class ActorLocomotion : MonoBehaviour
         ReleaseAcquiredTags();
         CurrentMode = null;
         CurrentTuning = LocomotionTuning.Default;
-        CurrentAnimationProfile = LocomotionAnimationProfile.Default;
 
         if (restoreTuning)
             actor?.actorMotor?.RestoreCompatibilityLocomotionTuning();

@@ -13,34 +13,7 @@ public static class RootMotionOracleEvaluator
 
     public static bool TryEvaluate(
         AnimationClip clip,
-        AnimationConfig config,
-        IReadOnlyList<float> sampleTimes,
-        out RootMotionOracleResult result,
-        out RootMotionOracleDiagnostic diagnostic)
-    {
-        return TryEvaluate(
-            clip,
-            RootMotionBakeSettings.FromLegacy(config),
-            config,
-            sampleTimes,
-            out result,
-            out diagnostic);
-    }
-
-    public static bool TryEvaluate(
-        AnimationClip clip,
         RootMotionBakeSettings settings,
-        IReadOnlyList<float> sampleTimes,
-        out RootMotionOracleResult result,
-        out RootMotionOracleDiagnostic diagnostic)
-    {
-        return TryEvaluate(clip, settings, null, sampleTimes, out result, out diagnostic);
-    }
-
-    private static bool TryEvaluate(
-        AnimationClip clip,
-        RootMotionBakeSettings settings,
-        AnimationConfig legacyConfig,
         IReadOnlyList<float> sampleTimes,
         out RootMotionOracleResult result,
         out RootMotionOracleDiagnostic diagnostic)
@@ -156,9 +129,12 @@ public static class RootMotionOracleEvaluator
                 cumulativeRotations.Add(recorder.CumulativeRotation);
             }
 
-            result = legacyConfig != null
-                ? new RootMotionOracleResult(clip, legacyConfig, resultTimes, cumulativePositions, cumulativeRotations)
-                : new RootMotionOracleResult(clip, settings, resultTimes, cumulativePositions, cumulativeRotations);
+            result = new RootMotionOracleResult(
+                clip,
+                settings,
+                resultTimes,
+                cumulativePositions,
+                cumulativeRotations);
             diagnostic = RootMotionOracleDiagnostic.Success;
             return true;
         }
@@ -248,7 +224,6 @@ public enum RootMotionOracleDiagnosticCode
 {
     None,
     MissingAnimationClip,
-    MissingAnimationConfig,
     MissingBakeSettings,
     InvalidBakeSettings,
     InvalidSampleTimes,

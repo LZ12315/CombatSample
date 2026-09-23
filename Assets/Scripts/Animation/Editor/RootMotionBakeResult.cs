@@ -10,7 +10,6 @@ public sealed class RootMotionBakeResult
     private readonly Quaternion[] _cumulativeRotations;
 
     public AnimationClip SourceClip { get; }
-    public AnimationConfig AnimationConfig { get; }
     public RootMotionBakeSettings Settings { get; }
     public int BakerVersion { get; }
     public int SampleRate { get; }
@@ -22,52 +21,7 @@ public sealed class RootMotionBakeResult
 
     internal RootMotionBakeResult(
         AnimationClip sourceClip,
-        AnimationConfig animationConfig,
-        int bakerVersion,
-        int sampleRate,
-        float duration,
-        List<float> sampleTimes,
-        List<Vector3> cumulativePositions,
-        List<Quaternion> cumulativeRotations)
-        : this(
-            sourceClip,
-            RootMotionBakeSettings.FromLegacy(animationConfig),
-            animationConfig,
-            bakerVersion,
-            sampleRate,
-            duration,
-            sampleTimes,
-            cumulativePositions,
-            cumulativeRotations)
-    {
-    }
-
-    internal RootMotionBakeResult(
-        AnimationClip sourceClip,
         RootMotionBakeSettings settings,
-        int bakerVersion,
-        int sampleRate,
-        float duration,
-        List<float> sampleTimes,
-        List<Vector3> cumulativePositions,
-        List<Quaternion> cumulativeRotations)
-        : this(
-            sourceClip,
-            settings,
-            null,
-            bakerVersion,
-            sampleRate,
-            duration,
-            sampleTimes,
-            cumulativePositions,
-            cumulativeRotations)
-    {
-    }
-
-    private RootMotionBakeResult(
-        AnimationClip sourceClip,
-        RootMotionBakeSettings settings,
-        AnimationConfig animationConfig,
         int bakerVersion,
         int sampleRate,
         float duration,
@@ -76,7 +30,6 @@ public sealed class RootMotionBakeResult
         List<Quaternion> cumulativeRotations)
     {
         SourceClip = sourceClip;
-        AnimationConfig = animationConfig;
         Settings = settings;
         BakerVersion = bakerVersion;
         SampleRate = sampleRate;

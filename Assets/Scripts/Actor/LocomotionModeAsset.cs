@@ -3,20 +3,18 @@ using System.Collections.Generic;
 using DeiveEx.TagTree;
 using UnityEngine;
 
-[CreateAssetMenu(menuName = "Combat/Locomotion Mode", fileName = "LocomotionMode")]
+[CreateAssetMenu(menuName = "CombatSample/Actor/Locomotion Mode", fileName = "LocomotionMode")]
 public sealed class LocomotionModeAsset : ScriptableObject
 {
     [SerializeField] private int priority;
     [SerializeReference, SubclassSelector] private List<LocomotionModeCondition> entryConditions = new();
     [SerializeField] private List<TagReference> selfTags = new();
     [SerializeField] private LocomotionTuning tuning = LocomotionTuning.Default;
-    [SerializeField] private LocomotionAnimationProfile animationProfile = LocomotionAnimationProfile.Default;
 
     public int Priority => priority;
     public IReadOnlyList<LocomotionModeCondition> EntryConditions => entryConditions;
     public IReadOnlyList<TagReference> SelfTags => selfTags;
     public LocomotionTuning Tuning => LocomotionTuning.Sanitize(tuning);
-    public LocomotionAnimationProfile AnimationProfile => animationProfile.Sanitize();
     public bool HasEntryConditions => entryConditions != null && entryConditions.Count > 0;
 
     public bool AreEntryConditionsMet(in LocomotionModeContext context)
@@ -48,14 +46,6 @@ public sealed class LocomotionModeAsset : ScriptableObject
             valid = false;
         }
 
-        LocomotionAnimationProfile sanitizedProfile = animationProfile.Sanitize();
-        if (string.IsNullOrWhiteSpace(sanitizedProfile.IdleKey) ||
-            string.IsNullOrWhiteSpace(sanitizedProfile.MoveKey) ||
-            !Mathf.Approximately(sanitizedProfile.MoveThreshold, animationProfile.MoveThreshold))
-        {
-            valid = false;
-        }
-
         if (selfTags != null)
         {
             for (int i = 0; i < selfTags.Count; i++)
@@ -82,8 +72,6 @@ public sealed class LocomotionModeAsset : ScriptableObject
     private void OnValidate()
     {
         tuning = LocomotionTuning.Sanitize(tuning);
-        animationProfile = animationProfile.Sanitize();
-
         if (HasNullEntryCondition())
         {
             Debug.LogWarning(
@@ -141,41 +129,4 @@ public struct LocomotionTuning
     {
         return float.IsNaN(value) || float.IsInfinity(value) ? fallback : value;
     }
-}
-
-[Serializable]
-public struct LocomotionAnimationProfile
-{
-    public string IdleKey;
-    public string MoveKey;
-    public float MoveThreshold;
-    public LocomotionAnimationParameterSource ParameterSource;
-
-    public static LocomotionAnimationProfile Default => new LocomotionAnimationProfile
-    {
-        IdleKey = string.Empty,
-        MoveKey = string.Empty,
-        MoveThreshold = 0.01f,
-        ParameterSource = LocomotionAnimationParameterSource.None,
-    };
-
-    public LocomotionAnimationProfile Sanitize()
-    {
-        return new LocomotionAnimationProfile
-        {
-            IdleKey = IdleKey ?? string.Empty,
-            MoveKey = MoveKey ?? string.Empty,
-            MoveThreshold = float.IsNaN(MoveThreshold) || float.IsInfinity(MoveThreshold)
-                ? 0f
-                : Mathf.Max(0f, MoveThreshold),
-            ParameterSource = ParameterSource,
-        };
-    }
-}
-
-public enum LocomotionAnimationParameterSource
-{
-    None = 0,
-    MoveStrength1D = 1,
-    LocalDirection2D = 2,
 }

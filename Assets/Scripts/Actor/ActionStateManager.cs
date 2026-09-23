@@ -389,8 +389,10 @@ public class ActionStateManager : MonoBehaviour
         if (sameAsCurrent && !action.AllowReenterWhilePlaying)
             return null;
 
+        if (!PlayNewAction(action, candidate.Context))
+            return null;
+
         action.ClaimEntry(_actor);
-        PlayNewAction(action, candidate.Context);
         return candidate;
     }
 
@@ -405,9 +407,13 @@ public class ActionStateManager : MonoBehaviour
         }
     }
 
-    private void PlayNewAction(ActionAsset actionToPlay, ActionContext startContext)
+    private bool PlayNewAction(ActionAsset actionToPlay, ActionContext startContext)
     {
-        _actionPlayer.BeginAction(actionToPlay, startContext);
+        if (_actionPlayer.TryBeginAction(actionToPlay, startContext, out string failureReason))
+            return true;
+
+        Debug.LogWarning(failureReason, this);
+        return false;
     }
 
     private bool TryBuildPollContext(ActionAsset action, out ActionContext context)
@@ -550,12 +556,6 @@ public class ActionStateManager : MonoBehaviour
         ActionAsset action = candidate.Action;
         if (action == null)
             return false;
-
-        if (!action.CheckContextRequirements(candidate.Context, out string warning))
-        {
-            Debug.LogError(warning, this);
-            return false;
-        }
 
         return candidate.Origin == ActionCandidateOrigin.Event
             ? action.CheckEntryForEvent(_actor, candidate.Context)

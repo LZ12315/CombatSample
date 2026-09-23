@@ -8,15 +8,6 @@ public static class RootMotionDependencyHash
 {
     public static bool TryCompute(
         AnimationClip clip,
-        AnimationConfig config,
-        out string dependencyHash,
-        out string diagnostic)
-    {
-        return TryCompute(clip, RootMotionBakeSettings.FromLegacy(config), out dependencyHash, out diagnostic);
-    }
-
-    public static bool TryCompute(
-        AnimationClip clip,
         RootMotionBakeSettings settings,
         out string dependencyHash,
         out string diagnostic)
@@ -61,8 +52,6 @@ public static class RootMotionDependencyHash
             return false;
         }
 
-        // Do not hash AnimationConfig itself: the generated trajectory is serialized
-        // inside it, so doing so would make every successful bake immediately stale.
         dependencyHash = Hash128.Compute(material.ToString()).ToString();
         return true;
     }

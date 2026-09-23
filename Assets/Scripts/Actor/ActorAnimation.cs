@@ -1,4 +1,3 @@
-using System;
 using Animancer;
 using UnityEngine;
 using UnityEngine.Playables;
@@ -16,19 +15,13 @@ public sealed class ActorAnimation : MonoBehaviour
     private int _activeActionOwnerId;
     private bool _actionOwnerActive;
     private bool _hasActionPoseThisTick;
-    private bool _reportedMissingAnimancer;
-    private bool _reportedMissingConfig;
     private bool _hasPreviousUpdateMode;
     private DirectorUpdateMode _previousUpdateMode;
 
     private AnimancerLayer _baseLayer;
     private AnimancerLayer _actionLayer;
-    private AnimancerState _baseState;
     private AnimancerState _actionState;
-    private string _baseStateKey;
-    private string _actionStateKey;
     private AnimationClip _actionStateClip;
-    private ActionStateSource _actionStateSource;
 
     public bool HasActiveActionOwner => _actionOwnerActive;
 
@@ -103,97 +96,7 @@ public sealed class ActorAnimation : MonoBehaviour
         ClearActionLayer();
     }
 
-    internal bool SetLocomotionBase(LocomotionAnimationPose pose)
-    {
-        if (string.IsNullOrWhiteSpace(pose.AnimationKey))
-            return false;
-
-        ResolveDependencies();
-        if (!TryResolveAnimationConfig(out AnimationConfig config))
-            return false;
-
-        if (!TryResolveTransition(config, pose.AnimationKey, "Locomotion Base", out TransitionAsset transitionAsset))
-            return false;
-
-        ApplyManualUpdateMode();
-        EnsureLayers();
-        if (_baseLayer == null)
-            return false;
-
-        bool shouldPlay = _baseState == null
-                          || _baseLayer.CurrentState != _baseState
-                          || !_baseState.IsPlaying
-                          || !string.Equals(_baseStateKey, pose.AnimationKey, StringComparison.Ordinal);
-
-        if (shouldPlay)
-        {
-            _baseState = _baseLayer.Play(transitionAsset.Transition);
-            _baseStateKey = pose.AnimationKey;
-        }
-
-        if (_baseState == null)
-            return false;
-
-        ApplyMixerParameter(_baseState, pose);
-        _baseState.Speed = 1f;
-        _baseState.IsPlaying = true;
-        return true;
-    }
-
-    internal bool SubmitActionPose(ActorAnimationActionOwner owner, ActionAnimationPose pose)
-    {
-        if (!IsActiveOwner(owner))
-            return false;
-
-        if (_hasActionPoseThisTick)
-        {
-            Debug.LogError(
-                "[ActorAnimation] Multiple Action Pose submissions were received for one Actor in the same combat tick. " +
-                "AnimationPoseClip overlap is an authoring error.",
-                this);
-            return false;
-        }
-
-        if (string.IsNullOrWhiteSpace(pose.AnimationKey))
-            return false;
-
-        ResolveDependencies();
-        if (!TryResolveAnimationConfig(out AnimationConfig config))
-            return false;
-
-        if (!TryResolveTransition(config, pose.AnimationKey, "Action Pose", out TransitionAsset transitionAsset))
-            return false;
-
-        ApplyManualUpdateMode();
-        EnsureLayers();
-        if (_actionLayer == null)
-            return false;
-
-        if (_actionState == null
-            || _actionStateSource != ActionStateSource.LegacyTransition
-            || !string.Equals(_actionStateKey, pose.AnimationKey, StringComparison.Ordinal))
-        {
-            _actionState = _actionLayer.Play(transitionAsset.Transition);
-            _actionStateKey = pose.AnimationKey;
-            _actionStateClip = null;
-            _actionStateSource = ActionStateSource.LegacyTransition;
-        }
-
-        if (_actionState == null)
-            return false;
-
-        ApplyMixerParameter(_actionState, pose);
-        _actionState.Speed = 0f;
-        _actionState.Time = Mathf.Max(0f, pose.SampleTime);
-        _actionState.IsPlaying = true;
-        _hasActionPoseThisTick = true;
-        return true;
-    }
-
-    /// <summary>
-    /// Submits a V1 Action pose directly from an AnimationClip. This deliberately
-    /// bypasses AnimationConfig and Legacy action-animation keys.
-    /// </summary>
+    /// <summary>Submits an ActionRuntime pose directly from its AnimationClip.</summary>
     internal bool SubmitActionClipPose(ActorAnimationActionOwner owner, AnimationClip clip, float sampleTime)
     {
         if (!IsActiveOwner(owner) || clip == null || float.IsNaN(sampleTime) || float.IsInfinity(sampleTime))
@@ -214,14 +117,10 @@ public sealed class ActorAnimation : MonoBehaviour
         if (_actionLayer == null)
             return false;
 
-        if (_actionState == null
-            || _actionStateSource != ActionStateSource.DirectClip
-            || _actionStateClip != clip)
+        if (_actionState == null || _actionStateClip != clip)
         {
             _actionState = _actionLayer.Play(clip);
-            _actionStateKey = null;
             _actionStateClip = clip;
-            _actionStateSource = ActionStateSource.DirectClip;
         }
 
         if (_actionState == null)
@@ -256,63 +155,12 @@ public sealed class ActorAnimation : MonoBehaviour
                && owner.Id == _activeActionOwnerId;
     }
 
-    private bool TryResolveAnimationConfig(out AnimationConfig config)
-    {
-        config = actor != null ? actor.AnimationConfig : null;
-        if (animancer == null)
-        {
-            if (!_reportedMissingAnimancer)
-            {
-                Debug.LogWarning("[ActorAnimation] Cannot resolve animation because AnimancerComponent is missing.", this);
-                _reportedMissingAnimancer = true;
-            }
-
-            return false;
-        }
-
-        if (config == null)
-        {
-            if (!_reportedMissingConfig)
-            {
-                Debug.LogWarning("[ActorAnimation] Cannot resolve animation because Actor.AnimationConfig is missing.", this);
-                _reportedMissingConfig = true;
-            }
-
-            return false;
-        }
-
-        return true;
-    }
-
-    private bool TryResolveTransition(
-        AnimationConfig config,
-        string animationKey,
-        string role,
-        out TransitionAsset transitionAsset)
-    {
-        transitionAsset = null;
-        if (config == null)
-            return false;
-
-        if (config.TryGetTransition(animationKey, out transitionAsset)
-            && transitionAsset != null
-            && transitionAsset.Transition != null)
-        {
-            return true;
-        }
-
-        Debug.LogWarning($"[ActorAnimation] Cannot resolve {role} animation key '{animationKey}'.", this);
-        return false;
-    }
-
     private void ClearAnimationState()
     {
         _actionOwnerActive = false;
         _activeActionOwnerId = 0;
         _hasActionPoseThisTick = false;
         ClearActionLayer();
-        _baseState = null;
-        _baseStateKey = null;
         _baseLayer = null;
         _actionLayer = null;
     }
@@ -326,40 +174,7 @@ public sealed class ActorAnimation : MonoBehaviour
         }
 
         _actionState = null;
-        _actionStateKey = null;
         _actionStateClip = null;
-        _actionStateSource = ActionStateSource.None;
-    }
-
-    private void ApplyMixerParameter(AnimancerState state, ActionAnimationPose pose)
-    {
-        if (state is MixerState<Vector2> mixer2D && pose.HasVector2Parameter)
-        {
-            mixer2D.Parameter = pose.Vector2Parameter;
-        }
-        else if (state is MixerState<float> mixer1D && pose.HasFloatParameter)
-        {
-            mixer1D.Parameter = pose.FloatParameter;
-        }
-    }
-
-    private enum ActionStateSource
-    {
-        None,
-        LegacyTransition,
-        DirectClip,
-    }
-
-    private void ApplyMixerParameter(AnimancerState state, LocomotionAnimationPose pose)
-    {
-        if (state is MixerState<Vector2> mixer2D && pose.HasVector2Parameter)
-        {
-            mixer2D.Parameter = pose.Vector2Parameter;
-        }
-        else if (state is MixerState<float> mixer1D && pose.HasFloatParameter)
-        {
-            mixer1D.Parameter = pose.FloatParameter;
-        }
     }
 
     private void ResolveDependencies()
@@ -425,53 +240,4 @@ public readonly struct ActorAnimationActionOwner
 
     internal int Id { get; }
     public bool IsValid => Id != 0;
-}
-
-public readonly struct ActionAnimationPose
-{
-    public ActionAnimationPose(
-        string animationKey,
-        float sampleTime,
-        bool hasVector2Parameter,
-        Vector2 vector2Parameter,
-        bool hasFloatParameter,
-        float floatParameter)
-    {
-        AnimationKey = animationKey ?? string.Empty;
-        SampleTime = sampleTime;
-        HasVector2Parameter = hasVector2Parameter;
-        Vector2Parameter = vector2Parameter;
-        HasFloatParameter = hasFloatParameter;
-        FloatParameter = floatParameter;
-    }
-
-    public string AnimationKey { get; }
-    public float SampleTime { get; }
-    public bool HasVector2Parameter { get; }
-    public Vector2 Vector2Parameter { get; }
-    public bool HasFloatParameter { get; }
-    public float FloatParameter { get; }
-}
-
-public readonly struct LocomotionAnimationPose
-{
-    public LocomotionAnimationPose(
-        string animationKey,
-        bool hasVector2Parameter,
-        Vector2 vector2Parameter,
-        bool hasFloatParameter,
-        float floatParameter)
-    {
-        AnimationKey = animationKey ?? string.Empty;
-        HasVector2Parameter = hasVector2Parameter;
-        Vector2Parameter = vector2Parameter;
-        HasFloatParameter = hasFloatParameter;
-        FloatParameter = floatParameter;
-    }
-
-    public string AnimationKey { get; }
-    public bool HasVector2Parameter { get; }
-    public Vector2 Vector2Parameter { get; }
-    public bool HasFloatParameter { get; }
-    public float FloatParameter { get; }
 }

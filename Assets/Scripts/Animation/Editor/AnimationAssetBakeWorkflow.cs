@@ -78,21 +78,36 @@ public static class AnimationAssetBakeWorkflow
 
     public static bool TryBake(AnimationAsset asset, out AnimationAssetBakeOperationResult result)
     {
+        return TryBakeAndCommit(asset, asset != null ? asset.Clip : null,
+            asset != null ? asset.RootMotionBakeSettings : null, null, false, out result);
+    }
+
+    // Window drafts are committed together with the trajectory only after a successful bake.
+    internal static bool TryBake(AnimationAsset asset, AnimationClip clip, AnimationRigAsset rig,
+        out AnimationAssetBakeOperationResult result)
+    {
+        return TryBakeAndCommit(asset, clip, rig != null ? rig.CreateEffectiveBakeSettings() : null,
+            rig, true, out result);
+    }
+
+    private static bool TryBakeAndCommit(AnimationAsset asset, AnimationClip clip,
+        RootMotionBakeSettings settings, AnimationRigAsset rig, bool applySetup,
+        out AnimationAssetBakeOperationResult result)
+    {
         result = default;
-        if (asset == null || asset.Clip == null)
+        if (asset == null || clip == null)
         {
             result = new AnimationAssetBakeOperationResult(false, "AnimationAsset and AnimationClip are required.");
             return false;
         }
 
-        RootMotionBakeSettings settings = asset.RootMotionBakeSettings;
-        if (!RootMotionDependencyHash.TryCompute(asset.Clip, settings, out string dependencyHash, out string hashError))
+        if (!RootMotionDependencyHash.TryCompute(clip, settings, out string dependencyHash, out string hashError))
         {
             result = new AnimationAssetBakeOperationResult(false, hashError);
             return false;
         }
 
-        if (!RootMotionBaker.TryBake(asset.Clip, settings, out RootMotionBakeResult bake, out RootMotionBakeDiagnostic bakeDiagnostic))
+        if (!RootMotionBaker.TryBake(clip, settings, out RootMotionBakeResult bake, out RootMotionBakeDiagnostic bakeDiagnostic))
         {
             result = new AnimationAssetBakeOperationResult(false, bakeDiagnostic.Message);
             return false;
@@ -129,6 +144,11 @@ public static class AnimationAssetBakeWorkflow
         }
 
         Undo.RecordObject(asset, $"Bake Root Motion '{asset.name}'");
+        if (applySetup)
+        {
+            asset.EditorSetClip(clip);
+            asset.EditorSetAnimationRigAsset(rig);
+        }
         asset.EditorSetRootMotionData(trajectory);
         EditorUtility.SetDirty(asset);
         if (AssetDatabase.Contains(asset))

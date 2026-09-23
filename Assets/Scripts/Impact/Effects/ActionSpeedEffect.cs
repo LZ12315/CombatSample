@@ -1,51 +1,42 @@
+using System;
 using UnityEngine;
 
 /// <summary>
-/// 控制攻击者（可选受击者）的 ActionPlayer 播放速度，实现 HitStop/HitStick 效果；
-/// 并同步 <see cref="ActorMotor"/> 的 movement time scale，使 KCC/重力/冲量与动画同速冻结。
-/// 
-/// 本效果不再缓存并恢复旧速度；它只向 ActionPlayer / ActorMotor 申请临时 modifier token，
-/// 结束时释放 token，由速度所有者统一重算最终速度。
+/// Applies temporary Action and movement speed modifiers to the attacker and,
+/// optionally, the target. Lifetime is advanced explicitly by the combat fixed tick.
 /// </summary>
-public class ActionSpeedEffect : ImpactEffect
+public sealed class ActionSpeedEffect : ImpactEffect
 {
+    internal const int TargetStartDelayTicks = 4;
+
     private ActionPlayer _attackerPlayer;
     private ActionPlayer _targetPlayer;
     private ActorMotor _attackerMotor;
     private ActorMotor _targetMotor;
+    private Actor _attackerActor;
+    private Actor _targetActor;
 
     private SpeedModifierToken _attackerActionToken = SpeedModifierToken.Invalid;
     private SpeedModifierToken _targetActionToken = SpeedModifierToken.Invalid;
     private SpeedModifierToken _attackerMovementToken = SpeedModifierToken.Invalid;
     private SpeedModifierToken _targetMovementToken = SpeedModifierToken.Invalid;
 
-    private float _duration;
-    private float _speedScale;
-    private bool _affectTarget;
-    private float _elapsed;
-
-    /// <summary>本实例结束时机（墙钟，含受击方延迟时把 TARGET_START_DELAY 算入）。</summary>
-    private float _effectEndTime;
-
-    private bool _released;
-
-    // --- 受击方延迟缓速（设计不变量，勿在重构中移除）---
-    // 受击方不得在命中当帧立即申请速度 modifier。必须先保留若干帧的满速/正常播放时间，
-    // 让受击动作从 Idle/上一动作切入反应姿态，再开始缓速，否则易与 Director/Animancer
-    // 的首帧一起被拉慢而出现 T-pose 观感。此延迟与「攻击方当帧即缓速」是刻意不对称的。
-    /// <summary>受击方速度 modifier 开始生效前的延迟（秒）。</summary>
-    private const float TARGET_START_DELAY = 0.06666667f; // 4/60s at 60fps
-
-    private bool _targetSpeedApplied;
+    private int _durationTicks;
+    private long _ageTicks;
+    private float _speedScale = 1f;
+    private bool _targetPending;
+    private bool _released = true;
 
     public override bool IsActive =>
-        !_released &&
-        _elapsed < _effectEndTime &&
-        (_attackerPlayer != null || _targetPlayer != null || _attackerMotor != null || _targetMotor != null);
+        !_released
+        && (HasAttackerTokens || _targetPending || HasTargetTokens);
 
-    /// <summary>
-    /// 执行速度效果。
-    /// </summary>
+    private bool HasAttackerTokens =>
+        _attackerActionToken.IsValid || _attackerMovementToken.IsValid;
+
+    private bool HasTargetTokens =>
+        _targetActionToken.IsValid || _targetMovementToken.IsValid;
+
     public void Execute(ImpactData impactData, SpeedEffectConfig config)
     {
         Reset();
@@ -53,162 +44,295 @@ public class ActionSpeedEffect : ImpactEffect
         if (impactData == null || config == null || !config.enabled)
             return;
 
-        _duration = config.duration;
-        _speedScale = config.speedScale;
-        _affectTarget = config.affectBothParties;
-
-        _attackerPlayer = impactData.Attacker?.GetComponentInChildren<ActionPlayer>();
-        _attackerMotor = MotorFrom(_attackerPlayer);
-
-        if (_affectTarget)
+        if (!TryValidateConfig(config, out int durationTicks, out string failureReason))
         {
-            _targetPlayer = impactData.TargetObject?.GetComponentInChildren<ActionPlayer>();
-            _targetMotor = MotorFrom(_targetPlayer);
+            Debug.LogWarning($"[ActionSpeedEffect] Effect was rejected: {failureReason}",
+                impactData.Attacker != null ? impactData.Attacker : impactData.TargetObject);
+            return;
         }
 
-        if (_attackerPlayer == null && _targetPlayer == null && _attackerMotor == null && _targetMotor == null)
+        if (durationTicks == 0 || config.speedScale >= 1f)
             return;
 
-        // 总时长：仅当存在「需要前摇后再缓速的受击方」时，才把 TARGET_START_DELAY 计入（与配置 duration 的叠加语义一致）。
-        bool hasDelayedTarget = HasDelayedTarget();
-        _effectEndTime = _duration + (hasDelayedTarget ? TARGET_START_DELAY : 0f);
+        ResolveParticipants(impactData, config.affectBothParties);
+        ReleaseInvalidParticipants();
+        bool hasAttacker = IsUsable(_attackerPlayer) || IsUsable(_attackerMotor);
+        bool hasTarget = config.affectBothParties
+                         && (IsUsable(_targetPlayer) || IsUsable(_targetMotor));
+        if (!hasAttacker && !hasTarget)
+        {
+            Reset();
+            return;
+        }
 
-        // duration=0 且仅攻击方时 _effectEndTime 为 0，IsActive 恒假会导致无法入队、token 永不释放；至少保留一拍更新。
-        if (_effectEndTime <= 0f)
-            _effectEndTime = 0.0001f;
-
-        _elapsed = 0f;
-        _targetSpeedApplied = false;
+        _durationTicks = durationTicks;
+        _speedScale = config.speedScale;
+        _ageTicks = 0;
+        _targetPending = hasTarget;
         _released = false;
 
-        // 攻击者：当帧即降速（无 TARGET_START_DELAY）；ActorMotor 与 Action 播放同步缩放 dt。
-        ApplyAttackerSpeed();
-
-        // 受击者：TARGET_START_DELAY 后再申请 Action / Movement modifier（不变量，见上）。
-    }
-
-    private void ApplyAttackerSpeed()
-    {
-        if (_attackerPlayer != null)
+        try
         {
-            _attackerActionToken = _attackerPlayer.AddExternalSpeedModifier(
-                _speedScale,
-                SpeedModifierBlendMode.Min,
-                "SpeedVFX_Attacker_Action");
+            if (hasAttacker)
+                ApplyAttackerSpeed();
         }
-
-        if (_attackerMotor != null)
+        catch (Exception exception)
         {
-            _attackerMovementToken = _attackerMotor.AddMovementTimeScaleModifier(
-                _speedScale,
-                SpeedModifierBlendMode.Min,
-                "SpeedVFX_Attacker_Movement");
+            Reset();
+            Debug.LogException(exception,
+                impactData.Attacker != null ? impactData.Attacker : impactData.TargetObject);
         }
     }
 
-    private void ApplyTargetSpeed()
-    {
-        if (!_affectTarget || _targetSpeedApplied)
-            return;
-
-        if (_targetPlayer != null)
-        {
-            _targetActionToken = _targetPlayer.AddExternalSpeedModifier(
-                _speedScale,
-                SpeedModifierBlendMode.Min,
-                "SpeedVFX_Target_Action");
-        }
-
-        if (_targetMotor != null)
-        {
-            _targetMovementToken = _targetMotor.AddMovementTimeScaleModifier(
-                _speedScale,
-                SpeedModifierBlendMode.Min,
-                "SpeedVFX_Target_Movement");
-        }
-
-        _targetSpeedApplied = true;
-    }
-
-    public override bool Update()
+    /// <summary>
+    /// Advances exactly one combat tick. This is the only lifetime clock used by
+    /// ActionSpeedEffect; ordinary MonoBehaviour Update calls do not affect it.
+    /// </summary>
+    internal bool AdvanceFixedTick()
     {
         if (!IsActive)
             return false;
 
-        _elapsed += Time.unscaledDeltaTime;
+        _ageTicks++;
+        ReleaseInvalidParticipants();
 
-        if (!_targetSpeedApplied && HasDelayedTarget() && _elapsed >= TARGET_START_DELAY)
+        if (HasAttackerTokens && _ageTicks > _durationTicks)
+            ReleaseAttackerTokens();
+
+        if (_targetPending && _ageTicks == TargetStartDelayTicks + 1)
         {
-            ApplyTargetSpeed();
+            _targetPending = false;
+            ReleaseInvalidParticipants();
+            if (IsUsable(_targetPlayer) || IsUsable(_targetMotor))
+            {
+                try
+                {
+                    ApplyTargetSpeed();
+                }
+                catch (Exception exception)
+                {
+                    ReleaseTargetTokens();
+                    Debug.LogException(exception,
+                        _targetPlayer != null ? _targetPlayer : _targetMotor);
+                }
+            }
         }
 
-        if (_elapsed >= _effectEndTime)
+        if (HasTargetTokens && _ageTicks > (long)TargetStartDelayTicks + _durationTicks)
+            ReleaseTargetTokens();
+
+        if (HasAttackerTokens || _targetPending || HasTargetTokens)
+            return true;
+
+        Reset();
+        return false;
+    }
+
+    /// <summary>
+    /// Kept for the ImpactEffect contract. Fixed combat ticks own progression.
+    /// </summary>
+    public override bool Update()
+    {
+        return IsActive;
+    }
+
+    public override void Reset()
+    {
+        ReleaseAttackerTokens();
+        ReleaseTargetTokens();
+
+        _attackerPlayer = null;
+        _targetPlayer = null;
+        _attackerMotor = null;
+        _targetMotor = null;
+        _attackerActor = null;
+        _targetActor = null;
+        _durationTicks = 0;
+        _ageTicks = 0;
+        _speedScale = 1f;
+        _targetPending = false;
+        _released = true;
+    }
+
+    internal static bool TryConvertDurationToTicks(float durationSeconds, out int ticks)
+    {
+        ticks = 0;
+        if (float.IsNaN(durationSeconds) || float.IsInfinity(durationSeconds) || durationSeconds < 0f)
+            return false;
+
+        double exactTicks = (double)durationSeconds * CombatSimulationTiming.FrameRate;
+        if (double.IsNaN(exactTicks) || double.IsInfinity(exactTicks) || exactTicks > int.MaxValue)
+            return false;
+
+        double nearestInteger = Math.Round(exactTicks);
+        // Snap only when the exact frame boundary rounds back to the supplied float.
+        // This accounts for float precision at any magnitude without erasing tiny
+        // positive durations or rounding a distinguishable over-boundary value down.
+        if (nearestInteger > 0d
+            && (float)(nearestInteger / CombatSimulationTiming.FrameRate) == durationSeconds)
+            exactTicks = nearestInteger;
+
+        ticks = (int)Math.Ceiling(exactTicks);
+        return true;
+    }
+
+    internal static bool TryValidateConfig(
+        SpeedEffectConfig config,
+        out int durationTicks,
+        out string failureReason)
+    {
+        durationTicks = 0;
+        failureReason = null;
+        if (config == null)
         {
-            // token 释放由 ImpactSystem 在 Update 返回 false 后统一调用 Reset()，避免与 Update 内重复清理。
+            failureReason = "config is missing.";
+            return false;
+        }
+
+        if (!TryConvertDurationToTicks(config.duration, out durationTicks))
+        {
+            failureReason = "duration must be finite, non-negative, and representable in combat ticks.";
+            return false;
+        }
+
+        if (float.IsNaN(config.speedScale)
+            || float.IsInfinity(config.speedScale)
+            || config.speedScale < 0f
+            || config.speedScale > 1f)
+        {
+            failureReason = "speed scale must be finite and within [0, 1].";
             return false;
         }
 
         return true;
     }
 
-    private bool HasDelayedTarget()
+    private void ResolveParticipants(ImpactData impactData, bool affectTarget)
     {
-        return _affectTarget && (_targetPlayer != null || _targetMotor != null);
-    }
+        _attackerPlayer = impactData.Attacker != null
+            ? impactData.Attacker.GetComponentInChildren<ActionPlayer>()
+            : null;
+        _attackerMotor = ResolveMotor(impactData.Attacker != null
+            ? impactData.Attacker.gameObject
+            : null, _attackerPlayer);
+        _attackerActor = impactData.Attacker != null
+            ? impactData.Attacker.GetComponentInParent<Actor>()
+            : null;
 
-    public override void Reset()
-    {
-        ReleaseTokens();
-
-        _attackerPlayer = null;
-        _targetPlayer = null;
-        _attackerMotor = null;
-        _targetMotor = null;
-
-        _elapsed = 0f;
-        _duration = 0f;
-        _effectEndTime = 0f;
-        _speedScale = 1f;
-        _affectTarget = false;
-        _targetSpeedApplied = false;
-    }
-
-    private void ReleaseTokens()
-    {
-        if (_released)
+        if (!affectTarget || impactData.TargetObject == null)
             return;
 
-        _released = true;
+        _targetPlayer = impactData.TargetObject.GetComponentInParent<ActionPlayer>();
+        if (_targetPlayer == null)
+            _targetPlayer = impactData.TargetObject.GetComponentInChildren<ActionPlayer>();
+        _targetMotor = ResolveMotor(impactData.TargetObject, _targetPlayer);
+        _targetActor = impactData.TargetObject.GetComponentInParent<Actor>();
+    }
 
-        if (_attackerPlayer != null)
+    private void ApplyAttackerSpeed()
+    {
+        if (IsUsable(_attackerPlayer))
+            _attackerActionToken = _attackerPlayer.AddExternalSpeedModifier(
+                _speedScale, SpeedModifierBlendMode.Min, "SpeedEffect_Attacker_Action");
+
+        if (IsUsable(_attackerMotor))
+            _attackerMovementToken = _attackerMotor.AddMovementTimeScaleModifier(
+                _speedScale, SpeedModifierBlendMode.Min, "SpeedEffect_Attacker_Movement");
+    }
+
+    private void ApplyTargetSpeed()
+    {
+        if (IsUsable(_targetPlayer))
+            _targetActionToken = _targetPlayer.AddExternalSpeedModifier(
+                _speedScale, SpeedModifierBlendMode.Min, "SpeedEffect_Target_Action");
+
+        if (IsUsable(_targetMotor))
+            _targetMovementToken = _targetMotor.AddMovementTimeScaleModifier(
+                _speedScale, SpeedModifierBlendMode.Min, "SpeedEffect_Target_Movement");
+    }
+
+    private void ReleaseInvalidParticipants()
+    {
+        // Forget invalid components even before their delayed token is acquired.
+        // Re-enabling them must not revive an older hit's pending application.
+        if (!IsActorUsable(_attackerActor) || !IsUsable(_attackerPlayer))
+        {
+            if (_attackerPlayer != null && _attackerActionToken.IsValid)
+                _attackerPlayer.RemoveExternalSpeedModifier(_attackerActionToken);
+            _attackerActionToken = SpeedModifierToken.Invalid;
+            _attackerPlayer = null;
+        }
+        if (!IsActorUsable(_attackerActor) || !IsUsable(_attackerMotor))
+        {
+            if (_attackerMotor != null && _attackerMovementToken.IsValid)
+                _attackerMotor.RemoveMovementTimeScaleModifier(_attackerMovementToken);
+            _attackerMovementToken = SpeedModifierToken.Invalid;
+            _attackerMotor = null;
+        }
+        if (!IsActorUsable(_targetActor) || !IsUsable(_targetPlayer))
+        {
+            if (_targetPlayer != null && _targetActionToken.IsValid)
+                _targetPlayer.RemoveExternalSpeedModifier(_targetActionToken);
+            _targetActionToken = SpeedModifierToken.Invalid;
+            _targetPlayer = null;
+        }
+        if (!IsActorUsable(_targetActor) || !IsUsable(_targetMotor))
+        {
+            if (_targetMotor != null && _targetMovementToken.IsValid)
+                _targetMotor.RemoveMovementTimeScaleModifier(_targetMovementToken);
+            _targetMovementToken = SpeedModifierToken.Invalid;
+            _targetMotor = null;
+        }
+
+        if (_targetPending && !IsUsable(_targetPlayer) && !IsUsable(_targetMotor))
+            _targetPending = false;
+    }
+
+    private void ReleaseAttackerTokens()
+    {
+        if (_attackerActionToken.IsValid && _attackerPlayer != null)
             _attackerPlayer.RemoveExternalSpeedModifier(_attackerActionToken);
-
-        if (_targetPlayer != null)
-            _targetPlayer.RemoveExternalSpeedModifier(_targetActionToken);
-
-        if (_attackerMotor != null)
+        if (_attackerMovementToken.IsValid && _attackerMotor != null)
             _attackerMotor.RemoveMovementTimeScaleModifier(_attackerMovementToken);
 
-        if (_targetMotor != null)
+        _attackerActionToken = SpeedModifierToken.Invalid;
+        _attackerMovementToken = SpeedModifierToken.Invalid;
+    }
+
+    private void ReleaseTargetTokens()
+    {
+        if (_targetActionToken.IsValid && _targetPlayer != null)
+            _targetPlayer.RemoveExternalSpeedModifier(_targetActionToken);
+        if (_targetMovementToken.IsValid && _targetMotor != null)
             _targetMotor.RemoveMovementTimeScaleModifier(_targetMovementToken);
 
-        _attackerActionToken = SpeedModifierToken.Invalid;
         _targetActionToken = SpeedModifierToken.Invalid;
-        _attackerMovementToken = SpeedModifierToken.Invalid;
         _targetMovementToken = SpeedModifierToken.Invalid;
     }
 
-
-
-    private static ActorMotor MotorFrom(ActionPlayer player)
+    private static ActorMotor ResolveMotor(GameObject origin, ActionPlayer player)
     {
-        if (player == null)
-            return null;
-
-        var actor = player.GetComponentInParent<Actor>();
+        Actor actor = player != null ? player.GetComponentInParent<Actor>() : null;
+        if (actor == null && origin != null)
+            actor = origin.GetComponentInParent<Actor>();
         if (actor != null && actor.actorMotor != null)
             return actor.actorMotor;
 
-        return player.GetComponentInParent<ActorMotor>();
+        ActorMotor motor = player != null ? player.GetComponentInParent<ActorMotor>() : null;
+        if (motor == null && origin != null)
+            motor = origin.GetComponentInParent<ActorMotor>();
+        return motor;
+    }
+
+    private static bool IsUsable(Behaviour behaviour)
+    {
+        return behaviour != null && behaviour.isActiveAndEnabled;
+    }
+
+    private static bool IsActorUsable(Actor actor)
+    {
+        // A participant may have no Actor. A previously resolved but destroyed
+        // Actor, unlike a genuine null, must invalidate its remaining components.
+        return ReferenceEquals(actor, null) || (actor != null && actor.isActiveAndEnabled);
     }
 }
