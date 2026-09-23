@@ -2,7 +2,7 @@
 
 > Status: Verified v3 validation contract; E3-H acceptance passed
 > Static structure verified: 2026-08-29
-> Authority baseline: `CombatSample_ActionSequence_Final_Architecture_v3_zh-CN.md`
+> 当前执行入口：ActionRuntime。运动 Domain 的历史设计来源见[归档 v3 架构](../Archive/CombatSample_ActionSequence_Final_Architecture_v3_zh-CN.md)；本文只保留仍与当前代码一致的运动合同。
 
 本文是当前 Actor Motion 验证合同。`Docs/Archive/Actor_Motion_Validation.md` 描述的是已经退出 authority 的 `ActorMotionRuntime / MotionChannels / RootMotionBuffer / Animator Root Motion`，不得继续作为当前实现依据。
 
@@ -11,7 +11,7 @@
 ```text
 LocomotionIntent
 → ActorLocomotion selects profile in Control
-→ Action arbitration and ActionSequence contributions
+→ Action arbitration and ActionRuntime item contributions
 → ActorMotor prepares Translation / Rotation
 → KCC simulates requested motion
 → ActorCollisionResolver applies deterministic actor separation
@@ -57,7 +57,7 @@ Scripted Rotation > Root Rotation > Locomotion Rotation
 ### Time / Lifecycle
 
 - `MovementTimeScale == 0` 时 Locomotion、Gravity、Impulse decay 与 Root interval 一致冻结。
-- Pause/HitStop 不重复执行 Sequence gameplay frame side effects。
+- Pause/HitStop 不重复执行 Action gameplay frame side effects。
 - Cancel、Stop、Restart、Disable、Dispose 与 Driver abort 必须幂等释放各自 owner。
 - Actor disable/re-enable 后 owner、policy、Ballistic、requested/actual readout 与 KCC pose 不得残留旧帧状态。
 
@@ -82,7 +82,7 @@ Scripted Rotation > Root Rotation > Locomotion Rotation
 
 ### B. Root Motion cover / blocked displacement
 
-1. 让有位移的 Sequence 动作贴墙播放，再离开墙体。
+1. 让有位移的正式 Action 贴墙播放，再离开墙体。
 2. 被墙阻挡的 displacement 不得在后续帧补偿或产生瞬移。
 3. 在 Velocity owner 或更高 rotation owner 覆盖结束后，应直接使用当前帧 Root/Rotation contribution，无 catch-up。
 
@@ -94,7 +94,7 @@ Scripted Rotation > Root Rotation > Locomotion Rotation
 
 ### D. Cleanup / re-enable
 
-1. 连续切换或取消 Sequence，并在动作中 disable/re-enable Actor。
+1. 连续切换或取消正式 Action，并在动作中 disable/re-enable Actor。
 2. 确认没有 T-pose、空白帧、重复 hit、残留 Tag/HitBox 或 owner。
 3. 检查 `ActorMotor > Runtime Debug`：Movement Time Scale 恢复 1，Ballistic/Impulse 与 owner readout 符合当前状态，Root/Scripted owner count 回到 0。
 

@@ -1,6 +1,6 @@
 # Animation → Action → Actor 执行链收尾检查
 
-> 代码复核：2026-09-24。当前源码是权威；本记录区分已编译、未运行的测试和待人工检查。未修改生产 Action、Prefab、场景或项目设置。
+> 代码复核：2026-09-24。用户已完成本阶段人工检查并确认通过；Unity Test Runner 不再作为本项目当前阶段的验收方式。未修改生产 Action、Prefab、场景或项目设置。
 
 ## 结论
 
@@ -8,7 +8,7 @@
 
 本轮解决了原审查中唯一的必须收口问题：Timeline 的整数 Frame N 现在展示 Runtime 第 N 帧 **Motion、World 提交后、Hit 阶段**的位置。Pose 仍在 N 的时间采样；HitBox 与角色处于同一世界位置。小数 PreviewPosition 是相邻 Hit 阶段位置的视觉插值；Duration 终点保留最终位移并隐藏已结束的 HitBox。轨迹只画到已到达的边界和当前插值点。
 
-**静态结构与编译检查通过，可以推进 Locomotion 和 Camera 路线。** Unity Test Runner、实际 Preview 画面和组合操作没有在本轮执行，因此不宣称完成全场景运行验收。
+**Animation → Action → Actor 阶段已收口，可以推进 Locomotion 和 Camera 路线。** 代码与编译结果由本记录列出；人工检查的通过结论由项目负责人提供。没有单独运行 Unity Test Runner，也不将其记作“测试通过”。
 
 ## 正式职责与所有权
 
@@ -41,11 +41,11 @@ ActorAnimation 由 ActionRuntime 取得覆盖所有权并提交绝对采样时�
 
 - 2026-09-24：使用临时 MSBuild target 排除生成工程列表中两个已删除源码，并加入改名后的 Identity 文件；未编辑 Unity 生成的 csproj/sln。Assembly-CSharp-Editor 构建完成，包含 Runtime、Editor 与当前 12 个 Editor 测试源码，**0 error、48 warnings**。警告来自既有项目和包源码。
 - 静态检查：已删除类型的源码引用为零；Context 重复扫描与启动前 Scheduler 已移除；Preview 帧终点不绘制 HitBox；新 Identity 文件保留原 .meta。
-- 未执行：Unity Test Runner；角色实画面与 HitBox 对照；临时 Action 的保存重开、Undo、播放/暂停/循环/打断/停用组合验收；长时间资源检查。
-- 先前用户实测 TestAction 动画、RootMotion、HitBox 和 HitStop 基本表现，但这些结果早于本轮修改，不能替代上述检查。
+- 2026-09-24：项目负责人表示已完成本阶段检查并接受结果；具体操作清单和日志未提供，因此本记录不逐项声称某个场景或时长测试已通过。
+- Unity Test Runner 未运行。项目负责人决定不继续使用它作为当前开发流程的验收门槛；已有测试源码保留，不把“未运行”表述为“运行通过”。
 
 ## 后续接点
 
 Locomotion 的基础动画呈现仍由独立路线实现；不要恢复已删除的 AnimationConfig 字符串键。Camera 可从 Actor 根、CameraTarget 或 Motor 已发布世界结果选择跟随来源，不应读取 Preview 或模型动画偏移作为运动权威。用户按当前 Action 格式重新配置需要的动作；本轮不迁移旧资产。
 
-提交前复核暂存源码、.meta、文档和旧系统删除，排除备份、生成文件及无关资源。阶段性 Git 提交是版本基线，不代表未执行的 Unity 人工检查已通过。
+源码、测试与文档已在提交 `434c7ff7` 中形成阶段基线；用户重配的动作资产、场景和备份未混入该提交。后续发现具体缺陷时按缺陷修复，不重启旧迁移路线图。

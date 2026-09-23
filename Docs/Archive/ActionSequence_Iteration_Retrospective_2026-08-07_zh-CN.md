@@ -572,7 +572,7 @@ Tick 当前活动 Clip
 2. [ActionSequence 编辑器 V2 架构](ActionSequence_Editor_V2_Architecture_zh-CN.md)：查询当前详细架构和约束；
 3. [ActionSequence Editor Design Spec](ActionSequence_Editor_Design_Spec.md)：理解最初产品语言；
 4. [ActionSequence Editor Implementation Audit](ActionSequence_Editor_Implementation_Audit_2026-08-02.md)：了解 Prototype 为什么被替换；
-5. [帧表迁移完整落地方案（历史草案）](../Proposals/帧表迁移完整落地方案_历史草案.md)：只作为早期思路背景，不作为当前实现依据。
+5. [帧表迁移完整落地方案（历史草案）](帧表迁移完整落地方案_历史草案.md)：只作为早期思路背景，不作为当前实现依据。
 
 ## 16. 对后续工作的约束
 

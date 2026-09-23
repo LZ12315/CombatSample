@@ -3,8 +3,8 @@
 > 状态：**Implementation and Unity workstation acceptance confirmed**
 > 日期：2026-08-30
 > 前置：Stage 0 E3 baseline 已完成 Unity 人工复验
-> 架构目标：[Action Final Architecture v1](../../Proposals/CombatSample_Action_Final_Architecture_v1_zh-CN.md)
-> 路线图：[Action Implementation Roadmap v1](../../Proposals/CombatSample_Action_Implementation_Roadmap_v1_zh-CN.md)
+> 架构目标：[Action Final Architecture v1](../CombatSample_Action_Final_Architecture_v1_zh-CN.md)
+> 路线图：[Action Implementation Roadmap v1](../CombatSample_Action_Implementation_Roadmap_v1_zh-CN.md)
 
 ## 1. 本 Stage 交付
 

@@ -1,6 +1,6 @@
 # CombatSample E3 Architecture Migration Roadmap
 
-> 状态：**Completed / Archived**。本文服从 [`Final Architecture v3`](../Proposals/CombatSample_ActionSequence_Final_Architecture_v3_zh-CN.md)，现作为 E3 阶段边界、迁移约束与完成证据的历史记录。
+> 状态：**Completed / Archived**。本文服从 [`Final Architecture v3`](CombatSample_ActionSequence_Final_Architecture_v3_zh-CN.md)，现作为 E3 阶段边界、迁移约束与完成证据的历史记录。
 >
 > 开始日期：2026-08-25；完成日期：2026-08-29
 >

@@ -1,3 +1,5 @@
+> 归档说明（2026-09-24）：ActionSequence 编辑与播放路径已删除。仍适用的运动 Domain 合同以 Docs/Current/Actor_Motion_Validation.md 和当前代码为准；本文的 Sequence 内容不是现行实施要求。
+
 # CombatSample Final Architecture v3
 
 > 状态：**Approved Architecture Baseline**；本文是 CombatSample E3 及后续实现计划的最高架构依据，不是 E3 Implementation Plan。

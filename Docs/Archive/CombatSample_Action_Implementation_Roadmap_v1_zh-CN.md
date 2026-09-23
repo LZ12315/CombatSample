@@ -1,3 +1,5 @@
+> 归档说明（2026-09-24）：本路线图已终止。用户决定按需从零重配动作，不执行 Stage 6 批量迁移；正式编辑与执行链已完成，Stage 7 旧代码删除已落地。旧全量验收门槛不再约束当前 Demo。
+
 > Historical proposal: superseded by the current Action editor architecture (2026-09-24).
 
 # CombatSample Action 实施路线图 v1

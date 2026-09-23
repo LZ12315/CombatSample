@@ -1,3 +1,5 @@
+> 归档说明（2026-09-24）：以下“39 个 Sequence 动作”和 AnimationConfig 等事实只属于 8 月 29 日 E3 阶段，已被正式 ActionRuntime 路径取代。
+
 # CombatSample E3 / Final Architecture v3 Validation Handoff
 
 > Status: **Completed** — E3-H static, asset and differential acceptance gates passed

@@ -6,7 +6,7 @@
 >
 > 范围：ActionSequence、AnimationConfig、Root Motion、Locomotion、ActorMotor/KCC 与 HitBox 固定模拟顺序
 
-本文档把 [`CombatSample_RootMotion_Final_Design_v1.md`](../CombatSample_RootMotion_Final_Design_v1.md) 的 Root Motion 技术方案与后续架构讨论合并为一份实施基线。
+本文档把 [`CombatSample_RootMotion_Final_Design_v1.md`](CombatSample_RootMotion_Final_Design_v1.md) 的 Root Motion 技术方案与后续架构讨论合并为一份实施基线。
 
 原 v1 文档中的 Baker、Trajectory 数据和刚体变换数学继续有效；当两份文档的运行时职责发生冲突时，以本文档为准。最重要的变化是：Root Motion 的位移和旋转不再由同一个 Sequence Clip 承担，Locomotion 也不再伪装成 Action。
 

@@ -91,7 +91,7 @@ v2 的 Stage B～E、仓库审计、D4/D5 落地记录仍可用于解释迁移�
 
 ## 3. Root Motion Final Design v1
 
-来源：[`../CombatSample_RootMotion_Final_Design_v1.md`](../CombatSample_RootMotion_Final_Design_v1.md)
+来源：[`CombatSample_RootMotion_Final_Design_v1.md`](CombatSample_RootMotion_Final_Design_v1.md)
 
 ### 3.1 应进入 v3 的内容
 

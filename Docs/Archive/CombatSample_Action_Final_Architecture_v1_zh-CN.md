@@ -1,3 +1,5 @@
+> 归档说明（2026-09-24）：这是 Action 重建前的设计目标，当前代码和正式 Action 架构取代其实施权威；与后续决定冲突的 Preview、迁移和校验内容不再是待办。
+
 # CombatSample Action 最终架构 v1（冻结稿）
 
 > 状态：**Approved / Frozen Design Target**  

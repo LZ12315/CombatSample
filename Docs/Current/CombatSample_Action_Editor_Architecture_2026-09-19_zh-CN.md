@@ -96,6 +96,6 @@ HitBox 的正式绑定使用 ActionHitBoxAnchor。旧 BoneReference、旧 Playab
 - Runtime 编译通过，0 error；警告来自项目既有废弃 API。
 - Editor 与保留 EditMode 测试源码编译通过，0 error；本次 48 个警告来自既有项目和包源码。
 - Unity 生成的 csproj 尚未由编辑器刷新；编译时通过临时 MSBuild target 忽略其中已删除的旧文件项，没有修改生成文件。
-- Unity Test Runner 与本轮实际 Preview、窗口及战斗组合操作未执行；结果记录见[执行链收尾检查](CombatSample_Animation_Action_Actor_Closure_Audit_2026-09-23_zh-CN.md)。
+- 项目负责人已完成本阶段人工检查并接受结果；Unity Test Runner 不再作为当前阶段验收方式。检查范围与编译记录见[执行链收尾检查](CombatSample_Animation_Action_Actor_Closure_Audit_2026-09-23_zh-CN.md)。
 
-重新打开或刷新 Unity 后，应确认 Console 无编译错误，并让 Unity 重新生成项目文件。随后由项目负责人从零配置所需 Action。
+Unity 重新生成工程文件后会清除旧 csproj 列表项。项目负责人按当前格式从零配置所需 Action；该资产工作独立于已收口的编辑与执行链。

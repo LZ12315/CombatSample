@@ -44,8 +44,8 @@
 ## 实现框架
 
 这一阶段主要改两个文件：
-- [ActorMotor.cs](D:/Project%20Library/Projects/Unity/CombatSample/Assets/Scripts/Actor/ActorMotor.cs)
-- [ActorMovement.cs](D:/Project%20Library/Projects/Unity/CombatSample/Assets/Scripts/Actor/ActorMovement.cs)
+- [ActorMotor.cs](../../Assets/Scripts/Actor/ActorMotor.cs)
+- `ActorMovement.cs` (historical script, removed)
 
 ### ActorMotor：从“提前发布速度”改成“最后发布结果”
 

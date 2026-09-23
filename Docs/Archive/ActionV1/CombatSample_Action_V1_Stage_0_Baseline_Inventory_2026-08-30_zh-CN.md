@@ -3,8 +3,8 @@
 > 状态：**Stage 0 Exit Criteria 与 Unity 基线复验均已通过**
 > 分支 / HEAD：`FrameWork` / `cdec51509ec8a8a237277a8ccbd3e45c5131c3ec`
 > 记录日期：2026-08-30
-> 实施依据：[Action Implementation Roadmap v1](../../Proposals/CombatSample_Action_Implementation_Roadmap_v1_zh-CN.md) Stage 0
-> 架构目标：[Action Final Architecture v1](../../Proposals/CombatSample_Action_Final_Architecture_v1_zh-CN.md)
+> 实施依据：[Action Implementation Roadmap v1](../CombatSample_Action_Implementation_Roadmap_v1_zh-CN.md) Stage 0
+> 架构目标：[Action Final Architecture v1](../CombatSample_Action_Final_Architecture_v1_zh-CN.md)
 
 ## 1. 结论与范围
 
@@ -35,7 +35,7 @@
 - Release / enabled-build 回归：`Assets/Scenes/MiHoYo_Release.unity`。
 - 定向 Action / combat：`Assets/Scenes/Test/Combat_Test.unity`。
 - 定向 Motor / KCC：`Assets/Scenes/Test/KCC_Migration_Test.unity`。
-- 当前已验收的 E3 行为与人工检查矩阵见 [E3 v3 Validation Handoff](../../Current/CombatSample_E3_v3_Validation_Handoff_2026-08-29_zh-CN.md) 和 [Actor Motion v3 验证清单](../../Current/Actor_Motion_Validation.md)。
+- 当前已验收的 E3 行为与人工检查矩阵见 [E3 v3 Validation Handoff](../CombatSample_E3_v3_Validation_Handoff_2026-08-29_zh-CN.md) 和 [Actor Motion v3 验证清单](../../Current/Actor_Motion_Validation.md)。
 
 ### 2.2 本次验证
 

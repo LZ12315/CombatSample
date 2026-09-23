@@ -1,3 +1,5 @@
+> 归档说明（2026-09-24）：这是旧编辑器设计草案。Preview 已实现并完成阶段检查；原占位、SceneView 方案和 Issues 设计均不是当前待办。
+
 > Historical proposal: superseded by the current Action editor architecture (2026-09-24).
 
 # CombatSample Action V1 — Stage 5 Editor Redesign（Frozen）
