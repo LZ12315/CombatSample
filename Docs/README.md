@@ -4,7 +4,7 @@ Updated 2026-09-24. Current repository code and the user's latest decisions take
 
 - [Current](Current/) describes the implemented system.
 - [Proposals](Proposals/) has no active Action implementation plan. Future Locomotion and Camera work needs its own decisions.
-- [Archive](Archive/) preserves completed and superseded plans, stage handoffs and validation snapshots.
+- [Archive](Archive/README.md) preserves completed and superseded plans, stage handoffs and validation snapshots.
 
 ## Current Action path
 
