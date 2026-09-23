@@ -4048,12 +4048,6 @@ PrefabInstance:
       objectReference: {fileID: 676585208}
     - target: {fileID: 20400052013803368, guid: 7351e195eb0fa1445af9e9e72fcc017f,
         type: 3}
-      propertyPath: animationConfig
-      value:
-      objectReference: {fileID: 11400000, guid: 20ee87b5f6a8e565db6e66a151dc6975,
-        type: 2}
-    - target: {fileID: 20400052013803368, guid: 7351e195eb0fa1445af9e9e72fcc017f,
-        type: 3}
       propertyPath: actorLocomotion
       value:
       objectReference: {fileID: 344299297}
