@@ -1,9 +1,9 @@
 # Documentation Index
 
-Updated 2026-09-24. Current repository code and the user's latest decisions take precedence over historical documents.
+Updated 2026-09-28. Current repository code and the user's latest decisions take precedence over historical documents.
 
 - [Current](Current/) describes the implemented system.
-- [Proposals](Proposals/) has no active Action implementation plan. Future Locomotion and Camera work needs its own decisions.
+- [Proposals](Proposals/) has the frozen Locomotion v1 target and implementation roadmap; no active Action implementation plan.
 - [Archive](Archive/README.md) preserves completed and superseded plans, stage handoffs and validation snapshots.
 
 ## Current Action path
@@ -13,6 +13,11 @@ Updated 2026-09-24. Current repository code and the user's latest decisions take
 - [Actor motion contract](Current/Actor_Motion_Validation.md) — still-applicable Translation, Rotation, Root Motion and ownership rules.
 - [Scene ownership baseline](Current/Scene_Ownership_Baseline_2026-08-02.md) — scene roles recorded on 2026-08-02; check the scene itself before making changes.
 
+## Active Locomotion path
+
+- [Locomotion final architecture v1](Proposals/CombatSample_Locomotion_Final_Architecture_v1_zh-CN.md) — frozen Asset/Runtime target and fixed-tick ownership; stages 1–4 are implemented.
+- [Locomotion implementation roadmap v1](Proposals/CombatSample_Locomotion_Implementation_Roadmap_v1_zh-CN.md) — stage 3/4 Unity compilation is user-confirmed; tests, resource coverage and character visual acceptance remain pending. Stage 5 Stop Distance Matching is next.
+
 ## Historical references
 
 - [Action implementation roadmap](Archive/CombatSample_Action_Implementation_Roadmap_v1_zh-CN.md) — superseded. The planned bulk asset migration was replaced by user-directed reconfiguration from scratch.
@@ -20,4 +25,4 @@ Updated 2026-09-24. Current repository code and the user's latest decisions take
 - [ActionSequence v3 architecture](Archive/CombatSample_ActionSequence_Final_Architecture_v3_zh-CN.md) and [E3 validation handoff](Archive/CombatSample_E3_v3_Validation_Handoff_2026-08-29_zh-CN.md) — historical Domain design and pre-cutover evidence; their Sequence content is no longer current.
 - [HitStop boundary fixes](Archive/CombatSample_HitStop_Boundary_Fixes_2026-09-19_zh-CN.md) — implementation and prior validation record; obsolete Legacy checks do not remain as tasks.
 
-The old ActionSequence, Legacy Timeline and AnimationConfig playback/editor paths have been removed. Locomotion animation presentation and Camera development are separate next routes; no old Action migration or Test Runner plan is carried forward.
+The old ActionSequence, Legacy Timeline and AnimationConfig playback/editor paths have been removed. Locomotion implementation and Camera development are separate next routes; no old Action migration or Test Runner plan is carried forward.
