@@ -17,7 +17,8 @@ public sealed class PlayerInputOwnershipTests
             Assert.That(intent.WorldMoveDirection.x, Is.EqualTo(1f).Within(0.0001f));
             Assert.That(intent.WorldMoveDirection.z, Is.EqualTo(0f).Within(0.0001f));
             Assert.That(intent.MoveStrength, Is.EqualTo(1f).Within(0.0001f));
-            Assert.AreEqual(Vector3.zero, intent.FacingDirection);
+            Assert.That(intent.FacingDirection.x, Is.EqualTo(1f).Within(0.0001f));
+            Assert.That(intent.FacingDirection.z, Is.EqualTo(0f).Within(0.0001f));
         }
         finally
         {
