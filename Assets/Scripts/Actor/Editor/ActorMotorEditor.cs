@@ -26,9 +26,11 @@ public class ActorMotorEditor : Editor
         }
 
         EditorGUI.indentLevel++;
+        ActorLocomotion locomotion = motor.GetComponent<ActorLocomotion>();
         DrawVector("Current Velocity", motor.CurrentVelocity);
         DrawVector("Requested Velocity", motor.RequestedVelocity);
-        DrawVector("Locomotion Velocity", motor.DebugLocomotionVelocity);
+        if (locomotion != null)
+            DrawVector("Locomotion Velocity", locomotion.DebugLocomotionVelocity);
         DrawVector("Horizontal Impulse", motor.Translation.DebugHorizontalImpulse);
         DrawVector("Horizontal Owner", motor.Translation.DebugOwnerHorizontalVelocity);
         EditorGUILayout.LabelField("Ground State", motor.GroundState.ToString());
@@ -41,7 +43,8 @@ public class ActorMotorEditor : Editor
         EditorGUILayout.LabelField("Movement Time Scale", motor.MovementTimeScale.ToString("F2"));
         EditorGUILayout.LabelField("Root Rotation Owners", motor.Rotation.DebugRootRotationOwnerCount.ToString());
         EditorGUILayout.LabelField("Scripted Rotation Owners", motor.Rotation.DebugScriptedRotationOwnerCount.ToString());
-        EditorGUILayout.LabelField("Locomotion Target Yaw", motor.DebugLocomotionTargetYaw.ToString("F1"));
+        if (locomotion != null)
+            EditorGUILayout.LabelField("Locomotion Target Yaw", locomotion.DebugLocomotionTargetYaw.ToString("F1"));
         EditorGUI.indentLevel--;
         EditorGUILayout.EndFoldoutHeaderGroup();
 

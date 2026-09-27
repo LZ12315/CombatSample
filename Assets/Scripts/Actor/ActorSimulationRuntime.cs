@@ -47,7 +47,7 @@ internal sealed class ActorSimulationRuntime
             return;
         }
 
-        locomotion?.SelectModeForControlTick();
+        locomotion?.BeginControlTick();
     }
 
     public void DecideAction()
@@ -94,6 +94,7 @@ internal sealed class ActorSimulationRuntime
         if (actorAnimation == null)
             return;
 
+        ResolveActorLocomotion()?.UpdateAnimation(actorAnimation, actorMotor, animationDeltaSeconds);
         actorAnimation.Evaluate(animationDeltaSeconds);
     }
 
@@ -130,7 +131,16 @@ internal sealed class ActorSimulationRuntime
         if (!IsActive)
             return;
 
-        ResolveActorMotor()?.PrepareMotion(deltaSeconds);
+        ActorMotor motor = ResolveActorMotor();
+        if (motor == null)
+            return;
+
+        LocomotionMotionContext context = motor.BeginMotion(deltaSeconds);
+        ActorLocomotion locomotion = ResolveActorLocomotion();
+        LocomotionMotionRequest request = locomotion != null
+            ? locomotion.BuildMotionRequest(context)
+            : default;
+        motor.ComposeMotion(request);
     }
 
     public void PublishWorldResult()
@@ -162,10 +172,11 @@ internal sealed class ActorSimulationRuntime
     {
         ResolveActionStateManager()?.AbortQueuedActionRequests();
         ResolveActorMotor()?.CancelPreparedMotion();
-        ResolveActorLocomotion()?.CancelControlTick();
+        ResolveActorLocomotion()?.CancelSimulation();
 
         if (_tickClosed)
         {
+            ResolveActorAnimation()?.CancelFixedAnimationTick();
             _hitBoxes.Clear();
             _playedActionFrameThisTick = false;
             return;

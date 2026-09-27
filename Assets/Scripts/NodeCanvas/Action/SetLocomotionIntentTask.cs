@@ -56,7 +56,7 @@ namespace NodeCanvas.Tasks.Actions
         private void Tick()
         {
             var actorValue = actor?.value;
-            if (actorValue?.actorMotor == null)
+            if (actorValue?.actorLocomotion == null)
             {
                 EndAction(false);
                 return;
@@ -101,7 +101,7 @@ namespace NodeCanvas.Tasks.Actions
             float strength = Mathf.Clamp01(moveStrength != null ? moveStrength.value : 1f);
             bool faceMove = faceMoveDirection == null || faceMoveDirection.value;
 
-            actorValue.actorMotor.SetLocomotionIntent(new LocomotionIntent
+            actorValue.actorLocomotion.SetLocomotionIntent(new LocomotionIntent
             {
                 WorldMoveDirection = dir,
                 MoveStrength = strength,
@@ -135,9 +135,9 @@ namespace NodeCanvas.Tasks.Actions
 
         private static void PushIdle(Actor actorValue)
         {
-            if (actorValue?.actorMotor == null)
+            if (actorValue?.actorLocomotion == null)
                 return;
-            actorValue.actorMotor.SetLocomotionIntent(LocomotionIntent.Idle);
+            actorValue.actorLocomotion.SetLocomotionIntent(LocomotionIntent.Idle);
         }
     }
 }

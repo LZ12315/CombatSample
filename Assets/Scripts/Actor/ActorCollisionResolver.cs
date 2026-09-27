@@ -397,6 +397,7 @@ public class ActorCollisionResolver : MonoBehaviour
 
         // bypassInterpolation: false — KCC interpolates correction over the next frame.
         kccMotor.SetPosition(currentPos + actualOffset, false);
+        motor.MarkActorSeparation();
         return true;
     }
 

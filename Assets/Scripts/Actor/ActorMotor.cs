@@ -8,13 +8,13 @@ public class ActorMotor : MonoBehaviour, ICharacterController
 {
     [SerializeField] private Actor actor;
 
-    [SerializeField, Tooltip("Default locomotion turn speed in degrees per second.")]
+    [SerializeField, Tooltip("Legacy serialized locomotion tuning; retained for stage 2 asset migration.")]
     private float rotateSpeed = 600f;
 
-    [SerializeField, Tooltip("Compatibility default locomotion speed for actors without ActorLocomotion.")]
+    [SerializeField, Tooltip("Legacy serialized locomotion tuning; retained for stage 2 asset migration.")]
     private float _locomotionBaseSpeed = 5f;
 
-    [SerializeField, Range(0f, 1f), Tooltip("Compatibility default air-control factor.")]
+    [SerializeField, Range(0f, 1f), Tooltip("Legacy serialized locomotion tuning; retained for stage 2 asset migration.")]
     private float _airControlFactor = 0.4f;
 
     [SerializeField, Tooltip("Horizontal impulse damping, in 1/second.")]
@@ -40,14 +40,12 @@ public class ActorMotor : MonoBehaviour, ICharacterController
     [SerializeField]
     private bool _canBeActorPushed = true;
 
-    private readonly LocomotionRunner _locomotion = new();
     private readonly TranslationDomain _translation = new();
     private readonly RotationDomain _rotation = new();
     private readonly MotionPolicyState _policy = new();
     private readonly GroundingRuntime _grounding = new();
     private readonly VelocityReadout _velocity = new();
 
-    private LocomotionTuning _effectiveLocomotionTuning = LocomotionTuning.Default;
     private float _baseMovementTimeScale = 1f;
     private float _movementTimeScale = 1f;
     private readonly SpeedModifierStack _movementTimeScaleModifiers = new();
@@ -64,24 +62,29 @@ public class ActorMotor : MonoBehaviour, ICharacterController
     private bool _solvedGrounded;
     private float _simulationDeltaTime;
     private bool _kccPaused;
+    private bool _motionFrozen;
     private bool _pendingForceUnground;
     private bool _forceUngroundedThisTick;
     private bool _pendingCeilingHit;
+    private MotionStateSnapshot _intervalMotionState;
+    private HorizontalMotionSource _intervalHorizontalSource = HorizontalMotionSource.Unknown;
+    private bool _intervalGrounded;
+    private bool _intervalHadImpulse;
+    private bool _intervalHadPlatformCarry;
+    private bool _intervalHadActorSeparation;
+    private bool _kccSolvedThisFrame;
+    private MotorMotionResult _lastMotionResult;
 
     public KinematicCharacterMotor Motor { get; private set; }
     public CapsuleCollider Capsule { get; private set; }
 
     public float ActorPushMass => _actorPushMass;
     public bool CanBeActorPushed => _canBeActorPushed;
-    public float LocomotionBaseSpeed => _effectiveLocomotionTuning.MoveSpeed;
     public int MaxJumpCount => _maxJumpCount;
-
-    public LocomotionIntent LocomotionIntent => _locomotion.Intent;
-    internal LocomotionIntent PendingLocomotionIntent => _locomotion.PendingIntent;
-    internal bool HasPendingLocomotionIntent => _locomotion.HasPendingIntent;
 
     public Vector3 CurrentVelocity => _velocity.CurrentVelocity;
     public Vector3 ActualSolvedVelocity => _velocity.CurrentVelocity;
+    public MotorMotionResult LastMotionResult => _lastMotionResult;
     public Vector3 RequestedVelocity => _requestedVelocity;
     public Quaternion RequestedRotation => _requestedRotation;
     public Vector3 ActualWorldPosition => _actualWorldPosition;
@@ -100,12 +103,6 @@ public class ActorMotor : MonoBehaviour, ICharacterController
     public TranslationDomain Translation => _translation;
     public RotationDomain Rotation => _rotation;
     public MotionPolicyState MotionPolicy => _policy;
-    public float DebugBaseSpeed => _effectiveLocomotionTuning.MoveSpeed;
-    public float DebugAirControlFactor => _effectiveLocomotionTuning.AirControlFactor;
-    public float DebugRotateSpeed => _effectiveLocomotionTuning.RotateSpeed;
-    public Vector3 DebugLocomotionVelocity => _locomotion.CachedVelocity;
-    public float DebugLocomotionTargetYaw => _locomotion.TargetRotationYaw;
-
     public event Action OnLanded
     {
         add => _grounding.OnLanded += value;
@@ -121,31 +118,6 @@ public class ActorMotor : MonoBehaviour, ICharacterController
     public static ActorMotor GetActorMotor(Collider collider)
     {
         return collider != null ? collider.GetComponentInParent<ActorMotor>() : null;
-    }
-
-    public void SetLocomotionIntent(in LocomotionIntent intent)
-    {
-        _locomotion.SetIntent(intent);
-    }
-
-    internal void ClearPendingLocomotionIntent()
-    {
-        _locomotion.ClearPendingIntent();
-    }
-
-    internal void ApplyLocomotionTuning(LocomotionTuning tuning)
-    {
-        _effectiveLocomotionTuning = LocomotionTuning.Sanitize(tuning);
-    }
-
-    internal void RestoreCompatibilityLocomotionTuning()
-    {
-        _effectiveLocomotionTuning = LocomotionTuning.Sanitize(new LocomotionTuning
-        {
-            MoveSpeed = _locomotionBaseSpeed,
-            AirControlFactor = _airControlFactor,
-            RotateSpeed = rotateSpeed,
-        });
     }
 
     public MotionOwner BeginTrajectoryRootMotion()
@@ -390,12 +362,10 @@ public class ActorMotor : MonoBehaviour, ICharacterController
         Motor.CharacterController = this;
         _requestedRotation = Motor.TransientRotation;
         PublishResolvedWorldPose();
-        RestoreCompatibilityLocomotionTuning();
 
         if (actor != null)
             actor.actorMotor = this;
 
-        _locomotion.Initialize(transform.rotation);
         RefreshMovementTimeScale();
     }
 
@@ -413,13 +383,25 @@ public class ActorMotor : MonoBehaviour, ICharacterController
 
     public void PrepareMotion(float simulationDeltaTime)
     {
-        PrepareMotionInternal(simulationDeltaTime, true);
+        BeginMotion(simulationDeltaTime);
+        ComposeMotion(default);
     }
 
-    private void PrepareMotionInternal(float simulationDeltaTime, bool preparedBySimulationRuntime)
+    public MotionStateSnapshot ReadMotionState() => new MotionStateSnapshot(
+        _policy.LocomotionScale, _policy.AirLocomotionScale, _policy.GravityScale,
+        MovementTimeScale, _translation.HasHorizontalVelocityOwner,
+        _translation.HasTrajectoryRootMotionOwner,
+        _rotation.DebugRootRotationOwnerCount > 0, _rotation.DebugScriptedRotationOwnerCount > 0);
+
+    public LocomotionMotionContext BeginMotion(float simulationDeltaTime)
+    {
+        return BeginMotionInternal(simulationDeltaTime, true);
+    }
+
+    private LocomotionMotionContext BeginMotionInternal(float simulationDeltaTime, bool preparedBySimulationRuntime)
     {
         if (Motor == null)
-            return;
+            return default;
 
         if (_motionFrameOpen)
             CancelPreparedMotion();
@@ -431,52 +413,66 @@ public class ActorMotor : MonoBehaviour, ICharacterController
         _simulationDeltaTime = simulationDeltaTime;
         _preparedBySimulationRuntime = preparedBySimulationRuntime;
         _kccPaused = simulationDeltaTime <= 0f;
+        _motionFrozen = _kccPaused || MovementTimeScale <= 0f;
+        _kccSolvedThisFrame = false;
+        _intervalHadActorSeparation = false;
 
         _forceUngroundedThisTick = false;
-        _translation.BeginMotionTick();
-        _rotation.BeginMotionTick();
-
-        if (ConsumeForceUngroundRequest())
+        if (!_motionFrozen)
         {
-            Motor.ForceUnground(0.1f);
-            MarkForcedUngroundedThisTick();
+            _translation.BeginMotionTick();
+            _rotation.BeginMotionTick();
+
+            if (ConsumeForceUngroundRequest())
+            {
+                Motor.ForceUnground(0.1f);
+                MarkForcedUngroundedThisTick();
+            }
         }
 
         bool grounded = Motor.GroundingStatus.IsStableOnGround && !_forceUngroundedThisTick;
         float motionDeltaTime = Mathf.Max(0f, simulationDeltaTime) * MovementTimeScale;
+        _intervalGrounded = grounded;
+        _intervalMotionState = ReadMotionState();
+        _intervalHorizontalSource = HorizontalMotionSource.Unknown;
+        _intervalHadImpulse = false;
+        _intervalHadPlatformCarry = false;
+        _motionFrameOpen = true;
+        return new LocomotionMotionContext(motionDeltaTime, GroundState, Motor.CharacterUp,
+            _motorFrameStartWorldRotation, _lastMotionResult, _intervalMotionState);
+    }
 
-        _locomotion.Prepare(
-            motionDeltaTime,
-            _effectiveLocomotionTuning.MoveSpeed,
-            _effectiveLocomotionTuning.AirControlFactor,
-            _effectiveLocomotionTuning.RotateSpeed,
-            !grounded,
-            _policy.LocomotionScale,
-            _policy.AirLocomotionScale);
+    public void ComposeMotion(in LocomotionMotionRequest request)
+    {
+        if (!_motionFrameOpen || Motor == null)
+            return;
 
-        _translation.StepHorizontalDrag(motionDeltaTime, _horizontalDrag);
-        _translation.StepBallistic(
-            motionDeltaTime,
-            grounded,
-            _pendingCeilingHit,
-            _policy.GravityScale,
-            _verticalImpulseAirDrag);
-        _pendingCeilingHit = false;
-
-        _rotation.Prepare(_motorFrameStartWorldRotation, _locomotion.PendingRotation);
-        _requestedRotation = _rotation.RequestedRotation;
-
-        if (!_kccPaused)
+        if (!_motionFrozen)
         {
+            float motionDeltaTime = Mathf.Max(0f, _simulationDeltaTime) * MovementTimeScale;
+            _translation.StepHorizontalDrag(motionDeltaTime, _horizontalDrag);
+            _translation.StepBallistic(motionDeltaTime, _intervalGrounded, _pendingCeilingHit,
+                _policy.GravityScale, _verticalImpulseAirDrag);
+            _pendingCeilingHit = false;
+
+            _rotation.Prepare(_motorFrameStartWorldRotation,
+                request.HasRotation ? request.TargetWorldRotation : _motorFrameStartWorldRotation);
+            _requestedRotation = _rotation.RequestedRotation;
+
+            Vector3 locomotionVelocity = request.HasVelocity ? request.WorldPlanarVelocity : Vector3.zero;
+            locomotionVelocity *= _policy.LocomotionScale;
+            if (!_intervalGrounded)
+                locomotionVelocity *= _policy.AirLocomotionScale;
+
             _requestedVelocity = ComposeKccVelocity(
-                _locomotion.CachedVelocity,
-                grounded,
+                locomotionVelocity,
+                request.HasVelocity,
+                _intervalGrounded,
                 _motorFrameStartWorldRotation,
-                simulationDeltaTime);
+                _simulationDeltaTime);
         }
 
         _motionPrepared = true;
-        _motionFrameOpen = true;
     }
 
     public void CancelPreparedMotion()
@@ -490,13 +486,19 @@ public class ActorMotor : MonoBehaviour, ICharacterController
         _requestedVelocity = Vector3.zero;
         _requestedRotation = Motor != null ? Motor.TransientRotation : transform.rotation;
         _kccPaused = false;
+        _motionFrozen = false;
         _forceUngroundedThisTick = false;
+        _intervalHorizontalSource = HorizontalMotionSource.Unknown;
+        _intervalHadActorSeparation = false;
     }
 
     public void BeforeCharacterUpdate(float deltaTime)
     {
         if (!_motionPrepared)
-            PrepareMotionInternal(deltaTime, false);
+        {
+            BeginMotionInternal(deltaTime, false);
+            ComposeMotion(default);
+        }
     }
 
     public void PostGroundingUpdate(float deltaTime)
@@ -519,6 +521,9 @@ public class ActorMotor : MonoBehaviour, ICharacterController
     public void AfterCharacterUpdate(float deltaTime)
     {
         _solvedGrounded = Motor.GroundingStatus.IsStableOnGround && !_forceUngroundedThisTick;
+        _kccSolvedThisFrame = true;
+        _intervalHadPlatformCarry |= Motor.AttachedRigidbody != null
+            && Motor.AttachedRigidbodyVelocity.sqrMagnitude > 0.000001f;
         _motionPrepared = false;
         PublishResolvedWorldPose();
 
@@ -595,10 +600,17 @@ public class ActorMotor : MonoBehaviour, ICharacterController
             Mathf.Max(0f, _simulationDeltaTime),
             _verticalSmoothTime);
 
+        _lastMotionResult = _simulationDeltaTime > 0f
+            ? new MotorMotionResult(solvedVelocity, _intervalHorizontalSource, _intervalMotionState,
+                _intervalGrounded, _solvedGrounded, _intervalHadImpulse, _intervalHadPlatformCarry,
+                _intervalHadActorSeparation, !_kccSolvedThisFrame)
+            : default;
+
         PublishResolvedWorldPose();
         _motionFrameOpen = false;
         _preparedBySimulationRuntime = false;
         _kccPaused = false;
+        _motionFrozen = false;
         _forceUngroundedThisTick = false;
     }
 
@@ -608,8 +620,15 @@ public class ActorMotor : MonoBehaviour, ICharacterController
         _actualWorldRotation = Motor != null ? Motor.TransientRotation : transform.rotation;
     }
 
+    internal void MarkActorSeparation()
+    {
+        if (_motionFrameOpen)
+            _intervalHadActorSeparation = true;
+    }
+
     private Vector3 ComposeKccVelocity(
         Vector3 locomotionVelocity,
+        bool hasLocomotionVelocity,
         bool isGrounded,
         Quaternion tickStartRotation,
         float deltaTime)
@@ -622,15 +641,20 @@ public class ActorMotor : MonoBehaviour, ICharacterController
         Vector3 horizontal;
         if (_translation.TryComposeHorizontalVelocityOwner(timeScale, out horizontal))
         {
+            _intervalHorizontalSource = HorizontalMotionSource.HorizontalVelocityOwner;
         }
         else if (_translation.HasTrajectoryRootMotionTick)
         {
+            _intervalHorizontalSource = HorizontalMotionSource.TrajectoryRootMotion;
             Vector3 localDelta = _translation.TrajectoryRootMotionLocalPosition;
             localDelta.y = 0f;
             horizontal = tickStartRotation * localDelta / deltaTime;
         }
         else
         {
+            _intervalHorizontalSource = hasLocomotionVelocity
+                ? HorizontalMotionSource.Locomotion : HorizontalMotionSource.Unknown;
+            _intervalHadImpulse = _translation.HorizontalImpulseVelocity.sqrMagnitude > 0.000001f;
             horizontal = _translation.ComposeHorizontal(locomotionVelocity, timeScale);
         }
 
@@ -682,7 +706,8 @@ public class ActorMotor : MonoBehaviour, ICharacterController
     private void SyncLocomotionRotationToCurrentPose()
     {
         Quaternion rotation = Motor != null ? Motor.TransientRotation : transform.rotation;
-        _locomotion.SyncRotation(rotation);
+        if (actor != null && actor.actorLocomotion != null)
+            actor.actorLocomotion.SyncRotation(rotation);
     }
 
     private Vector3 ProjectPlanar(Vector3 velocity)

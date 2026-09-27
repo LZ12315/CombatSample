@@ -40,6 +40,7 @@ public sealed class TranslationDomain
     private Vector3 _tickTrajectoryRootMotionLocalPosition;
 
     public bool HasHorizontalVelocityOwner => _horizontalVelocityOwners.Count > 0;
+    public bool HasTrajectoryRootMotionOwner => _trajectoryRootMotionOwners.Count > 0;
     public bool HasVerticalVelocityOwner => _verticalVelocityOwners.Count > 0;
 
     public Vector3 DebugHorizontalImpulse => _horizontalImpulseVelocity;

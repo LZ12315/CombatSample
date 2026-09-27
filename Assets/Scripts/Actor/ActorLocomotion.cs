@@ -1,67 +1,94 @@
 using System.Collections.Generic;
 using DeiveEx.TagTree;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 [DisallowMultipleComponent]
 public sealed class ActorLocomotion : MonoBehaviour
 {
     [SerializeField] private Actor actor;
-    [SerializeField] private LocomotionModeAsset fallbackMode;
-    [SerializeField] private List<LocomotionModeAsset> candidateModes = new();
+    [SerializeField, FormerlySerializedAs("candidateModes")]
+    private List<LocomotionAsset> locomotionAssets = new();
+    [SerializeField, HideInInspector, FormerlySerializedAs("fallbackMode")]
+    private LocomotionAsset legacyFallbackMode;
 
     private readonly List<Tag> _acquiredTags = new();
-    private readonly HashSet<LocomotionModeAsset> _candidateScanSet = new();
-    private bool _warnedInvalidFallback;
+    private readonly HashSet<LocomotionAsset> _candidateScanSet = new();
+    private readonly HashSet<LocomotionAsset> _warnedIncompleteAnimation = new();
+    private readonly Dictionary<LocomotionAsset, LocomotionRuntime> _runtimes = new();
+    private readonly List<string> _animationCoverageIssues = new();
+    private readonly LocomotionRunner _runner = new();
+    private LocomotionIntent _pendingIntent = LocomotionIntent.Idle;
+    private LocomotionIntent _controlIntent = LocomotionIntent.Idle;
+    private LocomotionRuntime _currentRuntime;
+    private bool _hasPendingIntent;
+    private bool _hasControlIntent;
+    private bool _controlTickOpen;
+    private bool _motionRequestBuilt;
+    private LocomotionMotionRequest _builtMotionRequest;
     private bool _warnedInvalidCandidate;
     private bool _warnedInvalidList;
+    private bool _warnedNoMatch;
+    private bool _warnedInvalidRuntime;
+    private ActorAnimation _animation;
+    private ActorAnimationLocomotionOwner _animationOwner;
+    private LocomotionIntent _animationIntent;
+    private bool _animationHasIntent;
+    private Vector3 _velocityBeforeMotion;
+    private LocomotionMotionContext _animationMotorContext;
+    private bool _hasAnimationSnapshot;
+    private bool _animationUpdated;
 
-    public LocomotionModeAsset CurrentMode { get; private set; }
-    public LocomotionTuning CurrentTuning { get; private set; } = LocomotionTuning.Default;
+    public LocomotionAsset CurrentAsset { get; private set; }
+    public LocomotionMovementConfig CurrentMovementConfig { get; private set; } = LocomotionMovementConfig.Default;
+    public LocomotionIntent EffectiveIntent => _runner.EffectiveIntent;
+    public Vector3 DebugLocomotionVelocity => _runner.CachedVelocity;
+    public float DebugLocomotionTargetYaw => _runner.TargetRotationYaw;
 
     private void Awake()
     {
+        MigrateLegacyFallback();
         ResolveActor();
+        _runner.Initialize(transform.rotation);
+    }
+
+    private void OnEnable()
+    {
+        _runner.SyncRotation(transform.rotation);
     }
 
     private void OnDisable()
     {
-        ClearCurrentMode(true);
-        CancelControlTick();
+        CancelSimulation();
     }
 
     private void OnDestroy()
     {
-        ClearCurrentMode(true);
-        CancelControlTick();
+        CancelSimulation();
     }
 
 #if UNITY_EDITOR
     private void OnValidate()
     {
-        if (fallbackMode == null)
-            Debug.LogWarning("[ActorLocomotion] Missing fallback LocomotionModeAsset.", this);
-
+        MigrateLegacyFallback();
         _candidateScanSet.Clear();
-        if (candidateModes == null)
-            return;
-
-        for (int i = 0; i < candidateModes.Count; i++)
+        if (locomotionAssets == null || locomotionAssets.Count == 0)
         {
-            LocomotionModeAsset mode = candidateModes[i];
-            if (mode == null)
+            Debug.LogWarning("[ActorLocomotion] Locomotion asset list is empty.", this);
+            return;
+        }
+
+        for (int i = 0; i < locomotionAssets.Count; i++)
+        {
+            LocomotionAsset asset = locomotionAssets[i];
+            if (asset == null)
             {
-                Debug.LogWarning("[ActorLocomotion] Candidate list contains a null entry.", this);
+                Debug.LogWarning("[ActorLocomotion] Locomotion asset list contains a null entry.", this);
                 continue;
             }
 
-            if (mode == fallbackMode)
-                Debug.LogWarning("[ActorLocomotion] Fallback mode must not be listed as a candidate.", this);
-
-            if (!_candidateScanSet.Add(mode))
-                Debug.LogWarning($"[ActorLocomotion] Duplicate candidate LocomotionModeAsset '{mode.name}'.", this);
-
-            if (!mode.HasEntryConditions)
-                Debug.LogWarning($"[ActorLocomotion] Candidate LocomotionModeAsset '{mode.name}' has no EntryConditions.", this);
+            if (!_candidateScanSet.Add(asset))
+                Debug.LogWarning($"[ActorLocomotion] Duplicate LocomotionAsset '{asset.name}'.", this);
         }
     }
 #endif
@@ -74,125 +101,305 @@ public sealed class ActorLocomotion : MonoBehaviour
         ResolveActor();
     }
 
-    internal void SelectModeForControlTick()
+    public void SetLocomotionIntent(in LocomotionIntent intent)
+    {
+        if (!isActiveAndEnabled)
+            return;
+
+        _pendingIntent = intent;
+        _hasPendingIntent = true;
+    }
+
+    public void ClearLocomotionIntent()
+    {
+        _pendingIntent = LocomotionIntent.Idle;
+        _controlIntent = LocomotionIntent.Idle;
+        _hasPendingIntent = false;
+        _hasControlIntent = false;
+        _controlTickOpen = false;
+        _motionRequestBuilt = false;
+        _builtMotionRequest = default;
+        _runner.ClearIntent();
+        _hasAnimationSnapshot = false;
+    }
+
+    public bool TryGetControlIntent(out LocomotionIntent intent)
+    {
+        intent = _controlTickOpen && _hasControlIntent ? _controlIntent : LocomotionIntent.Idle;
+        return _controlTickOpen && _hasControlIntent;
+    }
+
+    internal void SyncRotation(Quaternion rotation) => _runner.SyncRotation(rotation);
+
+    /// <summary>Locks the one Intent snapshot shared by Action, selection and Motion for this tick.</summary>
+    public void BeginControlTick()
     {
         ResolveActor();
         if (actor == null)
             return;
 
-        ActorMotor motor = actor.actorMotor;
-        LocomotionIntent controlIntent = motor != null && motor.HasPendingLocomotionIntent
-            ? motor.PendingLocomotionIntent
-            : LocomotionIntent.Idle;
+        _controlIntent = _hasPendingIntent ? _pendingIntent : LocomotionIntent.Idle;
+        _hasControlIntent = _hasPendingIntent;
+        _controlTickOpen = true;
+        _motionRequestBuilt = false;
+        _builtMotionRequest = default;
+        _hasAnimationSnapshot = false;
+        _animationUpdated = false;
+        _pendingIntent = LocomotionIntent.Idle;
+        _hasPendingIntent = false;
+    }
 
-        LocomotionModeAsset selected = SelectMode(new LocomotionModeContext(actor, controlIntent));
-        if (selected != CurrentMode)
-            ApplyMode(selected);
+    public LocomotionMotionRequest BuildMotionRequest(in LocomotionMotionContext context)
+    {
+        if (_motionRequestBuilt)
+            return _builtMotionRequest;
+
+        if (context.EffectiveDeltaTime <= 0f)
+        {
+            HoldControlTick();
+            return default;
+        }
+
+        ResolveActor();
+        LocomotionIntent intent = _controlTickOpen ? _controlIntent : LocomotionIntent.Idle;
+        bool hasIntent = _controlTickOpen && _hasControlIntent;
+        LocomotionAsset selected = actor != null
+            ? SelectAsset(new LocomotionSelectionContext(actor, intent, context))
+            : null;
+        if (selected != CurrentAsset)
+            ApplyAsset(selected);
+
+        if (_currentRuntime != null)
+        {
+            _animationIntent = intent;
+            _animationHasIntent = hasIntent;
+            _velocityBeforeMotion = _runner.CachedVelocity;
+            _animationMotorContext = context;
+            _hasAnimationSnapshot = true;
+            var runtimeContext = new LocomotionRuntimeMotionContext(_runner, intent, hasIntent, context);
+            _builtMotionRequest = _currentRuntime.UpdateMotion(runtimeContext);
+        }
+        else
+        {
+            _runner.ClearIntent();
+            _builtMotionRequest = default;
+        }
+
+        ConsumeControlTick();
+        _motionRequestBuilt = true;
+        return _builtMotionRequest;
     }
 
     internal void HoldControlTick()
     {
+        if (_controlTickOpen && _hasControlIntent && !_hasPendingIntent)
+        {
+            _pendingIntent = _controlIntent;
+            _hasPendingIntent = true;
+        }
+
+        _controlTickOpen = false;
+        _motionRequestBuilt = false;
+        _builtMotionRequest = default;
+        _hasControlIntent = false;
+        _controlIntent = LocomotionIntent.Idle;
+        _hasAnimationSnapshot = false;
     }
 
     internal void CancelControlTick()
     {
+        ClearLocomotionIntent();
     }
 
-    private LocomotionModeAsset SelectMode(in LocomotionModeContext context)
+    internal void CancelSimulation()
     {
-        LocomotionModeAsset firstTop = null;
-        LocomotionModeAsset currentCandidate = null;
+        ClearCurrentAsset();
+        DisposeRuntimes();
+        CancelControlTick();
+    }
+
+    internal void ResetAnimationSession()
+    {
+        _animation?.EndLocomotionSession(_animationOwner);
+        _animationOwner = default;
+        _animation = null;
+        _currentRuntime?.ResetAnimation();
+    }
+
+    internal void UpdateAnimation(ActorAnimation animation, ActorMotor motor, float deltaTime)
+    {
+        if (!LocomotionDataValidation.IsFinite(deltaTime) || deltaTime <= 0f)
+        {
+            _currentRuntime?.SuspendAnimationFeedback();
+            return;
+        }
+        if (_animationUpdated || !_hasAnimationSnapshot || _currentRuntime == null
+            || !LocomotionDataValidation.IsFinite(deltaTime) || deltaTime <= 0f || animation == null)
+            return;
+        _animationUpdated = true;
+        if (_animation != animation || !animation.IsLocomotionOwnerActive(_animationOwner))
+        {
+            ResetAnimationSession();
+            _animation = animation;
+            _animationOwner = animation.BeginLocomotionSession();
+        }
+        if (!_animationOwner.IsValid)
+            return;
+        float timeScale = _animationMotorContext.MotionState.MovementTimeScale;
+        float verticalSpeed = motor != null && timeScale > 0f
+            ? Vector3.Dot(motor.RequestedVelocity, _animationMotorContext.CharacterUp) / timeScale : 0f;
+        var context = new LocomotionRuntimeAnimationContext(_animationIntent, _animationHasIntent,
+            _velocityBeforeMotion, _runner.CachedVelocity, _animationMotorContext,
+            verticalSpeed, animation.ActiveActionOwnerId, deltaTime);
+        LocomotionAnimationRequest request = _currentRuntime.UpdateAnimation(context);
+        animation.SubmitLocomotion(_animationOwner, request);
+    }
+
+    private void ConsumeControlTick()
+    {
+        _controlTickOpen = false;
+        _hasControlIntent = false;
+        _controlIntent = LocomotionIntent.Idle;
+    }
+
+    private LocomotionAsset SelectAsset(in LocomotionSelectionContext context)
+    {
+        LocomotionAsset firstTop = null;
+        LocomotionAsset currentCandidate = null;
         int topPriority = int.MinValue;
         _candidateScanSet.Clear();
 
-        if (candidateModes != null)
+        if (locomotionAssets != null)
         {
-            for (int i = 0; i < candidateModes.Count; i++)
+            for (int i = 0; i < locomotionAssets.Count; i++)
             {
-                LocomotionModeAsset mode = candidateModes[i];
-                if (!IsCandidateValidForSelection(mode, context))
+                LocomotionAsset asset = locomotionAssets[i];
+                if (!IsCandidateValidForSelection(asset, context))
                     continue;
 
-                if (mode.Priority > topPriority)
+                if (asset.Priority > topPriority)
                 {
-                    topPriority = mode.Priority;
-                    firstTop = mode;
-                    currentCandidate = mode == CurrentMode ? mode : null;
+                    topPriority = asset.Priority;
+                    firstTop = asset;
+                    currentCandidate = asset == CurrentAsset ? asset : null;
                 }
-                else if (mode.Priority == topPriority && mode == CurrentMode)
+                else if (asset.Priority == topPriority && asset == CurrentAsset)
                 {
-                    currentCandidate = mode;
+                    currentCandidate = asset;
                 }
             }
         }
 
-        if (currentCandidate != null)
-            return currentCandidate;
+        LocomotionAsset selected = currentCandidate != null ? currentCandidate : firstTop;
+        if (selected == null && !_warnedNoMatch)
+        {
+            Debug.LogWarning("[ActorLocomotion] No valid LocomotionAsset matched this Motion tick.", this);
+            _warnedNoMatch = true;
+        }
+        else if (selected != null)
+        {
+            _warnedNoMatch = false;
+        }
 
-        if (firstTop != null)
-            return firstTop;
-
-        return IsFallbackValid() ? fallbackMode : null;
+        return selected;
     }
 
-    private bool IsCandidateValidForSelection(LocomotionModeAsset mode, in LocomotionModeContext context)
+    private bool IsCandidateValidForSelection(LocomotionAsset asset, in LocomotionSelectionContext context)
     {
-        if (mode == null || mode == fallbackMode || !_candidateScanSet.Add(mode))
+        if (asset == null || !_candidateScanSet.Add(asset))
         {
             WarnInvalidListOnce();
             return false;
         }
 
-        return mode.ValidateRuntime(false, this, ref _warnedInvalidCandidate)
-               && mode.AreEntryConditionsMet(context);
+        return asset.ValidateRuntime(this, ref _warnedInvalidCandidate)
+               && asset.AreEntryConditionsMet(context);
     }
 
-    private bool IsFallbackValid()
+    private void ApplyAsset(LocomotionAsset asset)
     {
-        if (fallbackMode == null)
-        {
-            if (!_warnedInvalidFallback)
-            {
-                Debug.LogWarning("[ActorLocomotion] Missing fallback LocomotionModeAsset.", this);
-                _warnedInvalidFallback = true;
-            }
-
-            return false;
-        }
-
-        return fallbackMode.ValidateRuntime(true, this, ref _warnedInvalidFallback);
-    }
-
-    private void ApplyMode(LocomotionModeAsset mode)
-    {
+        ResetAnimationSession();
+        _currentRuntime?.Exit(this, actor);
+        _currentRuntime = null;
         ReleaseAcquiredTags();
-        CurrentMode = mode;
+        CurrentAsset = asset;
 
-        if (CurrentMode == null)
+        if (CurrentAsset == null)
         {
-            CurrentTuning = LocomotionTuning.Default;
-            actor?.actorMotor?.RestoreCompatibilityLocomotionTuning();
+            CurrentMovementConfig = LocomotionMovementConfig.Default;
             return;
         }
 
-        AcquireModeTags(CurrentMode);
-        CurrentTuning = CurrentMode.Tuning;
-        actor?.actorMotor?.ApplyLocomotionTuning(CurrentTuning);
+        _currentRuntime = GetOrCreateRuntime(CurrentAsset);
+        if (_currentRuntime == null)
+        {
+            CurrentAsset = null;
+            CurrentMovementConfig = LocomotionMovementConfig.Default;
+            return;
+        }
+
+        CurrentMovementConfig = CurrentAsset.MovementConfig;
+        AcquireAssetTags(CurrentAsset);
+        _currentRuntime.Enter(this, actor);
+        ReportAnimationCoverageOnce(CurrentAsset);
     }
 
-    private void ClearCurrentMode(bool restoreTuning)
+    private LocomotionRuntime GetOrCreateRuntime(LocomotionAsset asset)
     {
+        if (_runtimes.TryGetValue(asset, out LocomotionRuntime runtime))
+            return runtime;
+
+        runtime = asset.CreateRuntime();
+        if (runtime == null || runtime.Asset != asset)
+        {
+            if (!_warnedInvalidRuntime)
+            {
+                Debug.LogWarning($"[ActorLocomotion] LocomotionAsset '{asset.name}' created an invalid Runtime.", this);
+                _warnedInvalidRuntime = true;
+            }
+            runtime?.Dispose();
+            return null;
+        }
+
+        _runtimes.Add(asset, runtime);
+        return runtime;
+    }
+
+    private void ReportAnimationCoverageOnce(LocomotionAsset asset)
+    {
+        if (!Application.isPlaying || !_warnedIncompleteAnimation.Add(asset))
+            return;
+
+        _animationCoverageIssues.Clear();
+        asset.CollectAnimationCoverageIssues(_animationCoverageIssues);
+        if (_animationCoverageIssues.Count > 0)
+        {
+            Debug.LogWarning(
+                $"[ActorLocomotion] '{asset.name}' animation coverage incomplete: "
+                + string.Join("; ", _animationCoverageIssues), this);
+        }
+    }
+
+    private void ClearCurrentAsset()
+    {
+        ResetAnimationSession();
+        _currentRuntime?.Exit(this, actor);
+        _currentRuntime = null;
         ReleaseAcquiredTags();
-        CurrentMode = null;
-        CurrentTuning = LocomotionTuning.Default;
-
-        if (restoreTuning)
-            actor?.actorMotor?.RestoreCompatibilityLocomotionTuning();
+        CurrentAsset = null;
+        CurrentMovementConfig = LocomotionMovementConfig.Default;
     }
 
-    private void AcquireModeTags(LocomotionModeAsset mode)
+    private void DisposeRuntimes()
     {
-        IReadOnlyList<TagReference> tags = mode.SelfTags;
+        foreach (KeyValuePair<LocomotionAsset, LocomotionRuntime> pair in _runtimes)
+            pair.Value?.Dispose();
+        _runtimes.Clear();
+    }
+
+    private void AcquireAssetTags(LocomotionAsset asset)
+    {
+        IReadOnlyList<TagReference> tags = asset.SelfTags;
         if (tags == null || actor == null)
             return;
 
@@ -233,8 +440,20 @@ public sealed class ActorLocomotion : MonoBehaviour
             return;
 
         Debug.LogWarning(
-            "[ActorLocomotion] Candidate list contains null, duplicate, or fallback mode entries; invalid entries are ignored.",
+            "[ActorLocomotion] Locomotion asset list contains null or duplicate entries; invalid entries are ignored.",
             this);
         _warnedInvalidList = true;
     }
+
+    private void MigrateLegacyFallback()
+    {
+        if (legacyFallbackMode == null)
+            return;
+
+        locomotionAssets ??= new List<LocomotionAsset>();
+        if (!locomotionAssets.Contains(legacyFallbackMode))
+            locomotionAssets.Insert(0, legacyFallbackMode);
+        legacyFallbackMode = null;
+    }
+
 }

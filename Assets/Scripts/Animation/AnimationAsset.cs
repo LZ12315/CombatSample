@@ -1,8 +1,8 @@
 using UnityEngine;
 
 /// <summary>
-/// Reusable Action animation resource. Runtime reads only the clip and baked
-/// trajectory; bake inputs exist only in the Unity Editor.
+/// Reusable Action/Locomotion resource. Runtime reads clips, trajectories and
+/// confirmed locomotion metadata; bake inputs exist only in the Unity Editor.
 /// </summary>
 [CreateAssetMenu(fileName = "AnimationAsset", menuName = "CombatSample/Animation/Animation")]
 public sealed class AnimationAsset : ScriptableObject
@@ -10,9 +10,24 @@ public sealed class AnimationAsset : ScriptableObject
     [SerializeField] private AnimationClip _clip;
     [SerializeField, HideInInspector] private bool _hasRootMotionData;
     [SerializeField, HideInInspector] private RootMotionTrajectory _rootMotionData = new RootMotionTrajectory();
+    [SerializeField] private LocomotionAnimationData _locomotionData = new LocomotionAnimationData();
 
     public AnimationClip Clip => _clip;
     public RootMotionTrajectory RootMotionData => _hasRootMotionData ? _rootMotionData : null;
+    public LocomotionAnimationData LocomotionData => _locomotionData;
+
+    public bool IsLocomotionDataCurrent
+    {
+        get
+        {
+            if (_locomotionData == null || !_locomotionData.MatchesClip(_clip)) return false;
+#if UNITY_EDITOR
+            return _locomotionData.SourceHash == LocomotionDataSourceHash.Compute(this);
+#else
+            return true;
+#endif
+        }
+    }
 
 #if UNITY_EDITOR
     [Header("Root Motion Bake Context")]
@@ -24,6 +39,7 @@ public sealed class AnimationAsset : ScriptableObject
         : null;
 
     public void EditorSetClip(AnimationClip clip) => _clip = clip;
+    public void EditorSetLocomotionData(LocomotionAnimationData data) => _locomotionData = data;
 
     public void EditorSetAnimationRigAsset(AnimationRigAsset animationRigAsset)
     {

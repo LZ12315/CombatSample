@@ -2,7 +2,7 @@ using UnityEngine;
 
 /// <summary>
 /// One motor-tick movement/facing intent. Player input and AI produce this shared gameplay semantic;
-/// ActorMotor consumes it without knowing the source.
+/// ActorLocomotion owns it without knowing whether Player or AI submitted it.
 /// </summary>
 public struct LocomotionIntent
 {
@@ -10,8 +10,8 @@ public struct LocomotionIntent
     public float MoveStrength;
 
     /// <summary>
-    /// World-space horizontal facing direction. Zero means face the move direction when moving,
-    /// or keep the current facing when idle.
+    /// World-space horizontal facing direction. Zero means preserve the current facing.
+    /// Producers must explicitly submit the move direction when they want orient-to-movement behavior.
     /// </summary>
     public Vector3 FacingDirection;
 

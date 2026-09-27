@@ -7,7 +7,7 @@ using UnityEngine;
 /// Owns the explicit fixed-step boundary around KCC and actor-on-actor resolution.
 ///
 /// Fixed simulation contract:
-/// Tick boundary setup -> Input/Control -> Action -> Animation -> Motion -> World -> Hit -> Finish
+/// Tick boundary setup -> Input/Control -> Action -> Motion -> Animation -> World -> Hit -> Finish
 /// -> tick boundary teardown.
 ///
 /// This is intentionally not a general-purpose callback or phase scheduler.
@@ -119,8 +119,8 @@ public sealed class CombatSimulationDriver : MonoBehaviour
             RunTickBoundarySetup(deltaTime, settings.Interpolate, out interpolationPrepared);
             RunInputControlPhase(deltaTime);
             RunActionPhase(deltaTime);
-            RunAnimationPhase(deltaTime);
             RunMotionPhase(deltaTime);
+            RunAnimationPhase(deltaTime);
             RunWorldPhase(deltaTime);
             RunHitPhase();
             RunFinishPhase();
