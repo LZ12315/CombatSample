@@ -8,6 +8,7 @@ using UnityEngine;
 [Serializable]
 public sealed class RootMotionTrajectory : ISerializationCallbackReceiver
 {
+    internal const int CurrentBakerVersion = 1;
     [Header("Source Metadata")]
     [SerializeField] private AnimationClip sourceClip;
     [SerializeField] private int sampleRate = 60;
@@ -32,6 +33,11 @@ public sealed class RootMotionTrajectory : ISerializationCallbackReceiver
     public IReadOnlyList<float> SampleTimes => sampleTimes ?? Array.Empty<float>();
     public IReadOnlyList<Vector3> CumulativePositions => cumulativePositions ?? Array.Empty<Vector3>();
     public IReadOnlyList<Quaternion> CumulativeRotations => cumulativeRotations ?? Array.Empty<Quaternion>();
+
+    internal bool MatchesSource(AnimationClip clip, int expectedSampleRate, int expectedBakerVersion, string expectedHash) =>
+        sourceClip == clip && clip != null && sampleRate == expectedSampleRate
+        && bakerVersion == expectedBakerVersion && Mathf.Abs(duration - clip.length) <= 1e-5f
+        && !string.IsNullOrEmpty(expectedHash) && string.Equals(dependencyHash, expectedHash, StringComparison.Ordinal);
 
     public bool TrySample(float time, out RootMotionTransform sample)
     {
@@ -81,34 +87,6 @@ public sealed class RootMotionTrajectory : ISerializationCallbackReceiver
         }
 
         delta = RootMotionTransform.Delta(start, end);
-        return true;
-    }
-
-    /// <summary>Forward extraction across clip loops, composing rotation as well as translation.</summary>
-    public bool TryExtractLooping(double startTime, double endTime, out RootMotionTransform delta)
-    {
-        delta = RootMotionTransform.Identity;
-        if (double.IsNaN(startTime) || double.IsInfinity(startTime) || double.IsNaN(endTime)
-            || double.IsInfinity(endTime) || endTime < startTime || !EnsureSampleLayout() || duration <= 0f)
-            return false;
-        double startCycle = Math.Floor(startTime / duration), endCycle = Math.Floor(endTime / duration);
-        double cycles = endCycle - startCycle;
-        if (cycles > int.MaxValue) return false;
-        float startLocal = (float)(startTime - startCycle * duration), endLocal = (float)(endTime - endCycle * duration);
-        if (cycles == 0d) return TryExtract(startLocal, endLocal, out delta);
-        if (!TrySample(startLocal, out RootMotionTransform start) || !TrySample(duration, out RootMotionTransform cycle)
-            || !TrySample(endLocal, out RootMotionTransform end)) return false;
-        // Compose only the requested interval, avoiding cancellation of large absolute loop positions.
-        RootMotionTransform tail = RootMotionTransform.Delta(start, cycle);
-        int count = (int)cycles - 1;
-        RootMotionTransform prefix = RootMotionTransform.Identity;
-        while (count > 0)
-        {
-            if ((count & 1) != 0) prefix = RootMotionTransform.Compose(prefix, cycle);
-            cycle = RootMotionTransform.Compose(cycle, cycle);
-            count >>= 1;
-        }
-        delta = RootMotionTransform.Compose(RootMotionTransform.Compose(tail, prefix), end);
         return true;
     }
 

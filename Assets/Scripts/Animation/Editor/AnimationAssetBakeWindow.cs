@@ -55,8 +55,6 @@ public sealed class AnimationAssetBakeWindow : EditorWindow
             EditorGUILayout.HelpBox(status.Message,
                 status.Code == AnimationAssetBakeStatusCode.Ready ? MessageType.Info :
                 status.Code == AnimationAssetBakeStatusCode.Missing ? MessageType.Warning : MessageType.Error);
-            EditorGUILayout.HelpBox("Foot analysis uses the saved Clip/Rig. Apply the setup above before analyzing; configure the Locomotion role and corrections in the Inspector.", MessageType.Info);
-            LocomotionAnalysisWorkflow.DrawControls(_target);
         }
     }
 

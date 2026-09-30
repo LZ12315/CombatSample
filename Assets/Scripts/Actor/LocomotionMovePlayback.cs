@@ -15,7 +15,8 @@ public sealed class LocomotionVelocityFeedback
     public bool TryGetSpeed(in LocomotionRuntimeAnimationContext context, out float speed)
     {
         speed = 0f;
-        if (!LocomotionDataValidation.IsFinite(context.DeltaTime) || context.DeltaTime <= 0f) { Reset(); return false; }
+        if (!LocomotionDataValidation.IsFinite(context.DeltaTime) || context.DeltaTime <= 0f)
+        { Reset(); return false; }
         var motor = context.Motor;
         bool continuous = _hasPrevious && _ground == motor.GroundState && _action == context.ActionOwnerId
             && SamePolicy(_policy, motor.MotionState);
@@ -24,20 +25,22 @@ public sealed class LocomotionVelocityFeedback
         _ground = motor.GroundState;
         _action = context.ActionOwnerId;
         var result = motor.PreviousResult;
-        if (!continuous || context.ActionOwnerId != 0 || !result.IsValid
-            || result.HorizontalSource != HorizontalMotionSource.Locomotion
+        if (!continuous || context.ActionOwnerId != 0 || !IsAutonomousResult(result)
             || !SamePolicy(result.MotionState, motor.MotionState)
-            || result.MotionState.HasHorizontalVelocityOwner || result.MotionState.HasTrajectoryRootMotionOwner
-            || result.HadSignificantHorizontalImpulse || result.HadPlatformCarry || result.HadActorSeparation
-            || result.HasUnknownExternalDisplacement || result.WasGroundedAtStart != motor.IsGrounded
-            || result.IsGroundedAfterSolve != motor.IsGrounded
-            || result.MotionState.MovementTimeScale <= 0f) return false;
+            || result.WasGroundedAtStart != motor.IsGrounded
+            || result.IsGroundedAfterSolve != motor.IsGrounded) return false;
         speed = Vector3.ProjectOnPlane(result.ActualSolvedVelocity, motor.CharacterUp).magnitude
             / result.MotionState.MovementTimeScale;
         return LocomotionDataValidation.IsFinite(speed);
     }
 
-    private static bool SamePolicy(in MotionStateSnapshot a, in MotionStateSnapshot b) =>
+    internal static bool IsAutonomousResult(in MotorMotionResult result) => result.IsValid
+        && result.HorizontalSource == HorizontalMotionSource.Locomotion
+        && !result.MotionState.HasHorizontalVelocityOwner && !result.MotionState.HasTrajectoryRootMotionOwner
+        && !result.HadSignificantHorizontalImpulse && !result.HadPlatformCarry && !result.HadActorSeparation
+        && !result.HasUnknownExternalDisplacement && result.MotionState.MovementTimeScale > 0f;
+
+    public static bool SamePolicy(in MotionStateSnapshot a, in MotionStateSnapshot b) =>
         a.LocomotionScale == b.LocomotionScale && a.AirLocomotionScale == b.AirLocomotionScale
         && a.GravityScale == b.GravityScale && a.MovementTimeScale == b.MovementTimeScale
         && a.HasHorizontalVelocityOwner == b.HasHorizontalVelocityOwner
@@ -61,81 +64,74 @@ public static class LocomotionPlayRateMatching
     }
 }
 
-/// <summary>Runtime-owned cache. ActorAnimation prepares it after applying the current mixer parameter.</summary>
+/// <summary>Per-Actor Move speed matching. Animancer owns mixer weights and basic child synchronization.</summary>
 public sealed class LocomotionMovePlayback
 {
     private readonly ManualMixerState _mixer;
-    private readonly AnimationAsset[] _animations;
+    private readonly bool[] _sync;
     private readonly bool[] _idle;
-    private readonly LocomotionCycleMapping[] _cycles;
-    private readonly RootMotionTrajectory[] _trajectories;
-    private readonly string[] _cycleIssues;
-    private readonly string[] _trajectoryIssues;
-    private readonly string[] _queryIssues;
-    private readonly Action<string> _report;
+    private readonly bool[] _hasTrajectory;
+    private readonly float[] _durations;
+    private readonly Vector3[] _cycleDisplacements;
     private readonly bool _vertical;
-    private readonly LocomotionVelocityFeedback _feedback = new LocomotionVelocityFeedback();
-    private readonly double[] _sampleStarts;
-    private readonly double[] _sampleEnds;
-    private bool _groupValid = true;
-    private int _members;
-    private double _phase;
-    private float _frequency;
+    private readonly Action<string> _report;
+    private readonly LocomotionVelocityFeedback _feedback = new();
 
-    public bool SemanticSyncActive { get; private set; }
-    public double Phase => _phase;
     public float PlayRate { get; private set; } = 1f;
     public float ReferenceSpeed { get; private set; }
 
     public LocomotionMovePlayback(ManualMixerState mixer, AnimationAsset[] animations, bool[] sync,
         bool[] idle, bool vertical, Action<string> report, string[] entryLabels = null)
+        : this(mixer, animations, sync, idle, vertical, report, entryLabels, QueryTrajectory) { }
+
+    internal delegate bool TrajectoryQuery(AnimationAsset animation, out RootMotionTrajectory trajectory, out string reason);
+    private static bool QueryTrajectory(AnimationAsset animation, out RootMotionTrajectory trajectory, out string reason) =>
+        animation.TryGetLocomotionTrajectory(out trajectory, out reason);
+
+    internal LocomotionMovePlayback(ManualMixerState mixer, AnimationAsset[] animations, bool[] sync,
+        bool[] idle, bool vertical, Action<string> report, string[] entryLabels, TrajectoryQuery queryTrajectory)
     {
         _mixer = mixer;
-        _animations = animations;
+        _sync = sync;
         _idle = idle;
         _vertical = vertical;
         _report = report;
         int count = animations.Length;
-        _cycles = new LocomotionCycleMapping[count];
-        _trajectories = new RootMotionTrajectory[count];
-        _cycleIssues = new string[count];
-        _trajectoryIssues = new string[count];
-        _queryIssues = new string[count];
-        _sampleStarts = new double[count];
-        _sampleEnds = new double[count];
+        _hasTrajectory = new bool[count];
+        _durations = new float[count];
+        _cycleDisplacements = new Vector3[count];
         for (int i = 0; i < count; i++)
         {
             AnimationAsset animation = animations[i];
-            string label = entryLabels != null ? entryLabels[i] : $"Move[{i}]";
-            _queryIssues[i] = $"{label} '{animation.name}': trajectory reference query failed; retaining PlayRate 1.";
-            if (sync[i] && !idle[i] && !vertical)
-            {
-                _members++;
-                string reason = "Locomotion metadata is missing or stale.";
-                if (!animation.IsLocomotionDataCurrent
-                    || !animation.LocomotionData.TryGetCycle(animation.Clip, out _cycles[i], out reason))
-                {
-                    _groupValid = false;
-                    _cycleIssues[i] = $"{label} '{animation.name}': {reason} Whole group retains basic synchronization.";
-                }
-            }
+            _durations[i] = animation.Clip.length;
             if (idle[i] || vertical) continue;
-            RootMotionTrajectory trajectory = animation.RootMotionData;
-            if (trajectory == null || trajectory.SourceClip != animation.Clip
-                || Mathf.Abs(trajectory.Duration - animation.Clip.length) > 0.001f || !trajectory.ValidateData().IsValid)
-                _trajectoryIssues[i] = $"{label} '{animation.name}': valid source-matched Root Motion trajectory is required for speed matching.";
-            else _trajectories[i] = trajectory;
+            string label = entryLabels != null ? entryLabels[i] : $"Move[{i}]";
+            if (!animation.Clip.isLooping)
+            {
+                _report?.Invoke($"{label} '{animation.name}': non-looping Move has no steady cycle speed. Retaining PlayRate 1 when weighted.");
+                continue;
+            }
+            if (!queryTrajectory(animation, out RootMotionTrajectory trajectory, out string reason))
+            {
+                _report?.Invoke($"{label} '{animation.name}': {reason} Retaining PlayRate 1.");
+                continue;
+            }
+            if (!trajectory.TryExtract(0f, _durations[i], out RootMotionTransform cycle))
+            {
+                _report?.Invoke($"{label} '{animation.name}': full-clip Root Motion query failed. Retaining PlayRate 1.");
+                continue;
+            }
+            _cycleDisplacements[i] = cycle.Position;
+            _hasTrajectory[i] = true;
         }
     }
 
     public void Reset()
     {
         _feedback.Reset();
-        _phase = 0d;
-        _frequency = 0f;
         PlayRate = 1f;
         ReferenceSpeed = 0f;
-        SemanticSyncActive = false;
+        _mixer.Speed = 1f;
         for (int i = 0; i < _mixer.ChildCount; i++)
         {
             var child = _mixer.GetChild(i);
@@ -146,49 +142,35 @@ public sealed class LocomotionMovePlayback
 
     public void SuspendFeedback() => _feedback.Reset();
 
-    public void Prepare(in LocomotionRuntimeAnimationContext context, float? entryPhase)
+    public void Prepare(in LocomotionRuntimeAnimationContext context)
     {
-        if (!LocomotionDataValidation.IsFinite(context.DeltaTime) || context.DeltaTime <= 0f) { SuspendFeedback(); return; }
+        if (!LocomotionDataValidation.IsFinite(context.DeltaTime) || context.DeltaTime <= 0f)
+        { SuspendFeedback(); return; }
         bool qualified = _feedback.TryGetSpeed(context, out float actualSpeed);
         if (_vertical) { PlayRate = 1f; _mixer.Speed = 1f; return; }
-        SemanticSyncActive = _members > 0 && _groupValid;
-        if (context.Motor.IsGrounded)
-            for (int i = 0; i < _cycleIssues.Length; i++)
-                if (_cycleIssues[i] != null) _report?.Invoke(_cycleIssues[i]);
-        if (SemanticSyncActive && entryPhase.HasValue) _phase = Mathf.Repeat(entryPhase.Value, 1f);
-        float totalWeight = 0f, frequency = 0f;
-        if (SemanticSyncActive)
-        {
-            for (int i = 0; i < _cycles.Length; i++)
-            {
-                if (_cycles[i] == null) continue;
-                float weight = _mixer.GetChild(i).Weight;
-                totalWeight += weight;
-                frequency += weight / _cycles[i].Duration;
-            }
-            frequency = totalWeight > LocomotionAnimationUtility.WeightEpsilon ? frequency / totalWeight : 0f;
-        }
 
-        double nextNeutralPhase = _phase + frequency * context.DeltaTime;
-        Vector3 reference = Vector3.zero;
-        bool movingWeight = false;
-        bool referenceValid = _groupValid || _members == 0;
-        for (int i = 0; i < _animations.Length; i++)
+        // Animancer's synchronized children share a weighted normalized speed.
+        float syncWeight = 0f, weightedFrequency = 0f;
+        for (int i = 0; i < _sync.Length; i++)
         {
-            AnimancerState child = _mixer.GetChild(i);
-            _sampleStarts[i] = SemanticSyncActive && _cycles[i] != null ? _cycles[i].PhaseToTime(_phase) : child.TimeD;
-            _sampleEnds[i] = SemanticSyncActive && _cycles[i] != null
-                ? _cycles[i].PhaseToTime(nextNeutralPhase) : child.TimeD + context.DeltaTime;
-            if (_idle[i] || child.Weight <= LocomotionAnimationUtility.WeightEpsilon) continue;
+            if (!_sync[i]) continue;
+            float weight = _mixer.GetChild(i).Weight;
+            syncWeight += weight;
+            weightedFrequency += weight / _durations[i];
+        }
+        float syncFrequency = syncWeight > LocomotionAnimationUtility.WeightEpsilon
+            ? weightedFrequency / syncWeight : 0f;
+
+        Vector3 reference = Vector3.zero;
+        bool movingWeight = false, referenceValid = true;
+        for (int i = 0; i < _idle.Length; i++)
+        {
+            float weight = _mixer.GetChild(i).Weight;
+            if (_idle[i] || weight <= LocomotionAnimationUtility.WeightEpsilon) continue;
             movingWeight = true;
-            if (_trajectories[i] == null)
-            { referenceValid = false; _report?.Invoke(_trajectoryIssues[i]); continue; }
-            RootMotionTransform delta;
-            bool valid = child.IsLooping
-                ? _trajectories[i].TryExtractLooping(_sampleStarts[i], _sampleEnds[i], out delta)
-                : _trajectories[i].TryExtract((float)_sampleStarts[i], (float)_sampleEnds[i], out delta);
-            if (!valid) { referenceValid = false; _report?.Invoke(_queryIssues[i]); continue; }
-            reference += delta.Position * (child.Weight / context.DeltaTime);
+            if (!_hasTrajectory[i]) { referenceValid = false; continue; }
+            float cyclesPerSecond = _sync[i] ? syncFrequency : 1f / _durations[i];
+            reference += _cycleDisplacements[i] * (weight * cyclesPerSecond);
         }
         ReferenceSpeed = new Vector2(reference.x, reference.z).magnitude;
         if (!LocomotionDataValidation.IsFinite(ReferenceSpeed))
@@ -202,49 +184,5 @@ public sealed class LocomotionMovePlayback
         PlayRate = qualified && referenceValid
             ? LocomotionPlayRateMatching.Update(PlayRate, actualSpeed, ReferenceSpeed, context.DeltaTime) : 1f;
         _mixer.Speed = PlayRate;
-
-        _frequency = frequency;
-    }
-
-    /// <summary>Called by the state in Animancer's pre-update; zero graph dt never advances phase.</summary>
-    public void UpdateSemanticSync(float graphDeltaTime, float effectiveSpeed)
-    {
-        if (!SemanticSyncActive || graphDeltaTime <= 0f || effectiveSpeed <= 0f || !_mixer.IsPlaying) return;
-        double nextPhase = _phase + _frequency * effectiveSpeed * graphDeltaTime;
-        for (int i = 0; i < _cycles.Length; i++)
-        {
-            if (_cycles[i] == null) continue;
-            AnimancerState child = _mixer.GetChild(i);
-            double time = _cycles[i].PhaseToTime(_phase);
-            double end = _cycles[i].PhaseToTime(nextPhase);
-            child.TimeD = time;
-            child.Speed = (float)((end - time) / (graphDeltaTime * effectiveSpeed));
-            // Built-in synchronization changes the native speed without changing child.Speed.
-            child.Playable.SetSpeed(child.Speed);
-        }
-        _phase = nextPhase;
-    }
-}
-
-// We own only the synchronization hook; Animancer continues to calculate 1D/2D weights.
-public sealed class LocomotionLinearMixerState : LinearMixerState
-{
-    public LocomotionMovePlayback Playback { get; set; }
-    public override void Update()
-    {
-        if (Playback?.SemanticSyncActive != true) { base.Update(); return; }
-        RecalculateWeights();
-        Playback.UpdateSemanticSync(AnimancerGraph.DeltaTime, CalculateRealEffectiveSpeed());
-    }
-}
-
-public sealed class LocomotionDirectionalMixerState : DirectionalMixerState
-{
-    public LocomotionMovePlayback Playback { get; set; }
-    public override void Update()
-    {
-        if (Playback?.SemanticSyncActive != true) { base.Update(); return; }
-        RecalculateWeights();
-        Playback.UpdateSemanticSync(AnimancerGraph.DeltaTime, CalculateRealEffectiveSpeed());
     }
 }

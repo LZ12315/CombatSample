@@ -113,8 +113,6 @@ public sealed class ActorAnimation : MonoBehaviour
         if (request.State == null || LocomotionAnimationUtility.WasGraphDestroyed(request.State)
             || !LocomotionDataValidation.IsFinite(request.BlendDuration) || request.BlendDuration < 0f
             || !LocomotionDataValidation.IsFinite(request.Parameter)
-            || (request.EntryPhase.HasValue && (!LocomotionDataValidation.IsFinite(request.EntryPhase.Value)
-                || request.EntryPhase.Value < 0f || request.EntryPhase.Value > 1f))
             || (request.MovePlayback != null && !LocomotionDataValidation.IsFinite(request.PlaybackContext.DeltaTime)))
         {
             HoldLocomotionPose();
@@ -124,7 +122,7 @@ public sealed class ActorAnimation : MonoBehaviour
         AnimancerState state = request.State;
         if (request.MovePlayback != null && request.PlaybackContext.DeltaTime <= 0f)
         {
-            request.MovePlayback.SuspendFeedback();
+            request.MovePlayback?.SuspendFeedback();
             return true;
         }
         if (state != _locomotionState || _baseLayer.CurrentState != state || request.Restart)
@@ -141,10 +139,7 @@ public sealed class ActorAnimation : MonoBehaviour
         if (request.IsMove)
         {
             ApplyMixerParameter(state, request.Parameter);
-            request.MovePlayback?.Prepare(request.PlaybackContext, request.EntryPhase);
-            // Rebind the hook even when a cached state re-enters with the same parameter.
-            if (request.MovePlayback != null && state is ManualMixerState mixer)
-                state.Graph.RequirePreUpdate(mixer);
+            request.MovePlayback?.Prepare(request.PlaybackContext);
             _lastMoveState = state;
         }
         _locomotionState = state;

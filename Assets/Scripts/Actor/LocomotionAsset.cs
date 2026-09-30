@@ -19,7 +19,7 @@ public abstract class LocomotionAsset : ScriptableObject
     public int Priority => priority;
     public IReadOnlyList<LocomotionModeCondition> EntryConditions => entryConditions;
     public IReadOnlyList<TagReference> SelfTags => selfTags;
-    public LocomotionMovementConfig MovementConfig => movementConfig.Sanitize();
+    public LocomotionMovementConfig MovementConfig => movementConfig;
     public LocomotionMoveDefinition Move => move;
     public bool HasValidMovementConfig => movementConfig.IsValid;
     public bool HasValidRuntimeConfig => movementConfig.IsValid && ValidateSpecificRuntimeConfig();
@@ -126,15 +126,10 @@ public struct LocomotionMovementConfig
 
     public LocomotionMovementConfig Sanitize()
     {
-        LocomotionMovementConfig fallback = Default;
-        return new LocomotionMovementConfig
-        {
-            MaxSpeed = IsFiniteNonNegative(MaxSpeed) ? MaxSpeed : fallback.MaxSpeed,
-            Acceleration = IsFinitePositive(Acceleration) ? Acceleration : fallback.Acceleration,
-            Deceleration = IsFinitePositive(Deceleration) ? Deceleration : fallback.Deceleration,
-            RotateSpeed = IsFinitePositive(RotateSpeed) ? RotateSpeed : fallback.RotateSpeed,
-            TurnResponseTime = IsFiniteNonNegative(TurnResponseTime) ? TurnResponseTime : fallback.TurnResponseTime,
-        };
+        // Preserve the existing API, but never substitute unrelated default movement rules.
+        if (!IsValid)
+            throw new ArgumentException("Locomotion movement configuration is invalid.");
+        return this;
     }
 
     private static bool IsFiniteNonNegative(float value) =>
@@ -342,6 +337,7 @@ internal static class LocomotionDataValidation
 
     internal static bool IsFinite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
     internal static bool IsFinite(Vector2 value) => IsFinite(value.x) && IsFinite(value.y);
+    internal static bool IsFinite(Vector3 value) => IsFinite(value.x) && IsFinite(value.y) && IsFinite(value.z);
 
     internal static bool IsValidDirection(Vector2 direction) =>
         IsFinite(direction) && direction.sqrMagnitude > ThresholdEpsilon * ThresholdEpsilon;
@@ -352,6 +348,11 @@ internal static class LocomotionDataValidation
         if (asset == null || asset.Clip == null)
         {
             issues.Add($"{label} AnimationAsset/Clip is missing.");
+            return;
+        }
+        if (!IsFinite(asset.Clip.length) || asset.Clip.length <= 0f)
+        {
+            issues.Add($"{label} Clip must have a finite positive length.");
             return;
         }
 

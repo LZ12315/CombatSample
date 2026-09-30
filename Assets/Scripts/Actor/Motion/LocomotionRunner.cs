@@ -89,9 +89,7 @@ public sealed class LocomotionRunner
             return Vector3.zero;
 
         dir.Normalize();
-        float strength = float.IsNaN(_effectiveIntent.MoveStrength) || float.IsInfinity(_effectiveIntent.MoveStrength)
-            ? 0f : Mathf.Clamp01(_effectiveIntent.MoveStrength);
-        return dir * (strength * config.MaxSpeed);
+        return dir * (_effectiveIntent.MoveStrength * config.MaxSpeed);
     }
 
     private static Vector3 IntegrateVelocity(Vector3 current, Vector3 target,

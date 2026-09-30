@@ -86,7 +86,10 @@ public abstract class LocomotionRuntime : IDisposable
     }
 }
 
-/// <summary>Common cached Move states; all graph attachment happens through ActorAnimation.</summary>
+/// <summary>
+/// Common cached Move states, bound from immutable configuration for this Runtime's lifetime.
+/// All graph attachment happens through ActorAnimation.
+/// </summary>
 public abstract class LocomotionAnimationRuntime : LocomotionRuntime
 {
     private readonly HashSet<string> _reportedIssues = new();
@@ -96,7 +99,6 @@ public abstract class LocomotionAnimationRuntime : LocomotionRuntime
     private LocomotionMovePlayback _movePlayback;
     private bool _attemptedMove;
     private AnimationClip _idleClip;
-
     protected LocomotionAnimationRuntime(LocomotionAsset asset) : base(asset) { }
 
     protected override void OnEnter(ActorLocomotion owner, Actor actor)
@@ -119,7 +121,7 @@ public abstract class LocomotionAnimationRuntime : LocomotionRuntime
         UpdateSharedMotion(context);
 
     protected LocomotionAnimationRequest MoveRequest(in LocomotionRuntimeAnimationContext context,
-        float blendDuration, bool zeroParameter = false, float? entryPhase = null)
+        float blendDuration, bool zeroParameter = false)
     {
         EnsureMove();
         Vector2 parameter;
@@ -138,7 +140,7 @@ public abstract class LocomotionAnimationRuntime : LocomotionRuntime
         }
         return new LocomotionAnimationRequest(_move, blendDuration, isMove: true,
             parameter: parameter, idleClip: _idleClip, movePlayback: _movePlayback,
-            playbackContext: context, entryPhase: entryPhase);
+            playbackContext: context);
     }
 
     protected void ReportIssue(string issue)
@@ -152,6 +154,7 @@ public abstract class LocomotionAnimationRuntime : LocomotionRuntime
         LocomotionAnimationUtility.Destroy(_move);
         _move = null;
         _movePlayback = null;
+        _attemptedMove = false;
     }
 
     private void EnsureMove()
@@ -182,7 +185,7 @@ public abstract class LocomotionAnimationRuntime : LocomotionRuntime
         {
             var samples = new List<LocomotionMove1DSample>(Asset.Move.OneDimensional.Samples);
             samples.Sort((left, right) => left.Threshold.CompareTo(right.Threshold));
-            var mixer = new LocomotionLinearMixerState { ExtrapolateSpeed = false };
+            var mixer = new LinearMixerState { ExtrapolateSpeed = false };
             var animations = new AnimationAsset[samples.Count];
             var sync = new bool[samples.Count];
             var idle = new bool[samples.Count];
@@ -190,11 +193,6 @@ public abstract class LocomotionAnimationRuntime : LocomotionRuntime
             bool vertical = Asset.Move.OneDimensional.Parameter == LocomotionMove1DParameter.VerticalSpeed;
             for (int i = 0; i < samples.Count; i++)
             {
-                if (!CheckClip(samples[i].Animation.Clip, $"Move 1D[{i}]"))
-                {
-                    mixer.Destroy();
-                    return;
-                }
                 ClipState child = mixer.Add(samples[i].Animation.Clip, samples[i].Threshold);
                 if (!samples[i].Sync)
                     mixer.DontSynchronize(child);
@@ -207,23 +205,17 @@ public abstract class LocomotionAnimationRuntime : LocomotionRuntime
             }
             _move = mixer;
             _movePlayback = new LocomotionMovePlayback(mixer, animations, sync, idle, vertical, ReportIssue, labels);
-            mixer.Playback = _movePlayback;
         }
         else
         {
             IReadOnlyList<LocomotionMove2DSample> samples = Asset.Move.TwoDimensional.Samples;
-            var mixer = new LocomotionDirectionalMixerState();
+            var mixer = new DirectionalMixerState();
             var animations = new AnimationAsset[samples.Count];
             var sync = new bool[samples.Count];
             var idle = new bool[samples.Count];
             var labels = new string[samples.Count];
             for (int i = 0; i < samples.Count; i++)
             {
-                if (!CheckClip(samples[i].Animation.Clip, $"Move 2D[{i}]"))
-                {
-                    mixer.Destroy();
-                    return;
-                }
                 ClipState child = mixer.Add(samples[i].Animation.Clip, samples[i].Threshold);
                 if (!samples[i].Sync)
                     mixer.DontSynchronize(child);
@@ -234,7 +226,6 @@ public abstract class LocomotionAnimationRuntime : LocomotionRuntime
             }
             _move = mixer;
             _movePlayback = new LocomotionMovePlayback(mixer, animations, sync, idle, false, ReportIssue, labels);
-            mixer.Playback = _movePlayback;
         }
     }
 
@@ -286,7 +277,6 @@ public sealed class LocomotionSetRuntime : LocomotionAnimationRuntime
     private readonly LocomotionSetStateMachine _machine = new();
     private readonly Dictionary<AnimationAsset, ClipState> _clips = new();
     private ClipState _transition;
-    private AnimationAsset _transitionAnimation;
 
     public LocomotionSetRuntime(LocomotionSetAsset asset) : base(asset) => _set = asset;
     public LocomotionSetState AnimationState => _machine.State;
@@ -296,7 +286,6 @@ public sealed class LocomotionSetRuntime : LocomotionAnimationRuntime
         base.ResetAnimation();
         _machine.Reset();
         _transition = null;
-        _transitionAnimation = null;
     }
 
     public override LocomotionAnimationRequest UpdateAnimation(in LocomotionRuntimeAnimationContext context)
@@ -307,33 +296,18 @@ public sealed class LocomotionSetRuntime : LocomotionAnimationRuntime
         if (LocomotionAnimationUtility.WasGraphDestroyed(_transition))
             ResetAnimation();
         bool completed = _transition != null && _transition.TimeD >= _transition.Length;
-        LocomotionSetState previous = _machine.State;
         bool entered = _machine.Step(context, completed);
-        float? exitPhase = null;
-        if (completed && entered && _machine.State == LocomotionSetState.Move
-            && (previous == LocomotionSetState.Start || previous == LocomotionSetState.Pivot)
-            && context.HasMovingInput && context.ActionOwnerId == 0 && _transitionAnimation != null)
-        {
-            if (_transitionAnimation.IsLocomotionDataCurrent
-                && _transitionAnimation.LocomotionData.TryGetExitPhase(_transitionAnimation.Clip, out float phase)) exitPhase = phase;
-            else ReportIssue($"{previous} '{_transitionAnimation.name}': current, confirmed exit phase is missing. Returning to basic Move without phase entry.");
-        }
         // Build Move even on the first Start tick, so the zero sample can protect an invalid transition.
         LocomotionAnimationRequest move = MoveRequest(context, _set.TransitionBlendDuration,
-            _machine.UseZeroMoveParameter, exitPhase);
+            _machine.UseZeroMoveParameter);
         if (_machine.State == LocomotionSetState.Move)
         {
             _transition = null;
-            _transitionAnimation = null;
             return move;
         }
 
         if (entered)
-        {
-            AnimationAsset animation = SelectTransition(context);
-            _transitionAnimation = animation;
-            _transition = GetClipState(animation);
-        }
+            _transition = GetClipState(SelectTransition(context));
         return new LocomotionAnimationRequest(_transition, _set.TransitionBlendDuration,
             entered, idleClip: move.IdleClip);
     }
@@ -344,7 +318,6 @@ public sealed class LocomotionSetRuntime : LocomotionAnimationRuntime
             LocomotionAnimationUtility.Destroy(state);
         _clips.Clear();
         _transition = null;
-        _transitionAnimation = null;
         base.OnDispose();
     }
 
@@ -355,6 +328,7 @@ public sealed class LocomotionSetRuntime : LocomotionAnimationRuntime
         if (_clips.TryGetValue(animation, out ClipState state)
             && !LocomotionAnimationUtility.WasGraphDestroyed(state))
             return state;
+        LocomotionAnimationUtility.Destroy(state);
         state = new ClipState(animation.Clip);
         _clips[animation] = state;
         return state;

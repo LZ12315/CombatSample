@@ -18,18 +18,17 @@ public sealed class ActorLocomotion : MonoBehaviour
     private readonly Dictionary<LocomotionAsset, LocomotionRuntime> _runtimes = new();
     private readonly List<string> _animationCoverageIssues = new();
     private readonly LocomotionRunner _runner = new();
-    private LocomotionIntent _pendingIntent = LocomotionIntent.Idle;
+    private readonly LocomotionIntentBuffer _input = new();
     private LocomotionIntent _controlIntent = LocomotionIntent.Idle;
     private LocomotionRuntime _currentRuntime;
-    private bool _hasPendingIntent;
     private bool _hasControlIntent;
+    private bool _controlFromContinuous;
     private bool _controlTickOpen;
     private bool _motionRequestBuilt;
     private LocomotionMotionRequest _builtMotionRequest;
     private bool _warnedInvalidCandidate;
     private bool _warnedInvalidList;
     private bool _warnedNoMatch;
-    private bool _warnedInvalidRuntime;
     private ActorAnimation _animation;
     private ActorAnimationLocomotionOwner _animationOwner;
     private LocomotionIntent _animationIntent;
@@ -106,22 +105,21 @@ public sealed class ActorLocomotion : MonoBehaviour
         if (!isActiveAndEnabled)
             return;
 
-        _pendingIntent = intent;
-        _hasPendingIntent = true;
+        _input.Submit(intent);
     }
 
-    public void ClearLocomotionIntent()
+    /// <summary>Releases pending input. The locked tick remains unchanged; model velocity brakes through Motion.</summary>
+    public void ClearLocomotionIntent() => _input.Clear();
+
+    // Input lifetime is independent of the producer's update clock. One controller per Actor.
+    internal void SetContinuousLocomotionIntent(in LocomotionIntent intent)
     {
-        _pendingIntent = LocomotionIntent.Idle;
-        _controlIntent = LocomotionIntent.Idle;
-        _hasPendingIntent = false;
-        _hasControlIntent = false;
-        _controlTickOpen = false;
-        _motionRequestBuilt = false;
-        _builtMotionRequest = default;
-        _runner.ClearIntent();
-        _hasAnimationSnapshot = false;
+        if (!isActiveAndEnabled)
+            return;
+        _input.Submit(intent, continuous: true);
     }
+
+    internal void ReleaseContinuousLocomotionIntent() => _input.ReleaseContinuous();
 
     public bool TryGetControlIntent(out LocomotionIntent intent)
     {
@@ -138,15 +136,12 @@ public sealed class ActorLocomotion : MonoBehaviour
         if (actor == null)
             return;
 
-        _controlIntent = _hasPendingIntent ? _pendingIntent : LocomotionIntent.Idle;
-        _hasControlIntent = _hasPendingIntent;
+        _hasControlIntent = _input.Capture(out _controlIntent, out _controlFromContinuous);
         _controlTickOpen = true;
         _motionRequestBuilt = false;
         _builtMotionRequest = default;
         _hasAnimationSnapshot = false;
         _animationUpdated = false;
-        _pendingIntent = LocomotionIntent.Idle;
-        _hasPendingIntent = false;
     }
 
     public LocomotionMotionRequest BuildMotionRequest(in LocomotionMotionContext context)
@@ -192,11 +187,8 @@ public sealed class ActorLocomotion : MonoBehaviour
 
     internal void HoldControlTick()
     {
-        if (_controlTickOpen && _hasControlIntent && !_hasPendingIntent)
-        {
-            _pendingIntent = _controlIntent;
-            _hasPendingIntent = true;
-        }
+        if (_controlTickOpen && _hasControlIntent)
+            _input.Hold(_controlIntent, _controlFromContinuous);
 
         _controlTickOpen = false;
         _motionRequestBuilt = false;
@@ -209,6 +201,12 @@ public sealed class ActorLocomotion : MonoBehaviour
     internal void CancelControlTick()
     {
         ClearLocomotionIntent();
+        ConsumeControlTick();
+        _controlFromContinuous = false;
+        _motionRequestBuilt = false;
+        _builtMotionRequest = default;
+        _hasAnimationSnapshot = false;
+        _animationUpdated = false;
     }
 
     internal void CancelSimulation()
@@ -216,6 +214,7 @@ public sealed class ActorLocomotion : MonoBehaviour
         ClearCurrentAsset();
         DisposeRuntimes();
         CancelControlTick();
+        _runner.ClearIntent();
     }
 
     internal void ResetAnimationSession()
@@ -234,7 +233,7 @@ public sealed class ActorLocomotion : MonoBehaviour
             return;
         }
         if (_animationUpdated || !_hasAnimationSnapshot || _currentRuntime == null
-            || !LocomotionDataValidation.IsFinite(deltaTime) || deltaTime <= 0f || animation == null)
+            || animation == null)
             return;
         _animationUpdated = true;
         if (_animation != animation || !animation.IsLocomotionOwnerActive(_animationOwner))
@@ -277,7 +276,7 @@ public sealed class ActorLocomotion : MonoBehaviour
                 if (!IsCandidateValidForSelection(asset, context))
                     continue;
 
-                if (asset.Priority > topPriority)
+                if (firstTop == null || asset.Priority > topPriority)
                 {
                     topPriority = asset.Priority;
                     firstTop = asset;
@@ -331,13 +330,6 @@ public sealed class ActorLocomotion : MonoBehaviour
         }
 
         _currentRuntime = GetOrCreateRuntime(CurrentAsset);
-        if (_currentRuntime == null)
-        {
-            CurrentAsset = null;
-            CurrentMovementConfig = LocomotionMovementConfig.Default;
-            return;
-        }
-
         CurrentMovementConfig = CurrentAsset.MovementConfig;
         AcquireAssetTags(CurrentAsset);
         _currentRuntime.Enter(this, actor);
@@ -352,13 +344,9 @@ public sealed class ActorLocomotion : MonoBehaviour
         runtime = asset.CreateRuntime();
         if (runtime == null || runtime.Asset != asset)
         {
-            if (!_warnedInvalidRuntime)
-            {
-                Debug.LogWarning($"[ActorLocomotion] LocomotionAsset '{asset.name}' created an invalid Runtime.", this);
-                _warnedInvalidRuntime = true;
-            }
             runtime?.Dispose();
-            return null;
+            throw new System.InvalidOperationException(
+                $"[ActorLocomotion] Actor '{name}', Asset '{asset.name}': CreateRuntime must return a Runtime owned by this Asset.");
         }
 
         _runtimes.Add(asset, runtime);

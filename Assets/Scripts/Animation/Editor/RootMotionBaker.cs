@@ -9,7 +9,7 @@ using Object = UnityEngine.Object;
 
 public static class RootMotionBaker
 {
-    public const int CurrentBakerVersion = 1;
+    public const int CurrentBakerVersion = RootMotionTrajectory.CurrentBakerVersion;
     public const string PreviewRootName = "__CombatSample_RootMotionBaker_Preview__";
 
     private const double TimeEpsilon = 1e-9;
@@ -19,14 +19,6 @@ public static class RootMotionBaker
         RootMotionBakeSettings settings,
         out RootMotionBakeResult result,
         out RootMotionBakeDiagnostic diagnostic)
-        => TryBakeInternal(clip, settings, null, out result, out diagnostic);
-
-    internal static bool TryBakeWithFeet(AnimationClip clip, RootMotionBakeSettings settings,
-        LocomotionFootSamples feet, out RootMotionBakeDiagnostic diagnostic)
-        => TryBakeInternal(clip, settings, feet, out _, out diagnostic);
-
-    private static bool TryBakeInternal(AnimationClip clip, RootMotionBakeSettings settings,
-        LocomotionFootSamples feet, out RootMotionBakeResult result, out RootMotionBakeDiagnostic diagnostic)
     {
         result = null;
         diagnostic = default;
@@ -123,15 +115,6 @@ public static class RootMotionBaker
             graph.Evaluate(0f);
 
             RootMotionTransform baseline = Capture(animator.transform);
-            if (feet != null)
-            {
-                if (!feet.Bind(animator, out string reason))
-                {
-                    diagnostic = new RootMotionBakeDiagnostic(RootMotionBakeDiagnosticCode.InvalidInstantiatedRig, reason);
-                    return false;
-                }
-                feet.Capture(0f);
-            }
             var sampleTimes = new List<float> { 0f };
             var cumulativePositions = new List<Vector3> { Vector3.zero };
             var cumulativeRotations = new List<Quaternion> { Quaternion.identity };
@@ -153,7 +136,6 @@ public static class RootMotionBaker
 
                 RootMotionTransform cumulative = RootMotionTransform.Delta(baseline, Capture(animator.transform));
                 float sampleTime = (float)currentTime;
-                if (feet != null && sampleTime > feet.Times[feet.Times.Count - 1]) feet.Capture(sampleTime);
                 int previousIndex = sampleTimes.Count - 1;
                 if (sampleTime > sampleTimes[previousIndex])
                 {

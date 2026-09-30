@@ -25,7 +25,6 @@ public sealed class AnimationAssetEditor : Editor
                     Debug.Log($"[AnimationAsset Bake] {result.Message}", asset);
             }
         }
-        LocomotionAnalysisWorkflow.DrawControls(asset);
     }
 
     private static MessageType ToMessageType(AnimationAssetBakeStatusCode code)

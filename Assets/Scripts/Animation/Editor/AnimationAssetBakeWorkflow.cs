@@ -64,11 +64,7 @@ public static class AnimationAssetBakeWorkflow
         if (!dataValidation.IsValid)
             return new AnimationAssetBakeStatus(AnimationAssetBakeStatusCode.Invalid, "Root Motion data is invalid: " + JoinTrajectoryIssues(dataValidation));
 
-        if (trajectory.SourceClip != asset.Clip
-            || trajectory.SampleRate != settings.SampleRate
-            || trajectory.BakerVersion != RootMotionBaker.CurrentBakerVersion
-            || Mathf.Abs(trajectory.Duration - asset.Clip.length) > 1e-5f
-            || !string.Equals(trajectory.DependencyHash, expectedHash, StringComparison.Ordinal))
+        if (!trajectory.MatchesSource(asset.Clip, settings.SampleRate, RootMotionBaker.CurrentBakerVersion, expectedHash))
         {
             return new AnimationAssetBakeStatus(AnimationAssetBakeStatusCode.Stale, "Root Motion dependencies changed. Use Rebuild.");
         }

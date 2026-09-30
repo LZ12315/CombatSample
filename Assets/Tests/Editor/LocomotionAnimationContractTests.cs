@@ -325,6 +325,61 @@ public sealed class LocomotionAnimationContractTests
         Assert.That(_animancer.Layers[0].CurrentState.Speed, Is.Zero);
     }
 
+    [Test]
+    public void MotionAnimationPipeline_BindsAuthoredChangesAfterDisableEnable()
+    {
+        AnimationAsset idle = Clip("Idle", 1f), move = Clip("Move", 3f), replacement = Clip("Replacement", 7f);
+        var asset = Asset<LocomotionMixerAsset>($"{{\"oneDimensional\":{{\"samples\":[{Sample1D(idle, 0, false)},{Sample1D(move, 1, true)}]}}}}");
+        _root.AddComponent<Actor>();
+        var locomotion = _root.AddComponent<ActorLocomotion>();
+        JsonUtility.FromJsonOverwrite($"{{\"locomotionAssets\":[{{\"instanceID\":{asset.GetInstanceID()}}}]}}", locomotion);
+        void Tick()
+        {
+            locomotion.SetLocomotionIntent(new LocomotionIntent { WorldMoveDirection = Vector3.forward, MoveStrength = 1f });
+            locomotion.BeginControlTick();
+            locomotion.BuildMotionRequest(new LocomotionMotionContext(0.1f, true, Vector3.up, Quaternion.identity,
+                default, new MotionStateSnapshot(1f, 1f, 1f, 1f, false, false, false, false)));
+            locomotion.UpdateAnimation(_animation, null, 0.1f);
+            _animation.Evaluate(0.1f);
+        }
+        Tick();
+        var original = (LinearMixerState)_animancer.Layers[0].CurrentState;
+        locomotion.enabled = false;
+        move.EditorSetClip(replacement.Clip);
+        locomotion.enabled = true;
+        _owner = _animation.BeginLocomotionSession();
+        Tick();
+        var corrected = (LinearMixerState)_animancer.Layers[0].CurrentState;
+        Assert.That(corrected, Is.Not.SameAs(original));
+        Assert.That(corrected.GetChild(1).Clip, Is.SameAs(replacement.Clip));
+        Assert.That(_probe.localPosition.x, Is.EqualTo(7f).Within(0.001f));
+        Assert.That(locomotion.DebugLocomotionVelocity.magnitude, Is.GreaterThan(0f));
+    }
+
+    [Test]
+    public void SetReentry_RestartsTheCachedTransitionAndRetainsTheProtectedPose()
+    {
+        AnimationAsset idle = Clip("Idle", 1f), move = Clip("Move", 2f);
+        AnimationAsset start = Clip("Start", 3f, false);
+        var runtime = Runtime<LocomotionSetRuntime>(Asset<LocomotionSetAsset>(Move1D(idle, move),
+            $",\"start\":[{{\"animation\":{Ref(start)},\"targetLocalDirection\":{{\"x\":0,\"y\":1}}}}]"));
+        var old = runtime.UpdateAnimation(Context(Vector3.forward, Vector3.zero));
+        _animation.SubmitLocomotion(_owner, old);
+        _animation.Evaluate(0.1f);
+        _animation.EndLocomotionSession(_owner);
+        runtime.Exit(null, null);
+        runtime.Enter(null, null);
+        _animation.Evaluate(0f);
+        Assert.That(_probe.localPosition.x, Is.EqualTo(1f).Within(0.001f));
+        _owner = _animation.BeginLocomotionSession();
+        var current = runtime.UpdateAnimation(Context(Vector3.forward, Vector3.zero));
+        Assert.That(current.State.Clip, Is.SameAs(start.Clip));
+        Assert.That(current.State, Is.SameAs(old.State));
+        _animation.SubmitLocomotion(_owner, current);
+        _animation.Evaluate(0.1f);
+        Assert.That(_probe.localPosition.x, Is.EqualTo(3f).Within(0.001f));
+    }
+
     private static LocomotionRuntimeAnimationContext Context(Vector3 input, Vector3 before,
         Quaternion? facing = null, float vertical = 0f, float scale = 1f) =>
         LocomotionSetDecisionTests.Context(input, before, facing: facing, vertical: vertical, scale: scale);

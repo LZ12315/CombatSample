@@ -7,6 +7,57 @@ using UnityEngine;
 public sealed class LocomotionContractTests
 {
     [Test]
+    public void IntentBuffer_HoldsContinuousInputAndReplacesItWithoutRestoringOldInput()
+    {
+        var input = new LocomotionIntentBuffer();
+        input.Submit(Intent(Vector3.forward), continuous: true);
+        Assert.That(input.Capture(out var locked, out _), Is.True);
+        input.Submit(Intent(Vector3.right), continuous: true);
+        Assert.That(locked.WorldMoveDirection, Is.EqualTo(Vector3.forward));
+        for (int i = 0; i < 3; i++)
+        {
+            Assert.That(input.Capture(out locked, out _), Is.True);
+            Assert.That(locked.WorldMoveDirection, Is.EqualTo(Vector3.right));
+        }
+        input.Submit(Intent(Vector3.back));
+        Assert.That(input.Capture(out locked, out _), Is.True);
+        Assert.That(locked.WorldMoveDirection, Is.EqualTo(Vector3.back));
+        Assert.That(input.Capture(out _, out _), Is.False, "A one-shot replaces held input; it does not suspend it.");
+        input.Submit(Intent(Vector3.forward), continuous: true);
+        input.Capture(out locked, out bool continuous);
+        input.ReleaseContinuous();
+        input.Hold(locked, continuous);
+        Assert.That(input.Capture(out _, out _), Is.False, "Pausing must not resurrect a released continuous input.");
+    }
+
+    [Test]
+    public void IntentBuffer_HoldsFrozenOneShotAndKeepsNewerSubmissions()
+    {
+        var input = new LocomotionIntentBuffer();
+        input.Submit(Intent(Vector3.forward));
+        input.Capture(out var locked, out bool continuous);
+        input.Hold(locked, continuous);
+        Assert.That(input.Capture(out locked, out _), Is.True);
+        Assert.That(locked.WorldMoveDirection, Is.EqualTo(Vector3.forward));
+        input.Submit(Intent(Vector3.right));
+        input.Hold(locked, continuous);
+        input.Capture(out locked, out _);
+        Assert.That(locked.WorldMoveDirection, Is.EqualTo(Vector3.right));
+        Assert.That(input.Capture(out _, out _), Is.False);
+        input.Submit(Intent(Vector3.forward), continuous: true);
+        input.Clear();
+        Assert.That(input.Capture(out _, out _), Is.False);
+        input.Submit(Intent(Vector3.forward));
+        input.Capture(out locked, out continuous);
+        input.Clear();
+        input.Hold(locked, continuous);
+        Assert.That(input.Capture(out _, out _), Is.False, "Freezing must not undo an explicit release.");
+        var invalid = Intent(Vector3.forward); invalid.MoveStrength = float.NaN;
+        Assert.Throws<System.ArgumentException>(() => input.Submit(invalid));
+        Assert.That(input.Capture(out _, out _), Is.False);
+    }
+
+    [Test]
     public void GroundMovement_AcceleratesBrakesAndReversesThroughZero()
     {
         var runner = new LocomotionRunner();
@@ -109,17 +160,15 @@ public sealed class LocomotionContractTests
     }
 
     [Test]
-    public void InvalidMovementConfig_IsRejectedAndSanitizedForRuntimeSafety()
+    public void InvalidMovementConfig_IsRejectedWithoutReplacingValuesWithDefaults()
     {
         LocomotionMovementConfig config = LocomotionMovementConfig.Default;
         config.Deceleration = 0f;
         config.MaxSpeed = float.NaN;
-
         Assert.That(config.IsValid, Is.False);
-        LocomotionMovementConfig safe = config.Sanitize();
-        Assert.That(safe.IsValid, Is.True);
-        Assert.That(safe.Deceleration, Is.EqualTo(LocomotionMovementConfig.Default.Deceleration));
-        Assert.That(safe.MaxSpeed, Is.EqualTo(LocomotionMovementConfig.Default.MaxSpeed));
+        Assert.Throws<System.ArgumentException>(() => config.Sanitize());
+        var runner = new LocomotionRunner();
+        Assert.Throws<System.ArgumentException>(() => runner.Prepare(Intent(Vector3.forward), true, 0.1f, config));
     }
 
     [Test]
@@ -290,8 +339,10 @@ public sealed class LocomotionContractTests
         }
     }
 
-    [Test]
-    public void AssetSelection_ChoosesHighestPriorityBeforeAuthoredOrder()
+    [TestCase(1, 10)]
+    [TestCase(int.MinValue, int.MinValue + 1)]
+    [TestCase(int.MinValue, int.MinValue)]
+    public void AssetSelection_UsesPriorityAndAuthoredOrderAcrossTheFullIntegerRange(int lowPriority, int highPriority)
     {
         var owner = new GameObject("Locomotion Priority Selection Test");
         LocomotionSetAsset low = null;
@@ -303,14 +354,14 @@ public sealed class LocomotionContractTests
             actor.actorLocomotion = locomotion;
             low = ScriptableObject.CreateInstance<LocomotionSetAsset>();
             high = ScriptableObject.CreateInstance<LocomotionSetAsset>();
-            SetPrivateField(low, "priority", 1);
-            SetPrivateField(high, "priority", 10);
+            JsonUtility.FromJsonOverwrite($"{{\"priority\":{lowPriority}}}", low);
+            JsonUtility.FromJsonOverwrite($"{{\"priority\":{highPriority}}}", high);
             SetPrivateField(locomotion, "locomotionAssets", new List<LocomotionAsset> { low, high });
 
             locomotion.BeginControlTick();
             locomotion.BuildMotionRequest(Context(ActorGroundState.Grounded));
 
-            Assert.That(locomotion.CurrentAsset, Is.SameAs(high));
+            Assert.That(locomotion.CurrentAsset, Is.SameAs(highPriority > lowPriority ? high : low));
         }
         finally
         {

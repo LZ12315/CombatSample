@@ -46,7 +46,7 @@ public readonly struct LocomotionAnimationRequest
     public LocomotionAnimationRequest(AnimancerState state, float blendDuration = 0f,
         bool restart = false, bool isMove = false, Vector2 parameter = default,
         AnimationClip idleClip = null, LocomotionMovePlayback movePlayback = null,
-        LocomotionRuntimeAnimationContext playbackContext = default, float? entryPhase = null)
+        LocomotionRuntimeAnimationContext playbackContext = default)
     {
         State = state;
         BlendDuration = blendDuration;
@@ -56,7 +56,6 @@ public readonly struct LocomotionAnimationRequest
         IdleClip = idleClip;
         MovePlayback = movePlayback;
         PlaybackContext = playbackContext;
-        EntryPhase = entryPhase;
     }
 
     public AnimancerState State { get; }
@@ -67,7 +66,6 @@ public readonly struct LocomotionAnimationRequest
     public AnimationClip IdleClip { get; }
     public LocomotionMovePlayback MovePlayback { get; }
     public LocomotionRuntimeAnimationContext PlaybackContext { get; }
-    public float? EntryPhase { get; }
 }
 
 public readonly struct ActorAnimationLocomotionOwner

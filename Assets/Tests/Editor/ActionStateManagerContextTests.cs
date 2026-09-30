@@ -104,6 +104,31 @@ public sealed class ActionStateManagerContextTests
     }
 
     [Test]
+    public void LocomotionControlRelease_BrakesWhileDisableResetsSharedVelocity()
+    {
+        TestRig rig = CreateRig();
+        var context = new LocomotionMotionContext(0.02f, true, Vector3.up, Quaternion.identity, default, default);
+        for (int i = 0; i < 3; i++)
+        {
+            rig.Locomotion.SetLocomotionIntent(new LocomotionIntent { WorldMoveDirection = Vector3.right, MoveStrength = 1f });
+            rig.Locomotion.BeginControlTick();
+            rig.Locomotion.BuildMotionRequest(context);
+        }
+        float speed = rig.Locomotion.DebugLocomotionVelocity.x;
+        LocomotionMotionRequest prepared = rig.Locomotion.BuildMotionRequest(context);
+        rig.Locomotion.ClearLocomotionIntent();
+        Assert.That(rig.Locomotion.DebugLocomotionVelocity.x, Is.EqualTo(speed));
+        Assert.That(rig.Locomotion.BuildMotionRequest(context).WorldPlanarVelocity,
+            Is.EqualTo(prepared.WorldPlanarVelocity), "Releasing input must not reopen an integrated tick.");
+        rig.Locomotion.BeginControlTick();
+        Assert.That(rig.Locomotion.TryGetControlIntent(out _), Is.False);
+        float brakingSpeed = rig.Locomotion.BuildMotionRequest(context).WorldPlanarVelocity.x;
+        Assert.That(brakingSpeed, Is.GreaterThan(0f).And.LessThan(speed));
+        rig.Locomotion.enabled = false;
+        Assert.That(rig.Locomotion.DebugLocomotionVelocity, Is.EqualTo(Vector3.zero));
+    }
+
+    [Test]
     public void LocomotionFreeze_PreservesIntentUntilPositiveMotionTick()
     {
         TestRig rig = CreateRig();
@@ -137,6 +162,10 @@ public sealed class ActionStateManagerContextTests
         });
         rig.Locomotion.BeginControlTick();
         rig.Locomotion.ClearLocomotionIntent();
+        Assert.IsTrue(rig.Locomotion.TryGetControlIntent(out _), "Release cannot change the locked snapshot.");
+        rig.Locomotion.BuildMotionRequest(new LocomotionMotionContext(0f, true, Vector3.up,
+            Quaternion.identity, default, default));
+        rig.Locomotion.BeginControlTick();
         Assert.IsFalse(rig.Locomotion.TryGetControlIntent(out _));
         rig.Locomotion.SetLocomotionIntent(LocomotionIntent.Idle);
         rig.Locomotion.enabled = false;
