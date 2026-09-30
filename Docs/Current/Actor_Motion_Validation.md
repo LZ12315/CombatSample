@@ -4,7 +4,7 @@
 > Static structure verified: 2026-08-29
 > Locomotion Stage 2 static structure updated: 2026-09-27; Unity compile and scene checks remain pending.
 > Locomotion Stage 3 code updated: 2026-09-28; Runtime/Editor static C# compile passed. User confirmed Unity import/compile has no errors. Unity tests, resource coverage and visual acceptance remain pending.
-> Locomotion Stage 4 code updated: 2026-09-28; Runtime/Editor static C# compile passed, including new contract tests. User confirmed Unity import/compile has no errors. Unity tests and character visual acceptance remain pending.
+> Locomotion 收敛：2026-10-01；保留基础动画 Runtime 与 Move 速度匹配，脚相和 Stop Distance Matching 已移除。Runtime、Editor（含测试）及非 Editor 静态编译通过；Unity Test Runner 与角色视觉验收待完成。
 > 当前执行入口：ActionRuntime。运动 Domain 的历史设计来源见[归档 v3 架构](../Archive/CombatSample_ActionSequence_Final_Architecture_v3_zh-CN.md)；本文只保留仍与当前代码一致的运动合同。
 
 本文是当前 Actor Motion 验证合同。`Docs/Archive/Actor_Motion_Validation.md` 描述的是已经退出 authority 的 `ActorMotionRuntime / MotionChannels / RootMotionBuffer / Animator Root Motion`，不得继续作为当前实现依据。
@@ -34,8 +34,9 @@ Action arbitration and ActionRuntime items → ActorMotor policies / owners
 - Gameplay Root Motion 只来自 `RootMotionTrajectory` 当前查询区间，不读取 Animator delta。
 - LocomotionAsset 当前分为 `LocomotionSetAsset` 与 `LocomotionMixerAsset`；两者在同一候选列表中通过 Conditions + Priority 选择，没有全局 Fallback。Gameplay Facing 由 Intent 显式提交，不由 1D/2D Move 动画类型推断。
 - 上述 Locomotion 链已经静态落地；Unity 编译、Kiana/Jaeger 场景移动和 Ground/Air 切换结果尚未回写为通过。目标动画 Runtime 见[Locomotion 最终架构 v1](../Proposals/CombatSample_Locomotion_Final_Architecture_v1_zh-CN.md)。
-- 阶段 3 已实现 Linear/Directional Move Mixer 与代码驱动的 Move/Start/Stop/Pivot。模型水平速度只应用 Policy，VerticalSpeed 读取已准备请求并去除时间缩放；不从 ActualSolvedVelocity 匹配播放倍率，Locomotion Clip 不向 Motor 提交 Root Motion。
-- 阶段 4 在该链路上增加共享脚相与 Move PlayRate 匹配：参数仍来自模型速度；匹配只读取上一 Tick 合格 World 结果，并去除该结果所属 MovementTimeScale。Air VerticalSpeed 保持 PlayRate 1。普通 Locomotion 仍不向 Motor 提交 Root Motion。
+- 基础 Runtime 使用 Linear/Directional Move Mixer 与代码驱动的 Move/Start/Stop/Pivot；Sync 仅配置 Animancer 基础同步。Move 参数来自模型速度；Air VerticalSpeed 来自已准备请求并去除时间缩放。
+- Move 速度匹配按当前权重与 Clip 完整周期的 Root Motion 位移合成参考速度，只读取上一 Tick 合格 World 结果，并去除该结果所属 MovementTimeScale。Air VerticalSpeed 保持 PlayRate 1；普通 Locomotion 不向 Motor 提交 Root Motion。
+- Stop 按方向选样本，从时间 0 正常播放到 Clip 结束，随后返回零速 Move。当前实现没有脚相元数据或 Stop Distance Matching。
 - Animation 使用 Motion 保存的 Intent、积分前后速度和 Facing；状态完成判断与 Graph 使用同一动画时钟。资源错误维持独立有效基础姿态并报告缺口，不改 Gameplay 或增加第二套 Locomotion。
 
 ## 2. 必须保持的不变量
@@ -138,28 +139,29 @@ E3-H 差量验收于 2026-08-29 完成。后续回归若失败，只修复对应
 
 当前角色样本仍未接入：四个 Locomotion Asset 的 Move 均空；Kiana Set 过渡均空，Jaeger Set 另有一个空 Start 条目。资源文件未由此次代码实现修改，角色视觉出口保持 Pending。
 
-## 7. Locomotion 阶段 4 检查（整体验收时执行）
+## 7. Move 速度匹配与基础 Stop 验证（待 Unity 执行）
 
-代码已实现，Runtime/Editor（含 `LocomotionMatchingContractTests`）静态编译通过；用户于 2026-09-28 确认阶段 4 Unity 导入/编译无错误。未启动命令行 Unity、外部 NUnit 宿主或场景验收；该编译确认不代表合同测试或角色视觉验收通过。
+代码及合同测试已静态编译；尚未运行 Unity Test Runner，也未完成角色视觉验收。四个 Locomotion Asset 的 Move 样本仍为空，Kiana Set 过渡均空，Jaeger Set 的 Start 有一个缺 Clip 且方向为零的条目。配置角色样本后才能检查观感。
 
-### 制作入口
+### 制作检查
 
-1. 在 AnimationAsset Inspector 配置 Clip 与当前 Humanoid AnimationRigAsset。移动循环选 `MoveCycle`，Start/Pivot 选 `Transition`，Idle/Air 可保留 `None`。
-2. 点击 `Analyze Foot Contacts (Preserve Corrections)`，分析只写脚接触候选，不覆盖 Root Motion 或人工修正。脚接触按脚部低位、垂直速度、最短接触时间估计；Rig Bake Settings 提供对应阈值，默认采样率仍为 60 Hz。
-3. 检查自动候选，必要时复制周期候选到手工修正后编辑。周期锚点为左脚 0、右脚 0.5、下一次左脚 1；首个左脚时间可晚于 Clip 0，下一次左脚时间允许超过 Clip 末尾，周期长度必须覆盖一个完整 Clip。首版自动分析仅接受一个可靠的左右脚周期，多周期或不明确接触报告制作缺口。
-4. Start/Pivot 的出口脚相候选不会自动生效；使用候选确认按钮，或填写 `Exit Phase`、启用 `Exit Phase Confirmed` 后确认当前来源。Clip/Rig/分析设置改变后重新分析或确认人工修正；失败不覆盖已有有效数据。
-5. 速度匹配另需有效、来源一致的累计 Root Motion 轨迹，沿用原有 Bake Root Motion 入口。原地轨迹不能假装成有效步速；保留播放并报告参考速度缺口。
+1. 为 Ground Move 配置 Idle、Walk、Run、Sprint 等实际拥有的样本，为 Air 配置 VerticalSpeed 样本；保持各样本原有 `Sync` 意图。Start、Stop、Pivot 配置有效 Clip 与方向，不需要脚相、出口标记或 Stop 刹车标记。
+2. 需要速度匹配的 Move 样本，通过 AnimationAsset Inspector 或 Bake 窗口烘焙有效 Root Motion 轨迹。Clip、Rig 或烘焙设置改变后按原有工具状态重建；缺轨迹时样本仍播放，但匹配倍率为 1，并报告具体缺口。
+3. 素材配置固定于 Runtime 生命周期。修改 Clip、Rig 或样本后重新运行，或禁用再启用 ActorLocomotion 使 Runtime 重建；不要求运行中热刷新。
 
-### 必须检查的行为
+### 行为检查
 
-| 检查 | 预期 |
+| 场景 | 预期 |
 | --- | --- |
-| Kiana Walk/Run、Jaeger 方向 Mixer | 权重仍由模型速度决定；同步成员左右脚语义一致，跨 Clip 循环与重新激活后相位连续；Idle 非同步、非循环重启合同保持。 |
-| Start/Pivot 正常完成与被打断 | 正常完成接入已确认出口脚相；Action、输入或 Asset 打断不使用旧出口。Stop 不加入距离匹配。 |
-| 自主移动与贴墙 | PlayRate 平滑且限制在 0.5–1.5，贴墙不永久冻结跑姿；参考速度低于 0.1m/s 时保持 1。 |
-| 非自主位移 | Root Motion、Velocity owner、显著冲量、平台、Actor 分离、未知来源不得参与自主步速匹配。 |
-| 半速、HitStop、Action 覆盖与释放 | 时间缩放只应用一次；相位、参数、倍率和 crossfade 在零 dt 保持；恢复与覆盖释放首 Tick 不使用旧反馈，无补帧。 |
-| Asset/Ground/Policy/session 变化及 Disable/Enable | 共享 Gameplay 速度保留，新增相位/反馈缓存正确清理，无旧请求和旧 Graph 状态复用。 |
-| 缺失或过期元数据 | 整个同步组保留原有基础同步与样本，匹配保持中性；轨迹缺失不清空基础姿态。诊断定位 Actor、Asset、条目并去重。 |
+| Kiana 1D 与 Jaeger 2D | 模型速度决定权重；Sync 成员使用 Animancer 基础同步；不同权重下参考速度和播放倍率平滑变化。 |
+| Walk／Run／Sprint 与不同移动速度 | PlayRate 在 0.5–1.5 内平滑调整；轨迹不足、非循环 Move 或参考速度过低时以倍率 1 播放并报告。 |
+| 不同初速的松手停止 | Gameplay 正常减速；Stop 按 SourceDirection 选择，从 0 按时间播放至 Clip 结束并返回零速 Move。记录可见滑步，作为以后是否需要距离匹配的依据。 |
+| Start／Pivot 完成与中断 | 正常完成返回当前 Move；输入、Action 或 Asset 打断不追播旧过渡。 |
+| 非自主位移 | Action Root Motion、Velocity owner、冲量、平台、Actor 分离及未知位移不作为 Move 实际步速。 |
+| 半速、HitStop、Action 覆盖与释放 | MovementTimeScale 只应用一次；零 dt 保持状态、倍率和 crossfade，恢复不补帧、不使用暂停前旧反馈。 |
+| Asset／Ground／Policy／会话变化 | 旧反馈失效；共享 Gameplay 速度保留；旧 Graph 状态和过期 Layer 0 owner 不能复用。 |
+| Disable／Enable 和 Driver abort | 清理幂等，保护基础姿态接管；新会话重新绑定，Action Layer 1 和 Root Motion 仲裁正常。 |
 
-新增合同测试覆盖周期与轨迹跨界、反馈来源排除、时间比例、零 dt、自动分析候选、手工修正保留、1D/2D 同步与参考速度、同步组缺口以及 Set 出口接入；尚未在 Unity Test Runner 执行。角色资源、烘焙数据和视觉检查仍为 Pending，不宣告阶段 4 完整验收通过。
+### 验证记录
+
+Runtime、Editor（含合同测试）及无 Editor 定义的静态 C# 编译通过；未启动命令行 Unity 构建或外部 NUnit 宿主。合同测试包含权重与基础 Sync 周期速率、Root Motion 完整周期、反馈排除、时间缩放、零 dt、缺轨迹和原有 Set/生命周期合同。静态编译不能证明 Unity Test Runner、Animancer Graph、KCC 或角色视觉结果。角色资源和现有本地攻击资源改动未修改。

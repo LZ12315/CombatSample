@@ -1,6 +1,6 @@
 # CombatSample Locomotion 最终架构 v1
 
-> 状态：**目标架构已冻结；阶段 1 主链、阶段 2 数据模型与阶段 3 基础动画 Runtime 已在工作区落地，Unity 合同测试、素材接入和场景视觉验收尚待完成。** 本文记录最终职责和数据模型；[Implementation Roadmap v1](CombatSample_Locomotion_Implementation_Roadmap_v1_zh-CN.md)记录迁移顺序。阶段 0 的历史盘点保留当时名称和事实，不随本次设计回写。
+> 状态：**基础 Locomotion 与 Move 速度匹配代码已落地；Unity 合同测试、素材接入和角色视觉验收尚待完成。脚相与 Stop Distance Matching 已退出当前实现。** 本文记录当前职责和数据模型；[Implementation Roadmap v1](CombatSample_Locomotion_Implementation_Roadmap_v1_zh-CN.md)记录迁移顺序。阶段 0 的历史盘点保留当时名称和事实，不随本次设计回写。
 
 ## 1. 系统目标与唯一链路
 
@@ -25,7 +25,7 @@ KCC solved result → Motor publishes world facts
 Player / AI → ActorLocomotion → LocomotionMotionRequest → ActorMotor → KCC
 ```
 
-Locomotion 动画的 Root Motion 轨迹用于样本分析、速度匹配和距离匹配，不直接推动 Capsule。Action 的 `RootMotionItem` 仍是独立 Motion Source，并按现有优先级真正驱动 Motor。
+Locomotion 动画的 Root Motion 轨迹用于 Move 速度匹配，不直接推动 Capsule。Action 的 `RootMotionItem` 仍是独立 Motion Source，并按现有优先级真正驱动 Motor。
 
 ## 2. 固定 Tick 的目标顺序
 
@@ -75,6 +75,17 @@ FacingDirection                   = 想面向哪里
 - AI 显式决定面向移动方向、目标方向，或提交零向量保持朝向。
 
 因此资产中不需要 `FacingMode` 或 `LocomotionStyle`。1D/2D 只影响 Move 动画的混合输入，不决定 Gameplay 朝向。
+
+### 输入与资源的合法使用边界（2026-09-29 收敛）
+
+- 同一 Actor 同时只有一个移动控制者；同一 AI 图同时只有一个活动移动任务。输入不是多 owner 仲裁系统，多个控制者并行争用属于错误使用。
+- 单一输入缓冲保存最新提交。公开 `SetLocomotionIntent` 是一次性输入；持续 AI 输入保持到更新、释放或生命周期清理。新提交直接替换旧提交，不叠加优先级、不暂存旧控制者、不在单次输入结束后恢复旧输入。
+- Control 锁定本 Tick 快照，之后的提交或释放影响下一 Tick；不能重开已积分的 Tick。零有效 dt 保留未消费的单次输入；新的提交或明确释放优先，不因冻结而恢复已释放输入。
+- `ClearLocomotionIntent` 只释放输入，现有模型速度由正常 Motion 减速并触发 Stop。Disable 或 Driver abort 才清理 Tick、Runtime 和共享模型速度。
+- MovementConfig 必须合法；非法输入方向、强度或配置明确失败，不使用默认速度、默认减速度或 Idle 修正错误数据。`Sanitize` 保留现有入口，但非法配置会抛错。
+- Locomotion 资源在 Runtime 生命周期内视为固定配置。运行期间不支持修改 Clip、样本或 Rig并即时热刷新。修改后重新开始运行，或禁用再启用 ActorLocomotion，以 Dispose 旧 Runtime 后重新绑定。正常 Asset 切换、Action 覆盖、HitStop、Disable/Enable 和 Graph 重建继续受生命周期合同保护。
+- 制作工具负责依赖和过期提示；Runtime 在绑定时验证所需数据并缓存。Move 轨迹复用 Bake 来源校验，不增加第二份人工资格确认。Player 使用已制作的烘焙资源，不运行 Editor 依赖分析。
+- 有效 Clip 的基础播放与可选匹配明确区分：缺少有效 Move 轨迹时以中性倍率播放并报告；必需 Clip、阈值或方向非法时拒绝相关动画组，不剔除坏样本拼凑成功。姿态保护只保护 Layer 0 生命周期，不代表错误配置通过验收。
 
 ### 3.2 LocomotionMotionRequest
 
@@ -264,30 +275,21 @@ AnimationAsset
     描述动画自身实际发生了什么
 ```
 
-LocomotionAsset 只保存 Move threshold/sync，以及 Start/Stop/Pivot 的方向关系。`AnimationAsset` 保存或烘焙可复用事实：
-
-- Clip 与累计 Root Motion 轨迹；
-- 位移、速度和旋转曲线；
-- 后续阶段加入的脚接触、脚相和循环映射；
-- 必要的过渡语义标记，例如 Stop 的 BrakeEnd/SettleEnd。
-
-能从 Clip 和轨迹稳定计算的内容自动烘焙；难以稳定推导的脚接触或语义点允许少量人工校正。相同 AnimationAsset 被多个 LocomotionAsset 引用时不重复录入这些事实。
+LocomotionAsset 保存 Move threshold/sync，以及 Start/Stop/Pivot 的方向关系。AnimationAsset 保存 Clip 与累计 Root Motion 轨迹。相同 AnimationAsset 被多个 LocomotionAsset 引用时不重复录入轨迹。
 
 ### 7.1 Move velocity matching
 
 Animation Runtime 使用上一 Tick 已发布且来源合格的 `ActualSolvedVelocity` 微调 Move，而不是使用输入冒充真实运动。水平 owner、Action Root Motion、显著冲量、平台携带、Actor 分离或未知来源不能作为自主步速。当前 Policy、Ground 或 Asset 改变使旧反馈失效时，先用模型速度和中性 PlayRate，取得新合格结果后再平滑恢复。
 
-Mixer 先按模型/合格实际速度选择样本，再根据各子样本的权重、同步速率和轨迹参考速度求有界 PlayRate。普通 Locomotion 不向 Motor 提交动画 Root Motion。
+Mixer 始终按模型速度选择样本，再按当前权重、Clip 完整周期的 Root Motion 位移和 Animancer 基础同步速率计算参考速度。上一 Tick 合格世界速度只调整有界 PlayRate；缺轨迹或参考速度不足则保持倍率 1。普通 Locomotion 不向 Motor 提交动画 Root Motion。
 
-### 7.2 Stop Distance Matching
+### 7.2 基础 Stop
 
-Motion Runtime 使用与 Deceleration 积分一致的模型预测剩余停止距离。Stop AnimationAsset 提供到 BrakeEnd 的剩余水平路径长度查询；Runtime 在已选方向和脚相兼容的样本中反查起播位置，只允许时间向前推进。BrakeEnd 后按正常动画时间播放到 SettleEnd。
-
-新输入、Asset/Ground/Policy/owner 变化可打断并重建 Stop；碰撞损失不追偿，动画匹配也不反向修改 Gameplay 停止距离。
+Set 按积分前的移动方向选择 Stop Clip，从时间 0 按正常速度播放至 Clip 结束，再返回零速 Move。新输入、Action 覆盖和 Asset 切换沿基础状态机打断，不预测剩余停止距离，也不改变 Gameplay 刹车。
 
 ## 8. 资源合同与范围
 
-正式角色使用同一套运行逻辑。素材数量可以不同，但其 LocomotionAsset 必须覆盖承诺的 Move、Start、Stop、Pivot 方向关系，以及对应轨迹、脚相和标记。缺失素材属于制作缺口；运行时错误保护只能避免空白姿态或异常位移，不能作为正式降级体验。
+正式角色使用同一套运行逻辑。素材数量可以不同，但其 LocomotionAsset 必须覆盖承诺的 Move、Start、Stop、Pivot 方向关系，；用于速度匹配的 Move 样本需有效 Root Motion 轨迹。缺失素材属于制作缺口；运行时错误保护只能避免空白姿态或异常位移，不能作为正式降级体验。
 
 本轮包括：
 
@@ -296,9 +298,9 @@ Motion Runtime 使用与 Deceleration 积分一致的模型预测剩余停止距
 - Gameplay 加减速、转向和空中控制；
 - Layer 0 Move/Start/Stop/Pivot；
 - Air Move Mixer，Jump/Land Action；
-- 最小脚相衔接、Move velocity matching、Stop Distance Matching。
+- Move velocity matching。
 
-本轮不包括：Stride/Orientation Warping、Foot IK/Foot Lock、Motion Matching/Pose Search、复杂 Trajectory Matching、Start Distance Matching，以及任意可视化 Locomotion 状态图编辑器。
+本轮不包括：脚相同步、Stop/Start Distance Matching、Stride/Orientation Warping、Foot IK/Foot Lock、Motion Matching/Pose Search、复杂 Trajectory Matching，以及任意可视化 Locomotion 状态图编辑器。
 
 ## 9. 当前实现状态
 
@@ -309,6 +311,6 @@ Motion Runtime 使用与 Deceleration 积分一致的模型预测剩余停止距
 | ActorLocomotion 已使用单一候选列表，并按 Conditions、Priority、当前候选稳定保持和 authored order 选择。 | 为后续 Lock-on、武器姿态等资产补充实际候选与条件。 |
 | Facing 已由 Player/AI Intent 显式提交；Runner 不再读取动画类型。 | 按具体角色手感调整速度、加减速与转向配置。 |
 | Ground Set 与 Air Mixer 已作为平行候选接入；Jump/Land 仍属于 Action。 | 接入 Move、Start、Stop、Pivot 与 Air 的 AnimationAsset 样本；缺失样本仍是资源缺口。 |
-| Runtime 工厂、每 Actor 缓存、Layer 0 会话与 Set 瞬态生命周期已建立；阶段 4 脚相元数据、共同同步、出口衔接与有界 Move 速度匹配代码已实现。 | 阶段 3/4 角色资源、Unity 测试与视觉出口仍待整体验收；阶段 5 再接入停止距离匹配。 |
+| Runtime 工厂、每 Actor 缓存、Layer 0 会话与 Set 瞬态生命周期已建立；Move 轨迹速度匹配已独立于脚相。 | 角色资源、Unity Test Runner 与速度/停止视觉检查仍待整体验收。 |
 
 主要代码入口：[ActorLocomotion](../../Assets/Scripts/Actor/ActorLocomotion.cs)、[ActorMotor](../../Assets/Scripts/Actor/ActorMotor.cs)、[ActorSimulationRuntime](../../Assets/Scripts/Actor/ActorSimulationRuntime.cs)、[ActorAnimation](../../Assets/Scripts/Actor/ActorAnimation.cs)、[LocomotionRunner](../../Assets/Scripts/Actor/Motion/LocomotionRunner.cs)、[AnimationAsset](../../Assets/Scripts/Animation/AnimationAsset.cs)。
