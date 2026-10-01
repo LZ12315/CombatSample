@@ -94,8 +94,12 @@ internal sealed class ActorSimulationRuntime
         if (actorAnimation == null)
             return;
 
-        ResolveActorLocomotion()?.UpdateAnimation(actorAnimation, actorMotor, animationDeltaSeconds);
+        ActorLocomotion locomotion = ResolveActorLocomotion();
+        locomotion?.UpdateAnimation(actorAnimation, actorMotor, animationDeltaSeconds);
         actorAnimation.Evaluate(animationDeltaSeconds);
+#if UNITY_EDITOR
+        locomotion?.TraceEvaluatedAnimationTick(actorAnimation);
+#endif
     }
 
     internal static float CalculateAnimationDeltaSeconds(

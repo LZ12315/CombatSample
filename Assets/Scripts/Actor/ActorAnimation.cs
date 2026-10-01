@@ -344,6 +344,31 @@ public sealed class ActorAnimation : MonoBehaviour
         animancer.Evaluate(Mathf.Max(0f, deltaSeconds));
     }
 
+#if UNITY_EDITOR
+    internal string DescribeEvaluatedLocomotionLayers()
+    {
+        if (_baseLayer == null || !_baseLayer.Playable.IsValid())
+            return "Layer0=unavailable";
+        var text = new System.Text.StringBuilder();
+        text.Append($"Layer0Weight={_baseLayer.Weight:F3}, Layer1Weight={_actionLayer?.Weight ?? 0f:F3}");
+        for (int i = 0; i < _baseLayer.ChildCount; i++)
+        {
+            AnimancerState state = _baseLayer.GetChild(i);
+            if (state.Weight <= LocomotionAnimationUtility.WeightEpsilon)
+                continue;
+            string label = state.Clip != null ? state.Clip.name : state.GetType().Name;
+            text.Append($"; {label}[weight={state.Weight:F3}, time={state.TimeD:F3}, speed={state.Speed:F3}, playing={state.IsPlaying}]");
+            for (int j = 0; j < state.ChildCount; j++)
+            {
+                AnimancerState child = state.GetChild(j);
+                if (child.Weight > LocomotionAnimationUtility.WeightEpsilon)
+                    text.Append($" {child.Clip?.name}[weight={child.Weight:F3}, time={child.TimeD:F3}/{child.Length:F3}, speed={child.Speed:F3}, loop={child.IsLooping}]");
+            }
+        }
+        return text.ToString();
+    }
+#endif
+
     private bool IsActiveOwner(ActorAnimationActionOwner owner)
     {
         return owner.IsValid
