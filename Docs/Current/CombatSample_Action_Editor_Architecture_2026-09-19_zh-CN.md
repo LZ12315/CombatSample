@@ -1,6 +1,6 @@
 # Action 编辑与播放正式架构
 
-状态：当前仓库实现说明。更新于 2026-09-28。旧 V1、ActionSequence 和 Unity Timeline Action 文档均为历史记录。
+状态：当前仓库实现说明。更新于 2026-10-01。旧 V1、ActionSequence 和 Unity Timeline Action 文档均为历史记录。
 
 ## 1. 唯一路径
 
@@ -58,6 +58,7 @@ Action 已不再选择播放后端。每个 ActionAsset 都保存一份 ActionTi
 | ActionTimelineWindow | 时间编排、选择和编辑器播放控制 |
 | ActionDetailsWindow | 轨道、动画段和 Item 属性，以及内嵌预览面板的通知和生命周期管理 |
 | ActionPreviewPanel / ActionPreviewRenderer | 内嵌预览界面、相机操作、视觉求值和预览资源 |
+| EffectListGUI / HitFeedbackProfileInspector | 共用 Effect 列表绘制；各入口自行提交修改，Details 负责 Action 变更通知 |
 | ActionRuntimePlaybackSession | 固定帧播放管线与 ActionRuntime 的衔接 |
 
 窗口刷新不修改共享状态；Preview 不控制 Action 或播放。
@@ -83,6 +84,9 @@ Preview 的整数 Frame N 表示 Runtime 第 N 帧位移提交后的 Hit 阶段�
         ActionAssetInspector.cs
         ActionAssetCreator.cs
         ActionAssetOpenHandler.cs
+    Assets/Scripts/Impact/Editor/
+      EffectListGUI.cs           Details 与 Profile Inspector 共用的 Effect 列表绘制
+      HitFeedbackProfileInspector.cs
 
 HitBox 的正式绑定使用 ActionHitBoxAnchor。旧 BoneReference、旧 Playable、Assets/Scripts/Legacy、AnimationConfig 与字符串动画键路径均已删除。Locomotion 动画呈现暂时留空，由独立路线重新设计；Action 动画继续直接使用 AnimationAsset。
 
@@ -93,6 +97,11 @@ HitBox 的正式绑定使用 ActionHitBoxAnchor。旧 BoneReference、旧 Playab
 新 AnimationAsset / AnimationRigAsset 位于 `Assets/Create/AnimationAsset/`；`Assets/Create/Test/` 保存 TestAction 与临时 Locomotion 配置。Action List、行为图分别归于 `Assets/Create/ActionList/`、`Assets/Create/Graph/`。这些资源的版本提交与系统代码基线分开，旧资源不作为兼容输入。
 
 ## 6. 验证
+
+2026-10-01 Effect 列表绘制复用：
+
+- Action Details 与 HitFeedbackProfile Inspector 使用同一个列表绘制类；Details 仍负责通知 Action 编辑上下文。
+- Runtime、Editor 和现有测试源码通过 Unity 2022.3 自带 Roslyn 编译；未运行 Unity 界面测试，需在 Inspector 人工检查增删、排序、多态类型切换及 Undo。
 
 2026-09-28 Details / Preview 窗口合并：
 

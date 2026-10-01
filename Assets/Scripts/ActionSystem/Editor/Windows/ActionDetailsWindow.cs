@@ -3,9 +3,7 @@ using System;
 using System.Collections.Generic;
 using MackySoft.SerializeReferenceExtensions.Editor;
 using UnityEditor;
-using UnityEditor.IMGUI.Controls;
 using UnityEditor.UIElements;
-using UnityEditorInternal;
 using UnityEngine;
 using UnityEngine.Scripting.APIUpdating;
 using UnityEngine.UIElements;
@@ -478,134 +476,28 @@ public sealed class ActionDetailsWindow : EditorWindow
         }
 
         PropertyWatch watch = CreateWatch(property, false, false, false);
-        var list = CreateEffectsList(property, watch);
-        Action<SerializedProperty> draw = current =>
-        {
-            list.serializedProperty = current;
-            int previousSize = current.arraySize;
-            Rect header = EditorGUILayout.GetControlRect();
-            using (new EditorGUI.PropertyScope(header, new GUIContent("Effects"), current))
-            {
-                Rect sizeRect = header;
-                sizeRect.xMin = sizeRect.xMax - EditorGUIUtility.fieldWidth;
-                header.xMax = sizeRect.xMin - EditorGUIUtility.standardVerticalSpacing;
-                current.isExpanded = EditorGUI.Foldout(header, current.isExpanded, "Effects", true);
-                EditorGUI.PropertyField(sizeRect, current.FindPropertyRelative("Array.size"), GUIContent.none);
-            }
-            // A direct size edit bypasses the list's own add/remove cache invalidation.
-            if (current.arraySize != previousSize)
-            {
-                int selectedIndex = list.index;
-                list = CreateEffectsList(current, watch);
-                list.index = Mathf.Min(selectedIndex, current.arraySize - 1);
-            }
-            if (current.isExpanded)
-                list.DoLayoutList();
-        };
-        var container = new IMGUIContainer(() => DrawImGuiProperty(watch, "Effects", editable, draw));
+        var list = new EffectListGUI((serializedObject, path, type) =>
+            ApplyEffectTypeSelection(serializedObject, path, type, watch));
+        var container = new IMGUIContainer(() => DrawImGuiProperty(watch, "Effects", editable, list.Draw));
         container.AddToClassList("action-editor-imgui-property");
         parent.Add(container);
     }
 
-    private ReorderableList CreateEffectsList(SerializedProperty property, PropertyWatch watch)
+    private void ApplyEffectTypeSelection(
+        SerializedObject serializedObject, string path, Type type, PropertyWatch watch)
     {
-        // Keep Unity's list controls, but avoid its depth-dependent element label width and padding.
-        var list = new ReorderableList(property.serializedObject, property, true, false, true, true)
-        {
-            headerHeight = 3f,
-        };
-        list.elementHeightCallback = index => GetEffectElementHeight(
-            list.serializedProperty.GetArrayElementAtIndex(index));
-        list.drawElementCallback = (rect, index, active, focused) =>
-        {
-            SerializedProperty element = list.serializedProperty.GetArrayElementAtIndex(index);
-            float previousLabelWidth = EditorGUIUtility.labelWidth;
-            try
-            {
-                rect.y += 1f;
-                rect.height = GetEffectElementHeight(element);
-                using (new EditorGUI.PropertyScope(rect, GUIContent.none, element))
-                {
-                    Rect header = rect;
-                    header.height = EditorGUIUtility.singleLineHeight;
-                    Rect typeRect = header;
-                    typeRect.xMin += EditorStyles.foldout.padding.left;
-                    bool hasType = !string.IsNullOrEmpty(element.managedReferenceFullTypename);
-                    if (hasType)
-                    {
-                        Rect foldout = header;
-                        foldout.width = typeRect.xMin - header.xMin;
-                        element.isExpanded = EditorGUI.Foldout(foldout, element.isExpanded, GUIContent.none, true);
-                    }
-                    if (EditorGUI.DropdownButton(typeRect, GetEffectTypeLabel(element), FocusType.Keyboard))
-                        ShowEffectTypeMenu(typeRect, element, watch);
-
-                    if (hasType && element.isExpanded)
-                    {
-                        // Align immediate fields with the type picker; nested fields retain their own indentation.
-                        EditorGUIUtility.labelWidth = Mathf.Min(180f, typeRect.width * 0.6f);
-                        Rect fieldRect = typeRect;
-                        fieldRect.y += EditorGUIUtility.singleLineHeight;
-                        foreach (SerializedProperty child in element.GetChildProperties())
-                        {
-                            fieldRect.y += EditorGUIUtility.standardVerticalSpacing;
-                            fieldRect.height = EditorGUI.GetPropertyHeight(child, true);
-                            EditorGUI.PropertyField(fieldRect, child, true);
-                            fieldRect.y += fieldRect.height;
-                        }
-                    }
-                }
-            }
-            finally
-            {
-                EditorGUIUtility.labelWidth = previousLabelWidth;
-            }
-        };
-        return list;
-    }
-
-    private static float GetEffectElementHeight(SerializedProperty element)
-    {
-        float height = EditorGUIUtility.singleLineHeight;
-        if (element.isExpanded && !string.IsNullOrEmpty(element.managedReferenceFullTypename))
-        {
-            foreach (SerializedProperty child in element.GetChildProperties())
-                height += EditorGUIUtility.standardVerticalSpacing + EditorGUI.GetPropertyHeight(child, true);
-        }
-        return height;
-    }
-
-    private static GUIContent GetEffectTypeLabel(SerializedProperty element)
-    {
-        Type type = ManagedReferenceUtility.GetType(element.managedReferenceFullTypename);
-        if (type == null)
-            return new GUIContent(TypeMenuUtility.k_NullDisplayName);
-        string name = TypeMenuUtility.GetAttribute(type)?.GetTypeNameWithoutPath();
-        return new GUIContent(ObjectNames.NicifyVariableName(string.IsNullOrWhiteSpace(name) ? type.Name : name));
-    }
-
-    private void ShowEffectTypeMenu(Rect position, SerializedProperty element, PropertyWatch watch)
-    {
-        string path = element.propertyPath;
-        SerializedObject serializedObject = element.serializedObject;
-        var popup = new AdvancedTypePopup(TypeSearch.GetTypes(typeof(ImpactEffectConfig)), 13,
-            new AdvancedDropdownState());
-        popup.OnItemSelected += item =>
-        {
-            if (this == null || watch.Session != _bindingSession || _serializedAction != serializedObject ||
-                ActionEditorInteractionGate.IsActive)
-                return;
-            serializedObject.UpdateIfRequiredOrScript();
-            SerializedProperty current = serializedObject.FindProperty(path);
-            if (current == null)
-                return;
-            current.SetManagedReference(item.Type);
-            current.isExpanded = item.Type != null;
-            if (serializedObject.ApplyModifiedProperties())
-                OnLeafChanged(watch);
-            Repaint();
-        };
-        popup.Show(position);
+        if (this == null || watch.Session != _bindingSession || _serializedAction != serializedObject ||
+            ActionEditorInteractionGate.IsActive)
+            return;
+        serializedObject.UpdateIfRequiredOrScript();
+        SerializedProperty current = serializedObject.FindProperty(path);
+        if (current == null)
+            return;
+        current.SetManagedReference(type);
+        current.isExpanded = type != null;
+        if (serializedObject.ApplyModifiedProperties())
+            OnLeafChanged(watch);
+        Repaint();
     }
 
     private void DrawHitBoxAnchorDiagnostic(VisualElement parent, ActionHitBoxAnchor anchor)
