@@ -4,6 +4,18 @@ using UnityEngine;
 public sealed class PlayerInputOwnershipTests
 {
     [Test]
+    public void PlayerResolver_DiagonalInputProducesValidStrength()
+    {
+        var resolver = new PlayerLocomotionIntentResolver();
+        LocomotionIntent intent = resolver.Resolve(null, null, new Vector2(0.707107f, 0.707107f));
+
+        Assert.That(intent.MoveStrength, Is.EqualTo(1f));
+        Assert.That(intent.WorldMoveDirection.x, Is.GreaterThan(0f));
+        Assert.That(intent.WorldMoveDirection.z, Is.GreaterThan(0f));
+        Assert.DoesNotThrow(() => new LocomotionIntentBuffer().Submit(intent));
+    }
+
+    [Test]
     public void PlayerResolver_ProducesNormalizedLocomotionIntentFromRawMove()
     {
         var owner = new GameObject("PlayerInputOwnershipTests Actor");

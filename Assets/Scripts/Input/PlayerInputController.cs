@@ -512,7 +512,7 @@ internal sealed class PlayerLocomotionIntentResolver
         return new LocomotionIntent
         {
             WorldMoveDirection = worldDir,
-            MoveStrength = move.magnitude,
+            MoveStrength = Mathf.Clamp01(move.magnitude),
             FacingDirection = hasHardLockFacing ? hardLockFacing : worldDir,
         };
     }
