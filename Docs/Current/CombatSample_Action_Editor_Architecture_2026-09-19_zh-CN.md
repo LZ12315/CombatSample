@@ -1,6 +1,6 @@
 # Action 编辑与播放正式架构
 
-状态：当前仓库实现说明。更新于 2026-09-24。旧 V1、ActionSequence 和 Unity Timeline Action 文档均为历史记录。
+状态：当前仓库实现说明。更新于 2026-09-28。旧 V1、ActionSequence 和 Unity Timeline Action 文档均为历史记录。
 
 ## 1. 唯一路径
 
@@ -25,10 +25,12 @@ Action 已不再选择播放后端。每个 ActionAsset 都保存一份 ActionTi
 - 创建：Assets/Create/CombatSample/Action/Action。在当前 Project 目录直接创建 New Action.asset。
 - 打开：双击任意 ActionAsset 或在 Inspector 点击 Open Action Timeline。
 - 工具：Tools/CombatSample/Action Timeline。
+- 属性与预览：Tools/CombatSample/Action Details，或从 Timeline 的条目打开。
 - Inspector：编辑 Action 的播放设置、触发、条件、取消规则与自身标签。
 - Timeline：编排动画段与 Gameplay Item，控制编辑器时间和播放。
-- Details：编辑 Timeline 当前主选择的内容。
-- Preview：读取 Timeline 的 Action 与连续时间，只负责视觉求值和预览资源。
+- Details：左侧编辑 Timeline 当前主选择的内容，右侧 Preview 读取同一 Action 与连续时间，只负责视觉求值和预览资源。
+
+编辑器只有 Timeline 和 Details 两个窗口，均可独立停靠。Details 默认按 40% / 60% 左右分栏，可拖动中间分隔条；比例按当前项目保存在本机，窗口缩放时按比例调整，并保留左右最小宽度 300px / 320px。左侧独立滚动，窄布局根据左面板宽度判断；右侧保留 Preview Settings 和相机操作，不再提供独立 Preview 窗口。
 
 不存在 Legacy 创建菜单、旧编辑器路由、PlayableDirector 绑定或后端切换入口。
 
@@ -54,11 +56,13 @@ Action 已不再选择播放后端。每个 ActionAsset 都保存一份 ActionTi
 | ActionEditorCommands / ActionEditorOperations | Undo、写入、重叠和时间规则 |
 | ActionAssetInspector | Action 资产级属性 |
 | ActionTimelineWindow | 时间编排、选择和编辑器播放控制 |
-| ActionDetailsWindow | 轨道、动画段和 Item 属性 |
-| ActionPreviewWindow | 视觉求值、相机和预览资源生命周期 |
+| ActionDetailsWindow | 轨道、动画段和 Item 属性，以及内嵌预览面板的通知和生命周期管理 |
+| ActionPreviewPanel / ActionPreviewRenderer | 内嵌预览界面、相机操作、视觉求值和预览资源 |
 | ActionRuntimePlaybackSession | 固定帧播放管线与 ActionRuntime 的衔接 |
 
 窗口刷新不修改共享状态；Preview 不控制 Action 或播放。
+
+Details 在刷新属性页之前转发预览通知；播放头更新只重绘预览，不重建属性控件。分隔条调整不写资产、不产生 Undo，也不丢弃未提交的 Timing 草稿。预览相机和设置折叠状态由 Details 序列化保存；关闭窗口或脚本重载时释放资源，进入 Play Mode 时释放预览对象，失焦或面板卸载时结束相机拖动。旧独立 Preview 窗口的布局和相机状态不迁移。
 
 Preview 的整数 Frame N 表示 Runtime 第 N 帧位移提交后的 Hit 阶段画面：Pose 在 N 的时间采样，角色和生效 HitBox 共享帧后世界位置。小数 PreviewPosition 仅在相邻帧后位置之间做视觉插值；Duration 终点显示最终位移，HitBox 已结束。Preview 不复现碰撞后的实际世界运动或完整 gameplay replay。
 
@@ -73,8 +77,8 @@ Preview 的整数 Frame N 表示 Runtime 第 N 帧位移提交后的 Hit 阶段�
         Playback/           播放接口与 ActionRuntimePlaybackSession
       Editor/
         Core/               Context、Document、Commands、Operations、Playback、Presentation
-        Windows/            Timeline、Details、Preview
-        Preview/            空间求值
+        Windows/            Timeline、Details
+        Preview/            内嵌预览面板、渲染器与空间求值
         Styles/             USS
         ActionAssetInspector.cs
         ActionAssetCreator.cs
@@ -89,6 +93,12 @@ HitBox 的正式绑定使用 ActionHitBoxAnchor。旧 BoneReference、旧 Playab
 新 AnimationAsset / AnimationRigAsset 位于 `Assets/Create/AnimationAsset/`；`Assets/Create/Test/` 保存 TestAction 与临时 Locomotion 配置。Action List、行为图分别归于 `Assets/Create/ActionList/`、`Assets/Create/Graph/`。这些资源的版本提交与系统代码基线分开，旧资源不作为兼容输入。
 
 ## 6. 验证
+
+2026-09-28 Details / Preview 窗口合并：
+
+- 使用 Unity 2022.3 自带 Roslyn 编译当前 Runtime 120 个源码及 Editor / 测试 38 个源码，输出仅写入临时目录：0 error，Runtime 有 30 个既有警告，Editor / 测试无警告。
+- 预览输入、渲染器、相机工具及空间求值逻辑保持原实现；已有预览失效策略测试只迁移面板类型引用。正式源码和当前文档中独立 Preview 窗口引用已清除。
+- 本轮未执行 EditMode 测试，项目负责人选择自行测试。待 Unity 内确认：停靠与分隔条拖动、缩放时限宽及比例恢复、左侧窄布局和草稿 / 焦点保持、右侧动画与 HitBox 和相机操作，以及脚本重载和 Play Mode 切换时的资源释放。
 
 2026-09-24 静态复核与编译：
 

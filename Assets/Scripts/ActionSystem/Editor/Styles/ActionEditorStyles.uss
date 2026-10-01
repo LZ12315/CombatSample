@@ -390,11 +390,16 @@
 .action-editor-empty-title { font-size: 16px; -unity-font-style: bold; margin-bottom: 7px; }
 .action-editor-empty-body { max-width: 440px; white-space: normal; -unity-text-align: upper-center; color: var(--action-secondary-text); }
 
-.action-editor-details-scroll { flex-grow: 1; }
+.action-editor-details-split { flex-grow: 1; min-height: 0; overflow: hidden; }
+.action-editor-details-pane { min-width: 300px; min-height: 0; overflow: hidden; }
+.action-editor-preview-panel { min-width: 320px; min-height: 0; flex-grow: 1; padding: 4px; overflow: hidden; }
+.action-editor-details-scroll { flex-grow: 1; min-height: 0; }
 .action-editor-details-center { width: 100%; max-width: 720px; min-height: 100%; flex-grow: 1; align-self: center; padding: 14px 18px 24px 18px; }
+.action-editor-details-narrow .action-editor-details-center { padding-left: 8px; padding-right: 8px; }
 .action-editor-details-heading { font-size: 17px; -unity-font-style: bold; margin-bottom: 2px; }
-.action-editor-details-subtitle { color: var(--action-secondary-text); margin-bottom: 12px; }
+.action-editor-details-subtitle { color: var(--action-secondary-text); margin-bottom: 12px; white-space: normal; }
 .action-editor-section { margin-bottom: 10px; padding: 10px; }
+.action-editor-details-narrow .action-editor-section { padding-left: 6px; padding-right: 6px; }
 .action-editor-details-window .action-editor-section {
     background-color: var(--action-track);
     border-width: 1px;
@@ -408,12 +413,32 @@
 .action-editor-details-narrow .action-editor-readonly-row { flex-direction: column; }
 .action-editor-details-narrow .action-editor-readonly-label { width: auto; margin-bottom: 2px; }
 .action-editor-selection-summary { min-height: 26px; padding-left: 18px; padding-right: 18px; color: var(--action-secondary-text); background-color: var(--action-surface); border-bottom-width: 1px; border-bottom-color: var(--action-border); -unity-text-align: middle-left; }
+.action-editor-details-narrow .action-editor-selection-summary { padding: 4px 8px; white-space: normal; }
 .action-editor-local-issue { margin-top: 4px; padding: 7px; white-space: normal; color: rgb(228, 178, 180); background-color: rgb(62, 42, 45); border-left-width: 2px; border-left-color: rgb(176, 78, 83); }
 .action-editor-local-setup { margin-top: 4px; padding: 7px; white-space: normal; color: rgb(218, 201, 159); background-color: rgb(56, 51, 39); border-left-width: 2px; border-left-color: rgb(150, 116, 53); }
 .action-editor-edit-field { margin-top: 2px; margin-bottom: 3px; }
 .action-editor-edit-field > .unity-base-field__label { width: 170px; min-width: 170px; }
-.action-editor-details-narrow .action-editor-edit-field { flex-direction: column; align-items: stretch; }
-.action-editor-details-narrow .action-editor-edit-field > .unity-base-field__label { width: auto; min-width: 0; margin-bottom: 3px; }
+/* PropertyField wraps its BaseField. Keep these selectors above the XYZ component fields. */
+.action-editor-details-narrow .action-editor-edit-field,
+.action-editor-details-narrow .action-editor-edit-field > .unity-base-field {
+    flex-direction: column;
+    align-items: stretch;
+    height: auto;
+}
+.action-editor-details-narrow .action-editor-edit-field > .unity-base-field__label,
+.action-editor-details-narrow .action-editor-edit-field > .unity-base-field > .unity-base-field__label {
+    width: auto;
+    min-width: 0;
+    margin-bottom: 3px;
+    white-space: normal;
+}
+.action-editor-details-narrow .action-editor-edit-field > .unity-base-field__input,
+.action-editor-details-narrow .action-editor-edit-field > .unity-base-field > .unity-base-field__input {
+    min-width: 0;
+    flex-grow: 0;
+    flex-basis: auto;
+    align-self: stretch;
+}
 .action-editor-nested-card { margin-top: 5px; padding: 7px; }
 .action-editor-details-window .action-editor-nested-card {
     background-color: var(--action-surface);

@@ -3,16 +3,18 @@ using System;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
-using UnityEngine.Scripting.APIUpdating;
+using UnityEngine.UIElements;
 using UnityEngine.Animations;
 using UnityEngine.Playables;
 using UnityEngine.Rendering;
 
 /// <summary>Visual evaluator for the shared Action editor time. It does not run gameplay.</summary>
-[MovedFrom(true, sourceNamespace: "", sourceAssembly: "Assembly-CSharp-Editor", sourceClassName: "ActionV1PreviewWindow")]
-public sealed class ActionPreviewWindow : EditorWindow
+[Serializable]
+internal sealed class ActionPreviewPanel : IDisposable
 {
     [NonSerialized] private ActionPreviewRenderer _renderer;
+    [NonSerialized] private IMGUIContainer _view;
+    [NonSerialized] private int _cameraControlId;
     [SerializeField] private Vector2 _orbit = new Vector2(135f, 15f);
     [SerializeField] private float _distance = 3f;
     [SerializeField] private Vector3 _cameraTarget = new Vector3(0f, 1f, 0f);
@@ -24,34 +26,30 @@ public sealed class ActionPreviewWindow : EditorWindow
     private ActionAsset _observedAction;
     private GameObject _observedPreviewCharacter;
 
-    private static void OpenFromMenu() => OpenShared();
-
-    public static void OpenShared()
+    internal IMGUIContainer CreateView()
     {
-        ActionPreviewWindow window = GetWindow<ActionPreviewWindow>();
-        window.titleContent = new GUIContent("Action Preview");
-        window.minSize = new Vector2(420f, 320f);
-        window.Show();
+        CancelCameraInteraction();
+        var view = new IMGUIContainer(Draw);
+        view.AddToClassList("action-editor-preview-panel");
+        view.RegisterCallback<DetachFromPanelEvent>(_ =>
+        {
+            if (_view == view) CancelCameraInteraction();
+        });
+        _view = view;
+        return view;
     }
 
-    private void OnEnable()
+    public void Dispose()
     {
-        titleContent = new GUIContent("Action Preview");
-        if (_renderer == null) _renderer = new ActionPreviewRenderer();
-        ActionEditorContext.Changed += OnContextChanged;
-        EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
-    }
-
-    private void OnDisable()
-    {
-        OnLostFocus();
-        ActionEditorContext.Changed -= OnContextChanged;
-        EditorApplication.playModeStateChanged -= OnPlayModeStateChanged;
+        CancelCameraInteraction();
         _renderer?.Dispose();
         _renderer = null;
+        _view = null;
     }
 
-    private void OnGUI()
+    private void Repaint() => _view?.MarkDirtyRepaint();
+
+    private void Draw()
     {
         if (_renderer == null) _renderer = new ActionPreviewRenderer();
         DrawPreviewSettings();
@@ -96,6 +94,7 @@ public sealed class ActionPreviewWindow : EditorWindow
     private void HandleCameraInput(Rect rect)
     {
         Event evt = Event.current;
+        int controlId = GUIUtility.GetControlID(FocusType.Passive);
         if (!rect.Contains(evt.mousePosition) && !_orbiting && !_panning) return;
         if (evt.type == EventType.ScrollWheel && rect.Contains(evt.mousePosition))
         {
@@ -105,6 +104,8 @@ public sealed class ActionPreviewWindow : EditorWindow
         }
         else if (evt.type == EventType.MouseDown && rect.Contains(evt.mousePosition) && (evt.button == 0 || evt.button == 2))
         {
+            _cameraControlId = controlId;
+            GUIUtility.hotControl = controlId;
             _orbiting = evt.button == 0 && !evt.shift;
             _panning = evt.button == 2 || evt.shift;
             _lastMouse = evt.mousePosition;
@@ -130,14 +131,16 @@ public sealed class ActionPreviewWindow : EditorWindow
         }
         else if (evt.type == EventType.MouseUp && (_orbiting || _panning))
         {
-            _orbiting = false;
-            _panning = false;
+            CancelCameraInteraction();
             evt.Use();
         }
     }
 
-    private void OnLostFocus()
+    internal void CancelCameraInteraction()
     {
+        if (_cameraControlId != 0 && GUIUtility.hotControl == _cameraControlId)
+            GUIUtility.hotControl = 0;
+        _cameraControlId = 0;
         _orbiting = false;
         _panning = false;
     }
@@ -152,7 +155,7 @@ public sealed class ActionPreviewWindow : EditorWindow
         _initialFramingRequested = true;
     }
 
-    private void OnContextChanged(ActionEditorChange change)
+    internal void OnContextChanged(ActionEditorChange change)
     {
         ActionEditorChangeFlags flags = change.Flags;
         if ((flags & ActionEditorChangeFlags.PreviewResources) != 0)
@@ -175,12 +178,13 @@ public sealed class ActionPreviewWindow : EditorWindow
                   ActionEditorChangeFlags.PreviewCharacter |
                   ActionEditorChangeFlags.PreviewResources)) != 0;
 
-    private void OnPlayModeStateChanged(PlayModeStateChange state)
+    internal void OnPlayModeStateChanged(PlayModeStateChange state)
     {
         if (state == PlayModeStateChange.ExitingEditMode || state == PlayModeStateChange.EnteredPlayMode)
         {
-            OnLostFocus();
+            CancelCameraInteraction();
             _renderer?.Dispose();
+            _renderer = null;
         }
         Repaint();
     }

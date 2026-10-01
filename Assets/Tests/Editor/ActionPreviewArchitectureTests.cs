@@ -87,8 +87,8 @@ public sealed class ActionPreviewArchitectureTests
             Assert.AreEqual(1, notifications);
             Assert.AreEqual(ActionEditorChangeFlags.Presentation, observed.Flags);
             Assert.IsTrue(ActionEditorPlayback.IsPlaying);
-            Assert.IsFalse(ActionPreviewWindow.RequiresDataInvalidation(observed.Flags));
-            Assert.IsFalse(ActionPreviewWindow.RequiresRepaint(observed.Flags));
+            Assert.IsFalse(ActionPreviewPanel.RequiresDataInvalidation(observed.Flags));
+            Assert.IsFalse(ActionPreviewPanel.RequiresRepaint(observed.Flags));
             Assert.AreEqual("Renamed Externally", context.Document.Lanes[0].LaneName);
         }
         finally
@@ -132,7 +132,7 @@ public sealed class ActionPreviewArchitectureTests
                 observed.Flags & (ActionEditorChangeFlags.Structure |
                                   ActionEditorChangeFlags.Timing |
                                   ActionEditorChangeFlags.PreviewResources));
-            Assert.IsTrue(ActionPreviewWindow.RequiresDataInvalidation(observed.Flags));
+            Assert.IsTrue(ActionPreviewPanel.RequiresDataInvalidation(observed.Flags));
         }
         finally
         {
@@ -365,7 +365,7 @@ public sealed class ActionPreviewArchitectureTests
                 observed.Flags & ActionEditorChangeFlags.Presentation);
             Assert.AreNotEqual(ActionEditorChangeFlags.None,
                 observed.Flags & ActionEditorChangeFlags.Content);
-            Assert.IsTrue(ActionPreviewWindow.RequiresDataInvalidation(observed.Flags));
+            Assert.IsTrue(ActionPreviewPanel.RequiresDataInvalidation(observed.Flags));
             Assert.AreEqual("Renamed Lane", context.Document.Lanes[0].LaneName);
             context.RefreshExternal(ActionEditorChangeOrigin.ObjectChange);
             Assert.AreEqual(1, notifications);
@@ -1153,7 +1153,7 @@ public sealed class ActionPreviewArchitectureTests
             notifications++;
             Assert.AreEqual(ActionEditorChangeFlags.Presentation, change.Flags);
             Assert.AreEqual("Renamed Animation", context.Document.AnimationSegments[0].DisplayName);
-            Assert.IsFalse(ActionPreviewWindow.RequiresDataInvalidation(change.Flags));
+            Assert.IsFalse(ActionPreviewPanel.RequiresDataInvalidation(change.Flags));
         }
         try
         {

@@ -1,13 +1,16 @@
 #if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
+using MackySoft.SerializeReferenceExtensions.Editor;
 using UnityEditor;
+using UnityEditor.IMGUI.Controls;
 using UnityEditor.UIElements;
+using UnityEditorInternal;
 using UnityEngine;
 using UnityEngine.Scripting.APIUpdating;
 using UnityEngine.UIElements;
 
-/// <summary>Primary-selection property editor for Action authoring.</summary>
+/// <summary>Primary-selection property editor and visual preview for Action authoring.</summary>
 [MovedFrom(true, sourceNamespace: "", sourceAssembly: "Assembly-CSharp-Editor", sourceClassName: "ActionV1DetailsWindow")]
 public sealed class ActionDetailsWindow : EditorWindow
 {
@@ -41,6 +44,10 @@ public sealed class ActionDetailsWindow : EditorWindow
     }
 
     [SerializeField] private float _savedScrollY;
+    [SerializeField] private ActionPreviewPanel _previewPanel = new ActionPreviewPanel();
+    private float _splitRatio;
+    private ActionDetailsSplitView _splitView;
+    private VisualElement _detailsPane;
     private ActionEditorDocument _document;
     private SerializedObject _serializedAction;
     private Label _selectionSummary;
@@ -64,6 +71,7 @@ public sealed class ActionDetailsWindow : EditorWindow
     private Quaternion _hitBoxRotationSource;
     private Vector3 _hitBoxRotationEuler;
 
+    [MenuItem("Tools/CombatSample/Action Details")]
     public static void OpenFromMenu()
     {
         OpenShared();
@@ -82,33 +90,48 @@ public sealed class ActionDetailsWindow : EditorWindow
 
     private void OnEnable()
     {
+        titleContent = new GUIContent("Action Details");
+        minSize = new Vector2(760f, 360f);
+        _splitRatio = EditorPrefs.GetFloat(SplitRatioPreferenceKey, 0.4f);
+        if (float.IsNaN(_splitRatio) || float.IsInfinity(_splitRatio) || _splitRatio <= 0f || _splitRatio >= 1f)
+            _splitRatio = 0.4f;
+        if (_previewPanel == null) _previewPanel = new ActionPreviewPanel();
         ActionEditorContext.Changed += OnContextChanged;
         ActionEditorInteractionGate.Changed += OnInteractionGateChanged;
+        EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
     }
 
     private void OnDisable()
     {
         SaveScroll();
+        _splitView?.FinishResize();
         DiscardDraft();
         ActionEditorContext.Changed -= OnContextChanged;
         ActionEditorInteractionGate.Changed -= OnInteractionGateChanged;
+        EditorApplication.playModeStateChanged -= OnPlayModeStateChanged;
+        _previewPanel?.Dispose();
     }
 
     public void CreateGUI()
     {
+        SaveScroll();
+        _splitView?.FinishResize();
         rootVisualElement.Clear();
         ActionEditorTheme.Apply(rootVisualElement, "action-editor-details-window");
-        rootVisualElement.RegisterCallback<GeometryChangedEvent>(OnGeometryChanged);
         rootVisualElement.Add(ActionEditorChrome.ContextBar(
             ActionEditorContext.Shared.CurrentAction,
             null,
             ("Select Asset", SelectCurrentActionAsset),
-            ("Timeline", ActionTimelineWindow.OpenShared),
-            ("Preview", ActionPreviewWindow.OpenShared)));
+            ("Timeline", ActionTimelineWindow.OpenShared)));
+
+        _splitView = new ActionDetailsSplitView(_splitRatio, SaveSplitRatio);
+        _detailsPane = new VisualElement();
+        _detailsPane.AddToClassList("action-editor-details-pane");
+        _detailsPane.RegisterCallback<GeometryChangedEvent>(OnGeometryChanged);
 
         _selectionSummary = new Label();
         _selectionSummary.AddToClassList("action-editor-selection-summary");
-        rootVisualElement.Add(_selectionSummary);
+        _detailsPane.Add(_selectionSummary);
 
         _scroll = new ScrollView(ScrollViewMode.Vertical);
         _scroll.AddToClassList("action-editor-details-scroll");
@@ -116,7 +139,11 @@ public sealed class ActionDetailsWindow : EditorWindow
         _content = new VisualElement();
         _content.AddToClassList("action-editor-details-center");
         _scroll.Add(_content);
-        rootVisualElement.Add(_scroll);
+        _detailsPane.Add(_scroll);
+        _splitView.Add(_detailsPane);
+        if (_previewPanel == null) _previewPanel = new ActionPreviewPanel();
+        _splitView.Add(_previewPanel.CreateView());
+        rootVisualElement.Add(_splitView);
         OnInteractionGateChanged();
         RefreshDocumentAndPage(true);
     }
@@ -439,7 +466,146 @@ public sealed class ActionDetailsWindow : EditorWindow
         AddSubheading(parent, "Attack Data");
         AddImGuiProperty(parent, config.FindPropertyRelative("dataConfig"), "Attack Data", editable);
         AddSubheading(parent, "Effects");
-        AddImGuiProperty(parent, config.FindPropertyRelative("effects"), "Effects", editable);
+        AddEffectsList(parent, config.FindPropertyRelative("effects"), editable);
+    }
+
+    private void AddEffectsList(VisualElement parent, SerializedProperty property, bool editable)
+    {
+        if (property == null)
+        {
+            AddParagraph(parent, "Serialized field 'Effects' is unavailable.", "action-editor-local-issue");
+            return;
+        }
+
+        PropertyWatch watch = CreateWatch(property, false, false, false);
+        var list = CreateEffectsList(property, watch);
+        Action<SerializedProperty> draw = current =>
+        {
+            list.serializedProperty = current;
+            int previousSize = current.arraySize;
+            Rect header = EditorGUILayout.GetControlRect();
+            using (new EditorGUI.PropertyScope(header, new GUIContent("Effects"), current))
+            {
+                Rect sizeRect = header;
+                sizeRect.xMin = sizeRect.xMax - EditorGUIUtility.fieldWidth;
+                header.xMax = sizeRect.xMin - EditorGUIUtility.standardVerticalSpacing;
+                current.isExpanded = EditorGUI.Foldout(header, current.isExpanded, "Effects", true);
+                EditorGUI.PropertyField(sizeRect, current.FindPropertyRelative("Array.size"), GUIContent.none);
+            }
+            // A direct size edit bypasses the list's own add/remove cache invalidation.
+            if (current.arraySize != previousSize)
+            {
+                int selectedIndex = list.index;
+                list = CreateEffectsList(current, watch);
+                list.index = Mathf.Min(selectedIndex, current.arraySize - 1);
+            }
+            if (current.isExpanded)
+                list.DoLayoutList();
+        };
+        var container = new IMGUIContainer(() => DrawImGuiProperty(watch, "Effects", editable, draw));
+        container.AddToClassList("action-editor-imgui-property");
+        parent.Add(container);
+    }
+
+    private ReorderableList CreateEffectsList(SerializedProperty property, PropertyWatch watch)
+    {
+        // Keep Unity's list controls, but avoid its depth-dependent element label width and padding.
+        var list = new ReorderableList(property.serializedObject, property, true, false, true, true)
+        {
+            headerHeight = 3f,
+        };
+        list.elementHeightCallback = index => GetEffectElementHeight(
+            list.serializedProperty.GetArrayElementAtIndex(index));
+        list.drawElementCallback = (rect, index, active, focused) =>
+        {
+            SerializedProperty element = list.serializedProperty.GetArrayElementAtIndex(index);
+            float previousLabelWidth = EditorGUIUtility.labelWidth;
+            try
+            {
+                rect.y += 1f;
+                rect.height = GetEffectElementHeight(element);
+                using (new EditorGUI.PropertyScope(rect, GUIContent.none, element))
+                {
+                    Rect header = rect;
+                    header.height = EditorGUIUtility.singleLineHeight;
+                    Rect typeRect = header;
+                    typeRect.xMin += EditorStyles.foldout.padding.left;
+                    bool hasType = !string.IsNullOrEmpty(element.managedReferenceFullTypename);
+                    if (hasType)
+                    {
+                        Rect foldout = header;
+                        foldout.width = typeRect.xMin - header.xMin;
+                        element.isExpanded = EditorGUI.Foldout(foldout, element.isExpanded, GUIContent.none, true);
+                    }
+                    if (EditorGUI.DropdownButton(typeRect, GetEffectTypeLabel(element), FocusType.Keyboard))
+                        ShowEffectTypeMenu(typeRect, element, watch);
+
+                    if (hasType && element.isExpanded)
+                    {
+                        // Align immediate fields with the type picker; nested fields retain their own indentation.
+                        EditorGUIUtility.labelWidth = Mathf.Min(180f, typeRect.width * 0.6f);
+                        Rect fieldRect = typeRect;
+                        fieldRect.y += EditorGUIUtility.singleLineHeight;
+                        foreach (SerializedProperty child in element.GetChildProperties())
+                        {
+                            fieldRect.y += EditorGUIUtility.standardVerticalSpacing;
+                            fieldRect.height = EditorGUI.GetPropertyHeight(child, true);
+                            EditorGUI.PropertyField(fieldRect, child, true);
+                            fieldRect.y += fieldRect.height;
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                EditorGUIUtility.labelWidth = previousLabelWidth;
+            }
+        };
+        return list;
+    }
+
+    private static float GetEffectElementHeight(SerializedProperty element)
+    {
+        float height = EditorGUIUtility.singleLineHeight;
+        if (element.isExpanded && !string.IsNullOrEmpty(element.managedReferenceFullTypename))
+        {
+            foreach (SerializedProperty child in element.GetChildProperties())
+                height += EditorGUIUtility.standardVerticalSpacing + EditorGUI.GetPropertyHeight(child, true);
+        }
+        return height;
+    }
+
+    private static GUIContent GetEffectTypeLabel(SerializedProperty element)
+    {
+        Type type = ManagedReferenceUtility.GetType(element.managedReferenceFullTypename);
+        if (type == null)
+            return new GUIContent(TypeMenuUtility.k_NullDisplayName);
+        string name = TypeMenuUtility.GetAttribute(type)?.GetTypeNameWithoutPath();
+        return new GUIContent(ObjectNames.NicifyVariableName(string.IsNullOrWhiteSpace(name) ? type.Name : name));
+    }
+
+    private void ShowEffectTypeMenu(Rect position, SerializedProperty element, PropertyWatch watch)
+    {
+        string path = element.propertyPath;
+        SerializedObject serializedObject = element.serializedObject;
+        var popup = new AdvancedTypePopup(TypeSearch.GetTypes(typeof(ImpactEffectConfig)), 13,
+            new AdvancedDropdownState());
+        popup.OnItemSelected += item =>
+        {
+            if (this == null || watch.Session != _bindingSession || _serializedAction != serializedObject ||
+                ActionEditorInteractionGate.IsActive)
+                return;
+            serializedObject.UpdateIfRequiredOrScript();
+            SerializedProperty current = serializedObject.FindProperty(path);
+            if (current == null)
+                return;
+            current.SetManagedReference(item.Type);
+            current.isExpanded = item.Type != null;
+            if (serializedObject.ApplyModifiedProperties())
+                OnLeafChanged(watch);
+            Repaint();
+        };
+        popup.Show(position);
     }
 
     private void DrawHitBoxAnchorDiagnostic(VisualElement parent, ActionHitBoxAnchor anchor)
@@ -849,7 +1015,8 @@ public sealed class ActionDetailsWindow : EditorWindow
         };
     }
 
-    private void DrawImGuiProperty(PropertyWatch watch, string label, bool editable)
+    private void DrawImGuiProperty(PropertyWatch watch, string label, bool editable,
+        Action<SerializedProperty> drawProperty = null)
     {
         if (watch == null || watch.Session != _bindingSession || _serializedAction == null)
             return;
@@ -862,7 +1029,10 @@ public sealed class ActionDetailsWindow : EditorWindow
         }
         EditorGUI.BeginDisabledGroup(!editable || ActionEditorInteractionGate.IsActive);
         EditorGUI.BeginChangeCheck();
-        EditorGUILayout.PropertyField(property, new GUIContent(label), true);
+        if (drawProperty == null)
+            EditorGUILayout.PropertyField(property, new GUIContent(label), true);
+        else
+            drawProperty(property);
         bool changed = EditorGUI.EndChangeCheck();
         EditorGUI.EndDisabledGroup();
         if (changed)
@@ -994,6 +1164,7 @@ public sealed class ActionDetailsWindow : EditorWindow
 
     private void OnContextChanged(ActionEditorChange change)
     {
+        _previewPanel?.OnContextChanged(change);
         ActionEditorChangeFlags flags = change.Flags;
         if ((flags & (ActionEditorChangeFlags.Context | ActionEditorChangeFlags.Structure |
                       ActionEditorChangeFlags.Timing)) != 0)
@@ -1043,9 +1214,20 @@ public sealed class ActionDetailsWindow : EditorWindow
     private void OnGeometryChanged(GeometryChangedEvent evt)
     {
         bool narrow = evt.newRect.width < 520f;
-        rootVisualElement.EnableInClassList("action-editor-details-narrow", narrow);
-        rootVisualElement.EnableInClassList("action-editor-compact", narrow);
+        _detailsPane.EnableInClassList("action-editor-details-narrow", narrow);
     }
+
+    private static string SplitRatioPreferenceKey => "CombatSample.ActionDetails.SplitRatio." + Application.dataPath;
+
+    private void SaveSplitRatio(float ratio)
+    {
+        _splitRatio = ratio;
+        EditorPrefs.SetFloat(SplitRatioPreferenceKey, ratio);
+    }
+
+    private void OnLostFocus() => _previewPanel?.CancelCameraInteraction();
+
+    private void OnPlayModeStateChanged(PlayModeStateChange state) => _previewPanel?.OnPlayModeStateChanged(state);
 
     private void SaveScroll()
     {
@@ -1060,5 +1242,100 @@ public sealed class ActionDetailsWindow : EditorWindow
     private static bool SameSelection(ActionSelectionValue left, ActionSelectionValue right) =>
         left.Kind == right.Kind && string.Equals(left.EditorId, right.EditorId, StringComparison.Ordinal);
     private static string ObjectName(UnityEngine.Object value) => value != null ? value.name : "None";
+}
+
+/// <summary>Keeps the user's preferred proportion separate from temporary minimum-width constraints.</summary>
+internal sealed class ActionDetailsSplitView : TwoPaneSplitView
+{
+    private const float MinDetailsWidth = 300f;
+    private const float MinPreviewWidth = 320f;
+    private readonly Action<float> _saveRatio;
+    private readonly VisualElement _dragHandle;
+    private IVisualElementScheduledItem _layoutUpdate;
+    private float _ratio;
+    private int _dragPointer = -1;
+    private float _dragStartWidth;
+    private bool _hostResizedDuringDrag;
+
+    internal ActionDetailsSplitView(float ratio, Action<float> saveRatio)
+        : base(0, MinDetailsWidth, TwoPaneSplitViewOrientation.Horizontal)
+    {
+        _ratio = ratio;
+        _saveRatio = saveRatio;
+        AddToClassList("action-editor-details-split");
+        // Observe the native splitter's gesture; its manipulator continues to own dragging and capture.
+        _dragHandle = this.Q<VisualElement>("unity-dragline-anchor");
+        RegisterCallback<PointerDownEvent>(OnPointerDown, TrickleDown.TrickleDown);
+        RegisterCallback<PointerUpEvent>(OnPointerUp, TrickleDown.TrickleDown);
+        RegisterCallback<PointerCaptureOutEvent>(OnPointerCaptureOut, TrickleDown.TrickleDown);
+        RegisterCallback<GeometryChangedEvent>(OnSizeChanged);
+        RegisterCallback<DetachFromPanelEvent>(_ => FinishResize());
+    }
+
+    private float DetailsWidth => fixedPane == null ? MinDetailsWidth : fixedPane.style.width.value.value;
+
+    private void OnPointerDown(PointerDownEvent evt)
+    {
+        if (evt.button != 0 || !(evt.target is VisualElement target) ||
+            (target != _dragHandle && !_dragHandle.Contains(target)))
+            return;
+        _dragPointer = evt.pointerId;
+        _dragStartWidth = DetailsWidth;
+        _hostResizedDuringDrag = false;
+    }
+
+    private void OnPointerUp(PointerUpEvent evt)
+    {
+        if (evt.pointerId == _dragPointer && evt.button == 0)
+            FinishResize();
+    }
+
+    private void OnPointerCaptureOut(PointerCaptureOutEvent evt)
+    {
+        if (evt.pointerId == _dragPointer && evt.target == _dragHandle)
+            FinishResize();
+    }
+
+    internal void FinishResize()
+    {
+        if (_dragPointer < 0)
+            return;
+        _dragPointer = -1;
+        if (!_hostResizedDuringDrag && layout.width > 0f && !Mathf.Approximately(DetailsWidth, _dragStartWidth))
+        {
+            _ratio = Mathf.Clamp01(DetailsWidth / layout.width);
+            _saveRatio(_ratio);
+        }
+        QueueLayoutUpdate();
+    }
+
+    private void OnSizeChanged(GeometryChangedEvent evt)
+    {
+        if (Mathf.Approximately(evt.newRect.width, evt.oldRect.width))
+            return;
+        // Resizing the host is not a new user preference, even when the native splitter clamps a pane.
+        if (_dragPointer >= 0) _hostResizedDuringDrag = true;
+        QueueLayoutUpdate();
+    }
+
+    private void QueueLayoutUpdate()
+    {
+        _layoutUpdate?.Pause();
+        // Run after the native split view has processed its own geometry callbacks.
+        _layoutUpdate = schedule.Execute(ApplyRatio);
+    }
+
+    private void ApplyRatio()
+    {
+        if (_dragPointer >= 0 || fixedPane == null || layout.width <= 0f)
+            return;
+        fixedPane.style.minWidth = MinDetailsWidth;
+        flexedPane.style.minWidth = MinPreviewWidth;
+        float width = Mathf.Clamp(layout.width * _ratio, MinDetailsWidth,
+            Mathf.Max(MinDetailsWidth, layout.width - MinPreviewWidth));
+        fixedPaneInitialDimension = width;
+        fixedPane.style.width = width;
+        _dragHandle.style.left = width;
+    }
 }
 #endif
