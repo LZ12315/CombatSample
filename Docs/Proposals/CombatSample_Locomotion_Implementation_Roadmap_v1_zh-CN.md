@@ -18,7 +18,7 @@ LocomotionRuntime
     → ActorAnimation Layer 0
 ```
 
-保持 Action Layer 1、Motion Policy、Velocity/RootMotion owner、KCC 和 Motor 仲裁的既有权威。正式角色使用同一套运行逻辑；素材不足记录为制作缺口，不建设另一套简化 Locomotion。
+保持 Action Layer 1、Motion Policy、Velocity/RootMotion owner、KCC 和 Motor 仲裁的既有权威。正式角色使用同一套运行逻辑；有效基础 Move 独立支撑起步、停止和转向，Start/Stop/Pivot 各自可选。基础 Pose 缺失和已配置条目损坏记录为缺口，空可选列表合法。
 
 实现按小阶段推进。纯数据、选择、积分和生命周期优先使用 EditMode 合同测试；依赖真实 Animancer、KCC、Prefab 和场景表现的部分由 Unity 编辑器与人工清单验证。本文不安排额外命令行 Unity 编译流程。
 
@@ -167,16 +167,17 @@ PivotEntry = AnimationAsset + SourceLocalDirection + TargetLocalDirection
 
 `LocomotionSetRuntime` 固定管理 `Move / Start / Stop / Pivot`：
 
-- 从静止出现输入时选择最近 `TargetLocalDirection` 的 Start；
-- 失去输入时，以进入 Stop 前的运动方向选择最近 Source；
-- 强反向输入时，以 Source/Target 方向关系选择 Pivot；
-- Start/Pivot 完成后返回 Move；Stop 完成后返回 Move 的零速样本；
+- 从静止出现输入且有有效 Start 时，选择最近 `TargetLocalDirection` 的样本；
+- 失去输入且有有效 Stop 时，以积分前的模型运动方向选择最近 Source；
+- 强反向输入且有有效 Pivot 时，以 Source/Target 方向关系选择样本；
+- 先提出下一状态，Runtime 选择并准备有效 Clip 后再提交；对应列表为空时继续 Move，不进入空状态、不记录待补播过渡；
+- Start/Stop/Pivot 完成后均返回当前模型参数的 Move；无 Stop 时由 Move 随模型速度减速到 Idle，Stop 提前完成也不强制零速；
 - 新输入可打断 Stop；Action/Asset 切换可中断瞬态；
 - 触发阈值、优先级、中断与完成规则由代码统一维护，不暴露任意 Condition 图。
 
-阶段 3 先使用统一 `TransitionBlendDuration` 和明确的 Clip 完成边界，随后接入 AnimationAsset 的相位/标记数据。缺失样本报告资源缺口；运行时安全保护不算正式视觉验收通过。
+使用统一 `TransitionBlendDuration` 和明确的 Clip 完成边界，不要求相位、出口或刹车标记。Ground 基础播放需要零速和非零 Move 样本；Air 不强制地面 Idle。空过渡组合法，损坏组报告并停用该组；基础 Pose 失败时的安全保护不算视觉验收通过。
 
-**阶段出口：** MixerAsset 能持续播放 Move；SetAsset 能完成基础 Move/Start/Stop/Pivot 生命周期；Action 覆盖、HitStop、Asset 切换、Disable/Enable 无空白帧、重复 Enter 或遗留状态。目标角色只有在对应素材接入后才能通过视觉出口。
+**阶段出口：** MixerAsset 和只有 Move 的 SetAsset 均能持续播放；部分及完整过渡配置按实际能力工作。Action 覆盖、HitStop、Asset 切换、Disable/Enable 无空白帧、重复 Enter 或遗留状态。角色按其有效基础 Pose 和已配置过渡验收，不要求配置所有过渡类型。
 
 ### 3.4 本次实施与验证记录
 
@@ -186,7 +187,8 @@ PivotEntry = AnimationAsset + SourceLocalDirection + TargetLocalDirection
 - 新 Action 覆盖结束瞬态，覆盖及释放时重建输入边沿；隐藏的 Move 继续更新。动画有效 dt 为 0 时不处理转换或 Clip 完成。
 - Actor/Locomotion/Animation 单独 Disable、Driver abort 均撤销动画会话；ActorLocomotion 退出并 Dispose Runtime，Animation 单独 Disable 则重置动画状态并在 Enable 后重绑。Graph 销毁后重建缓存状态。
 - 释放前使用 ActorAnimation 自有 Idle 状态保护姿态；没有 Idle 时独立复制最近基础姿态的 Clip 时间和 Mixer 权重，冻结保护状态。冷启动全空配置报告无有效基础姿态。
-- 播放校验与轨迹覆盖校验分开：无效 Clip、方向或阈值拒绝整组相关样本，不静默剔除；未烘焙轨迹报告为后续阶段缺口，不阻止有效 Clip 播放。
+- 播放校验与轨迹覆盖校验分开：无效 Clip、方向或阈值拒绝整组相关样本，不静默剔除；Move 未烘焙轨迹报告为速度匹配缺口，不阻止有效 Clip 播放。
+- 2026-10-01 可选过渡收敛：状态决策与提交分开，素材在绑定时验证并缓存；空 Start/Stop/Pivot 不报告缺失，基础 Stop 不要求轨迹。移除 Stop 完成后的零速锁存，返回 Move 时使用当前模型速度。Gameplay 接口、序列化字段和动画请求结构保持不变。
 
 | 验证 | 结果 |
 | --- | --- |
@@ -196,13 +198,13 @@ PivotEntry = AnimationAsset + SourceLocalDirection + TargetLocalDirection
 | 外部执行纯决策测试的尝试 | NUnit 与 .NET 环境不兼容，未完成；已停止该路径，不计入通过结果 |
 | Kiana/Jaeger 视觉验收 | Pending，素材仍由用户接入 |
 
-当前磁盘资源缺口：Kiana Normal 的 Move/Start/Stop/Pivot 均空；Jaeger Normal 的 Move/Stop/Pivot 为空，Start 有一个空动画、零方向条目；两个 Air Asset 的 Move 样本为空。至少有效 Ground Idle/Move 和 Air Move 接入后，才能检查基础姿态；完整 Set 验收还需所承诺方向的 Start/Stop/Pivot。缺口未关闭时不得标记阶段 3 完成。
+2026-10-01 磁盘检查：Kiana Normal 已接入 Idle/Walk/Run、一个 Start 和一个 Stop，Pivot 为空且合法；这些本地资源由用户配置，尚未计作视觉验收通过。Jaeger Normal 的 Move 为空，Start 有一个空动画、零方向条目；两个 Air Asset 的 Move 仍为空。Jaeger 的空 Stop/Pivot 不列为缺口。基础 Pose 与损坏条目仍待作者处理，Test Runner 和角色视觉验收未完成。
 
 ## 4. Move 速度匹配
 
 **状态：代码已收敛；静态编译通过，Unity Test Runner 与角色视觉验收待完成。**
 
-1. Move 参数继续来自共享模型速度；1D/2D 权重由 Animancer Mixer 计算。每个样本的 `Sync` 只配置 Animancer 原有同步成员资格，运行时不维护脚相时钟。
+1. Move 参数继续来自共享模型速度；1D HorizontalSpeed 在样本有效范围内做 0.1s 的参数限速平滑，2D 与 VerticalSpeed 保持原语义，权重由 Animancer Mixer 计算。每个样本的 `Sync` 只配置 Animancer 原有同步成员资格，运行时不维护脚相时钟。
 2. 绑定 Runtime 时校验 Move AnimationAsset 的累计 Root Motion 轨迹。循环样本用完整周期的局部位移；按当前权重合成参考速度，基础同步成员计入加权周期速率，非同步成员使用各自周期时长。Air VerticalSpeed 的 PlayRate 固定为 1。
 3. 只读取上一 Tick 合格的 `ActualSolvedVelocity`，移除该结果所属 Tick 的 MovementTimeScale 后调整 PlayRate。倍率限制在 0.5–1.5，平滑时间为 0.1s；参考速度低于 0.1m/s、轨迹缺失或 Move 样本非循环时保持 1 并报告缺口。
 4. Action 覆盖、Asset/Policy/Ground/owner 变化及暂停恢复使旧反馈失效。基础 Move 持续维护；普通 Locomotion 不提交动画 Root Motion 位移。
@@ -211,12 +213,13 @@ PivotEntry = AnimationAsset + SourceLocalDirection + TargetLocalDirection
 
 ## 5. 基础 Stop
 
-阶段 5 曾实现 Stop Distance Matching，现已从当前代码和制作流程移除。Set 仍按积分前运动方向选择 Stop，从时间 0 按正常动画速度播放，到 Clip 结束后回到零速 Move；Gameplay 减速规则不变。不再配置 BrakeEnd、SettleEnd、脚相窗口或停止距离曲线。
+阶段 5 曾实现 Stop Distance Matching，现已从当前代码和制作流程移除。Stop 是可选表现：有有效 Clip 时按积分前模型方向选择，从时间 0 按正常动画速度播放，完成后回到当前模型参数的 Move。无 Stop 时 Move 自然表现减速到 Idle；Gameplay 减速规则不变，不要求 Stop 轨迹、BrakeEnd、SettleEnd、脚相窗口或停止距离曲线。
 
 ## 6. 集成与验收
 
 - 保留阶段 1～3 的唯一 Intent → Motion Request → Motor/KCC 链路、Layer 0 会话、Action Layer 1 覆盖及保护姿态。
-- 代码检查包括输入释放后的正常刹车、Asset 选择、Motion 与动画时间域、Move 权重与速度匹配、Set 基础转换、过期 owner 拒绝、HitStop 和 Disable/Enable。
+- 代码检查包括输入释放后的正常刹车、Asset 选择、Motion 与动画时间域、Move 权重与速度匹配，以及只有 Move、部分过渡、完整过渡三类 Set 配置；保留过期 owner 拒绝、HitStop 和 Disable/Enable 检查。
 - Runtime、Editor（含合同测试）和无 Editor 定义的静态编译通过；未运行 Unity Test Runner、命令行 Unity 构建或外部 NUnit。静态编译不代表 Animancer Graph、KCC 或角色视觉通过。
-- 当前 Kiana/Jaeger 四个 Locomotion Asset 的 Move 样本仍为空，角色素材由作者配置。本轮不修改资源、场景、Prefab、Importer 或 GUID，也不覆盖已有本地资源改动。
+- 当前 Kiana Normal 已配置基础 Move 与 Start/Stop，无 Pivot；重点检查起步、松开减速、大幅转向、连续输入与战斗打断。Jaeger Ground 和两个 Air 的基础样本仍待配置。本轮不修改资源、场景、Prefab、Importer 或 GUID，也不覆盖已有本地资源改动。
+- 2026-10-01 反向闪帧复查：数值推演发现 1D Move 直接使用反向刹车速度会短暂给 Idle 很高权重；新增水平参数平滑、连续积分后求值的合成 Clip 测试，以及 Editor 中可手动开启的诊断。第一份 60 Tick 日志只覆盖静止，诊断已改为等待反向/输入释放后录制 120 个有效 Tick，并在 Graph 求值后记录层权重和 Clip 时间。移除 Motion 绑定阶段的重复动画覆盖汇总，由 Runtime 报告具体配置与轨迹问题。静态编译和数值推演不作为本次闪帧的视觉修复验收；Test Runner、角色反向/松手/HitStop 检查仍待执行。
 - 完成 Unity Test Runner 与 Kiana/Jaeger 的 Walk/Run/Sprint、不同初速停止、战斗打断、HitStop 和生命周期视觉检查后，记录真实缺口，再决定是否需要新的专项功能。

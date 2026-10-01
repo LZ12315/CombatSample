@@ -81,11 +81,11 @@ FacingDirection                   = 想面向哪里
 - 同一 Actor 同时只有一个移动控制者；同一 AI 图同时只有一个活动移动任务。输入不是多 owner 仲裁系统，多个控制者并行争用属于错误使用。
 - 单一输入缓冲保存最新提交。公开 `SetLocomotionIntent` 是一次性输入；持续 AI 输入保持到更新、释放或生命周期清理。新提交直接替换旧提交，不叠加优先级、不暂存旧控制者、不在单次输入结束后恢复旧输入。
 - Control 锁定本 Tick 快照，之后的提交或释放影响下一 Tick；不能重开已积分的 Tick。零有效 dt 保留未消费的单次输入；新的提交或明确释放优先，不因冻结而恢复已释放输入。
-- `ClearLocomotionIntent` 只释放输入，现有模型速度由正常 Motion 减速并触发 Stop。Disable 或 Driver abort 才清理 Tick、Runtime 和共享模型速度。
+- `ClearLocomotionIntent` 只释放输入，现有模型速度由正常 Motion 减速；存在有效 Stop 时可以播放停止过渡，否则 Move 随模型速度降到 Idle。Disable 或 Driver abort 才清理 Tick、Runtime 和共享模型速度。
 - MovementConfig 必须合法；非法输入方向、强度或配置明确失败，不使用默认速度、默认减速度或 Idle 修正错误数据。`Sanitize` 保留现有入口，但非法配置会抛错。
 - Locomotion 资源在 Runtime 生命周期内视为固定配置。运行期间不支持修改 Clip、样本或 Rig并即时热刷新。修改后重新开始运行，或禁用再启用 ActorLocomotion，以 Dispose 旧 Runtime 后重新绑定。正常 Asset 切换、Action 覆盖、HitStop、Disable/Enable 和 Graph 重建继续受生命周期合同保护。
 - 制作工具负责依赖和过期提示；Runtime 在绑定时验证所需数据并缓存。Move 轨迹复用 Bake 来源校验，不增加第二份人工资格确认。Player 使用已制作的烘焙资源，不运行 Editor 依赖分析。
-- 有效 Clip 的基础播放与可选匹配明确区分：缺少有效 Move 轨迹时以中性倍率播放并报告；必需 Clip、阈值或方向非法时拒绝相关动画组，不剔除坏样本拼凑成功。姿态保护只保护 Layer 0 生命周期，不代表错误配置通过验收。
+- 有效 Clip 的基础播放与可选匹配明确区分：缺少有效 Move 轨迹时以中性倍率播放并报告。Ground 的零速 Pose 和非零 Move Pose 必须成立；Start/Stop/Pivot 的空列表合法。配置损坏时报告具体条目并拒绝对应动画组，不剔除坏样本拼凑成功。姿态保护只保护生命周期或基础播放失败，不用于正常缺少可选过渡的情况，也不代表错误配置通过验收。
 
 ### 3.2 LocomotionMotionRequest
 
@@ -149,7 +149,7 @@ LocomotionSetAsset
 二者是同一候选列表中的平行移动形态：
 
 - `LocomotionMixerAsset` 适合只需要持续混合的形态，例如使用 VerticalSpeed 1D 的 Air locomotion；
-- `LocomotionSetAsset` 适合需要 `Move / Start / Stop / Pivot` 内部生命周期的形态。
+- `LocomotionSetAsset` 在持续 Move 上提供可选的 Start/Stop/Pivot；只有 Move 的 Set 同样是完整的基础播放配置。
 
 这不是 Ground/Air 类型划分。Ground 与 Air 由 Conditions 选择；Jump 和 Land 继续由 Action 实现。
 
@@ -173,6 +173,7 @@ MoveDefinition
 - 阈值必须有限且不可重复；
 - 每个样本的 `Sync` 默认开启，可单独退出同步；
 - Idle 不设独立字段。1D HorizontalSpeed 的零阈值或 2D 的 `(0,0)` 样本就是 Idle；
+- HorizontalSpeed 和 LocalVelocity 同时需要至少一个非零移动样本；VerticalSpeed 提供适合空中的基础 Pose，不强制要求地面 Idle；
 - Loop 来自源 `AnimationClip`，不在 LocomotionAsset 重复配置；
 - Runtime 创建并缓存 Animancer Mixer；不同步的样本调用 `DontSynchronize`。
 
@@ -195,7 +196,9 @@ PivotEntry
 └─ TargetLocalDirection
 ```
 
-方向是在进入状态时，相对于角色 Facing 的二维局部运动方向：`x` 为右，`y` 为前。Start 使用目标 Intent；Stop 使用进入停止前的合格实际/模型速度；Pivot 使用旧运动方向和新目标方向。Pivot 的有符号角度由两向量计算，不再单独重复配置 `TurnAngle`。
+方向是在进入状态时，相对于角色 Facing 的二维局部运动方向：`x` 为右，`y` 为前。Start 使用目标 Intent；Stop 使用积分前的模型速度；Pivot 使用旧运动方向和新目标方向。Pivot 的有符号角度由两向量计算，不再单独重复配置 `TurnAngle`。
+
+Start/Stop/Pivot 可独立留空，空列表表示没有该表现能力。非空组的所有条目必须有有效 Clip 和方向；任一损坏条目使该组不可用并报告错误，其他有效组及基础 Move 继续使用。基础过渡不要求 Root Motion 轨迹。
 
 `TransitionBlendDuration` 是 Set 级的统一基础淡入淡出时间。第一版不为每条动画暴露 Fade、SpeedRange、Foot、ExitTime、PlaybackSpeed、Priority 或任意 Condition；实际制作证明需要后再扩展。
 
@@ -230,12 +233,14 @@ Move ↔ Stop
 Move ↔ Pivot
 ```
 
-- 静止时出现有效移动意图，可进入 Start；
-- 失去移动意图且仍有速度，可进入 Stop；
-- 有速度时目标方向发生足够强的反转，可进入 Pivot；
+- 静止时出现有效移动意图，存在可播放的 Start 才进入 Start，否则继续 Move；
+- 失去移动意图且仍有速度，存在可播放的 Stop 才进入 Stop，否则 Move 随模型减速；
+- 有速度时目标方向发生足够强的反转，存在可播放的 Pivot 才进入 Pivot，否则继续 Move 并正常 Gameplay 转向；
 - 新输入可打断 Stop；Action/Asset 切换可以中断所有过渡；
+- Runtime 先取得下一状态建议，选择并准备有效 Clip 后才提交状态。未进入的过渡不排队，输入边沿仍在有效 Tick 消费；零 dt 不推进决策；
+- 所有过渡完成后返回使用当前模型参数的 Move，不锁存零速；Start/Pivot 释放输入但没有 Stop 时同样返回 Move；
 - 状态拓扑、优先级、打断规则和阈值由代码统一维护，不做成任意 Condition 图；
-- 缺少必要动画是资源错误，不产生第二套“少素材”正式逻辑。
+- Locomotion 的基础播放有效性由核心 Pose 能力决定。可选列表为空是正式路径；基础 Move 无法成立时报告错误，不启动可选过渡，不改变 Gameplay 积分。
 
 `ActorAnimation` 继续拥有 Animancer Graph。Runtime 只通过窄的 Layer 0 请求接口提交 Mixer、Clip、参数、时间和淡入淡出，不直接拥有最终动画图。
 
@@ -283,13 +288,15 @@ Animation Runtime 使用上一 Tick 已发布且来源合格的 `ActualSolvedVel
 
 Mixer 始终按模型速度选择样本，再按当前权重、Clip 完整周期的 Root Motion 位移和 Animancer 基础同步速率计算参考速度。上一 Tick 合格世界速度只调整有界 PlayRate；缺轨迹或参考速度不足则保持倍率 1。普通 Locomotion 不向 Motor 提交动画 Root Motion。
 
+1D HorizontalSpeed 的视觉参数先限制在零速至最高样本阈值范围，再按整个范围 / 0.1s 限制每 Tick 的参数变化。这样持续反向时的短暂模型速度低谷不会立即占满 Idle 权重；模型速度归零后，参数最多再用 0.1s 到达零，不积累超出 Mixer 范围的速度延迟。平滑只使用动画有效 dt，不改变 Gameplay 积分、过渡触发或朝向。首 Tick 从当前值建立，新会话和 Graph 重建重置缓存；零 dt 保留参数。2D 方向参数与 Air VerticalSpeed 保持原语义。该规则改善短暂低谷，不保证所有低速配置都不混入 Idle，角色观感仍须验证。
+
 ### 7.2 基础 Stop
 
-Set 按积分前的移动方向选择 Stop Clip，从时间 0 按正常速度播放至 Clip 结束，再返回零速 Move。新输入、Action 覆盖和 Asset 切换沿基础状态机打断，不预测剩余停止距离，也不改变 Gameplay 刹车。
+存在有效 Stop 时，Set 按积分前的移动方向选择 Clip，从时间 0 按速度 1 播放至 Clip 结束，再返回当前模型参数的 Move。没有 Stop 或 Stop 提前完成而模型仍有速度时，Move 继续表现减速，模型归零后显示 Idle。新输入、Action 覆盖和 Asset 切换沿基础状态机打断，不预测剩余停止距离，也不改变 Gameplay 刹车。
 
 ## 8. 资源合同与范围
 
-正式角色使用同一套运行逻辑。素材数量可以不同，但其 LocomotionAsset 必须覆盖承诺的 Move、Start、Stop、Pivot 方向关系，；用于速度匹配的 Move 样本需有效 Root Motion 轨迹。缺失素材属于制作缺口；运行时错误保护只能避免空白姿态或异常位移，不能作为正式降级体验。
+正式角色使用同一套运行逻辑。Ground 需要有效零速 Pose 和非零 Move Pose，Air 需要适合空中的有效 Move。Start/Stop/Pivot 独立可选，不要求填满固定模板；已配置条目的 Clip 或方向损坏才是配置错误。用于速度匹配的 Move 样本需要有效 Root Motion 轨迹；轨迹不足不阻止基础播放。基础 Pose 缺失时的错误保护不计作验收通过。
 
 本轮包括：
 
@@ -310,7 +317,7 @@ Set 按积分前的移动方向选择 Stop Clip，从时间 0 按正常速度播
 | `LocomotionAsset` 已成为抽象基类；Mixer/Set、共享 MoveDefinition 与内嵌 MovementConfig 已建立；基础动画 Runtime 已接入 Layer 0。 | 在 Unity Test Runner 和角色资源上验证实际动画行为。 |
 | ActorLocomotion 已使用单一候选列表，并按 Conditions、Priority、当前候选稳定保持和 authored order 选择。 | 为后续 Lock-on、武器姿态等资产补充实际候选与条件。 |
 | Facing 已由 Player/AI Intent 显式提交；Runner 不再读取动画类型。 | 按具体角色手感调整速度、加减速与转向配置。 |
-| Ground Set 与 Air Mixer 已作为平行候选接入；Jump/Land 仍属于 Action。 | 接入 Move、Start、Stop、Pivot 与 Air 的 AnimationAsset 样本；缺失样本仍是资源缺口。 |
+| Ground Set 与 Air Mixer 已作为平行候选接入；Jump/Land 仍属于 Action；Set 过渡独立可选。 | 补齐基础 Ground/Air Pose；按角色需要配置有效过渡，空可选列表不列为缺口。 |
 | Runtime 工厂、每 Actor 缓存、Layer 0 会话与 Set 瞬态生命周期已建立；Move 轨迹速度匹配已独立于脚相。 | 角色资源、Unity Test Runner 与速度/停止视觉检查仍待整体验收。 |
 
 主要代码入口：[ActorLocomotion](../../Assets/Scripts/Actor/ActorLocomotion.cs)、[ActorMotor](../../Assets/Scripts/Actor/ActorMotor.cs)、[ActorSimulationRuntime](../../Assets/Scripts/Actor/ActorSimulationRuntime.cs)、[ActorAnimation](../../Assets/Scripts/Actor/ActorAnimation.cs)、[LocomotionRunner](../../Assets/Scripts/Actor/Motion/LocomotionRunner.cs)、[AnimationAsset](../../Assets/Scripts/Animation/AnimationAsset.cs)。
