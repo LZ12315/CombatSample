@@ -30,10 +30,7 @@ public sealed class LocomotionSetAsset : LocomotionAsset
     private static void CheckStart(List<LocomotionStartEntry> entries, List<string> issues)
     {
         if (entries == null || entries.Count == 0)
-        {
-            issues.Add("Start samples are missing.");
             return;
-        }
 
         for (int i = 0; i < entries.Count; i++)
         {
@@ -47,27 +44,21 @@ public sealed class LocomotionSetAsset : LocomotionAsset
     private static void CheckStop(List<LocomotionStopEntry> entries, List<string> issues)
     {
         if (entries == null || entries.Count == 0)
-        {
-            issues.Add("Stop samples are missing.");
             return;
-        }
 
         for (int i = 0; i < entries.Count; i++)
         {
             LocomotionStopEntry entry = entries[i];
             if (entry == null || !LocomotionDataValidation.IsValidDirection(entry.SourceLocalDirection))
                 issues.Add($"Stop[{i}] has an invalid source direction.");
-            LocomotionDataValidation.CheckAnimation(entry?.Animation, $"Stop[{i}]", issues, true);
+            LocomotionDataValidation.CheckAnimation(entry?.Animation, $"Stop[{i}]", issues, false);
         }
     }
 
     private static void CheckPivot(List<LocomotionPivotEntry> entries, List<string> issues)
     {
         if (entries == null || entries.Count == 0)
-        {
-            issues.Add("Pivot samples are missing.");
             return;
-        }
 
         for (int i = 0; i < entries.Count; i++)
         {

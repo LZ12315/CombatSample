@@ -16,26 +16,23 @@ public sealed class LocomotionSetStateMachine
     private const float PivotDot = -0.5f;
     private bool _hadInput;
     private bool _pivotLatched;
-    private bool _stopSettled;
     private int _actionOwnerId;
 
     public LocomotionSetState State { get; private set; }
-    public bool UseZeroMoveParameter => _stopSettled;
 
     public void Reset()
     {
         State = LocomotionSetState.Move;
         _hadInput = false;
         _pivotLatched = false;
-        _stopSettled = false;
         _actionOwnerId = 0;
     }
 
-    /// <returns>Whether a new state was entered and its clip needs to start from zero.</returns>
-    public bool Step(in LocomotionRuntimeAnimationContext context, bool clipCompleted)
+    /// <summary>Consumes this tick's edges and proposes a state. Runtime must prepare its pose before committing.</summary>
+    internal LocomotionSetState DecideNextState(in LocomotionRuntimeAnimationContext context, bool clipCompleted)
     {
         if (!LocomotionDataValidation.IsFinite(context.DeltaTime) || context.DeltaTime <= 0f)
-            return false;
+            return State;
 
         bool input = context.HasMovingInput;
         Vector3 source = context.VelocityBeforeMotion;
@@ -52,14 +49,12 @@ public sealed class LocomotionSetStateMachine
         {
             // Rebaseline both on cover and release: no delayed Start/Stop/Pivot after an Action.
             next = LocomotionSetState.Move;
-            _stopSettled = false;
         }
         else if (!input)
         {
             if (State == LocomotionSetState.Stop && clipCompleted)
             {
                 next = LocomotionSetState.Move;
-                _stopSettled = true;
             }
             else if (_hadInput || State == LocomotionSetState.Start || State == LocomotionSetState.Pivot)
             {
@@ -68,7 +63,6 @@ public sealed class LocomotionSetStateMachine
         }
         else
         {
-            _stopSettled = false;
             if (State == LocomotionSetState.Stop)
                 next = speed <= StationarySpeed ? LocomotionSetState.Start
                     : pivotEdge ? LocomotionSetState.Pivot : LocomotionSetState.Move;
@@ -85,6 +79,12 @@ public sealed class LocomotionSetStateMachine
 
         _hadInput = input;
         _actionOwnerId = context.ActionOwnerId;
+        return next;
+    }
+
+    /// <returns>Whether a prepared state was entered and its clip needs to restart.</returns>
+    internal bool CommitState(LocomotionSetState next)
+    {
         bool changed = next != State;
         State = next;
         return changed;

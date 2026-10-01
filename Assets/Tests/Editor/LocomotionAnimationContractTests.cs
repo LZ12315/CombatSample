@@ -16,14 +16,14 @@ public sealed class LocomotionSetDecisionTests
     public void StartReleaseAndStopReinput_UseTheMotionBeforeIntegration()
     {
         var machine = new LocomotionSetStateMachine();
-        machine.Step(Context(Vector3.forward, Vector3.zero), false);
+        Step(machine, Context(Vector3.forward, Vector3.zero), false);
         Assert.That(machine.State, Is.EqualTo(LocomotionSetState.Start));
-        machine.Step(Context(Vector3.zero, Vector3.forward), false);
+        Step(machine, Context(Vector3.zero, Vector3.forward), false);
         Assert.That(machine.State, Is.EqualTo(LocomotionSetState.Stop));
-        machine.Step(Context(Vector3.forward, Vector3.forward), false);
+        Step(machine, Context(Vector3.forward, Vector3.forward), false);
         Assert.That(machine.State, Is.EqualTo(LocomotionSetState.Move));
-        machine.Step(Context(Vector3.zero, Vector3.forward), false);
-        machine.Step(Context(Vector3.right, Vector3.zero), false);
+        Step(machine, Context(Vector3.zero, Vector3.forward), false);
+        Step(machine, Context(Vector3.right, Vector3.zero), false);
         Assert.That(machine.State, Is.EqualTo(LocomotionSetState.Start));
     }
 
@@ -31,15 +31,15 @@ public sealed class LocomotionSetDecisionTests
     public void StrongReversal_PlaysOnePivotUntilTheReversalConditionClears()
     {
         var machine = new LocomotionSetStateMachine();
-        machine.Step(Context(Vector3.forward, Vector3.forward), false);
-        machine.Step(Context(Vector3.back, Vector3.forward), false);
+        Step(machine, Context(Vector3.forward, Vector3.forward), false);
+        Step(machine, Context(Vector3.back, Vector3.forward), false);
         Assert.That(machine.State, Is.EqualTo(LocomotionSetState.Pivot));
-        machine.Step(Context(Vector3.back, Vector3.forward), true);
+        Step(machine, Context(Vector3.back, Vector3.forward), true);
         Assert.That(machine.State, Is.EqualTo(LocomotionSetState.Move));
-        machine.Step(Context(Vector3.back, Vector3.forward), false);
+        Step(machine, Context(Vector3.back, Vector3.forward), false);
         Assert.That(machine.State, Is.EqualTo(LocomotionSetState.Move));
-        machine.Step(Context(Vector3.back, Vector3.back), false);
-        machine.Step(Context(Vector3.forward, Vector3.back), false);
+        Step(machine, Context(Vector3.back, Vector3.back), false);
+        Step(machine, Context(Vector3.forward, Vector3.back), false);
         Assert.That(machine.State, Is.EqualTo(LocomotionSetState.Pivot));
     }
 
@@ -47,13 +47,13 @@ public sealed class LocomotionSetDecisionTests
     public void ZeroAnimationDelta_DoesNotConsumeAnInputEdgeOrCompleteAClip()
     {
         var machine = new LocomotionSetStateMachine();
-        machine.Step(Context(Vector3.forward, Vector3.zero, dt: 0f), false);
+        Step(machine, Context(Vector3.forward, Vector3.zero, dt: 0f), false);
         Assert.That(machine.State, Is.EqualTo(LocomotionSetState.Move));
-        machine.Step(Context(Vector3.forward, Vector3.zero), false);
+        Step(machine, Context(Vector3.forward, Vector3.zero), false);
         Assert.That(machine.State, Is.EqualTo(LocomotionSetState.Start));
-        machine.Step(Context(Vector3.zero, Vector3.forward, dt: 0f), true);
+        Step(machine, Context(Vector3.zero, Vector3.forward, dt: 0f), true);
         Assert.That(machine.State, Is.EqualTo(LocomotionSetState.Start));
-        machine.Step(Context(Vector3.zero, Vector3.forward), false);
+        Step(machine, Context(Vector3.zero, Vector3.forward), false);
         Assert.That(machine.State, Is.EqualTo(LocomotionSetState.Stop));
     }
 
@@ -61,33 +61,48 @@ public sealed class LocomotionSetDecisionTests
     public void ActionCoverReplacementAndRelease_DoNotQueueTransientAnimations()
     {
         var machine = new LocomotionSetStateMachine();
-        machine.Step(Context(Vector3.forward, Vector3.zero), false);
-        machine.Step(Context(Vector3.back, Vector3.forward, action: 1), false);
+        Step(machine, Context(Vector3.forward, Vector3.zero), false);
+        Step(machine, Context(Vector3.back, Vector3.forward, action: 1), false);
         Assert.That(machine.State, Is.EqualTo(LocomotionSetState.Move));
-        machine.Step(Context(Vector3.forward, Vector3.back, action: 2), false);
-        machine.Step(Context(Vector3.right, Vector3.zero), false);
+        Step(machine, Context(Vector3.forward, Vector3.back, action: 2), false);
+        Step(machine, Context(Vector3.right, Vector3.zero), false);
         Assert.That(machine.State, Is.EqualTo(LocomotionSetState.Move));
-        machine.Step(Context(Vector3.right, Vector3.zero), false);
+        Step(machine, Context(Vector3.right, Vector3.zero), false);
         Assert.That(machine.State, Is.EqualTo(LocomotionSetState.Move));
     }
 
     [Test]
-    public void StopCompletion_UsesZeroMoveUntilNewInputAndResetClearsTheSettle()
+    public void StopCompletion_ReturnsToMoveWithoutRetriggeringStop()
     {
         var machine = new LocomotionSetStateMachine();
-        machine.Step(Context(Vector3.forward, Vector3.forward), false);
-        machine.Step(Context(Vector3.zero, Vector3.forward), false);
-        machine.Step(Context(Vector3.zero, Vector3.forward), true);
+        Step(machine, Context(Vector3.forward, Vector3.forward), false);
+        Step(machine, Context(Vector3.zero, Vector3.forward), false);
+        Step(machine, Context(Vector3.zero, Vector3.forward), true);
         Assert.That(machine.State, Is.EqualTo(LocomotionSetState.Move));
-        Assert.That(machine.UseZeroMoveParameter, Is.True);
-        machine.Step(Context(Vector3.zero, Vector3.forward), false);
-        Assert.That(machine.UseZeroMoveParameter, Is.True);
-        machine.Step(Context(Vector3.forward, Vector3.forward), false);
-        Assert.That(machine.UseZeroMoveParameter, Is.False);
+        Step(machine, Context(Vector3.zero, Vector3.forward), false);
+        Assert.That(machine.State, Is.EqualTo(LocomotionSetState.Move));
+        Step(machine, Context(Vector3.forward, Vector3.forward), false);
+        Assert.That(machine.State, Is.EqualTo(LocomotionSetState.Move));
         machine.Reset();
-        machine.Step(Context(Vector3.forward, Vector3.zero), false);
+        Step(machine, Context(Vector3.forward, Vector3.zero), false);
         Assert.That(machine.State, Is.EqualTo(LocomotionSetState.Start));
     }
+
+    [Test]
+    public void UnavailableTransition_ConsumesItsEdgeWithoutEnteringOrQueuingIt()
+    {
+        var machine = new LocomotionSetStateMachine();
+        Assert.That(machine.DecideNextState(Context(Vector3.forward, Vector3.zero), false),
+            Is.EqualTo(LocomotionSetState.Start));
+        Assert.That(machine.State, Is.EqualTo(LocomotionSetState.Move));
+        machine.CommitState(LocomotionSetState.Move);
+        Assert.That(machine.DecideNextState(Context(Vector3.forward, Vector3.zero), false),
+            Is.EqualTo(LocomotionSetState.Move));
+    }
+
+    private static void Step(LocomotionSetStateMachine machine,
+        in LocomotionRuntimeAnimationContext context, bool completed) =>
+        machine.CommitState(machine.DecideNextState(context, completed));
 
     internal static LocomotionRuntimeAnimationContext Context(Vector3 input, Vector3 before,
         Vector3? model = null, float dt = 1f / 60f, int action = 0,
@@ -179,7 +194,8 @@ public sealed class LocomotionAnimationContractTests
         var mixer = (ManualMixerState)request.State;
         AnimancerState runState = mixer.GetChild(1);
         Assert.That(runState.TimeD, Is.GreaterThanOrEqualTo(runState.Length));
-        _animation.SubmitLocomotion(_owner, runtime.UpdateAnimation(Context(Vector3.zero, Vector3.zero)));
+        // A sample becomes inactive only after the Move parameter has finished blending to zero.
+        _animation.SubmitLocomotion(_owner, runtime.UpdateAnimation(Context(Vector3.zero, Vector3.zero, dt: 0.1f)));
         _animation.Evaluate(0.1f);
         _animation.SubmitLocomotion(_owner, runtime.UpdateAnimation(Context(Vector3.forward, Vector3.forward)));
         Assert.That(runState.TimeD, Is.EqualTo(0d).Within(1e-5));
@@ -217,11 +233,278 @@ public sealed class LocomotionAnimationContractTests
         LocomotionAnimationRequest reversing = runtime.UpdateAnimation(Context(Vector3.left, Vector3.right));
         Assert.That(reversing.State.Clip, Is.SameAs(pivot.Clip));
         _animation.SubmitLocomotion(_owner, reversing);
+        _animation.Evaluate(0.2f);
+        Assert.That(_probe.localPosition.x, Is.EqualTo(6f).Within(0.001f));
         _animation.EndLocomotionSession(_owner);
         runtime.Exit(null, null);
         runtime.Enter(null, null);
         _owner = _animation.BeginLocomotionSession();
         Assert.That(runtime.UpdateAnimation(Context(Vector3.right, Vector3.right)).IsMove, Is.True);
+        runtime.Exit(null, null);
+        runtime.Enter(null, null);
+        Assert.That(runtime.UpdateAnimation(Context(Vector3.forward + Vector3.right, Vector3.zero)).State.Clip,
+            Is.SameAs(startForward.Clip), "Equal direction scores retain authored order.");
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void MoveOnlySet_ProducesContinuousPosesWhileStartingReversingAndBraking(bool twoDimensional)
+    {
+        AnimationAsset idle = Clip("Idle", 1f), move = Clip("Move", 3f);
+        string definition = twoDimensional
+            ? $"{{\"blendType\":1,\"twoDimensional\":{{\"samples\":[{Sample2D(idle, 0, 0, false)},"
+                + $"{Sample2D(move, 0, 1, false)},{Sample2D(move, 0, -1, false)}]}}}}"
+            : Move1D(idle, move);
+        var asset = Asset<LocomotionSetAsset>(definition);
+        var runtime = Runtime<LocomotionSetRuntime>(asset);
+        var runner = new LocomotionRunner();
+        runner.Initialize(Quaternion.identity);
+        var intent = new LocomotionIntent
+        {
+            WorldMoveDirection = Vector3.back, MoveStrength = 1f, FacingDirection = Vector3.back
+        };
+        var motion = runtime.UpdateMotion(new LocomotionRuntimeMotionContext(runner, intent, true,
+            Context(Vector3.back, Vector3.zero).Motor));
+        Assert.That(motion.WorldPlanarVelocity.z, Is.LessThan(0f));
+        Assert.That(Quaternion.Angle(Quaternion.identity, motion.TargetWorldRotation), Is.GreaterThan(0f));
+        LogAssert.Expect(LogType.Warning, new Regex($"Move {(twoDimensional ? "2D" : "1D")}\\[1\\].*Retaining PlayRate 1"));
+        if (twoDimensional)
+            LogAssert.Expect(LogType.Warning, new Regex("Move 2D\\[2\\].*Retaining PlayRate 1"));
+
+        var inputs = new[] { Vector3.forward, Vector3.back, Vector3.zero, Vector3.zero };
+        var speeds = new[] { 1f, 0.5f, 0.25f, 0f };
+        AnimancerState state = null;
+        for (int i = 0; i < inputs.Length; i++)
+        {
+            var request = runtime.UpdateAnimation(Context(inputs[i], i == 0 ? Vector3.zero : Vector3.forward,
+                model: Vector3.forward * speeds[i]));
+            Assert.That(request.IsMove, Is.True);
+            Assert.That(runtime.AnimationState, Is.EqualTo(LocomotionSetState.Move));
+            Assert.That(_animation.SubmitLocomotion(_owner, request), Is.True);
+            _animation.Evaluate(0.2f);
+            if (state != null) Assert.That(request.State, Is.SameAs(state));
+            state = request.State;
+            Assert.That(state.Speed, Is.EqualTo(1f));
+            float visibleSpeed = twoDimensional ? request.Parameter.magnitude : request.Parameter.x;
+            Assert.That(_probe.localPosition.x, Is.EqualTo(1f + 2f * visibleSpeed).Within(0.001f));
+        }
+        LogAssert.NoUnexpectedReceived();
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void StartOrPivotRelease_WithoutStopReturnsToMovingPose(bool usePivot)
+    {
+        AnimationAsset idle = Clip("Idle", 1f), move = Clip("Move", 3f);
+        AnimationAsset transition = Clip("Transition", 7f, false);
+        string entries = usePivot
+            ? $",\"pivot\":[{{\"animation\":{Ref(transition)},\"sourceLocalDirection\":{{\"x\":0,\"y\":1}},\"targetLocalDirection\":{{\"x\":0,\"y\":-1}}}}]"
+            : $",\"start\":[{{\"animation\":{Ref(transition)},\"targetLocalDirection\":{{\"x\":0,\"y\":1}}}}]";
+        var runtime = Runtime<LocomotionSetRuntime>(Asset<LocomotionSetAsset>(Move1D(idle, move), entries));
+        if (usePivot) runtime.UpdateAnimation(Context(Vector3.forward, Vector3.forward));
+        var request = runtime.UpdateAnimation(Context(usePivot ? Vector3.back : Vector3.forward,
+            usePivot ? Vector3.forward : Vector3.zero));
+        Assert.That(request.State.Clip, Is.SameAs(transition.Clip));
+        _animation.SubmitLocomotion(_owner, request);
+        _animation.Evaluate(0.1f);
+        var released = runtime.UpdateAnimation(Context(Vector3.zero, Vector3.forward, model: Vector3.forward * 0.5f,
+            dt: 0.1f));
+        Assert.That(runtime.AnimationState, Is.EqualTo(LocomotionSetState.Move));
+        Assert.That(_animation.SubmitLocomotion(_owner, released), Is.True);
+        _animation.Evaluate(0.2f);
+        Assert.That(_probe.localPosition.x, Is.EqualTo(2f).Within(0.001f));
+    }
+
+    [TestCase(5f, 60)]
+    [TestCase(7f, 60)]
+    [TestCase(7f, 120)]
+    public void ContinuousReversal_BlendsThroughTheSpeedDipAndStopsPromptly(float maximumSpeed, int tickRate)
+    {
+        AnimationAsset idle = Clip("Idle", 1f), walk = Clip("Walk", 3f), run = Clip("Run", 5f);
+        var asset = Asset<LocomotionSetAsset>(
+            $"{{\"oneDimensional\":{{\"samples\":[{Sample1D(idle, 0, false)},"
+            + $"{{\"animation\":{Ref(walk)},\"threshold\":0.4,\"sync\":false}},{Sample1D(run, 1, false)}]}}}}");
+        JsonUtility.FromJsonOverwrite($"{{\"movementConfig\":{{\"MaxSpeed\":{maximumSpeed},"
+            + "\"Acceleration\":20,\"Deceleration\":32,\"RotateSpeed\":600,\"TurnResponseTime\":0.08}}", asset);
+        var runtime = Runtime<LocomotionSetRuntime>(asset);
+        var runner = new LocomotionRunner();
+        runner.Initialize(Quaternion.identity);
+        float dt = 1f / tickRate;
+        var policy = new MotionStateSnapshot(1f, 1f, 1f, 1f, false, false, false, false);
+        LogAssert.Expect(LogType.Warning, new Regex("Move 1D\\[1\\].*Retaining PlayRate 1"));
+        LogAssert.Expect(LogType.Warning, new Regex("Move 1D\\[2\\].*Retaining PlayRate 1"));
+
+        LocomotionAnimationRequest Tick(Vector3 direction)
+        {
+            Vector3 before = runner.CachedVelocity;
+            var intent = new LocomotionIntent
+            {
+                WorldMoveDirection = direction, FacingDirection = direction,
+                MoveStrength = direction == Vector3.zero ? 0f : 1f
+            };
+            var motor = new LocomotionMotionContext(dt, true, Vector3.up, runner.PendingRotation, default, policy);
+            runtime.UpdateMotion(new LocomotionRuntimeMotionContext(runner, intent, true, motor));
+            var context = new LocomotionRuntimeAnimationContext(intent, true, before, runner.CachedVelocity,
+                motor, 0f, 0, dt);
+            var request = runtime.UpdateAnimation(context);
+            Assert.That(runtime.AnimationState, Is.EqualTo(LocomotionSetState.Move));
+            Assert.That(_animation.SubmitLocomotion(_owner, request), Is.True);
+            _animation.Evaluate(dt);
+            return request;
+        }
+
+        Tick(Vector3.zero);
+        for (int i = 0; i < tickRate; i++) Tick(Vector3.forward);
+        float lowestModelSpeed = maximumSpeed;
+        float highestIdleWeight = 0f;
+        for (int i = 0; i < tickRate; i++)
+        {
+            var request = Tick(Vector3.back);
+            lowestModelSpeed = Mathf.Min(lowestModelSpeed, runner.CachedVelocity.magnitude);
+            highestIdleWeight = Mathf.Max(highestIdleWeight, request.State.GetChild(0).Weight);
+            Assert.That(_probe.localPosition.x, Is.GreaterThan(2.8f), "Check the pose after Graph Evaluate, not only the state enum.");
+        }
+        Assert.That(lowestModelSpeed, Is.LessThan(0.4f), "The gameplay reversal must still enter the Idle/Walk blend range.");
+        Assert.That(runner.CachedVelocity.z, Is.EqualTo(-maximumSpeed).Within(0.001f));
+        Assert.That(highestIdleWeight, Is.LessThan(0.1f), "A brief reversal speed dip must not dominate the pose with Idle.");
+        int stoppedTicks = 0;
+        LocomotionAnimationRequest stopping = default;
+        int requiredStoppedTicks = Mathf.CeilToInt(0.1f / dt) + 1;
+        for (int i = 0; i < tickRate && stoppedTicks < requiredStoppedTicks; i++)
+        {
+            stopping = Tick(Vector3.zero);
+            if (runner.CachedVelocity == Vector3.zero) stoppedTicks++;
+        }
+        Assert.That(stoppedTicks, Is.EqualTo(requiredStoppedTicks));
+        Assert.That(stopping.Parameter.x, Is.Zero);
+        Assert.That(stopping.State.GetChild(0).Weight, Is.EqualTo(1f).Within(0.001f));
+        Assert.That(_probe.localPosition.x, Is.EqualTo(1f).Within(0.001f));
+        LogAssert.NoUnexpectedReceived();
+    }
+
+    [Test]
+    public void HorizontalMoveBlend_FreezesOnZeroDeltaAndRebaselinesOnReentry()
+    {
+        AnimationAsset idle = Clip("Idle", 1f), move = Clip("Move", 3f);
+        var runtime = Runtime<LocomotionMixerRuntime>(Asset<LocomotionMixerAsset>(Move1D(idle, move)));
+        runtime.UpdateAnimation(Context(Vector3.forward, Vector3.forward * 7f));
+        var slowing = runtime.UpdateAnimation(Context(Vector3.back, Vector3.zero));
+        _animation.SubmitLocomotion(_owner, slowing);
+        _animation.Evaluate(1f / 60f);
+        float weight = slowing.State.GetChild(0).Weight;
+        double time = slowing.State.GetChild(1).TimeD;
+        for (int i = 0; i < 30; i++)
+        {
+            Assert.That(runtime.UpdateAnimation(Context(Vector3.zero, Vector3.zero, dt: 0f)).State, Is.Null);
+            _animation.Evaluate(0f);
+        }
+        Assert.That(slowing.State.GetChild(0).Weight, Is.EqualTo(weight));
+        Assert.That(slowing.State.GetChild(1).TimeD, Is.EqualTo(time));
+        var resumed = runtime.UpdateAnimation(Context(Vector3.zero, Vector3.zero));
+        Assert.That(resumed.Parameter.x, Is.GreaterThan(0.6f), "Resume one tick without catching up paused time.");
+        _animation.EndLocomotionSession(_owner);
+        runtime.Exit(null, null);
+        runtime.Enter(null, null);
+        _owner = _animation.BeginLocomotionSession();
+        var reentered = runtime.UpdateAnimation(Context(Vector3.zero, Vector3.zero));
+        Assert.That(reentered.Parameter.x, Is.Zero, "A new session cannot inherit the old parameter lag.");
+        _animation.SubmitLocomotion(_owner, reentered);
+        _animation.Evaluate(0f);
+        Assert.That(_probe.localPosition.x, Is.EqualTo(1f).Within(0.001f));
+    }
+
+    [Test]
+    public void StopWithoutTrajectory_CompletesIntoCurrentModelMove()
+    {
+        AnimationAsset idle = Clip("Idle", 1f), move = Clip("Move", 3f), stop = Clip("Stop", 7f, false);
+        var asset = Asset<LocomotionSetAsset>(Move1D(idle, move),
+            $",\"stop\":[{{\"animation\":{Ref(stop)},\"sourceLocalDirection\":{{\"x\":0,\"y\":1}}}}]");
+        var issues = new List<string>();
+        asset.CollectAnimationCoverageIssues(issues);
+        Assert.That(issues, Has.None.Contains("Stop"));
+        var runtime = Runtime<LocomotionSetRuntime>(asset);
+        runtime.UpdateAnimation(Context(Vector3.forward, Vector3.forward));
+        var stopping = runtime.UpdateAnimation(Context(Vector3.zero, Vector3.forward));
+        Assert.That(stopping.State.Clip, Is.SameAs(stop.Clip));
+        _animation.SubmitLocomotion(_owner, stopping);
+        _animation.Evaluate(1.1f);
+        Assert.That(stopping.State.TimeD, Is.GreaterThanOrEqualTo(stop.Clip.length));
+        var moving = runtime.UpdateAnimation(Context(Vector3.zero, Vector3.forward, model: Vector3.forward * 0.25f,
+            dt: 0.1f));
+        Assert.That(moving.IsMove, Is.True);
+        Assert.That(moving.Parameter.x, Is.EqualTo(0.25f));
+        _animation.SubmitLocomotion(_owner, moving);
+        _animation.Evaluate(0.2f);
+        Assert.That(_probe.localPosition.x, Is.EqualTo(1.5f).Within(0.001f));
+    }
+
+    [Test]
+    public void StopReinput_WithoutPivotReturnsToMove()
+    {
+        AnimationAsset idle = Clip("Idle", 1f), move = Clip("Move", 3f);
+        AnimationAsset start = Clip("Start", 5f, false), stop = Clip("Stop", 7f, false);
+        var runtime = Runtime<LocomotionSetRuntime>(Asset<LocomotionSetAsset>(Move1D(idle, move),
+            $",\"start\":[{{\"animation\":{Ref(start)},\"targetLocalDirection\":{{\"x\":0,\"y\":1}}}}],"
+            + $"\"stop\":[{{\"animation\":{Ref(stop)},\"sourceLocalDirection\":{{\"x\":0,\"y\":1}}}}]"));
+        var starting = runtime.UpdateAnimation(Context(Vector3.forward, Vector3.zero));
+        _animation.SubmitLocomotion(_owner, starting);
+        _animation.Evaluate(1.1f);
+        _animation.SubmitLocomotion(_owner, runtime.UpdateAnimation(Context(Vector3.forward, Vector3.forward)));
+        _animation.Evaluate(0.2f);
+        _animation.SubmitLocomotion(_owner, runtime.UpdateAnimation(Context(Vector3.zero, Vector3.forward)));
+        _animation.Evaluate(0.1f);
+        var reversing = runtime.UpdateAnimation(Context(Vector3.back, Vector3.forward, model: Vector3.forward * 0.5f,
+            dt: 0.1f));
+        Assert.That(reversing.IsMove, Is.True);
+        Assert.That(runtime.AnimationState, Is.EqualTo(LocomotionSetState.Move));
+        _animation.SubmitLocomotion(_owner, reversing);
+        _animation.Evaluate(0.2f);
+        Assert.That(_probe.localPosition.x, Is.EqualTo(2f).Within(0.001f));
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void InvalidStartGroup_ReportsOnceAndDoesNotDisableValidStop(bool invalidDirection)
+    {
+        AnimationAsset idle = Clip("Idle", 1f), move = Clip("Move", 3f);
+        AnimationAsset start = Clip("Start", 5f, false), stop = Clip("Stop", 7f, false);
+        string damaged = invalidDirection
+            ? $"{{\"animation\":{Ref(start)},\"targetLocalDirection\":{{\"x\":0,\"y\":0}}}}"
+            : "{\"targetLocalDirection\":{\"x\":0,\"y\":1}}";
+        var runtime = Runtime<LocomotionSetRuntime>(Asset<LocomotionSetAsset>(Move1D(idle, move),
+            $",\"start\":[{{\"animation\":{Ref(start)},\"targetLocalDirection\":{{\"x\":0,\"y\":1}}}},"
+            + damaged + "],"
+            + $"\"stop\":[{{\"animation\":{Ref(stop)},\"sourceLocalDirection\":{{\"x\":0,\"y\":1}}}}]"));
+        LogAssert.Expect(LogType.Warning, new Regex("Move 1D\\[1\\].*Retaining PlayRate 1"));
+        LogAssert.Expect(LogType.Error, new Regex("Actor 'unbound'.*Asset 'Synthetic Locomotion'.*Start\\[1\\] "
+            + (invalidDirection ? "has invalid" : "requires")));
+        var moving = runtime.UpdateAnimation(Context(Vector3.forward, Vector3.zero));
+        Assert.That(moving.IsMove, Is.True, "A damaged group must not silently select its remaining valid entry.");
+        _animation.SubmitLocomotion(_owner, moving);
+        _animation.Evaluate(0.2f);
+        runtime.UpdateAnimation(Context(Vector3.forward, Vector3.forward));
+        var stopping = runtime.UpdateAnimation(Context(Vector3.zero, Vector3.forward));
+        Assert.That(stopping.State.Clip, Is.SameAs(stop.Clip));
+        LogAssert.NoUnexpectedReceived();
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void GroundIdleAlone_IsNotACompleteMoveAndCannotEnterStart(bool twoDimensional)
+    {
+        AnimationAsset idle = Clip("Idle", 1f), start = Clip("Start", 7f, false);
+        string definition = twoDimensional
+            ? $"{{\"blendType\":1,\"twoDimensional\":{{\"samples\":[{Sample2D(idle, 0, 0, false)}]}}}}"
+            : $"{{\"oneDimensional\":{{\"samples\":[{Sample1D(idle, 0, false)}]}}}}";
+        var runtime = Runtime<LocomotionSetRuntime>(Asset<LocomotionSetAsset>(definition,
+            $",\"start\":[{{\"animation\":{Ref(start)},\"targetLocalDirection\":{{\"x\":0,\"y\":1}}}}]"));
+        LogAssert.Expect(LogType.Error, new Regex("Move requires a non-zero movement sample"));
+        var request = runtime.UpdateAnimation(Context(Vector3.forward, Vector3.zero));
+        Assert.That(request.State, Is.Null);
+        Assert.That(runtime.AnimationState, Is.EqualTo(LocomotionSetState.Move));
+        Assert.That(_animation.SubmitLocomotion(_owner, request), Is.False);
+        _animation.Evaluate(0f);
+        Assert.That(_probe.localPosition.x, Is.EqualTo(1f).Within(0.001f));
     }
 
     [Test]
@@ -267,7 +550,7 @@ public sealed class LocomotionAnimationContractTests
         AnimationAsset idle = Clip("Idle", 1f);
         var runtime = Runtime<LocomotionMixerRuntime>(Asset<LocomotionMixerAsset>(
             $"{{\"oneDimensional\":{{\"samples\":[{Sample1D(idle, 0, false)},{{\"threshold\":1}}]}}}}"));
-        LogAssert.Expect(LogType.Warning, new Regex("Move 1D\\[1\\] AnimationAsset/Clip is missing"));
+        LogAssert.Expect(LogType.Error, new Regex("Move 1D\\[1\\] AnimationAsset/Clip is missing"));
         LocomotionAnimationRequest request = runtime.UpdateAnimation(Context(Vector3.forward, Vector3.forward));
         Assert.That(request.State, Is.Null);
         Assert.That(_animation.SubmitLocomotion(_owner, request), Is.False);
@@ -381,8 +664,9 @@ public sealed class LocomotionAnimationContractTests
     }
 
     private static LocomotionRuntimeAnimationContext Context(Vector3 input, Vector3 before,
-        Quaternion? facing = null, float vertical = 0f, float scale = 1f) =>
-        LocomotionSetDecisionTests.Context(input, before, facing: facing, vertical: vertical, scale: scale);
+        Quaternion? facing = null, float vertical = 0f, float scale = 1f, Vector3? model = null,
+        float dt = 1f / 60f) =>
+        LocomotionSetDecisionTests.Context(input, before, model, dt, facing: facing, vertical: vertical, scale: scale);
 
     private AnimationAsset Clip(string name, float value, bool looping = true)
     {

@@ -92,6 +92,7 @@ public abstract class LocomotionRuntime : IDisposable
 /// </summary>
 public abstract class LocomotionAnimationRuntime : LocomotionRuntime
 {
+    private const float MoveParameterBlendSeconds = 0.1f;
     private readonly HashSet<string> _reportedIssues = new();
     private readonly List<string> _playbackIssues = new();
     private UnityEngine.Object _diagnosticContext;
@@ -99,6 +100,9 @@ public abstract class LocomotionAnimationRuntime : LocomotionRuntime
     private LocomotionMovePlayback _movePlayback;
     private bool _attemptedMove;
     private AnimationClip _idleClip;
+    private float _maximumMoveThreshold;
+    private float _moveParameter;
+    private bool _hasMoveParameter;
     protected LocomotionAnimationRuntime(LocomotionAsset asset) : base(asset) { }
 
     protected override void OnEnter(ActorLocomotion owner, Actor actor)
@@ -112,6 +116,7 @@ public abstract class LocomotionAnimationRuntime : LocomotionRuntime
     public override void ResetAnimation()
     {
         _movePlayback?.Reset();
+        _hasMoveParameter = false;
         if (_move == null)
             _attemptedMove = false;
     }
@@ -121,21 +126,32 @@ public abstract class LocomotionAnimationRuntime : LocomotionRuntime
         UpdateSharedMotion(context);
 
     protected LocomotionAnimationRequest MoveRequest(in LocomotionRuntimeAnimationContext context,
-        float blendDuration, bool zeroParameter = false)
+        float blendDuration)
     {
         EnsureMove();
         Vector2 parameter;
-        if (zeroParameter)
-            parameter = Vector2.zero;
-        else if (Asset.Move?.BlendType == LocomotionMoveBlendType.TwoDimensional)
+        if (Asset.Move?.BlendType == LocomotionMoveBlendType.TwoDimensional)
         {
             Vector3 local = Quaternion.Inverse(context.Motor.CurrentWorldRotation) * context.PolicyVelocity;
             parameter = new Vector2(local.x, local.z);
         }
         else
         {
-            float speed = Asset.Move?.OneDimensional?.Parameter == LocomotionMove1DParameter.VerticalSpeed
+            bool vertical = Asset.Move?.OneDimensional?.Parameter == LocomotionMove1DParameter.VerticalSpeed;
+            float speed = vertical
                 ? context.VerticalSpeed : Vector3.ProjectOnPlane(context.PolicyVelocity, context.Motor.CharacterUp).magnitude;
+            if (!vertical && _move != null)
+            {
+                // LinearMixer already clamps its weights outside this range. Smooth the visible
+                // parameter, so out-of-range gameplay speed cannot delay an eventual return to Idle.
+                float target = Mathf.Clamp(speed, 0f, _maximumMoveThreshold);
+                _moveParameter = _hasMoveParameter
+                    ? Mathf.MoveTowards(_moveParameter, target,
+                        _maximumMoveThreshold * context.DeltaTime / MoveParameterBlendSeconds)
+                    : target;
+                _hasMoveParameter = true;
+                speed = _moveParameter;
+            }
             parameter = new Vector2(speed, 0f);
         }
         return new LocomotionAnimationRequest(_move, blendDuration, isMove: true,
@@ -147,6 +163,12 @@ public abstract class LocomotionAnimationRuntime : LocomotionRuntime
     {
         if (_reportedIssues.Add(issue))
             Debug.LogWarning($"[ActorLocomotion] Actor '{(_diagnosticContext != null ? _diagnosticContext.name : "unbound")}', Asset '{Asset.name}': {issue}", _diagnosticContext);
+    }
+
+    protected void ReportConfigurationError(string issue)
+    {
+        if (_reportedIssues.Add(issue))
+            Debug.LogError($"[ActorLocomotion] Actor '{(_diagnosticContext != null ? _diagnosticContext.name : "unbound")}', Asset '{Asset.name}': {issue}", _diagnosticContext);
     }
 
     protected override void OnDispose()
@@ -164,6 +186,7 @@ public abstract class LocomotionAnimationRuntime : LocomotionRuntime
             _move = null;
             _movePlayback = null;
             _attemptedMove = false;
+            _hasMoveParameter = false;
         }
         if (_attemptedMove)
             return;
@@ -177,7 +200,7 @@ public abstract class LocomotionAnimationRuntime : LocomotionRuntime
         if (_playbackIssues.Count > 0)
         {
             for (int i = 0; i < _playbackIssues.Count; i++)
-                ReportIssue(_playbackIssues[i]);
+                ReportConfigurationError(_playbackIssues[i]);
             return;
         }
 
@@ -186,6 +209,7 @@ public abstract class LocomotionAnimationRuntime : LocomotionRuntime
             var samples = new List<LocomotionMove1DSample>(Asset.Move.OneDimensional.Samples);
             samples.Sort((left, right) => left.Threshold.CompareTo(right.Threshold));
             var mixer = new LinearMixerState { ExtrapolateSpeed = false };
+            _maximumMoveThreshold = samples[samples.Count - 1].Threshold;
             var animations = new AnimationAsset[samples.Count];
             var sync = new bool[samples.Count];
             var idle = new bool[samples.Count];
@@ -233,7 +257,7 @@ public abstract class LocomotionAnimationRuntime : LocomotionRuntime
     {
         if (LocomotionAnimationUtility.IsUsableClip(clip))
             return true;
-        ReportIssue($"{label} requires an AnimationAsset/Clip with a finite positive length.");
+        ReportConfigurationError($"{label} requires an AnimationAsset/Clip with a finite positive length.");
         return false;
     }
 
@@ -275,7 +299,11 @@ public sealed class LocomotionSetRuntime : LocomotionAnimationRuntime
 {
     private readonly LocomotionSetAsset _set;
     private readonly LocomotionSetStateMachine _machine = new();
-    private readonly Dictionary<AnimationAsset, ClipState> _clips = new();
+    private readonly Dictionary<AnimationClip, ClipState> _clips = new();
+    private TransitionSample[] _start = Array.Empty<TransitionSample>();
+    private TransitionSample[] _stop = Array.Empty<TransitionSample>();
+    private TransitionSample[] _pivot = Array.Empty<TransitionSample>();
+    private bool _transitionsBound;
     private ClipState _transition;
 
     public LocomotionSetRuntime(LocomotionSetAsset asset) : base(asset) => _set = asset;
@@ -290,24 +318,34 @@ public sealed class LocomotionSetRuntime : LocomotionAnimationRuntime
 
     public override LocomotionAnimationRequest UpdateAnimation(in LocomotionRuntimeAnimationContext context)
     {
-        if (!IsEntered || context.DeltaTime <= 0f)
+        if (!IsEntered || !LocomotionDataValidation.IsFinite(context.DeltaTime) || context.DeltaTime <= 0f)
             return default;
 
         if (LocomotionAnimationUtility.WasGraphDestroyed(_transition))
             ResetAnimation();
-        bool completed = _transition != null && _transition.TimeD >= _transition.Length;
-        bool entered = _machine.Step(context, completed);
-        // Build Move even on the first Start tick, so the zero sample can protect an invalid transition.
-        LocomotionAnimationRequest move = MoveRequest(context, _set.TransitionBlendDuration,
-            _machine.UseZeroMoveParameter);
-        if (_machine.State == LocomotionSetState.Move)
+        LocomotionAnimationRequest move = MoveRequest(context, _set.TransitionBlendDuration);
+        if (move.State == null)
         {
+            _machine.Reset();
             _transition = null;
             return move;
         }
 
-        if (entered)
-            _transition = GetClipState(SelectTransition(context));
+        BindTransitions();
+        bool completed = _transition != null && _transition.TimeD >= _transition.Length;
+        LocomotionSetState next = _machine.DecideNextState(context, completed);
+        ClipState prepared = _transition;
+        if (next != _machine.State)
+        {
+            prepared = next == LocomotionSetState.Move ? null : GetClipState(SelectTransition(next, context));
+            if (prepared == null)
+                next = LocomotionSetState.Move;
+        }
+        bool entered = _machine.CommitState(next);
+        _transition = next == LocomotionSetState.Move ? null : prepared;
+        if (next == LocomotionSetState.Move)
+            return move;
+
         return new LocomotionAnimationRequest(_transition, _set.TransitionBlendDuration,
             entered, idleClip: move.IdleClip);
     }
@@ -317,77 +355,108 @@ public sealed class LocomotionSetRuntime : LocomotionAnimationRuntime
         foreach (ClipState state in _clips.Values)
             LocomotionAnimationUtility.Destroy(state);
         _clips.Clear();
+        _start = _stop = _pivot = Array.Empty<TransitionSample>();
+        _transitionsBound = false;
         _transition = null;
         base.OnDispose();
     }
 
-    private ClipState GetClipState(AnimationAsset animation)
+    private ClipState GetClipState(AnimationClip clip)
     {
-        if (animation == null)
+        if (clip == null)
             return null;
-        if (_clips.TryGetValue(animation, out ClipState state)
+        if (_clips.TryGetValue(clip, out ClipState state)
             && !LocomotionAnimationUtility.WasGraphDestroyed(state))
             return state;
         LocomotionAnimationUtility.Destroy(state);
-        state = new ClipState(animation.Clip);
-        _clips[animation] = state;
+        state = new ClipState(clip);
+        _clips[clip] = state;
         return state;
     }
 
-    private AnimationAsset SelectTransition(in LocomotionRuntimeAnimationContext context)
+    private void BindTransitions()
+    {
+        if (_transitionsBound)
+            return;
+        _transitionsBound = true;
+        _start = new TransitionSample[_set.Start?.Count ?? 0];
+        _stop = new TransitionSample[_set.Stop?.Count ?? 0];
+        _pivot = new TransitionSample[_set.Pivot?.Count ?? 0];
+        for (int i = 0; i < _start.Length; i++)
+        {
+            LocomotionStartEntry entry = _set.Start[i];
+            _start[i] = new TransitionSample(entry?.Animation?.Clip, Vector2.up,
+                entry?.TargetLocalDirection ?? Vector2.zero);
+        }
+        for (int i = 0; i < _stop.Length; i++)
+        {
+            LocomotionStopEntry entry = _set.Stop[i];
+            _stop[i] = new TransitionSample(entry?.Animation?.Clip,
+                entry?.SourceLocalDirection ?? Vector2.zero, Vector2.up);
+        }
+        for (int i = 0; i < _pivot.Length; i++)
+        {
+            LocomotionPivotEntry entry = _set.Pivot[i];
+            _pivot[i] = new TransitionSample(entry?.Animation?.Clip,
+                entry?.SourceLocalDirection ?? Vector2.zero, entry?.TargetLocalDirection ?? Vector2.zero);
+        }
+        _start = ValidateTransitions(_start, "Start");
+        _stop = ValidateTransitions(_stop, "Stop");
+        _pivot = ValidateTransitions(_pivot, "Pivot");
+    }
+
+    private TransitionSample[] ValidateTransitions(TransitionSample[] samples, string kind)
+    {
+        bool valid = true;
+        for (int i = 0; i < samples.Length; i++)
+        {
+            string label = $"{kind}[{i}]";
+            if (!LocomotionDataValidation.IsValidDirection(samples[i].Source)
+                || !LocomotionDataValidation.IsValidDirection(samples[i].Target))
+            {
+                ReportConfigurationError($"{label} has invalid source/target directions.");
+                valid = false;
+            }
+            if (!CheckClip(samples[i].Clip, label))
+                valid = false;
+        }
+        return valid ? samples : Array.Empty<TransitionSample>();
+    }
+
+    private AnimationClip SelectTransition(LocomotionSetState next, in LocomotionRuntimeAnimationContext context)
     {
         Vector2 source = context.ToLocalDirection(context.VelocityBeforeMotion);
         Vector2 target = context.ToLocalDirection(context.Intent.WorldMoveDirection);
-        AnimationAsset best = null;
+        AnimationClip best = null;
         float bestScore = float.PositiveInfinity;
-        bool valid = true;
-        int count = _machine.State == LocomotionSetState.Start ? _set.Start?.Count ?? 0
-            : _machine.State == LocomotionSetState.Stop ? _set.Stop?.Count ?? 0 : _set.Pivot?.Count ?? 0;
-        if (count == 0)
+        TransitionSample[] samples = next == LocomotionSetState.Start ? _start
+            : next == LocomotionSetState.Stop ? _stop : _pivot;
+        for (int i = 0; i < samples.Length; i++)
         {
-            ReportIssue($"{_machine.State} samples are missing.");
-            return null;
-        }
-        for (int i = 0; i < count; i++)
-        {
-            AnimationAsset animation;
-            Vector2 entrySource = Vector2.up;
-            Vector2 entryTarget = Vector2.up;
-            if (_machine.State == LocomotionSetState.Start)
-            {
-                animation = _set.Start[i]?.Animation;
-                entryTarget = _set.Start[i]?.TargetLocalDirection ?? Vector2.zero;
-            }
-            else if (_machine.State == LocomotionSetState.Stop)
-            {
-                animation = _set.Stop[i]?.Animation;
-                entrySource = _set.Stop[i]?.SourceLocalDirection ?? Vector2.zero;
-            }
-            else
-            {
-                animation = _set.Pivot[i]?.Animation;
-                entrySource = _set.Pivot[i]?.SourceLocalDirection ?? Vector2.zero;
-                entryTarget = _set.Pivot[i]?.TargetLocalDirection ?? Vector2.zero;
-            }
-            string label = $"{_machine.State}[{i}]";
-            if (!LocomotionDataValidation.IsValidDirection(entrySource)
-                || !LocomotionDataValidation.IsValidDirection(entryTarget))
-            {
-                ReportIssue($"{label} has invalid source/target directions.");
-                valid = false;
-            }
-            if (!CheckClip(animation?.Clip, label))
-                valid = false;
-            float score = _machine.State == LocomotionSetState.Start ? Vector2.Angle(target, entryTarget)
-                : _machine.State == LocomotionSetState.Stop ? Vector2.Angle(source, entrySource)
-                : Vector2.Angle(source, entrySource) + Vector2.Angle(target, entryTarget);
+            TransitionSample sample = samples[i];
+            float score = next == LocomotionSetState.Start ? Vector2.Angle(target, sample.Target)
+                : next == LocomotionSetState.Stop ? Vector2.Angle(source, sample.Source)
+                : Vector2.Angle(source, sample.Source) + Vector2.Angle(target, sample.Target);
             if (score < bestScore)
             {
                 bestScore = score;
-                best = animation;
+                best = sample.Clip;
             }
         }
-        // Never build a second, reduced set by silently excluding bad entries.
-        return valid ? best : null;
+        return best;
+    }
+
+    private readonly struct TransitionSample
+    {
+        internal TransitionSample(AnimationClip clip, Vector2 source, Vector2 target)
+        {
+            Clip = clip;
+            Source = source;
+            Target = target;
+        }
+
+        internal AnimationClip Clip { get; }
+        internal Vector2 Source { get; }
+        internal Vector2 Target { get; }
     }
 }

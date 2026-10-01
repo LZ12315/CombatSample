@@ -181,7 +181,9 @@ public sealed class LocomotionContractTests
             asset.CollectAnimationCoverageIssues(issues);
             Assert.That(asset.HasValidMovementConfig, Is.True);
             Assert.That(issues, Has.Some.Contains("Move 1D samples are missing"));
-            Assert.That(issues, Has.Some.Contains("Start samples are missing"));
+            Assert.That(issues, Has.None.Contains("Start"));
+            Assert.That(issues, Has.None.Contains("Stop"));
+            Assert.That(issues, Has.None.Contains("Pivot"));
         }
         finally
         {

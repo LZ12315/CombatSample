@@ -223,6 +223,7 @@ public sealed class LocomotionMove1DDefinition
         }
 
         bool hasZero = false;
+        bool hasMove = false;
         for (int i = 0; i < samples.Count; i++)
         {
             LocomotionMove1DSample sample = samples[i];
@@ -234,6 +235,7 @@ public sealed class LocomotionMove1DDefinition
             else
             {
                 hasZero |= Mathf.Abs(sample.Threshold) <= LocomotionDataValidation.ThresholdEpsilon;
+                hasMove |= sample.Threshold > LocomotionDataValidation.ThresholdEpsilon;
                 for (int j = 0; j < i; j++)
                 {
                     LocomotionMove1DSample previous = samples[j];
@@ -254,6 +256,8 @@ public sealed class LocomotionMove1DDefinition
 
         if (parameter == LocomotionMove1DParameter.HorizontalSpeed && !hasZero)
             issues.Add("HorizontalSpeed Move requires a zero-threshold Idle sample.");
+        if (parameter == LocomotionMove1DParameter.HorizontalSpeed && !hasMove)
+            issues.Add("HorizontalSpeed Move requires a non-zero movement sample.");
     }
 }
 
@@ -273,6 +277,7 @@ public sealed class LocomotionMove2DDefinition
         }
 
         bool hasZero = false;
+        bool hasMove = false;
         for (int i = 0; i < samples.Count; i++)
         {
             LocomotionMove2DSample sample = samples[i];
@@ -284,6 +289,8 @@ public sealed class LocomotionMove2DDefinition
             {
                 hasZero |= sample.Threshold.sqrMagnitude
                     <= LocomotionDataValidation.ThresholdEpsilon * LocomotionDataValidation.ThresholdEpsilon;
+                hasMove |= sample.Threshold.sqrMagnitude
+                    > LocomotionDataValidation.ThresholdEpsilon * LocomotionDataValidation.ThresholdEpsilon;
                 for (int j = 0; j < i; j++)
                 {
                     LocomotionMove2DSample previous = samples[j];
@@ -304,6 +311,8 @@ public sealed class LocomotionMove2DDefinition
 
         if (!hasZero)
             issues.Add("LocalVelocity Move requires a (0,0) Idle sample.");
+        if (!hasMove)
+            issues.Add("LocalVelocity Move requires a non-zero movement sample.");
     }
 }
 
