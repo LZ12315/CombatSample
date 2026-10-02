@@ -8,6 +8,7 @@ using UnityEngine;
 [Serializable]
 public sealed class RootMotionTrajectory : ISerializationCallbackReceiver
 {
+    internal const int CurrentBakerVersion = 1;
     [Header("Source Metadata")]
     [SerializeField] private AnimationClip sourceClip;
     [SerializeField] private int sampleRate = 60;
@@ -32,6 +33,11 @@ public sealed class RootMotionTrajectory : ISerializationCallbackReceiver
     public IReadOnlyList<float> SampleTimes => sampleTimes ?? Array.Empty<float>();
     public IReadOnlyList<Vector3> CumulativePositions => cumulativePositions ?? Array.Empty<Vector3>();
     public IReadOnlyList<Quaternion> CumulativeRotations => cumulativeRotations ?? Array.Empty<Quaternion>();
+
+    internal bool MatchesSource(AnimationClip clip, int expectedSampleRate, int expectedBakerVersion, string expectedHash) =>
+        sourceClip == clip && clip != null && sampleRate == expectedSampleRate
+        && bakerVersion == expectedBakerVersion && Mathf.Abs(duration - clip.length) <= 1e-5f
+        && !string.IsNullOrEmpty(expectedHash) && string.Equals(dependencyHash, expectedHash, StringComparison.Ordinal);
 
     public bool TrySample(float time, out RootMotionTransform sample)
     {

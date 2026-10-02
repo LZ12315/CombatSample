@@ -2,16 +2,18 @@ using System;
 using DeiveEx.TagTree;
 using UnityEngine;
 
-public readonly struct LocomotionModeContext
+public readonly struct LocomotionSelectionContext
 {
-    public LocomotionModeContext(Actor actor, LocomotionIntent intent)
+    public LocomotionSelectionContext(Actor actor, LocomotionIntent intent, LocomotionMotionContext motion)
     {
         Actor = actor;
         Intent = intent;
+        Motion = motion;
     }
 
     public Actor Actor { get; }
     public LocomotionIntent Intent { get; }
+    public LocomotionMotionContext Motion { get; }
 }
 
 [Serializable]
@@ -19,7 +21,7 @@ public abstract class LocomotionModeCondition
 {
     [SerializeField] private bool invertResult;
 
-    public bool Check(in LocomotionModeContext context)
+    public bool Check(in LocomotionSelectionContext context)
     {
         if (context.Actor == null)
             return false;
@@ -28,7 +30,7 @@ public abstract class LocomotionModeCondition
         return invertResult ? !result : result;
     }
 
-    protected abstract bool OnCheck(in LocomotionModeContext context);
+    protected abstract bool OnCheck(in LocomotionSelectionContext context);
 }
 
 public enum LocomotionIntentConditionMode
@@ -43,7 +45,7 @@ public sealed class LocomotionIntentModeCondition : LocomotionModeCondition
     [SerializeField] private LocomotionIntentConditionMode mode = LocomotionIntentConditionMode.Moving;
     [SerializeField] private float threshold = 0.01f;
 
-    protected override bool OnCheck(in LocomotionModeContext context)
+    protected override bool OnCheck(in LocomotionSelectionContext context)
     {
         float effectiveThreshold = Mathf.Max(0f, threshold);
         bool moving = context.Intent.MoveStrength > effectiveThreshold &&
@@ -75,12 +77,9 @@ public sealed class LocomotionGroundStateCondition : LocomotionModeCondition
     [SerializeField] private LocomotionGroundStateMask acceptedStates =
         LocomotionGroundStateMask.Grounded | LocomotionGroundStateMask.JustLanded;
 
-    protected override bool OnCheck(in LocomotionModeContext context)
+    protected override bool OnCheck(in LocomotionSelectionContext context)
     {
-        if (context.Actor.actorMotor == null)
-            return false;
-
-        return (acceptedStates & ToMask(context.Actor.actorMotor.GroundState)) != 0;
+        return (acceptedStates & ToMask(context.Motion.GroundState)) != 0;
     }
 
     private static LocomotionGroundStateMask ToMask(ActorGroundState state)
@@ -108,7 +107,7 @@ public sealed class LocomotionActorTagCondition : LocomotionModeCondition
     [SerializeField] private ActorTagContainerType targetContainer = ActorTagContainerType.Transient;
     [SerializeField] private ActorTagMatchMode matchMode = ActorTagMatchMode.Exact;
 
-    protected override bool OnCheck(in LocomotionModeContext context)
+    protected override bool OnCheck(in LocomotionSelectionContext context)
     {
         if (requiredTag == null)
             return false;

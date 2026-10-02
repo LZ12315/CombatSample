@@ -13,10 +13,10 @@ public class LocomotionIntentCondition : ActionCondition
 
     protected override bool OnCheck(Actor actor)
     {
-        if (actor == null || actor.actorMotor == null)
+        if (actor == null || actor.actorLocomotion == null)
             return false;
 
-        return actor.actorMotor.HasPendingLocomotionIntent &&
-               actor.actorMotor.PendingLocomotionIntent.MoveStrength > threshold;
+        return actor.actorLocomotion.TryGetControlIntent(out LocomotionIntent intent) &&
+               intent.MoveStrength > threshold;
     }
 }

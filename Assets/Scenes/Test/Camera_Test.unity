@@ -4319,8 +4319,9 @@ MonoBehaviour:
   m_Name:
   m_EditorClassIdentifier:
   actor: {fileID: 344299294}
-  fallbackMode: {fileID: 11400000, guid: b5d5a89e5e194204a152d33b8d86b3fe, type: 2}
-  candidateModes: []
+  locomotionAssets:
+  - {fileID: 11400000, guid: b5d5a89e5e194204a152d33b8d86b3fe, type: 2}
+  - {fileID: 11400000, guid: f2c4e58bd6f74c8ca1de24efc25d5432, type: 2}
 --- !u!114 &344299296
 MonoBehaviour:
   m_ObjectHideFlags: 0

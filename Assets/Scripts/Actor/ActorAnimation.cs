@@ -1,4 +1,5 @@
 using Animancer;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Playables;
 
@@ -22,8 +23,17 @@ public sealed class ActorAnimation : MonoBehaviour
     private AnimancerLayer _actionLayer;
     private AnimancerState _actionState;
     private AnimationClip _actionStateClip;
+    private int _nextLocomotionOwnerId;
+    private int _activeLocomotionOwnerId;
+    private AnimancerState _locomotionState;
+    private AnimancerState _lastMoveState;
+    private AnimancerState _protectionState;
+    private AnimationClip _idleClip;
+    private readonly List<float> _previousChildWeights = new();
+    private bool _warnedMissingBasePose;
 
     public bool HasActiveActionOwner => _actionOwnerActive;
+    internal int ActiveActionOwnerId => _actionOwnerActive ? _activeActionOwnerId : 0;
 
     private void Awake()
     {
@@ -49,6 +59,8 @@ public sealed class ActorAnimation : MonoBehaviour
     {
         ClearAnimationState();
         RestoreUpdateMode();
+        LocomotionAnimationUtility.Destroy(_protectionState);
+        _protectionState = null;
     }
 
     internal void Bind(Actor owner)
@@ -59,6 +71,189 @@ public sealed class ActorAnimation : MonoBehaviour
         ResolveDependencies();
         ApplyManualUpdateMode();
         EnsureLayers();
+        if (_idleClip != null || _protectionState != null)
+            HoldLocomotionPose();
+    }
+
+    internal ActorAnimationLocomotionOwner BeginLocomotionSession()
+    {
+        if (!isActiveAndEnabled)
+            return default;
+        ResolveDependencies();
+        ApplyManualUpdateMode();
+        EnsureLayers();
+        if (_baseLayer == null)
+            return default;
+        if (_activeLocomotionOwnerId != 0)
+            HoldLocomotionPose();
+        _activeLocomotionOwnerId = ++_nextLocomotionOwnerId;
+        return new ActorAnimationLocomotionOwner(_activeLocomotionOwnerId);
+    }
+
+    internal bool IsLocomotionOwnerActive(ActorAnimationLocomotionOwner owner) =>
+        isActiveAndEnabled && owner.IsValid && owner.Id == _activeLocomotionOwnerId
+        && _baseLayer != null && _baseLayer.Playable.IsValid();
+
+    internal void EndLocomotionSession(ActorAnimationLocomotionOwner owner)
+    {
+        if (!owner.IsValid || owner.Id != _activeLocomotionOwnerId)
+            return;
+        HoldLocomotionPose();
+        _activeLocomotionOwnerId = 0;
+        _locomotionState = null;
+        _lastMoveState = null;
+    }
+
+    internal bool SubmitLocomotion(ActorAnimationLocomotionOwner owner, in LocomotionAnimationRequest request)
+    {
+        if (!IsLocomotionOwnerActive(owner))
+            return false;
+        if (LocomotionAnimationUtility.IsUsableClip(request.IdleClip))
+            _idleClip = request.IdleClip;
+        if (request.State == null || LocomotionAnimationUtility.WasGraphDestroyed(request.State)
+            || !LocomotionDataValidation.IsFinite(request.BlendDuration) || request.BlendDuration < 0f
+            || !LocomotionDataValidation.IsFinite(request.Parameter)
+            || (request.MovePlayback != null && !LocomotionDataValidation.IsFinite(request.PlaybackContext.DeltaTime)))
+        {
+            HoldLocomotionPose();
+            return false;
+        }
+
+        AnimancerState state = request.State;
+        if (request.MovePlayback != null && request.PlaybackContext.DeltaTime <= 0f)
+        {
+            request.MovePlayback?.SuspendFeedback();
+            return true;
+        }
+        if (state != _locomotionState || _baseLayer.CurrentState != state || request.Restart)
+        {
+            if (!request.IsMove && _idleClip == null && _lastMoveState != null
+                && _lastMoveState.IsPlaying && _lastMoveState.Weight > LocomotionAnimationUtility.WeightEpsilon)
+                CaptureBasePose(_lastMoveState);
+            float fade = _baseLayer.CurrentState == null ? 0f : request.BlendDuration;
+            _baseLayer.Play(state, fade);
+        }
+        state.Speed = 1f;
+        if (request.Restart)
+            state.TimeD = 0d;
+        if (request.IsMove)
+        {
+            ApplyMixerParameter(state, request.Parameter);
+            request.MovePlayback?.Prepare(request.PlaybackContext);
+            _lastMoveState = state;
+        }
+        _locomotionState = state;
+        _warnedMissingBasePose = false;
+        return true;
+    }
+
+    private void ApplyMixerParameter(AnimancerState state, Vector2 parameter)
+    {
+        _previousChildWeights.Clear();
+        for (int i = 0; i < state.ChildCount; i++)
+            _previousChildWeights.Add(state.GetChild(i).Weight);
+        if (state is LinearMixerState linear)
+        {
+            linear.Parameter = parameter.x;
+            linear.RecalculateWeights();
+        }
+        else if (state is DirectionalMixerState directional)
+        {
+            directional.Parameter = parameter;
+            directional.RecalculateWeights();
+        }
+        for (int i = 0; i < state.ChildCount; i++)
+        {
+            AnimancerState child = state.GetChild(i);
+            if (!child.IsLooping && _previousChildWeights[i] <= LocomotionAnimationUtility.WeightEpsilon
+                && child.Weight > LocomotionAnimationUtility.WeightEpsilon)
+                child.TimeD = 0d;
+        }
+    }
+
+    private void HoldLocomotionPose()
+    {
+        if (_baseLayer == null || !_baseLayer.Playable.IsValid())
+            return;
+        if (LocomotionAnimationUtility.IsUsableClip(_idleClip))
+        {
+            if (LocomotionAnimationUtility.WasGraphDestroyed(_protectionState)
+                || _protectionState?.Clip != _idleClip)
+            {
+                AnimancerState previous = _protectionState;
+                _protectionState = new ClipState(_idleClip);
+                _baseLayer.Play(_protectionState);
+                LocomotionAnimationUtility.Destroy(previous);
+            }
+        }
+        else if (_lastMoveState != null && _lastMoveState.IsPlaying
+            && _lastMoveState.Weight > LocomotionAnimationUtility.WeightEpsilon)
+        {
+            CaptureBasePose(_lastMoveState);
+        }
+        else if (_protectionState == null || LocomotionAnimationUtility.WasGraphDestroyed(_protectionState))
+        {
+            CaptureBasePose(_lastMoveState ?? _locomotionState ?? _baseLayer.CurrentState);
+        }
+        if (_protectionState != null && !LocomotionAnimationUtility.WasGraphDestroyed(_protectionState))
+        {
+            _baseLayer.CancelFade();
+            _baseLayer.Play(_protectionState);
+            FreezePose(_protectionState);
+            _locomotionState = null;
+        }
+        else if (!_warnedMissingBasePose)
+        {
+            Debug.LogWarning("[ActorLocomotion] Cannot establish a valid Layer 0 base pose: " +
+                "no valid Idle sample or previously played base state is available.", this);
+            _warnedMissingBasePose = true;
+        }
+    }
+
+    private void CaptureBasePose(AnimancerState source)
+    {
+        if (source == null || !source.Playable.IsValid())
+            return;
+        // Copy only pose data, not fades, events, synchronization or references to Runtime-owned states.
+        AnimancerState snapshot = CreatePoseSnapshot(source);
+        if (snapshot == null)
+            return;
+        LocomotionAnimationUtility.Destroy(_protectionState);
+        _protectionState = snapshot;
+        FreezePose(snapshot);
+    }
+
+    private static AnimancerState CreatePoseSnapshot(AnimancerState source)
+    {
+        if (LocomotionAnimationUtility.IsUsableClip(source.Clip))
+            return new ClipState(source.Clip) { TimeD = source.TimeD, Speed = 0f };
+        if (source.ChildCount == 0)
+            return null;
+        var snapshot = new ManualMixerState { Speed = 0f };
+        for (int i = 0; i < source.ChildCount; i++)
+        {
+            AnimancerState sourceChild = source.GetChild(i);
+            AnimancerState child = CreatePoseSnapshot(sourceChild);
+            if (child == null)
+            {
+                snapshot.Destroy();
+                return null;
+            }
+            snapshot.Add(child);
+            snapshot.DontSynchronize(child);
+            child.Weight = sourceChild.Weight;
+        }
+        return snapshot;
+    }
+
+    private static void FreezePose(AnimancerState state)
+    {
+        state.CancelFade();
+        state.Speed = 0f;
+        if (state is ManualMixerState mixer)
+            mixer.DontSynchronizeChildren();
+        for (int i = 0; i < state.ChildCount; i++)
+            FreezePose(state.GetChild(i));
     }
 
     internal ActorAnimationActionOwner BeginActionOverride()
@@ -90,6 +285,7 @@ public sealed class ActorAnimation : MonoBehaviour
 
     internal void CancelFixedAnimationTick()
     {
+        EndLocomotionSession(new ActorAnimationLocomotionOwner(_activeLocomotionOwnerId));
         _actionOwnerActive = false;
         _activeActionOwnerId = 0;
         _hasActionPoseThisTick = false;
@@ -148,6 +344,31 @@ public sealed class ActorAnimation : MonoBehaviour
         animancer.Evaluate(Mathf.Max(0f, deltaSeconds));
     }
 
+#if UNITY_EDITOR
+    internal string DescribeEvaluatedLocomotionLayers()
+    {
+        if (_baseLayer == null || !_baseLayer.Playable.IsValid())
+            return "Layer0=unavailable";
+        var text = new System.Text.StringBuilder();
+        text.Append($"Layer0Weight={_baseLayer.Weight:F3}, Layer1Weight={_actionLayer?.Weight ?? 0f:F3}");
+        for (int i = 0; i < _baseLayer.ChildCount; i++)
+        {
+            AnimancerState state = _baseLayer.GetChild(i);
+            if (state.Weight <= LocomotionAnimationUtility.WeightEpsilon)
+                continue;
+            string label = state.Clip != null ? state.Clip.name : state.GetType().Name;
+            text.Append($"; {label}[weight={state.Weight:F3}, time={state.TimeD:F3}, speed={state.Speed:F3}, playing={state.IsPlaying}]");
+            for (int j = 0; j < state.ChildCount; j++)
+            {
+                AnimancerState child = state.GetChild(j);
+                if (child.Weight > LocomotionAnimationUtility.WeightEpsilon)
+                    text.Append($" {child.Clip?.name}[weight={child.Weight:F3}, time={child.TimeD:F3}/{child.Length:F3}, speed={child.Speed:F3}, loop={child.IsLooping}]");
+            }
+        }
+        return text.ToString();
+    }
+#endif
+
     private bool IsActiveOwner(ActorAnimationActionOwner owner)
     {
         return owner.IsValid
@@ -157,6 +378,8 @@ public sealed class ActorAnimation : MonoBehaviour
 
     private void ClearAnimationState()
     {
+        EndLocomotionSession(new ActorAnimationLocomotionOwner(_activeLocomotionOwnerId));
+        actor?.actorLocomotion?.ResetAnimationSession();
         _actionOwnerActive = false;
         _activeActionOwnerId = 0;
         _hasActionPoseThisTick = false;
@@ -167,7 +390,7 @@ public sealed class ActorAnimation : MonoBehaviour
 
     private void ClearActionLayer()
     {
-        if (_actionLayer != null)
+        if (_actionLayer != null && _actionLayer.Playable.IsValid())
         {
             _actionLayer.CancelFade();
             _actionLayer.Stop();
@@ -196,6 +419,15 @@ public sealed class ActorAnimation : MonoBehaviour
             return;
 
         animancer.Layers.SetMinCount(ActionOverrideLayerIndex + 1);
+        if (_baseLayer != null && _baseLayer != animancer.Layers[LocomotionBaseLayerIndex])
+        {
+            _activeLocomotionOwnerId = 0;
+            _locomotionState = null;
+            _lastMoveState = null;
+            _protectionState = null;
+            _actionState = null;
+            _actionStateClip = null;
+        }
         _baseLayer = animancer.Layers[LocomotionBaseLayerIndex];
         _actionLayer = animancer.Layers[ActionOverrideLayerIndex];
         if (_baseLayer != null && _baseLayer.Weight <= 0f)

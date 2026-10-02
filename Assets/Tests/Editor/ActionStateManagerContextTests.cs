@@ -43,12 +43,13 @@ public sealed class ActionStateManagerContextTests
         SetPrivateField(action, "_startContextMode", ActionStartContextMode.LocomotionIntent);
         rig.SetActionList(action);
 
-        rig.Motor.SetLocomotionIntent(new LocomotionIntent
+        rig.Locomotion.SetLocomotionIntent(new LocomotionIntent
         {
             WorldMoveDirection = Vector3.right,
             MoveStrength = 1f,
             FacingDirection = Vector3.zero,
         });
+        rig.Locomotion.BeginControlTick();
 
         rig.RunActionStateManager();
 
@@ -67,9 +68,162 @@ public sealed class ActionStateManagerContextTests
         SetPrivateField(action, "_startContextMode", ActionStartContextMode.LocomotionIntent);
         rig.SetActionList(action);
 
+        rig.Locomotion.BeginControlTick();
         rig.RunActionStateManager();
 
         Assert.IsNull(rig.Player.CurrentAction);
+    }
+
+    [Test]
+    public void LocomotionControlSnapshot_LateSubmissionBelongsToNextTick()
+    {
+        TestRig rig = CreateRig();
+        rig.Locomotion.SetLocomotionIntent(new LocomotionIntent
+        {
+            WorldMoveDirection = Vector3.right,
+            MoveStrength = 1f,
+        });
+        rig.Locomotion.BeginControlTick();
+        rig.Locomotion.SetLocomotionIntent(new LocomotionIntent
+        {
+            WorldMoveDirection = Vector3.left,
+            MoveStrength = 0.5f,
+        });
+
+        Assert.IsTrue(rig.Locomotion.TryGetControlIntent(out LocomotionIntent controlIntent));
+        Assert.That(controlIntent.WorldMoveDirection.x, Is.EqualTo(1f));
+
+        var context = new LocomotionMotionContext(0.02f, true, Vector3.up,
+            Quaternion.identity, default, default);
+        LocomotionMotionRequest first = rig.Locomotion.BuildMotionRequest(context);
+        Assert.That(first.WorldPlanarVelocity.x, Is.EqualTo(0.4f).Within(0.001f));
+
+        rig.Locomotion.BeginControlTick();
+        LocomotionMotionRequest second = rig.Locomotion.BuildMotionRequest(context);
+        Assert.That(second.WorldPlanarVelocity.x, Is.EqualTo(-0.15f).Within(0.001f));
+    }
+
+    [Test]
+    public void LocomotionControlRelease_BrakesWhileDisableResetsSharedVelocity()
+    {
+        TestRig rig = CreateRig();
+        var context = new LocomotionMotionContext(0.02f, true, Vector3.up, Quaternion.identity, default, default);
+        for (int i = 0; i < 3; i++)
+        {
+            rig.Locomotion.SetLocomotionIntent(new LocomotionIntent { WorldMoveDirection = Vector3.right, MoveStrength = 1f });
+            rig.Locomotion.BeginControlTick();
+            rig.Locomotion.BuildMotionRequest(context);
+        }
+        float speed = rig.Locomotion.DebugLocomotionVelocity.x;
+        LocomotionMotionRequest prepared = rig.Locomotion.BuildMotionRequest(context);
+        rig.Locomotion.ClearLocomotionIntent();
+        Assert.That(rig.Locomotion.DebugLocomotionVelocity.x, Is.EqualTo(speed));
+        Assert.That(rig.Locomotion.BuildMotionRequest(context).WorldPlanarVelocity,
+            Is.EqualTo(prepared.WorldPlanarVelocity), "Releasing input must not reopen an integrated tick.");
+        rig.Locomotion.BeginControlTick();
+        Assert.That(rig.Locomotion.TryGetControlIntent(out _), Is.False);
+        float brakingSpeed = rig.Locomotion.BuildMotionRequest(context).WorldPlanarVelocity.x;
+        Assert.That(brakingSpeed, Is.GreaterThan(0f).And.LessThan(speed));
+        rig.Locomotion.enabled = false;
+        Assert.That(rig.Locomotion.DebugLocomotionVelocity, Is.EqualTo(Vector3.zero));
+    }
+
+    [Test]
+    public void LocomotionFreeze_PreservesIntentUntilPositiveMotionTick()
+    {
+        TestRig rig = CreateRig();
+        rig.Locomotion.SetLocomotionIntent(new LocomotionIntent
+        {
+            WorldMoveDirection = Vector3.right,
+            MoveStrength = 1f,
+        });
+        rig.Locomotion.BeginControlTick();
+
+        LocomotionMotionRequest frozen = rig.Locomotion.BuildMotionRequest(
+            new LocomotionMotionContext(0f, true, Vector3.up, Quaternion.identity, default, default));
+        Assert.IsFalse(frozen.HasVelocity);
+
+        rig.Locomotion.BeginControlTick();
+        Assert.IsTrue(rig.Locomotion.TryGetControlIntent(out _));
+        var running = new LocomotionMotionContext(0.02f, true, Vector3.up,
+            Quaternion.identity, default, default);
+        Assert.That(rig.Locomotion.BuildMotionRequest(running).WorldPlanarVelocity.x,
+            Is.EqualTo(0.4f).Within(0.001f));
+
+        rig.Locomotion.BeginControlTick();
+        Assert.IsFalse(rig.Locomotion.TryGetControlIntent(out _));
+        Assert.That(rig.Locomotion.BuildMotionRequest(running).WorldPlanarVelocity.sqrMagnitude,
+            Is.EqualTo(0f));
+
+        rig.Locomotion.SetLocomotionIntent(new LocomotionIntent
+        {
+            WorldMoveDirection = Vector3.left,
+            MoveStrength = 1f,
+        });
+        rig.Locomotion.BeginControlTick();
+        rig.Locomotion.ClearLocomotionIntent();
+        Assert.IsTrue(rig.Locomotion.TryGetControlIntent(out _), "Release cannot change the locked snapshot.");
+        rig.Locomotion.BuildMotionRequest(new LocomotionMotionContext(0f, true, Vector3.up,
+            Quaternion.identity, default, default));
+        rig.Locomotion.BeginControlTick();
+        Assert.IsFalse(rig.Locomotion.TryGetControlIntent(out _));
+        rig.Locomotion.SetLocomotionIntent(LocomotionIntent.Idle);
+        rig.Locomotion.enabled = false;
+        rig.Locomotion.enabled = true;
+        rig.Locomotion.BeginControlTick();
+        Assert.IsFalse(rig.Locomotion.TryGetControlIntent(out _));
+    }
+
+    [Test]
+    public void MotorCompose_PolicyAndOwnerPriorityKeepRequestedSeparateFromActual()
+    {
+        TestRig rig = CreateRig();
+        ActorMotor motor = rig.Motor;
+        var locomotionRequest = new LocomotionMotionRequest(Vector3.right * 4f,
+            Quaternion.identity, true, true);
+
+        MotionOwner policy = motor.BeginLocomotionScale(0f);
+        motor.BeginMotion(0.02f);
+        motor.ComposeMotion(locomotionRequest);
+        Assert.That(motor.RequestedVelocity.x, Is.EqualTo(0f).Within(0.001f));
+        motor.CancelPreparedMotion();
+        motor.EndLocomotionScale(policy);
+
+        MotionOwner velocityOwner = motor.BeginHorizontalVelocity();
+        motor.SetHorizontalVelocity(velocityOwner, Vector3.left * 3f);
+        MotionOwner rootOwner = motor.BeginTrajectoryRootMotion();
+        motor.SubmitTrajectoryRootMotion(rootOwner, Vector3.right * 0.2f);
+        motor.BeginMotion(0.02f);
+        motor.ComposeMotion(locomotionRequest);
+        Assert.That(motor.RequestedVelocity.x, Is.EqualTo(-3f).Within(0.001f));
+
+        motor.EndHorizontalVelocity(velocityOwner);
+        motor.PublishWorldResult();
+        Assert.That(motor.LastMotionResult.HorizontalSource,
+            Is.EqualTo(HorizontalMotionSource.HorizontalVelocityOwner));
+        Assert.That(motor.ActualSolvedVelocity.x, Is.EqualTo(0f).Within(0.001f));
+        motor.EndTrajectoryRootMotion(rootOwner);
+
+        rootOwner = motor.BeginTrajectoryRootMotion();
+        motor.SubmitTrajectoryRootMotion(rootOwner, Vector3.right * 0.1f);
+        motor.BeginMotion(0.02f);
+        motor.ComposeMotion(locomotionRequest);
+        Assert.That(motor.RequestedVelocity.x, Is.EqualTo(5f).Within(0.001f));
+        motor.CancelPreparedMotion();
+        motor.EndTrajectoryRootMotion(rootOwner);
+
+        motor.SetMovementTimeScale(0.5f);
+        LocomotionMotionContext halfSpeed = motor.BeginMotion(0.02f);
+        Assert.That(halfSpeed.EffectiveDeltaTime, Is.EqualTo(0.01f).Within(0.0001f));
+        motor.ComposeMotion(locomotionRequest);
+        Assert.That(motor.RequestedVelocity.x, Is.EqualTo(2f).Within(0.001f));
+        motor.CancelPreparedMotion();
+
+        motor.SetMovementTimeScale(0f);
+        Assert.That(motor.BeginMotion(0.02f).EffectiveDeltaTime, Is.Zero);
+        motor.ComposeMotion(default);
+        Assert.That(motor.RequestedVelocity.sqrMagnitude, Is.Zero);
+        motor.CancelPreparedMotion();
     }
 
     [Test]
@@ -329,10 +483,15 @@ public sealed class ActionStateManagerContextTests
 
         Actor actor = owner.AddComponent<Actor>();
         ActorMotor motor = owner.AddComponent<ActorMotor>();
+        ActorLocomotion locomotion = owner.AddComponent<ActorLocomotion>();
+        LocomotionSetAsset locomotionAsset = ScriptableObject.CreateInstance<LocomotionSetAsset>();
+        _objects.Add(locomotionAsset);
+        SetPrivateField(locomotion, "locomotionAssets", new List<LocomotionAsset> { locomotionAsset });
         ActionPlayer player = owner.AddComponent<ActionPlayer>();
         ActionStateManager asm = owner.AddComponent<ActionStateManager>();
 
         actor.actorMotor = motor;
+        actor.actorLocomotion = locomotion;
         actor.actionPlayer = player;
         actor.actionManager = asm;
         SetPrivateField(player, "_actor", actor);
@@ -341,7 +500,7 @@ public sealed class ActionStateManagerContextTests
         InvokePrivate(player, "Awake");
         InvokePrivate(asm, "Awake");
 
-        return new TestRig(actor, motor, player, asm, this);
+        return new TestRig(actor, motor, locomotion, player, asm, this);
     }
 
     private ActionAsset CreateAction(
@@ -415,12 +574,14 @@ public sealed class ActionStateManagerContextTests
         public TestRig(
             Actor actor,
             ActorMotor motor,
+            ActorLocomotion locomotion,
             ActionPlayer player,
             ActionStateManager asm,
             ActionStateManagerContextTests owner)
         {
             Actor = actor;
             Motor = motor;
+            Locomotion = locomotion;
             Player = player;
             Asm = asm;
             _owner = owner;
@@ -428,6 +589,7 @@ public sealed class ActionStateManagerContextTests
 
         public Actor Actor { get; }
         public ActorMotor Motor { get; }
+        public ActorLocomotion Locomotion { get; }
         public ActionPlayer Player { get; }
         public ActionStateManager Asm { get; }
 

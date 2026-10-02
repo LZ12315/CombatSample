@@ -37,6 +37,7 @@ namespace NodeCanvas.Tasks.Actions
         public BBParameter<float> timeout = 2f;
 
         private float _startTime;
+        private ActorLocomotion _continuousLocomotion;
 
         protected override void OnExecute()
         {
@@ -53,10 +54,20 @@ namespace NodeCanvas.Tasks.Actions
                 Tick();
         }
 
+        protected override void OnStop(bool interrupted) => ReleaseContinuousIntent();
+        protected override void OnPause() => ReleaseContinuousIntent();
+        protected override void OnResume() => Tick();
+
+        private void ReleaseContinuousIntent()
+        {
+            _continuousLocomotion?.ReleaseContinuousLocomotionIntent();
+            _continuousLocomotion = null;
+        }
+
         private void Tick()
         {
             var actorValue = actor?.value;
-            if (actorValue?.actorMotor == null)
+            if (actorValue?.actorLocomotion == null)
             {
                 EndAction(false);
                 return;
@@ -101,12 +112,21 @@ namespace NodeCanvas.Tasks.Actions
             float strength = Mathf.Clamp01(moveStrength != null ? moveStrength.value : 1f);
             bool faceMove = faceMoveDirection == null || faceMoveDirection.value;
 
-            actorValue.actorMotor.SetLocomotionIntent(new LocomotionIntent
+            var intent = new LocomotionIntent
             {
                 WorldMoveDirection = dir,
                 MoveStrength = strength,
                 FacingDirection = faceMove ? dir : Vector3.zero,
-            });
+            };
+            if (runMode == RunMode.PushOnce)
+                actorValue.actorLocomotion.SetLocomotionIntent(intent);
+            else
+            {
+                if (_continuousLocomotion != actorValue.actorLocomotion)
+                    ReleaseContinuousIntent();
+                _continuousLocomotion = actorValue.actorLocomotion;
+                _continuousLocomotion.SetContinuousLocomotionIntent(intent);
+            }
         }
 
         private bool TryGetHorizontalDistanceToPoint(Actor actorValue, out float distance)
@@ -133,11 +153,12 @@ namespace NodeCanvas.Tasks.Actions
             return delta;
         }
 
-        private static void PushIdle(Actor actorValue)
+        private void PushIdle(Actor actorValue)
         {
-            if (actorValue?.actorMotor == null)
+            ReleaseContinuousIntent();
+            if (actorValue?.actorLocomotion == null)
                 return;
-            actorValue.actorMotor.SetLocomotionIntent(LocomotionIntent.Idle);
+            actorValue.actorLocomotion.SetLocomotionIntent(LocomotionIntent.Idle);
         }
     }
 }

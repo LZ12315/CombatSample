@@ -92,9 +92,9 @@ HitBox 的正式绑定使用 ActionHitBoxAnchor。旧 BoneReference、旧 Playab
 
 ## 5. 资产边界
 
-`Assets/Create/ActionAsset/` 保留了按角色归类的旧 Action 资产及其 GUID，也包含新建的正式动作。目录移动没有转换内容：旧资产仍可能序列化 `_timelineAsset`、`_playbackBackend`、`_sequenceData` 和已删除的 managed-reference 类型；旧 Sequence 内容不能继续播放。项目负责人按需从当前格式重新配置动作，不把目录归位当作迁移完成。
+`Assets/Create/Action/` 按角色归类 Action 资产，并保留原有 GUID；Kiana 的新正式动作位于 `Action/Kiana_New/Combat/`。目录移动没有转换旧资产内容：旧资产仍可能序列化 `_timelineAsset`、`_playbackBackend`、`_sequenceData` 和已删除的 managed-reference 类型；旧 Sequence 内容不能继续播放。项目负责人按需从当前格式重新配置动作，不把目录归位当作迁移完成。
 
-新 AnimationAsset / AnimationRigAsset 位于 `Assets/Create/AnimationAsset/`；`Assets/Create/Test/` 保存 TestAction 与临时 Locomotion 配置。Action List、行为图分别归于 `Assets/Create/ActionList/`、`Assets/Create/Graph/`。这些资源的版本提交与系统代码基线分开，旧资源不作为兼容输入。
+AnimationAsset 和 AnimationRigAsset 位于 `Assets/Create/Animation/`；Locomotion 配置位于 `Assets/Create/Locomotion/`，`Assets/Create/Test/` 保留测试资产。当前 Action List 随角色放在 `Assets/Create/Action/`，旧列表位于 `Assets/Create/Archive/ActionList/`；行为图位于 `Assets/Create/Graph/`。旧资源不作为兼容输入。
 
 ## 6. 验证
 

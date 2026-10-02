@@ -1,25 +1,18 @@
 using UnityEngine;
 
 /// <summary>
-/// ActorMotor-owned locomotion producer. It consumes the pending intent exactly once per
-/// motion tick and exposes the effective contribution for Translation and Rotation.
+/// ActorLocomotion-owned motion producer. Intent lifetime is managed by ActorLocomotion.
 /// </summary>
 public sealed class LocomotionRunner
 {
-    private LocomotionIntent _pendingIntent = LocomotionIntent.Idle;
     private LocomotionIntent _effectiveIntent = LocomotionIntent.Idle;
-    private bool _hasPendingIntent;
     private bool _hasEffectiveIntent;
     private Vector3 _cachedVelocity;
 
     private Quaternion _targetRotation = Quaternion.identity;
     private Quaternion _pendingRotation = Quaternion.identity;
 
-    public LocomotionIntent Intent => _effectiveIntent;
     public LocomotionIntent EffectiveIntent => _effectiveIntent;
-    public LocomotionIntent PendingIntent => _pendingIntent;
-    public bool HasIntent => _hasEffectiveIntent;
-    public bool HasPendingIntent => _hasPendingIntent;
     public Vector3 CachedVelocity => _cachedVelocity;
     public Quaternion PendingRotation => _pendingRotation;
     public float TargetRotationYaw => _targetRotation.eulerAngles.y;
@@ -36,73 +29,56 @@ public sealed class LocomotionRunner
         _pendingRotation = rotation;
     }
 
-    public void SetIntent(in LocomotionIntent intent)
+    public void ClearIntent()
     {
-        _pendingIntent = intent;
-        _hasPendingIntent = true;
-    }
-
-    public void ClearPendingIntent()
-    {
-        _pendingIntent = LocomotionIntent.Idle;
-        _hasPendingIntent = false;
+        _effectiveIntent = LocomotionIntent.Idle;
+        _hasEffectiveIntent = false;
+        _cachedVelocity = Vector3.zero;
     }
 
     public void Prepare(
+        in LocomotionIntent intent,
+        bool hasIntent,
         float deltaTime,
-        float baseSpeed,
-        float airControlFactor,
-        float rotateSpeed,
-        bool isAirborne,
-        float locomotionScale,
-        float airLocomotionScale)
+        in LocomotionMovementConfig movementConfig)
     {
-        if (_hasPendingIntent)
-        {
-            _effectiveIntent = _pendingIntent;
-            _hasEffectiveIntent = true;
-        }
-        else if (deltaTime > 0f)
-        {
-            _effectiveIntent = LocomotionIntent.Idle;
-            _hasEffectiveIntent = false;
-        }
+        if (deltaTime <= 0f)
+            return;
 
-        UpdateRotation(deltaTime, rotateSpeed);
-        _cachedVelocity = ComputeVelocity(baseSpeed, airControlFactor, isAirborne, locomotionScale, airLocomotionScale);
+        _effectiveIntent = hasIntent ? intent : LocomotionIntent.Idle;
+        _hasEffectiveIntent = hasIntent;
 
-        if (deltaTime > 0f)
-            ClearPendingIntent();
+        LocomotionMovementConfig config = movementConfig.Sanitize();
+        UpdateRotation(intent, hasIntent, deltaTime, config);
+        Vector3 targetVelocity = ComputeTargetVelocity(config);
+        _cachedVelocity = IntegrateVelocity(
+            _cachedVelocity, targetVelocity, config.Acceleration, config.Deceleration, deltaTime);
     }
 
-    private void UpdateRotation(float deltaTime, float rotateSpeed)
+    private void UpdateRotation(in LocomotionIntent intent, bool hasIntent, float deltaTime,
+        in LocomotionMovementConfig config)
     {
-        if (_hasPendingIntent)
+        Vector3 face = hasIntent ? intent.FacingDirection : Vector3.zero;
+        face.y = 0f;
+        if (face.sqrMagnitude > 0.0001f)
         {
-            Vector3 face = _pendingIntent.FacingDirection;
-            face.y = 0f;
-            if (face.sqrMagnitude < 0.0001f)
-            {
-                face = _pendingIntent.WorldMoveDirection;
-                face.y = 0f;
-            }
-
-            if (face.sqrMagnitude > 0.0001f)
-                _targetRotation = Quaternion.LookRotation(face.normalized, Vector3.up);
+            _targetRotation = Quaternion.LookRotation(face.normalized, Vector3.up);
+        }
+        else
+        {
+            _targetRotation = _pendingRotation;
+            return;
         }
 
-        _pendingRotation = Quaternion.RotateTowards(
-            _pendingRotation,
-            _targetRotation,
-            Mathf.Max(0f, rotateSpeed) * Mathf.Max(0f, deltaTime));
+        float angle = Quaternion.Angle(_pendingRotation, _targetRotation);
+        float responseStep = config.TurnResponseTime > 0f
+            ? angle * (1f - Mathf.Exp(-deltaTime / config.TurnResponseTime))
+            : angle;
+        float cappedStep = Mathf.Min(responseStep, config.RotateSpeed * deltaTime);
+        _pendingRotation = Quaternion.RotateTowards(_pendingRotation, _targetRotation, cappedStep);
     }
 
-    private Vector3 ComputeVelocity(
-        float baseSpeed,
-        float airControlFactor,
-        bool isAirborne,
-        float locomotionScale,
-        float airLocomotionScale)
+    private Vector3 ComputeTargetVelocity(in LocomotionMovementConfig config)
     {
         if (!_hasEffectiveIntent)
             return Vector3.zero;
@@ -113,10 +89,22 @@ public sealed class LocomotionRunner
             return Vector3.zero;
 
         dir.Normalize();
-        float speed = _effectiveIntent.MoveStrength * Mathf.Max(0f, baseSpeed) * Mathf.Clamp01(locomotionScale);
-        if (isAirborne)
-            speed *= Mathf.Clamp01(airControlFactor) * Mathf.Clamp01(airLocomotionScale);
+        return dir * (_effectiveIntent.MoveStrength * config.MaxSpeed);
+    }
 
-        return dir * speed;
+    private static Vector3 IntegrateVelocity(Vector3 current, Vector3 target,
+        float acceleration, float deceleration, float deltaTime)
+    {
+        if (Vector3.Dot(current, target) < 0f)
+        {
+            float currentSpeed = current.magnitude;
+            float brakingTime = currentSpeed / deceleration;
+            if (deltaTime <= brakingTime)
+                return Vector3.MoveTowards(current, Vector3.zero, deceleration * deltaTime);
+            return Vector3.MoveTowards(Vector3.zero, target, acceleration * (deltaTime - brakingTime));
+        }
+
+        float rate = target.sqrMagnitude < current.sqrMagnitude ? deceleration : acceleration;
+        return Vector3.MoveTowards(current, target, rate * deltaTime);
     }
 }

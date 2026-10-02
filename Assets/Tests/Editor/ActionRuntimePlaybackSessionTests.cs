@@ -107,6 +107,71 @@ public sealed class ActionRuntimePlaybackSessionTests
     }
 
     [Test]
+    public void CombinedMotionItems_KeepOwnerPriorityAndReleaseOnAbort()
+    {
+        var actorObject = new GameObject("Combined Motion Actor");
+        _objects.Add(actorObject);
+        Actor actor = actorObject.AddComponent<Actor>();
+        ActorMotor motor = actorObject.AddComponent<ActorMotor>();
+        actor.actorMotor = motor;
+
+        var clip = new AnimationClip();
+        clip.SetCurve(string.Empty, typeof(Transform), "m_LocalPosition.x",
+            AnimationCurve.Linear(0f, 0f, 1f, 0f));
+        _objects.Add(clip);
+        var animation = ScriptableObject.CreateInstance<AnimationAsset>();
+        animation.EditorSetClip(clip);
+        var trajectory = new RootMotionTrajectory();
+        trajectory.EditorSetData(clip, 60, 1f, 1, "combined-motion-test",
+            new[] { 0f, 1f }, new[] { Vector3.zero, Vector3.right },
+            new[] { Quaternion.identity, Quaternion.identity });
+        animation.EditorSetRootMotionData(trajectory);
+        _objects.Add(animation);
+
+        ActionAsset asset = CreateActionRuntimeAsset();
+        var policy = new MotionPolicyItem();
+        policy.EditorSetTiming(0, 3);
+        policy.Config.useLocomotionScale = true;
+        policy.Config.locomotionScale = 0f;
+        AddLane(asset).EditorItems.Add(policy);
+
+        var root = new RootMotionItem();
+        root.EditorSetTiming(0, 3);
+        root.Config.animationAsset = animation;
+        AddLane(asset).EditorItems.Add(root);
+
+        var velocity = new VelocityOverrideItem();
+        velocity.EditorSetTiming(0, 3);
+        velocity.Config.velocity.useHorizontalVelocity = true;
+        velocity.Config.velocity.horizontalSpeed = 3f;
+        AddLane(asset).EditorItems.Add(velocity);
+
+        var session = new ActionRuntimePlaybackSession(asset.CreateActionInstance(), actor, ActionContext.None);
+        try
+        {
+            session.Start();
+            Assert.That(motor.MotionPolicy.LocomotionScale, Is.Zero);
+            Assert.IsTrue(motor.Translation.HasTrajectoryRootMotionOwner);
+            Assert.IsTrue(motor.Translation.HasHorizontalVelocityOwner);
+
+            motor.BeginMotion(CombatSimulationTiming.FixedDeltaTime);
+            motor.ComposeMotion(new LocomotionMotionRequest(Vector3.right * 4f,
+                Quaternion.identity, true, true));
+            Assert.That(motor.RequestedVelocity.z, Is.EqualTo(3f).Within(0.001f));
+
+            session.Stop(ActionPlaybackStopMode.Explicit);
+            Assert.That(motor.MotionPolicy.DebugLocomotionScaleOwnerCount, Is.Zero);
+            Assert.IsFalse(motor.Translation.HasTrajectoryRootMotionOwner);
+            Assert.IsFalse(motor.Translation.HasHorizontalVelocityOwner);
+        }
+        finally
+        {
+            motor.CancelPreparedMotion();
+            session.Dispose();
+        }
+    }
+
+    [Test]
     public void ZeroSpeedAndPause_ResubmitTheCurrentPoseToActorAnimation()
     {
         var actorObject = new GameObject("ActionRuntime Frozen Pose Actor");

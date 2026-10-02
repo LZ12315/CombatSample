@@ -30,6 +30,7 @@ namespace NodeCanvas.Tasks.Actions
         public float timeout = 2f;
 
         private float _startTime;
+        private ActorLocomotion _continuousLocomotion;
 
         protected override void OnExecute()
         {
@@ -46,10 +47,20 @@ namespace NodeCanvas.Tasks.Actions
                 TickMove();
         }
 
+        protected override void OnStop(bool interrupted) => ReleaseContinuousIntent();
+        protected override void OnPause() => ReleaseContinuousIntent();
+        protected override void OnResume() => TickMove();
+
+        private void ReleaseContinuousIntent()
+        {
+            _continuousLocomotion?.ReleaseContinuousLocomotionIntent();
+            _continuousLocomotion = null;
+        }
+
         private void TickMove()
         {
-            var actorValue = actor.value;
-            if (actorValue?.actorMotor == null)
+            var actorValue = actor?.value;
+            if (actorValue?.actorLocomotion == null)
             {
                 EndAction(false);
                 return;
@@ -88,17 +99,27 @@ namespace NodeCanvas.Tasks.Actions
             }
 
             Vector3 dir = toTarget.normalized;
-            actorValue.actorMotor.SetLocomotionIntent(new LocomotionIntent
+            var intent = new LocomotionIntent
             {
                 WorldMoveDirection = dir,
                 MoveStrength = Mathf.Clamp01(moveStrength),
                 FacingDirection = faceTarget ? dir : Vector3.zero,
-            });
+            };
+            if (moveMode == MoveMode.PushOnce)
+                actorValue.actorLocomotion.SetLocomotionIntent(intent);
+            else
+            {
+                if (_continuousLocomotion != actorValue.actorLocomotion)
+                    ReleaseContinuousIntent();
+                _continuousLocomotion = actorValue.actorLocomotion;
+                _continuousLocomotion.SetContinuousLocomotionIntent(intent);
+            }
         }
 
         private void PushIdle(Actor actorValue, Transform target)
         {
-            if (actorValue?.actorMotor == null)
+            ReleaseContinuousIntent();
+            if (actorValue?.actorLocomotion == null)
                 return;
 
             Vector3 face = Vector3.zero;
@@ -110,7 +131,7 @@ namespace NodeCanvas.Tasks.Actions
                     face.Normalize();
             }
 
-            actorValue.actorMotor.SetLocomotionIntent(new LocomotionIntent
+            actorValue.actorLocomotion.SetLocomotionIntent(new LocomotionIntent
             {
                 WorldMoveDirection = Vector3.zero,
                 MoveStrength = 0f,

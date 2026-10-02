@@ -23,8 +23,8 @@ public class ActorLogicInput : MonoBehaviour
         ? PlayerInputController.Instance.RawLook
         : Vector2.zero;
 
-    public LocomotionIntent LatestLocomotionIntent => actor != null && actor.actorMotor != null
-        ? actor.actorMotor.LocomotionIntent
+    public LocomotionIntent LatestLocomotionIntent => actor != null && actor.actorLocomotion != null
+        ? actor.actorLocomotion.EffectiveIntent
         : LocomotionIntent.Idle;
 
     public IReadOnlyList<PlayerInputController.BufferedInput> InputBuffer =>

@@ -4991,8 +4991,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   actor: {fileID: 778171834}
-  fallbackMode: {fileID: 11400000, guid: b5d5a89e5e194204a152d33b8d86b3fe, type: 2}
-  candidateModes: []
+  locomotionAssets:
+  - {fileID: 11400000, guid: b5d5a89e5e194204a152d33b8d86b3fe, type: 2}
+  - {fileID: 11400000, guid: f2c4e58bd6f74c8ca1de24efc25d5432, type: 2}
 --- !u!1 &788301030
 GameObject:
   m_ObjectHideFlags: 0
@@ -5490,8 +5491,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   actor: {fileID: 809393992}
-  fallbackMode: {fileID: 11400000, guid: efa93e046145b5c4caa6862fe7c8b12a, type: 2}
-  candidateModes: []
+  locomotionAssets:
+  - {fileID: 11400000, guid: efa93e046145b5c4caa6862fe7c8b12a, type: 2}
+  - {fileID: 11400000, guid: e1b3d47ac5e64b7bb0cd13dfb14c4321, type: 2}
 --- !u!1 &819818982
 GameObject:
   m_ObjectHideFlags: 0

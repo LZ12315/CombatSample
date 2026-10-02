@@ -9,7 +9,7 @@ using Object = UnityEngine.Object;
 
 public static class RootMotionBaker
 {
-    public const int CurrentBakerVersion = 1;
+    public const int CurrentBakerVersion = RootMotionTrajectory.CurrentBakerVersion;
     public const string PreviewRootName = "__CombatSample_RootMotionBaker_Preview__";
 
     private const double TimeEpsilon = 1e-9;

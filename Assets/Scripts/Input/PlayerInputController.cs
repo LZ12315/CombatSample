@@ -165,12 +165,12 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
             return;
 
         SyncControlledActorChange();
-        if (controlledActor == null || controlledActor.actorMotor == null)
+        if (controlledActor == null || controlledActor.actorLocomotion == null)
             return;
 
         ActorCameraControl cameraControl = ResolveCameraControl();
         LocomotionIntent intent = _locomotionResolver.Resolve(controlledActor, cameraControl, rawMove);
-        controlledActor.actorMotor.SetLocomotionIntent(intent);
+        controlledActor.actorLocomotion.SetLocomotionIntent(intent);
     }
 
     public void OnMove(InputAction.CallbackContext context)
@@ -451,7 +451,7 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
 
     private static void ClearPendingPlayerLocomotionIntent(Actor actor)
     {
-        actor?.actorMotor?.ClearPendingLocomotionIntent();
+        actor?.actorLocomotion?.ClearLocomotionIntent();
     }
 
     public class InputPressState
@@ -490,30 +490,43 @@ internal sealed class PlayerLocomotionIntentResolver
     public LocomotionIntent Resolve(Actor actor, ActorCameraControl cameraControl, Vector2 rawMove)
     {
         Vector2 move = Vector2.ClampMagnitude(rawMove, 1f);
+        bool hasHardLockFacing = TryResolveHardLockFacing(actor, out Vector3 hardLockFacing);
         if (move.sqrMagnitude <= 0.01f)
-            return LocomotionIntent.Idle;
+        {
+            return hasHardLockFacing
+                ? new LocomotionIntent { FacingDirection = hardLockFacing }
+                : LocomotionIntent.Idle;
+        }
 
-        Vector3 worldDir = ResolveWorldMoveDirection(actor, cameraControl, move);
+        Vector3 worldDir = ResolveWorldMoveDirection(cameraControl, move,
+            hasHardLockFacing ? hardLockFacing : Vector3.zero);
         worldDir.y = 0f;
         if (worldDir.sqrMagnitude < 0.0001f)
-            return LocomotionIntent.Idle;
+        {
+            return hasHardLockFacing
+                ? new LocomotionIntent { FacingDirection = hardLockFacing }
+                : LocomotionIntent.Idle;
+        }
 
         worldDir.Normalize();
         return new LocomotionIntent
         {
             WorldMoveDirection = worldDir,
-            MoveStrength = move.magnitude,
-            FacingDirection = Vector3.zero,
+            MoveStrength = Mathf.Clamp01(move.magnitude),
+            FacingDirection = hasHardLockFacing ? hardLockFacing : worldDir,
         };
     }
 
     private static Vector3 ResolveWorldMoveDirection(
-        Actor actor,
         ActorCameraControl cameraControl,
-        Vector2 move)
+        Vector2 move,
+        Vector3 hardLockFacing)
     {
-        if (TryResolveHardLockMoveDirection(actor, move, out Vector3 hardLockMoveDir))
-            return hardLockMoveDir;
+        if (hardLockFacing.sqrMagnitude > 0.0001f)
+        {
+            Vector3 tangentRight = Vector3.Cross(Vector3.up, hardLockFacing).normalized;
+            return hardLockFacing * move.y + tangentRight * move.x;
+        }
 
         if (cameraControl != null)
             return cameraControl.ToWorldMoveDirection(move);
@@ -522,12 +535,9 @@ internal sealed class PlayerLocomotionIntentResolver
         return fallback.sqrMagnitude > 0.0001f ? fallback.normalized : Vector3.zero;
     }
 
-    private static bool TryResolveHardLockMoveDirection(
-        Actor actor,
-        Vector2 move,
-        out Vector3 worldDir)
+    private static bool TryResolveHardLockFacing(Actor actor, out Vector3 facing)
     {
-        worldDir = Vector3.zero;
+        facing = Vector3.zero;
 
         if (actor?.combater == null || actor.combater.LockMode != Enums.LockMode.HardLock)
             return false;
@@ -543,13 +553,7 @@ internal sealed class PlayerLocomotionIntentResolver
         if (toTarget.sqrMagnitude <= 0.0001f)
             return false;
 
-        toTarget.Normalize();
-        Vector3 tangentRight = Vector3.Cross(Vector3.up, toTarget);
-        if (tangentRight.sqrMagnitude <= 0.0001f)
-            return false;
-
-        tangentRight.Normalize();
-        worldDir = toTarget * move.y + tangentRight * move.x;
-        return worldDir.sqrMagnitude > 0.0001f;
+        facing = toTarget.normalized;
+        return true;
     }
 }
