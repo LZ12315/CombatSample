@@ -4,8 +4,6 @@ using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
-using UnityEngine.Animations;
-using UnityEngine.Playables;
 using UnityEngine.Rendering;
 
 /// <summary>Visual evaluator for the shared Action editor time. It does not run gameplay.</summary>
@@ -226,10 +224,6 @@ internal sealed class ActionPreviewRenderer : IDisposable
     private static readonly Color AmbientColor = new Color(0.40f, 0.41f, 0.43f, 1f);
     private static readonly Color GroundColor = new Color(0.14f, 0.15f, 0.17f, 1f);
     private readonly List<ActionRuntimeAnimationRecord> _animationRecords = new List<ActionRuntimeAnimationRecord>();
-    private readonly List<Transform> _baselineTransforms = new List<Transform>();
-    private readonly List<Vector3> _baselinePositions = new List<Vector3>();
-    private readonly List<Quaternion> _baselineRotations = new List<Quaternion>();
-    private readonly List<Vector3> _baselineScales = new List<Vector3>();
     private readonly List<PreviewHitBox> _hitBoxes = new List<PreviewHitBox>();
     private readonly Dictionary<int, Mesh> _bakedPoseMeshes = new Dictionary<int, Mesh>();
     private readonly Vector3[] _markerLine = new Vector3[2];
@@ -245,9 +239,7 @@ internal sealed class ActionPreviewRenderer : IDisposable
     private Mesh _groundMesh;
     private Material _groundMaterial;
     private Animator _animator;
-    private PlayableGraph _graph;
-    private AnimationClipPlayable _clipPlayable;
-    private AnimationClip _activeClip;
+    private ActionPreviewPoseSampler _poseSampler;
     private ActionAsset _snapshotAction;
     private Vector3 _baselineRootPosition;
     private Quaternion _baselineRootRotation;
@@ -270,6 +262,7 @@ internal sealed class ActionPreviewRenderer : IDisposable
     {
         _snapshotAction = null;
         _spatial.Invalidate();
+        _poseSampler?.Invalidate();
         _evaluationInvalidated = true;
     }
 
@@ -482,8 +475,9 @@ internal sealed class ActionPreviewRenderer : IDisposable
             _animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
             _animator.enabled = true;
             _instance.SetActive(true);
-            _animator.Rebind();
-            CaptureBaseline();
+            _poseSampler = new ActionPreviewPoseSampler(_instance, _animator);
+            _baselineRootPosition = _poseSampler.RootPosition;
+            _baselineRootRotation = _poseSampler.RootRotation;
             CreateGround();
             InvalidateData();
             needsInitialFraming = frameCharacter;
@@ -512,15 +506,11 @@ internal sealed class ActionPreviewRenderer : IDisposable
         _evaluationDiagnostic = string.Empty;
         if (ActionAnimationSampleResolver.TryResolve(_animationRecords, position, out ActionAnimationSample sample))
         {
-            EnsureGraph(sample.Clip);
-            _clipPlayable.SetTime(sample.SourceTime);
-            _graph.Evaluate(0f);
+            _poseSampler.Sample(sample.Clip, sample.SourceTime);
         }
         else
         {
-            DestroyGraph();
-            RestoreBaseline();
-            _animator.Rebind();
+            _poseSampler.Sample(null, 0d);
         }
 
         Vector3 rootPosition = _spatial.Evaluate(action, position);
@@ -545,54 +535,6 @@ internal sealed class ActionPreviewRenderer : IDisposable
                 hash = hash * 31 + (selection[i].EditorId?.GetHashCode() ?? 0);
             }
             return hash;
-        }
-    }
-
-    private void EnsureGraph(AnimationClip clip)
-    {
-        if (_graph.IsValid() && _activeClip == clip) return;
-        DestroyGraph();
-        RestoreBaseline();
-        _animator.Rebind();
-        _graph = PlayableGraph.Create($"ActionPreview:{clip.name}");
-        _graph.SetTimeUpdateMode(DirectorUpdateMode.Manual);
-        _clipPlayable = AnimationClipPlayable.Create(_graph, clip);
-        _clipPlayable.SetApplyFootIK(false);
-        _clipPlayable.SetApplyPlayableIK(false);
-        _clipPlayable.SetSpeed(0d);
-        AnimationPlayableOutput output = AnimationPlayableOutput.Create(_graph, "Pose", _animator);
-        output.SetSourcePlayable(_clipPlayable);
-        output.SetWeight(1f);
-        _graph.Play();
-        _activeClip = clip;
-    }
-
-    private void CaptureBaseline()
-    {
-        _baselineTransforms.Clear();
-        _baselinePositions.Clear();
-        _baselineRotations.Clear();
-        _baselineScales.Clear();
-        _baselineRootPosition = _instance.transform.position;
-        _baselineRootRotation = _instance.transform.rotation;
-        foreach (Transform transform in _instance.GetComponentsInChildren<Transform>(true))
-        {
-            _baselineTransforms.Add(transform);
-            _baselinePositions.Add(transform.localPosition);
-            _baselineRotations.Add(transform.localRotation);
-            _baselineScales.Add(transform.localScale);
-        }
-    }
-
-    private void RestoreBaseline()
-    {
-        for (int i = 0; i < _baselineTransforms.Count; i++)
-        {
-            Transform transform = _baselineTransforms[i];
-            if (transform == null) continue;
-            transform.localPosition = _baselinePositions[i];
-            transform.localRotation = _baselineRotations[i];
-            transform.localScale = _baselineScales[i];
         }
     }
 
@@ -844,17 +786,10 @@ internal sealed class ActionPreviewRenderer : IDisposable
         Handles.DrawWireArc(capsule.PointB, right.normalized, forward.normalized, 180f, capsule.Radius);
     }
 
-    private void DestroyGraph()
-    {
-        if (_graph.IsValid()) _graph.Destroy();
-        _graph = default;
-        _clipPlayable = default;
-        _activeClip = null;
-    }
-
     private void DisposePreviewObjects()
     {
-        DestroyGraph();
+        _poseSampler?.Dispose();
+        _poseSampler = null;
         if (_preview != null) _preview.Cleanup();
         if (_groundObject != null) UnityEngine.Object.DestroyImmediate(_groundObject);
         if (_groundMaterial != null) UnityEngine.Object.DestroyImmediate(_groundMaterial);
@@ -874,10 +809,6 @@ internal sealed class ActionPreviewRenderer : IDisposable
         _instanceInvalidated = false;
         _snapshotAction = null;
         _animationRecords.Clear();
-        _baselineTransforms.Clear();
-        _baselinePositions.Clear();
-        _baselineRotations.Clear();
-        _baselineScales.Clear();
         _hitBoxes.Clear();
         _pathPoints = Array.Empty<Vector3>();
         _visiblePathBoundary = 0;

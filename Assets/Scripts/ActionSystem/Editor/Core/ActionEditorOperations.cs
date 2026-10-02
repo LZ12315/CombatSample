@@ -54,6 +54,7 @@ internal static class ActionTimelineInteractionMath
 {
     internal const float DragThresholdPixels = 5f;
     internal const float SnapDistancePixels = 10f;
+    internal const float SnapReleaseDistancePixels = 16f;
     internal const float AutoPanMaximumDistance = 100f;
 
     internal static ActionNavigationRange Pan(double domain, double start, double span, double delta)
@@ -135,30 +136,65 @@ internal static class ActionTimelineInteractionMath
         Mathf.Abs(current.x - start.x) >= DragThresholdPixels ||
         Mathf.Abs(current.y - start.y) >= DragThresholdPixels;
 
+    internal static List<int> MovingSnapEdges(IReadOnlyList<ActionDocumentEntry> entries,
+        ActionTimelineOperationKind kind, ActionDocumentEntry primary)
+    {
+        if (entries == null || entries.Count == 0) return new List<int>();
+        if (kind == ActionTimelineOperationKind.ResizeLeft || kind == ActionTimelineOperationKind.TrimLeft)
+            return new List<int> { entries[0].StartFrame };
+        if (kind == ActionTimelineOperationKind.ResizeRight || kind == ActionTimelineOperationKind.TrimRight)
+            return new List<int> { SnapEndFrame(entries[0]) };
+        primary = entries.Contains(primary) ? primary : entries[0];
+        // A Point occupies one Frame for overlap validation, but only its event Frame is a
+        // visible snap edge. Multi-selection aligns the grabbed Item or the group's outer edges.
+        return new[] { primary.StartFrame, SnapEndFrame(primary),
+            entries.Min(entry => entry.StartFrame), entries.Max(SnapEndFrame) }.Distinct().ToList();
+    }
+
+    private static int SnapEndFrame(ActionDocumentEntry entry) => entry.Source is PointGameplayItem
+        ? entry.StartFrame
+        : (int)Math.Min(int.MaxValue, entry.RawEndFrameExclusive);
+
     internal static bool TrySnap(
-        int rawDelta,
+        double rawDelta,
         IReadOnlyList<int> movingEdges,
         IReadOnlyList<int> targetFrames,
         double pixelsPerFrame,
         Func<int, bool> acceptsDelta,
-        out ActionTimelineSnapResult result)
+        out ActionTimelineSnapResult result,
+        ActionTimelineSnapResult? retainedSnap = null,
+        int? preferredTargetFrame = null)
     {
         result = default;
         if (movingEdges == null || targetFrames == null || movingEdges.Count == 0 || targetFrames.Count == 0 ||
+            double.IsNaN(rawDelta) || double.IsInfinity(rawDelta) ||
             double.IsNaN(pixelsPerFrame) || double.IsInfinity(pixelsPerFrame) || pixelsPerFrame <= 0d)
             return false;
+
+        if (retainedSnap.HasValue)
+        {
+            ActionTimelineSnapResult retained = retainedSnap.Value;
+            if (retained.MovingEdgeIndex >= 0 && retained.MovingEdgeIndex < movingEdges.Count &&
+                (long)movingEdges[retained.MovingEdgeIndex] + retained.Delta == retained.TargetFrame &&
+                targetFrames.Contains(retained.TargetFrame) &&
+                Math.Abs(retained.Delta - rawDelta) * pixelsPerFrame <= SnapReleaseDistancePixels &&
+                (acceptsDelta == null || acceptsDelta(retained.Delta)))
+            {
+                result = retained;
+                return true;
+            }
+        }
 
         double bestDistance = double.PositiveInfinity;
         int bestTarget = int.MaxValue;
         int bestEdge = int.MaxValue;
-        int bestDelta = rawDelta;
+        int bestDelta = 0;
         for (int edgeIndex = 0; edgeIndex < movingEdges.Count; edgeIndex++)
         {
-            long movedEdge = (long)movingEdges[edgeIndex] + rawDelta;
             for (int targetIndex = 0; targetIndex < targetFrames.Count; targetIndex++)
             {
                 int target = targetFrames[targetIndex];
-                long candidateLong = (long)rawDelta + target - movedEdge;
+                long candidateLong = (long)target - movingEdges[edgeIndex];
                 if (candidateLong < int.MinValue || candidateLong > int.MaxValue)
                     continue;
                 int candidate = (int)candidateLong;
@@ -168,7 +204,9 @@ internal static class ActionTimelineInteractionMath
                     continue;
                 bool better = distance < bestDistance - 0.0001d ||
                               Math.Abs(distance - bestDistance) <= 0.0001d &&
-                              (edgeIndex < bestEdge || edgeIndex == bestEdge && target < bestTarget);
+                              (target == preferredTargetFrame && bestTarget != preferredTargetFrame ||
+                               (target == preferredTargetFrame) == (bestTarget == preferredTargetFrame) &&
+                               (edgeIndex < bestEdge || edgeIndex == bestEdge && target < bestTarget));
                 if (!better)
                     continue;
                 bestDistance = distance;
@@ -371,6 +409,17 @@ internal sealed class ActionTimelineOperationSnapshot
     internal int ConstrainPointerDelta(int requestedDelta, out string reason)
     {
         reason = string.Empty;
+        if (Kind == ActionTimelineOperationKind.Move && _targets.Count > 0)
+        {
+            // Clamp the group as a whole. Authoring validation still rejects overlaps and bad Lanes;
+            // pointer overshoot alone must not make dragging to Frame 0 impossible.
+            int lower = -_targets.Min(entry => entry.StartFrame);
+            int upper = int.MaxValue - _targets.Max(entry => entry.StartFrame);
+            int clamped = Math.Max(lower, Math.Min(upper, requestedDelta));
+            if (clamped != requestedDelta)
+                reason = clamped == lower ? "Reached Frame 0." : "Reached the supported Frame limit.";
+            return clamped;
+        }
         if (_targets.Count != 1)
             return requestedDelta;
         Entry target = _targets[0];

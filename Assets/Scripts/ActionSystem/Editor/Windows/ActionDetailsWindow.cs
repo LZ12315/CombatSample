@@ -48,14 +48,16 @@ public sealed class ActionDetailsWindow : EditorWindow
     private VisualElement _detailsPane;
     private ActionEditorDocument _document;
     private SerializedObject _serializedAction;
-    private Label _selectionSummary;
     private ScrollView _scroll;
     private VisualElement _content;
-    private Label _pageStatus;
     private Label _draftDerived;
     private Label _draftEnd;
-    private Label _draftStatus;
     private TimingDraft _draft;
+    private ActionGameplayTimingEdit _gameplayTiming;
+    private LongField _gameplayStart;
+    private LongField _gameplayEnd;
+    private LongField _gameplayDuration;
+    private bool _committingGameplayTiming;
     private bool _buildingPage;
     private bool _restoreScroll;
     private int _bindingSession;
@@ -101,6 +103,7 @@ public sealed class ActionDetailsWindow : EditorWindow
 
     private void OnDisable()
     {
+        _bindingSession++;
         SaveScroll();
         _splitView?.FinishResize();
         DiscardDraft();
@@ -112,6 +115,7 @@ public sealed class ActionDetailsWindow : EditorWindow
 
     public void CreateGUI()
     {
+        _bindingSession++;
         SaveScroll();
         _splitView?.FinishResize();
         rootVisualElement.Clear();
@@ -126,10 +130,6 @@ public sealed class ActionDetailsWindow : EditorWindow
         _detailsPane = new VisualElement();
         _detailsPane.AddToClassList("action-editor-details-pane");
         _detailsPane.RegisterCallback<GeometryChangedEvent>(OnGeometryChanged);
-
-        _selectionSummary = new Label();
-        _selectionSummary.AddToClassList("action-editor-selection-summary");
-        _detailsPane.Add(_selectionSummary);
 
         _scroll = new ScrollView(ScrollViewMode.Vertical);
         _scroll.AddToClassList("action-editor-details-scroll");
@@ -153,18 +153,13 @@ public sealed class ActionDetailsWindow : EditorWindow
         if (restoreScroll)
             SaveScroll();
         ActionEditorContext context = ActionEditorContext.Shared;
-        bool sameTarget = _draft != null && _draft.Targets(context.CurrentAction, context.PrimarySelection);
         bool keepDraft = preserveDraft && _draft != null && _draft.CanRetain(context.CurrentAction, context.PrimarySelection);
-        bool draftExpired = preserveDraft && sameTarget && !keepDraft &&
-                            EvaluateDraft()?.State != ActionTimelineOperationState.NoChange;
         if (!keepDraft) DiscardDraft();
         _bindingSession++;
         _document = ActionEditorContext.Shared.Document;
         _serializedAction = _document.Asset != null ? new SerializedObject(_document.Asset) : null;
         ActionEditorChrome.SyncActionField(rootVisualElement);
         RefreshPage(restoreScroll);
-        if (draftExpired)
-            SetPageStatus("Unapplied timing changes were discarded because the source data changed.", true);
     }
 
     private void RefreshPage(bool restoreScroll = true)
@@ -176,21 +171,20 @@ public sealed class ActionDetailsWindow : EditorWindow
             : 0f;
         _buildingPage = true;
         _content.Clear();
-        _pageStatus = null;
         _draftDerived = null;
         _draftEnd = null;
-        _draftStatus = null;
+        _gameplayTiming = null;
+        _gameplayStart = null;
+        _gameplayEnd = null;
+        _gameplayDuration = null;
         _configurationHost = null;
         _configurationItem = null;
         _configurationEntry = null;
         ActionEditorContext context = ActionEditorContext.Shared;
         _displayedPrimary = context.PrimarySelection;
-        _selectionSummary.text = SelectionSummary(context.PrimarySelection, context.SelectedIds.Count);
 
         if (_document?.Asset == null)
         {
-            _content.Add(ActionEditorChrome.EmptyState("Choose an ActionAsset",
-                "Choose an ActionRuntime-backed ActionAsset in Action Timeline to edit it."));
             _buildingPage = false;
             return;
         }
@@ -200,13 +194,8 @@ public sealed class ActionDetailsWindow : EditorWindow
             AddIdentityBlockedCard();
 
         ActionSelectionValue selection = context.PrimarySelection;
-        if (selection.Kind == ActionSelectionKind.None || selection.Kind == ActionSelectionKind.Action)
-            _content.Add(ActionEditorChrome.EmptyState("Select a Timeline item",
-                "Select an animation segment, Gameplay lane, or Gameplay item to edit it here."));
-        else if (!_document.ById.TryGetValue(selection.EditorId, out ActionDocumentEntry entry))
-            _content.Add(ActionEditorChrome.EmptyState("Selection is unavailable",
-                "This object no longer has a unique valid EditorId. Locate it by AuthoringPath and repair identity first."));
-        else
+        if (selection.Kind != ActionSelectionKind.None && selection.Kind != ActionSelectionKind.Action &&
+            _document.ById.TryGetValue(selection.EditorId, out ActionDocumentEntry entry))
         {
             DrawEntry(entry, !identityBlocked);
         }
@@ -227,9 +216,6 @@ public sealed class ActionDetailsWindow : EditorWindow
     private void AddIdentityBlockedCard()
     {
         var section = new VisualElement();
-        section.Add(new HelpBox(
-            "Some Timeline items do not have a safe editor identity. Fields remain read-only until Editor IDs are repaired.",
-            HelpBoxMessageType.Error));
         var repair = new Button(RepairIds) { text = "Repair Editor IDs" };
         repair.SetEnabled(!ActionEditorInteractionGate.IsActive);
         section.Add(repair);
@@ -238,20 +224,14 @@ public sealed class ActionDetailsWindow : EditorWindow
 
     private void RepairIds()
     {
-        if (ActionEditorInteractionGate.IsActive)
-        {
-            SetPageStatus("Finish the active Timeline gesture before repairing IDs.", true);
-            return;
-        }
-        if (ActionEditorCommands.RepairEditorIds(_document.Asset, out int repaired, out string message))
-            SetPageStatus($"Repaired {repaired} Editor ID(s).", false);
-        else
-            SetPageStatus(message, true);
+        if (!ActionEditorInteractionGate.IsActive)
+            ActionEditorCommands.RepairEditorIds(_document.Asset, out _, out _);
     }
 
     private void DrawEntry(ActionDocumentEntry entry, bool editable)
     {
-        AddHeading(entry.DisplayName, $"{entry.SelectionKind} · {entry.AuthoringPath}");
+        if (entry.Source is AnimationSegment)
+            AddHeading(entry.DisplayName);
         SerializedProperty entryProperty = ResolveEntryProperty(entry);
         switch (entry.Source)
         {
@@ -269,17 +249,35 @@ public sealed class ActionDetailsWindow : EditorWindow
 
     private void DrawAnimation(AnimationSegment segment, ActionDocumentEntry entry, bool editable)
     {
-        _draft = CreateDraft(entry, ActionTimelineOperationKind.SetAnimationTiming);
-        VisualElement section = Section("Timing & Animation Source");
-        IntegerField start = DraftInt(section, "Start Frame", _draft.StartFrame, value => _draft.StartFrame = value, editable);
-        ObjectField asset = DraftObject(section, "Animation Asset", _draft.AnimationAsset, typeof(AnimationAsset),
+        _draft = CreateAnimationDraft(segment, entry);
+        var editor = new VisualElement();
+
+        VisualElement timing = Section("Timing");
+        var timingRow = new VisualElement();
+        timingRow.AddToClassList("action-editor-compact-timing-row");
+        IntegerField start = DraftInt(timingRow, "Start", _draft.StartFrame, value => _draft.StartFrame = value, editable);
+        start.AddToClassList("action-editor-compact-timing-field");
+        Label derived = AddCompactTimingValue(timingRow, "Duration", "—");
+        Label end = AddCompactTimingValue(timingRow, "End", "—");
+        end.tooltip = "Exclusive end frame";
+        timing.Add(timingRow);
+        editor.Add(timing);
+
+        VisualElement source = Section("Animation Source");
+        DraftObject(source, "Animation Asset", _draft.AnimationAsset, typeof(AnimationAsset),
             value => _draft.AnimationAsset = value as AnimationAsset, editable);
-        FloatField sourceStart = DraftFloat(section, "Source Start", _draft.SourceStartTime, value => _draft.SourceStartTime = value, editable);
-        FloatField sourceEnd = DraftFloat(section, "Source End", _draft.SourceEndTime, value => _draft.SourceEndTime = value, editable);
-        FloatField playRate = DraftFloat(section, "Play Rate", _draft.PlayRate, value => _draft.PlayRate = value, editable);
-        AddRow(section, "Clip", ObjectName(_draft.AnimationAsset != null ? _draft.AnimationAsset.Clip : null));
-        Label derived = AddRow(section, "Candidate Duration", "—");
-        Label end = AddRow(section, "Candidate End Exclusive", "—");
+        var sourceRange = new VisualElement();
+        sourceRange.AddToClassList("action-editor-compact-timing-row");
+        FloatField sourceStart = DraftFloat(sourceRange, "Source Start (s)", _draft.SourceStartTime,
+            value => _draft.SourceStartTime = value, editable);
+        sourceStart.AddToClassList("action-editor-compact-timing-field");
+        sourceStart.AddToClassList("action-editor-source-time-field");
+        FloatField sourceEnd = DraftFloat(sourceRange, "Source End (s)", _draft.SourceEndTime,
+            value => _draft.SourceEndTime = value, editable);
+        sourceEnd.AddToClassList("action-editor-compact-timing-field");
+        sourceEnd.AddToClassList("action-editor-source-time-field");
+        source.Add(sourceRange);
+        DraftFloat(source, "Play Rate", _draft.PlayRate, value => _draft.PlayRate = value, editable);
         var fullClip = new Button(() =>
         {
             AnimationClip clip = _draft.AnimationAsset != null ? _draft.AnimationAsset.Clip : null;
@@ -292,10 +290,12 @@ public sealed class ActionDetailsWindow : EditorWindow
             RefreshDraftFeedback();
         }) { text = "Use Full Clip" };
         fullClip.SetEnabled(editable);
-        section.Add(fullClip);
-        AddDraftFooter(section, derived, end, editable);
-        RegisterDraftKeys(section);
-        _content.Add(section);
+        source.Add(fullClip);
+        editor.Add(source);
+
+        AddDraftFooter(editor, derived, end, editable);
+        RegisterDraftKeys(editor);
+        _content.Add(editor);
     }
 
     private void DrawLane(GameplayLane lane, SerializedProperty entryProperty, bool editable)
@@ -304,37 +304,30 @@ public sealed class ActionDetailsWindow : EditorWindow
         AddBoundProperty(section, entryProperty?.FindPropertyRelative("_name"), "Name", editable);
         AddBoundProperty(section, entryProperty?.FindPropertyRelative("_muted"), "Muted", editable);
         AddRow(section, "Item Count", lane.Items?.Count.ToString() ?? "0");
-        AddParagraph(section, "Lanes are untyped organization rows. Gameplay overlap is legal and carries no priority.");
         _content.Add(section);
     }
 
     private void DrawItem(GameplayItem item, ActionDocumentEntry entry, SerializedProperty itemProperty, bool editable)
     {
-        VisualElement common = Section("Gameplay Item");
+        VisualElement common = Section(entry.DisplayName);
         AddBoundProperty(common, itemProperty?.FindPropertyRelative("_muted"), "Muted", editable);
-        AddRow(common, "Lane", string.IsNullOrWhiteSpace(entry.LaneName) ? $"Lane {entry.LaneIndex}" : entry.LaneName);
+        if (item is PointGameplayItem || item is RangeGameplayItem)
+        {
+            _gameplayTiming = new ActionGameplayTimingEdit(_document.Asset, item);
+            var timing = new VisualElement();
+            timing.AddToClassList("action-editor-compact-timing-row");
+            common.Add(timing);
+            _gameplayStart = GameplayTimingField(timing, item is PointGameplayItem ? "Frame" : "Start",
+                ActionGameplayTimingField.Start, _gameplayTiming.Start, editable);
+            if (item is RangeGameplayItem)
+            {
+                _gameplayDuration = GameplayTimingField(timing, "Duration", ActionGameplayTimingField.Duration,
+                    _gameplayTiming.Duration, editable);
+                _gameplayEnd = GameplayTimingField(timing, "End", ActionGameplayTimingField.End, _gameplayTiming.End, editable);
+                _gameplayEnd.tooltip = "Exclusive end frame";
+            }
+        }
         _content.Add(common);
-
-        if (item is PointGameplayItem point)
-        {
-            _draft = CreateDraft(entry, ActionTimelineOperationKind.SetPointTiming);
-            VisualElement timing = Section("Timing");
-            DraftInt(timing, "Frame", _draft.StartFrame, value => _draft.StartFrame = value, editable);
-            AddDraftFooter(timing, null, null, editable);
-            RegisterDraftKeys(timing);
-            _content.Add(timing);
-        }
-        else if (item is RangeGameplayItem range)
-        {
-            _draft = CreateDraft(entry, ActionTimelineOperationKind.SetRangeTiming);
-            VisualElement timing = Section("Timing");
-            DraftInt(timing, "Start Frame", _draft.StartFrame, value => _draft.StartFrame = value, editable);
-            DraftInt(timing, "Duration Frames", _draft.DurationFrames, value => _draft.DurationFrames = value, editable);
-            Label end = AddRow(timing, "Candidate End Exclusive", "—");
-            AddDraftFooter(timing, null, end, editable);
-            RegisterDraftKeys(timing);
-            _content.Add(timing);
-        }
 
         _configurationHost = new VisualElement();
         _configurationItem = item;
@@ -342,6 +335,36 @@ public sealed class ActionDetailsWindow : EditorWindow
         _configurationEditable = editable;
         _content.Add(_configurationHost);
         RebuildConfigurationSection();
+    }
+
+    private LongField GameplayTimingField(VisualElement parent, string label, ActionGameplayTimingField timingField,
+        long value, bool editable)
+    {
+        var field = new LongField(label) { value = value, isDelayed = true };
+        field.AddToClassList("action-editor-edit-field");
+        field.AddToClassList("action-editor-compact-timing-field");
+        field.SetEnabled(editable);
+        ActionGameplayTimingEdit edit = _gameplayTiming;
+        int session = _bindingSession;
+        field.RegisterValueChangedCallback(evt =>
+        {
+            if (session != _bindingSession || _buildingPage || _gameplayTiming != edit || !edit.IsCurrent) return;
+            _committingGameplayTiming = true;
+            try { edit.TryCommit(timingField, evt.newValue); }
+            finally { _committingGameplayTiming = false; }
+            // A rejected edit has not changed the asset: silently restore all linked fields.
+            if (_gameplayTiming == edit) SyncGameplayTimingFields();
+        });
+        parent.Add(field);
+        return field;
+    }
+
+    private void SyncGameplayTimingFields()
+    {
+        if (_gameplayTiming == null) return;
+        _gameplayStart?.SetValueWithoutNotify(_gameplayTiming.Start);
+        _gameplayEnd?.SetValueWithoutNotify(_gameplayTiming.End);
+        _gameplayDuration?.SetValueWithoutNotify(_gameplayTiming.Duration);
     }
 
     private void RebuildConfigurationSection()
@@ -353,7 +376,7 @@ public sealed class ActionDetailsWindow : EditorWindow
         SerializedProperty itemProperty = ResolveEntryProperty(_configurationEntry);
         SerializedProperty configProperty = itemProperty?.FindPropertyRelative("_config");
         if (GetConfig(_configurationItem) == null)
-            AddMissingConfig(config, _configurationItem, _configurationEditable, "The concrete Config is missing.");
+            AddMissingConfig(config, _configurationItem, _configurationEditable);
         else
             DrawTypedConfig(config, _configurationItem, configProperty, _configurationEditable);
         _configurationHost.Add(config);
@@ -362,10 +385,7 @@ public sealed class ActionDetailsWindow : EditorWindow
     private void DrawTypedConfig(VisualElement parent, GameplayItem item, SerializedProperty config, bool editable)
     {
         if (config == null)
-        {
-            AddParagraph(parent, "The serialized Config path could not be resolved.", "action-editor-local-issue");
             return;
-        }
         switch (item)
         {
             case ImpulseItem impulse:
@@ -374,10 +394,14 @@ public sealed class ActionDetailsWindow : EditorWindow
             case HitBoxItem hitBox:
                 DrawHitBox(parent, hitBox, config, editable);
                 break;
-            case RootMotionItem:
+            case RootMotionItem rootMotion:
                 AddBoundProperty(parent, config.FindPropertyRelative("animationAsset"), "Animation Asset", editable);
                 AddBoundProperty(parent, config.FindPropertyRelative("sourceStartTime"), "Source Start", editable);
                 AddBoundProperty(parent, config.FindPropertyRelative("playRate"), "Play Rate", editable);
+                var fullClip = new Button(() => ActionEditorCommands.UseFullRootMotionClip(_document.Asset, rootMotion.EditorId))
+                    { text = "Use Full Clip" };
+                fullClip.SetEnabled(editable);
+                parent.Add(fullClip);
                 break;
             case SelfRotationItem:
                 DrawSelfRotation(parent, config, editable);
@@ -393,7 +417,6 @@ public sealed class ActionDetailsWindow : EditorWindow
                 AddBoundProperty(parent, config.FindPropertyRelative("targetContainer"), "Target Container", editable);
                 break;
             default:
-                AddParagraph(parent, "Unsupported GameplayItem type.", "action-editor-local-issue");
                 break;
         }
     }
@@ -402,7 +425,7 @@ public sealed class ActionDetailsWindow : EditorWindow
     {
         if (item.Config.impulse == null)
         {
-            AddMissingConfig(parent, item, editable, "Impulse settings are missing.");
+            AddMissingConfig(parent, item, editable);
             return;
         }
         SerializedProperty impulse = config.FindPropertyRelative("impulse");
@@ -424,7 +447,6 @@ public sealed class ActionDetailsWindow : EditorWindow
         }
         if (item.Config.overrideGravityScale)
         {
-            AddParagraph(parent, "Legacy gravity override is invalid in ActionRuntime.", "action-editor-local-issue");
             var disable = new Button(() => SetSerializedBoolean(config.FindPropertyRelative("overrideGravityScale"), false))
                 { text = "Disable Legacy Gravity Override" };
             disable.SetEnabled(editable);
@@ -436,12 +458,11 @@ public sealed class ActionDetailsWindow : EditorWindow
     {
         if (item.Config.hitboxConfig == null || item.Config.dataConfig == null || item.Config.effects == null)
         {
-            AddMissingConfig(parent, item, editable, "One or more required HitBox settings are missing.");
+            AddMissingConfig(parent, item, editable);
             return;
         }
         AddSubheading(parent, "Binding");
         AddBoundProperty(parent, config.FindPropertyRelative("anchor"), "Anchor", editable, true);
-        DrawHitBoxAnchorDiagnostic(parent, item.Config.anchor);
         AddSubheading(parent, "Shape");
         SerializedProperty shape = config.FindPropertyRelative("hitboxConfig");
         AddBoundProperty(parent, shape.FindPropertyRelative("shape"), "Type", editable, true);
@@ -457,10 +478,7 @@ public sealed class ActionDetailsWindow : EditorWindow
         {
             AddBoundProperty(parent, shape.FindPropertyRelative("height"), "Total Height", editable);
             AddBoundProperty(parent, shape.FindPropertyRelative("radius"), "Radius", editable);
-            AddParagraph(parent, "Total Height includes both hemispheres. Values below the diameter resolve to a sphere.");
         }
-        AddParagraph(parent,
-            "Center is local to the binding and follows its scale. Shape dimensions are world units and do not scale with the character.");
         AddSubheading(parent, "Attack Data");
         AddImGuiProperty(parent, config.FindPropertyRelative("dataConfig"), "Attack Data", editable);
         AddSubheading(parent, "Effects");
@@ -470,10 +488,7 @@ public sealed class ActionDetailsWindow : EditorWindow
     private void AddEffectsList(VisualElement parent, SerializedProperty property, bool editable)
     {
         if (property == null)
-        {
-            AddParagraph(parent, "Serialized field 'Effects' is unavailable.", "action-editor-local-issue");
             return;
-        }
 
         PropertyWatch watch = CreateWatch(property, false, false, false);
         var list = new EffectListGUI((serializedObject, path, type) =>
@@ -500,27 +515,6 @@ public sealed class ActionDetailsWindow : EditorWindow
         Repaint();
     }
 
-    private void DrawHitBoxAnchorDiagnostic(VisualElement parent, ActionHitBoxAnchor anchor)
-    {
-        if (anchor == ActionHitBoxAnchor.ActorRoot)
-            return;
-
-        GameObject source = ActionPreviewCharacterResolver.Resolve(
-            _document?.Asset, ActionEditorContext.Shared.PreviewCharacter);
-        Animator[] animators = source != null ? source.GetComponentsInChildren<Animator>(true) : Array.Empty<Animator>();
-        if (animators.Length != 1)
-        {
-            AddParagraph(parent, source == null
-                ? $"Anchor '{anchor}' cannot be verified because this Action has no Preview Character."
-                : $"Anchor '{anchor}' requires exactly one Preview Animator; found {animators.Length}.",
-                "action-editor-local-issue");
-            return;
-        }
-
-        if (!ActionHitBoxAnchorResolver.TryResolve(
-                anchor, source.transform, animators[0], out _, out string failureReason))
-            AddParagraph(parent, failureReason, "action-editor-local-issue");
-    }
     private void AddHitBoxRotation(
         VisualElement parent, SerializedProperty property, string editorId, bool editable)
     {
@@ -587,7 +581,7 @@ public sealed class ActionDetailsWindow : EditorWindow
     {
         if (item.Config.velocity == null)
         {
-            AddMissingConfig(parent, item, editable, "Velocity settings are missing.");
+            AddMissingConfig(parent, item, editable);
             return;
         }
         SerializedProperty velocity = config.FindPropertyRelative("velocity");
@@ -626,7 +620,7 @@ public sealed class ActionDetailsWindow : EditorWindow
             AddBoundProperty(parent, config.FindPropertyRelative(scaleName), $"{label} Scale", editable);
     }
 
-    private TimingDraft CreateDraft(ActionDocumentEntry entry, ActionTimelineOperationKind kind)
+    private TimingDraft CreateAnimationDraft(AnimationSegment animation, ActionDocumentEntry entry)
     {
         if (_draft != null && _draft.Kind == entry.SelectionKind && _draft.EditorId == entry.EditorId &&
             ReferenceEquals(_draft.Source, entry.Source))
@@ -636,37 +630,30 @@ public sealed class ActionDetailsWindow : EditorWindow
             Kind = entry.SelectionKind,
             EditorId = entry.EditorId,
             Source = entry.Source,
-            Snapshot = ActionTimelineOperationSnapshot.Capture(_document, kind, new[] { entry.EditorId }),
+            Snapshot = ActionTimelineOperationSnapshot.Capture(_document,
+                ActionTimelineOperationKind.SetAnimationTiming, new[] { entry.EditorId }),
             StartFrame = entry.StartFrame,
-            DurationFrames = entry.Source is RangeGameplayItem range ? range.DurationFrames : 1,
+            DurationFrames = animation.DerivedDurationFrames,
+            AnimationAsset = animation.AnimationAsset,
+            SourceStartTime = animation.SourceStartTime,
+            SourceEndTime = animation.SourceEndTime,
+            PlayRate = animation.PlayRate,
         };
-        if (entry.Source is AnimationSegment animation)
-        {
-            draft.AnimationAsset = animation.AnimationAsset;
-            draft.SourceStartTime = animation.SourceStartTime;
-            draft.SourceEndTime = animation.SourceEndTime;
-            draft.PlayRate = animation.PlayRate;
-            draft.DurationFrames = animation.DerivedDurationFrames;
-        }
         return draft;
     }
 
     private void AddDraftFooter(VisualElement parent, Label derived, Label end, bool editable)
     {
-        Label status = new Label("No unapplied timing changes.");
-        status.AddToClassList("action-editor-draft-status");
-        parent.Add(status);
         VisualElement buttons = MiniButtons();
-        Button apply = new Button(() => ApplyDraft(status)) { text = "Apply" };
+        Button apply = new Button(ApplyDraft) { text = "Apply" };
         Button revert = new Button(() => RevertDraft()) { text = "Revert" };
         apply.SetEnabled(editable && !ActionEditorInteractionGate.IsActive);
         revert.SetEnabled(editable);
-        buttons.Add(apply);
         buttons.Add(revert);
+        buttons.Add(apply);
         parent.Add(buttons);
         _draftDerived = derived;
         _draftEnd = end;
-        _draftStatus = status;
         RefreshDraftFeedback();
     }
 
@@ -678,19 +665,11 @@ public sealed class ActionDetailsWindow : EditorWindow
         if (_draftDerived != null)
             _draftDerived.text = result != null && result.State != ActionTimelineOperationState.Rejected && duration > 0
                 ? $"{duration} frames"
-                : "Invalid";
+                : "—";
         if (_draftEnd != null && _draft != null)
             _draftEnd.text = result != null && result.State != ActionTimelineOperationState.Rejected && duration > 0
                 ? ((long)_draft.StartFrame + duration).ToString()
-                : "Invalid";
-        if (_draftStatus != null)
-        {
-            _draftStatus.style.display = DisplayStyle.Flex;
-            _draftStatus.text = result == null ? "Draft cannot be evaluated." :
-                result.State == ActionTimelineOperationState.Allowed ? "Unapplied timing changes." :
-                result.State == ActionTimelineOperationState.NoChange ? "No unapplied timing changes." : result.Message;
-            _draftStatus.EnableInClassList("action-editor-draft-error", result == null || result.State == ActionTimelineOperationState.Rejected);
-        }
+                : "—";
     }
 
     private ActionTimelineOperationResult EvaluateDraft()
@@ -701,40 +680,23 @@ public sealed class ActionDetailsWindow : EditorWindow
     }
 
     private ActionTimelineOperationInput CreateDraftInput() =>
-        _draft.Kind == ActionSelectionKind.AnimationSegment
-            ? ActionTimelineOperationInput.Absolute(_draft.StartFrame, _draft.DurationFrames, _draft.AnimationAsset,
-                _draft.SourceStartTime, _draft.SourceEndTime, _draft.PlayRate)
-            : ActionTimelineOperationInput.Absolute(_draft.StartFrame, _draft.DurationFrames);
+        ActionTimelineOperationInput.Absolute(_draft.StartFrame, _draft.DurationFrames, _draft.AnimationAsset,
+            _draft.SourceStartTime, _draft.SourceEndTime, _draft.PlayRate);
 
-    private void ApplyDraft(Label status)
+    private void ApplyDraft()
     {
         if (ActionEditorInteractionGate.IsActive)
-        {
-            status.text = "Finish the active Timeline gesture before applying Details.";
-            status.AddToClassList("action-editor-draft-error");
             return;
-        }
         ActionTimelineOperationResult result = EvaluateDraft();
         if (result == null || result.State == ActionTimelineOperationState.Rejected)
-        {
-            status.text = result?.Message ?? "Draft cannot be evaluated.";
-            status.AddToClassList("action-editor-draft-error");
             return;
-        }
         if (result.State == ActionTimelineOperationState.NoChange)
-        {
-            status.text = "No timing change.";
             return;
-        }
         ActionTimelineOperationSnapshot snapshot = _draft.Snapshot;
         ActionTimelineOperationInput input = CreateDraftInput();
         DiscardDraft(); // The following notification represents this Apply, not an external invalidation.
-        if (!ActionEditorCommands.CommitTimelineOperation(snapshot, input, out string message))
-        {
-            string failure = string.IsNullOrEmpty(message) ? "Timing could not be applied." : message;
+        if (!ActionEditorCommands.CommitTimelineOperation(snapshot, input, out _))
             RefreshDocumentAndPage(true);
-            SetPageStatus(failure, true);
-        }
     }
 
     private void RevertDraft()
@@ -781,8 +743,7 @@ public sealed class ActionDetailsWindow : EditorWindow
         {
             if (evt.keyCode == KeyCode.Return || evt.keyCode == KeyCode.KeypadEnter)
             {
-                Label status = section.Q<Label>(className: "action-editor-draft-status");
-                ApplyDraft(status);
+                ApplyDraft();
                 evt.StopPropagation();
             }
             else if (evt.keyCode == KeyCode.Escape)
@@ -793,9 +754,8 @@ public sealed class ActionDetailsWindow : EditorWindow
         }, TrickleDown.TrickleDown);
     }
 
-    private void AddMissingConfig(VisualElement parent, GameplayItem item, bool editable, string text)
+    private void AddMissingConfig(VisualElement parent, GameplayItem item, bool editable)
     {
-        AddParagraph(parent, text, "action-editor-local-issue");
         var create = new Button(() => CreateMissingConfig(item)) { text = "Create Default Configuration" };
         create.SetEnabled(editable && !ActionEditorInteractionGate.IsActive);
         parent.Add(create);
@@ -853,12 +813,11 @@ public sealed class ActionDetailsWindow : EditorWindow
         bool rebuildConditional = false, bool rebuildTrigger = false, bool rebuildCancellation = false)
     {
         if (property == null)
-        {
-            AddParagraph(parent, $"Serialized field '{label}' is unavailable.", "action-editor-local-issue");
             return null;
-        }
         var field = string.IsNullOrEmpty(label) ? new PropertyField(property) : new PropertyField(property, label);
         field.AddToClassList("action-editor-edit-field");
+        if (property.propertyType == SerializedPropertyType.Boolean)
+            field.AddToClassList("action-editor-bool-field");
         field.SetEnabled(editable);
         parent.Add(field);
         PropertyWatch watch = CreateWatch(property, rebuildConditional, rebuildTrigger, rebuildCancellation);
@@ -878,10 +837,7 @@ public sealed class ActionDetailsWindow : EditorWindow
         bool rebuildConfiguration = false, bool rebuildTrigger = false, bool rebuildCancellation = false)
     {
         if (property == null)
-        {
-            AddParagraph(parent, $"Serialized field '{label}' is unavailable.", "action-editor-local-issue");
             return null;
-        }
         PropertyWatch watch = CreateWatch(property, rebuildConfiguration, rebuildTrigger, rebuildCancellation);
         var container = new IMGUIContainer(() => DrawImGuiProperty(watch, label, editable));
         container.AddToClassList("action-editor-imgui-property");
@@ -915,10 +871,7 @@ public sealed class ActionDetailsWindow : EditorWindow
         _serializedAction.UpdateIfRequiredOrScript();
         SerializedProperty property = _serializedAction.FindProperty(watch.Path);
         if (property == null)
-        {
-            EditorGUILayout.HelpBox($"Serialized field '{label}' is unavailable.", MessageType.Warning);
             return;
-        }
         EditorGUI.BeginDisabledGroup(!editable || ActionEditorInteractionGate.IsActive);
         EditorGUI.BeginChangeCheck();
         if (drawProperty == null)
@@ -977,34 +930,27 @@ public sealed class ActionDetailsWindow : EditorWindow
         OnLeafChanged(CreateWatch(property, true, false, false));
     }
 
-    private void AddHeading(string title, string subtitle)
+    private void AddHeading(string title)
     {
         var titleLabel = new Label(title);
         titleLabel.AddToClassList("action-editor-details-heading");
         _content.Add(titleLabel);
-        var subtitleLabel = new Label(subtitle);
-        subtitleLabel.AddToClassList("action-editor-details-subtitle");
-        _content.Add(subtitleLabel);
     }
 
     private static VisualElement Section(string title)
     {
         var section = new VisualElement();
         section.AddToClassList("action-editor-section");
-        AddSubheading(section, title);
+        AddSubheading(section, title).AddToClassList("action-editor-card-title");
         return section;
     }
 
-    private static void AddSubheading(VisualElement parent, string title)
+    private static Label AddSubheading(VisualElement parent, string title)
     {
         var heading = new Label(title);
         heading.AddToClassList("action-editor-section-title");
         parent.Add(heading);
-    }
-
-    private static string SelectionSummary(ActionSelectionValue selection, int selectedCount)
-    {
-        return $"Primary Selection  ·  {PrimaryName(selection)}  ·  {selectedCount} content selected";
+        return heading;
     }
 
     private static Label AddRow(VisualElement parent, string label, string value)
@@ -1021,11 +967,19 @@ public sealed class ActionDetailsWindow : EditorWindow
         return result;
     }
 
-    private static void AddParagraph(VisualElement parent, string text, string className = "action-editor-details-subtitle")
+
+    private static Label AddCompactTimingValue(VisualElement parent, string label, string value)
     {
-        var label = new Label(text);
-        label.AddToClassList(className);
-        parent.Add(label);
+        var item = new VisualElement();
+        item.AddToClassList("action-editor-compact-timing-value");
+        var title = new Label(label);
+        title.AddToClassList("action-editor-compact-timing-label");
+        item.Add(title);
+        var result = new Label(value);
+        result.AddToClassList("action-editor-compact-timing-result");
+        item.Add(result);
+        parent.Add(item);
+        return result;
     }
 
     private static VisualElement MiniButtons()
@@ -1042,22 +996,23 @@ public sealed class ActionDetailsWindow : EditorWindow
         parent.Add(button);
     }
 
-    private void SetPageStatus(string message, bool error)
-    {
-        if (_pageStatus == null)
-        {
-            _pageStatus = new Label();
-            _pageStatus.AddToClassList("action-editor-page-status");
-            _content.Insert(0, _pageStatus);
-        }
-        _pageStatus.text = message ?? string.Empty;
-        _pageStatus.EnableInClassList("action-editor-draft-error", error);
-    }
-
     private void OnContextChanged(ActionEditorChange change)
     {
         _previewPanel?.OnContextChanged(change);
         ActionEditorChangeFlags flags = change.Flags;
+        if (_committingGameplayTiming && change.Origin == ActionEditorChangeOrigin.Command &&
+            (flags & ActionEditorChangeFlags.Timing) != 0 &&
+            _gameplayTiming != null && _gameplayTiming.IsCurrent &&
+            (flags & (ActionEditorChangeFlags.Context | ActionEditorChangeFlags.Structure |
+                      ActionEditorChangeFlags.Selection)) == 0)
+        {
+            // Keep the control tree (and Tab/focus order) alive for this field's own commit.
+            RefreshDocumentOnly();
+            _configurationEntry = _document.ById[_displayedPrimary.EditorId];
+            SyncGameplayTimingFields();
+            FlushPendingBindingSectionRefresh();
+            return;
+        }
         if ((flags & (ActionEditorChangeFlags.Context | ActionEditorChangeFlags.Structure |
                       ActionEditorChangeFlags.Timing)) != 0)
         {
@@ -1082,22 +1037,10 @@ public sealed class ActionDetailsWindow : EditorWindow
             }
         }
         else if ((flags & ActionEditorChangeFlags.Presentation) != 0)
-        {
             RefreshDocumentOnly();
-            if (_selectionSummary != null)
-            {
-                ActionSelectionValue primary = ActionEditorContext.Shared.PrimarySelection;
-                _selectionSummary.text = SelectionSummary(primary, ActionEditorContext.Shared.SelectedIds.Count);
-            }
-        }
-        if ((flags & ActionEditorChangeFlags.Selection) != 0)
-        {
-            ActionSelectionValue primary = ActionEditorContext.Shared.PrimarySelection;
-            if (!SameSelection(primary, _displayedPrimary))
-                RefreshDocumentAndPage(true);
-            else if (_selectionSummary != null)
-                _selectionSummary.text = SelectionSummary(primary, ActionEditorContext.Shared.SelectedIds.Count);
-        }
+        if ((flags & ActionEditorChangeFlags.Selection) != 0 &&
+            !SameSelection(ActionEditorContext.Shared.PrimarySelection, _displayedPrimary))
+            RefreshDocumentAndPage(true);
         FlushPendingBindingSectionRefresh();
     }
 
@@ -1129,11 +1072,8 @@ public sealed class ActionDetailsWindow : EditorWindow
 
     private void DiscardDraft() => _draft = null;
 
-    private static string PrimaryName(ActionSelectionValue selection) =>
-        selection.Kind == ActionSelectionKind.None ? "Action" : selection.Kind.ToString();
     private static bool SameSelection(ActionSelectionValue left, ActionSelectionValue right) =>
         left.Kind == right.Kind && string.Equals(left.EditorId, right.EditorId, StringComparison.Ordinal);
-    private static string ObjectName(UnityEngine.Object value) => value != null ? value.name : "None";
 }
 
 /// <summary>Keeps the user's preferred proportion separate from temporary minimum-width constraints.</summary>

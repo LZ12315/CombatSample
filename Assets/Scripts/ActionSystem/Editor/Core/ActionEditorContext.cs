@@ -487,15 +487,21 @@ internal sealed class ActionEditorContext : ScriptableSingleton<ActionEditorCont
 
     internal void SetFrame(int frame)
     {
+        // Integer-frame navigation is a manual seek (scrubbing, stepping or entering a Frame).
+        // Stop the continuous clock even when the requested Frame is already selected.
+        bool wasPlaying = ActionEditorPlayback.IsPlaying;
+        ActionEditorPlayback.Stop(false);
         int duration = _currentAction != null && _currentAction.Timeline != null ? _currentAction.Timeline.DurationFrames : 1;
         int last = Mathf.Max(0, duration - 1);
         int clamped = Mathf.Clamp(frame, 0, last);
-        if (_currentFrame == clamped && Math.Abs(_previewPosition - clamped) <= 1e-9d)
+        if (!wasPlaying && _currentFrame == clamped && Math.Abs(_previewPosition - clamped) <= 1e-9d)
             return;
         _currentFrame = clamped;
         _previewPosition = clamped;
         Publish(ActionEditorChangeFlags.Frame | ActionEditorChangeFlags.Preview |
-                ActionEditorChangeFlags.PreviewPosition, ActionEditorChangeOrigin.Session);
+                ActionEditorChangeFlags.PreviewPosition |
+                (wasPlaying ? ActionEditorChangeFlags.Playback : ActionEditorChangeFlags.None),
+            ActionEditorChangeOrigin.Session);
     }
 
     internal void SetPreviewPosition(double position)

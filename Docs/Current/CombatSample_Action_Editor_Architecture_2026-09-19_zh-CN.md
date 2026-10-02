@@ -58,6 +58,7 @@ Action 已不再选择播放后端。每个 ActionAsset 都保存一份 ActionTi
 | ActionTimelineWindow | 时间编排、选择和编辑器播放控制 |
 | ActionDetailsWindow | 轨道、动画段和 Item 属性，以及内嵌预览面板的通知和生命周期管理 |
 | ActionPreviewPanel / ActionPreviewRenderer | 内嵌预览界面、相机操作、视觉求值和预览资源 |
+| ActionPreviewPoseSampler | 固定参考空间内的绝对时间骨骼采样、Playable 生命周期及姿态基准恢复 |
 | EffectListGUI / HitFeedbackProfileInspector | 共用 Effect 列表绘制；各入口自行提交修改，Details 负责 Action 变更通知 |
 | ActionRuntimePlaybackSession | 固定帧播放管线与 ActionRuntime 的衔接 |
 
@@ -66,6 +67,10 @@ Action 已不再选择播放后端。每个 ActionAsset 都保存一份 ActionTi
 Details 在刷新属性页之前转发预览通知；播放头更新只重绘预览，不重建属性控件。分隔条调整不写资产、不产生 Undo，也不丢弃未提交的 Timing 草稿。预览相机和设置折叠状态由 Details 序列化保存；关闭窗口或脚本重载时释放资源，进入 Play Mode 时释放预览对象，失焦或面板卸载时结束相机拖动。旧独立 Preview 窗口的布局和相机状态不迁移。
 
 Preview 的整数 Frame N 表示 Runtime 第 N 帧位移提交后的 Hit 阶段画面：Pose 在 N 的时间采样，角色和生效 HitBox 共享帧后世界位置。小数 PreviewPosition 仅在相邻帧后位置之间做视觉插值；Duration 终点显示最终位移，HitBox 已结束。Preview 不复现碰撞后的实际世界运动或完整 gameplay replay。
+
+Pose 每次求值先恢复角色初始 Transform 基准，再用 Manual Graph 采样绝对 SourceTime，最后应用独立累积的世界位移。时间跳转同步 Playable 的 current / previous time，避免把之前访问的位置当作 RootMotion 时间区间；内容失效同时释放旧 Graph，下一次求值重新绑定 Clip。整数帧拖动、逐帧和首末帧导航暂停连续播放，并一次发布暂停状态与目标时间。Timeline 的时间读数和播放头显示实际 PreviewPosition，小数时间不再伪装成精确整数帧。
+
+Timeline 条目实际开始拖动时暂停播放，并把 PreviewPosition 就近定位到整数帧，保留 Duration 终点。移动手势在 0 帧处夹紧，多选以最早条目为边界且保留相对时间；这项边界限制独立于 Snap 开关。磁吸使用未取整的鼠标位移计算屏幕距离，10px 捕获、16px 释放；目标为播放线、0 帧和可见条目边界，同距离优先播放线。Point 仅提供事件帧，Range / Animation 提供 start 与 end-exclusive；多选移动使用被抓取条目及整体外边界。吸附辅助线、播放线或目标边界高亮和操作提示显示实际命中目标。Ctrl/Cmd 在拖动中临时反转 Snap；非法重叠、轨道或动画 Source 范围仍由原操作快照校验。
 
 编辑写入保留同轨不重叠、快照过期、Undo、编辑锁与身份修复。旧 Issues 分类和全量配置校验已删除。运行时不预扫未来 Item 的 Context 需求，也不因烘焙轨迹 stale 而拒绝执行；ActionRuntime.Begin 仍检查动画快照并在失败时 Abort。
 
@@ -97,6 +102,19 @@ HitBox 的正式绑定使用 ActionHitBoxAnchor。旧 BoneReference、旧 Playab
 AnimationAsset 和 AnimationRigAsset 位于 `Assets/Create/Animation/`；Locomotion 配置位于 `Assets/Create/Locomotion/`，`Assets/Create/Test/` 保留测试资产。当前 Action List 随角色放在 `Assets/Create/Action/`，旧列表位于 `Assets/Create/Archive/ActionList/`；行为图位于 `Assets/Create/Graph/`。旧资源不作为兼容输入。
 
 ## 6. 验证
+
+2026-10-01 Timeline 磁吸与 0 帧边界：
+
+- Unity 2022.3.62f3 Roslyn 编译完整 Editor / 测试程序集通过；隔离 Unity 批处理执行 20 个针对性契约用例通过。
+- 新增纯 EditMode 用例覆盖实际像素捕获距离、保持 / 释放、播放线同距优先、失效目标、0 帧单条目与多选限制、Point 的真实吸附边缘、非法重叠和播放暂停归整（包含 Duration 终点）。
+- 修改后的 USS 在 Unity 中导入成功，无样式解析告警。鼠标手感、辅助线与高亮、自动平移、Ctrl/Cmd 和松手落点仍需窗口人工复查，见 [Timeline 吸附修复记录](ActionTimeline_Snapping_Handoff_2026-10-01_zh-CN.md)。
+
+2026-10-01 Preview 确定性排查：
+
+- Unity 2022.3.62f3 Roslyn 编译完整 Editor / 测试程序集通过，输出位于临时目录。
+- 隔离 Unity 批处理工程执行 12 个针对性契约用例通过；覆盖姿态恢复、Clip 切换、空姿态、同 Clip 内容变更、手动导航暂停、连续时间、空间累积和 HitBox 位移。
+- 使用实际 Kiana Humanoid 模型及 8 个 Clip，对每个实例的 99 个 Transform 做 4,497 次同时间姿态比较；逐帧、随机 seek、循环回跳、跨 Clip、空姿态和失效重建后的位置、旋转和缩放差异均为零。
+- Timeline 新的小数读数、连续播放头以及原始异常 Action 的完整窗口渲染仍需 Unity 界面复查。详见 [Preview 排查记录](ActionPreview_Determinism_Audit_2026-10-01_zh-CN.md)。
 
 2026-10-01 Effect 列表绘制复用：
 

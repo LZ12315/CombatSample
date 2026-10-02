@@ -47,6 +47,14 @@ internal static class ActionEditorPlayback
             ActionEditorContext.Shared.NotifyPlaybackChanged();
     }
 
+    internal static void PauseAtNearestFrame()
+    {
+        Stop();
+        ActionEditorContext context = ActionEditorContext.Shared;
+        // Unlike SetFrame, preserve Duration as an inclusive preview/snap endpoint.
+        context.SetPreviewPosition(Math.Round(context.PreviewPosition, MidpointRounding.AwayFromZero));
+    }
+
     private static void Update()
     {
         ActionAsset action = ActionEditorContext.Shared.CurrentAction;

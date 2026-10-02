@@ -318,6 +318,54 @@ internal static class ActionEditorCommands
         return true;
     }
 
+    internal static bool UseFullRootMotionClip(ActionAsset asset, string editorId)
+    {
+        ActionEditorContext context = ActionEditorContext.Shared;
+        if (asset == null || context.CurrentAction != asset || ActionEditorInteractionGate.IsActive ||
+            context.PrimarySelection.Kind != ActionSelectionKind.GameplayItem ||
+            !string.Equals(context.PrimarySelection.EditorId, editorId, StringComparison.Ordinal))
+            return false;
+
+        context.FlushQueuedBindingChange();
+        context.RefreshExternal(ActionEditorChangeOrigin.ObjectChange);
+        ActionEditorDocument document = context.Document;
+        if (context.CurrentAction != asset || document.Readiness != ActionEditorReadiness.Ready ||
+            !document.ById.TryGetValue(editorId, out ActionDocumentEntry entry) ||
+            !(entry.Source is RootMotionItem item) || item.Config == null)
+            return false;
+
+        RootMotionItemConfig config = item.Config;
+        AnimationClip clip = config.animationAsset != null ? config.animationAsset.Clip : null;
+        if (clip == null || !ActionAuthoringMath.IsFinite(clip.length) || clip.length <= 0f)
+            return false;
+        int duration = AnimationSegment.CalculateDerivedDurationFrames(0f, clip.length, config.playRate);
+        if (duration < 1)
+            return false;
+
+        ActionTimelineOperationSnapshot snapshot = ActionTimelineOperationSnapshot.Capture(
+            document, ActionTimelineOperationKind.SetRangeTiming, new[] { editorId });
+        if (snapshot == null || !snapshot.MatchesCurrentSource(out _))
+            return false;
+        ActionTimelineOperationResult result = snapshot.Evaluate(
+            ActionTimelineOperationInput.Absolute(item.StartFrame, duration));
+        if (result == null || result.State == ActionTimelineOperationState.Rejected)
+            return false;
+        if (result.State == ActionTimelineOperationState.NoChange && config.sourceStartTime == 0f)
+            return true;
+
+        // Validate the new length before recording either change, so an overlap cannot leave half an edit.
+        Undo.IncrementCurrentGroup();
+        try
+        {
+            Record(asset, "Use Full Root Motion Clip");
+            config.sourceStartTime = 0f;
+            item.EditorSetTiming(item.StartFrame, duration);
+            Commit(asset, ActionEditorChangeFlags.Content | ActionEditorChangeFlags.Timing);
+        }
+        finally { Undo.IncrementCurrentGroup(); }
+        return true;
+    }
+
     internal static bool CommitTimelineOperation(ActionTimelineOperationSnapshot snapshot,
         ActionTimelineOperationInput input, out string message)
     {

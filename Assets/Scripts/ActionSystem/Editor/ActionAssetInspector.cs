@@ -12,12 +12,42 @@ public sealed class ActionAssetInspector : Editor
     public override VisualElement CreateInspectorGUI()
     {
         _root = new VisualElement();
+        ActionEditorTheme.Apply(_root, "action-editor-asset-inspector");
         Undo.undoRedoPerformed -= Repaint;
         Undo.undoRedoPerformed += Repaint;
         ActionEditorInteractionGate.Changed -= Repaint;
         ActionEditorInteractionGate.Changed += Repaint;
 
-        _root.Add(new IMGUIContainer(DrawActionInspector));
+        AddCard("Timeline", () =>
+        {
+            ActionAsset action = target as ActionAsset;
+            if (GUILayout.Button("Open Action Timeline"))
+                ActionTimelineWindow.Open(action);
+            using (new EditorGUI.DisabledScope(true))
+                EditorGUILayout.IntField("Duration", Mathf.Max(1, action.Timeline?.DurationFrames ?? 1));
+        });
+        AddCard("Playback", () =>
+        {
+            DrawBoolean("isLoop", new GUIContent("Loop", "Loop this Action at runtime. This is separate from Timeline preview looping."));
+            DrawEnum("_priorityLayer", new GUIContent("Priority Layer"));
+            DrawInteger("_priorityValue", new GUIContent("Priority Value"));
+            DrawBoolean("_allowReenterWhilePlaying", new GUIContent("Allow Reentry While Playing"));
+        });
+        AddCard("Trigger & Start Context", () =>
+        {
+            SerializedProperty triggerMode = DrawEnum("_triggerMode", new GUIContent("Trigger Mode"));
+            DrawEnum("_startContextMode", new GUIContent("Start Context"));
+            if (triggerMode != null && triggerMode.enumValueIndex == (int)ActionTriggerMode.Event)
+                DrawProperty("_eventTriggerTag", new GUIContent("Event Trigger Tag"), true);
+        });
+        AddCard("Conditions", () =>
+        {
+            DrawFoldoutProperty("Entry Conditions", "_entryConditions");
+            DrawFoldoutProperty("Exit Conditions", "_exitConditions");
+        });
+        AddCard("Cancellation", () => DrawFoldoutProperty("Cancel Rules", "_cancelRules"));
+        AddCard("Tags", () => DrawFoldoutProperty("Self Tags", "_selfTags"));
+        _root.Add(new IMGUIContainer(DrawInteractionMessage));
         return _root;
     }
 
@@ -28,7 +58,19 @@ public sealed class ActionAssetInspector : Editor
         _root = null;
     }
 
-    private void DrawActionInspector()
+    private void AddCard(string title, Action draw)
+    {
+        var card = new VisualElement();
+        card.AddToClassList("action-editor-section");
+        var heading = new Label(title);
+        heading.AddToClassList("action-editor-section-title");
+        heading.AddToClassList("action-editor-card-title");
+        card.Add(heading);
+        card.Add(new IMGUIContainer(() => DrawCard(draw)));
+        _root.Add(card);
+    }
+
+    private void DrawCard(Action draw)
     {
         ActionAsset action = target as ActionAsset;
         if (action == null)
@@ -38,47 +80,15 @@ public sealed class ActionAssetInspector : Editor
         bool lockedByTimeline = ActionEditorInteractionGate.IsActive &&
                                 action == ActionEditorContext.Shared.CurrentAction;
         using (new EditorGUI.DisabledScope(lockedByTimeline))
-        {
-            EditorGUILayout.Space(8f);
-            DrawGroup("Timeline", () =>
-            {
-                if (GUILayout.Button("Open Action Timeline"))
-                    ActionTimelineWindow.Open(action);
-                using (new EditorGUI.DisabledScope(true))
-                    EditorGUILayout.IntField("Duration", Mathf.Max(1, action.Timeline?.DurationFrames ?? 1));
-            });
-
-            DrawGroup("Playback", () =>
-            {
-                DrawBoolean("isLoop", new GUIContent("Loop", "Loop this Action at runtime. This is separate from Timeline preview looping."));
-                DrawEnum("_priorityLayer", new GUIContent("Priority Layer"));
-                DrawInteger("_priorityValue", new GUIContent("Priority Value"));
-                DrawBoolean("_allowReenterWhilePlaying", new GUIContent("Allow Reentry While Playing"));
-            });
-
-            DrawGroup("Trigger & Start Context", () =>
-            {
-                SerializedProperty triggerMode = DrawEnum("_triggerMode", new GUIContent("Trigger Mode"));
-                DrawEnum("_startContextMode", new GUIContent("Start Context"));
-                if (triggerMode != null && triggerMode.enumValueIndex == (int)ActionTriggerMode.Event)
-                    DrawProperty("_eventTriggerTag", new GUIContent("Event Trigger Tag"), true);
-            });
-
-            DrawGroup("Conditions", () =>
-            {
-                DrawFoldoutProperty("Entry Conditions", "_entryConditions");
-                DrawFoldoutProperty("Exit Conditions", "_exitConditions");
-            });
-
-            DrawGroup("Cancellation", () => DrawFoldoutProperty("Cancel Rules", "_cancelRules"));
-
-            DrawGroup("Tags", () => DrawFoldoutProperty("Self Tags", "_selfTags"));
-        }
-
-        if (lockedByTimeline)
-            EditorGUILayout.HelpBox("Finish the active Timeline gesture before editing this Action.", MessageType.Info);
+            draw();
         if (serializedObject.ApplyModifiedProperties())
             ReportAssetChange(action);
+    }
+
+    private void DrawInteractionMessage()
+    {
+        if (ActionEditorInteractionGate.IsActive && target == ActionEditorContext.Shared.CurrentAction)
+            EditorGUILayout.HelpBox("Finish the active Timeline gesture before editing this Action.", MessageType.Info);
     }
 
     private SerializedProperty DrawProperty(string path, GUIContent label, bool includeChildren = false)
@@ -87,23 +97,6 @@ public sealed class ActionAssetInspector : Editor
         if (property != null)
             EditorGUILayout.PropertyField(property, label, includeChildren);
         return property;
-    }
-
-    private static void DrawGroup(string title, System.Action draw)
-    {
-        using (new EditorGUILayout.VerticalScope())
-        {
-            if (!string.IsNullOrEmpty(title))
-            {
-                var heading = new GUIStyle(EditorStyles.boldLabel);
-                heading.normal.textColor = EditorGUIUtility.isProSkin
-                    ? new Color(0.59f, 0.71f, 0.84f)
-                    : new Color(0.20f, 0.38f, 0.58f);
-                EditorGUILayout.LabelField(title, heading);
-            }
-            draw?.Invoke();
-        }
-        EditorGUILayout.Space(6f);
     }
 
     private SerializedProperty DrawBoolean(string path, GUIContent label)

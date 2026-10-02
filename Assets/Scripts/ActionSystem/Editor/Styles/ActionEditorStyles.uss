@@ -65,7 +65,11 @@
 .action-editor-transport-bar .action-editor-transport-button:focus { width: 26px; min-width: 26px; height: 20px; padding: 2px; flex-shrink: 0; background-color: transparent; background-image: none; border-width: 0; border-radius: 0; justify-content: center; }
 .action-editor-toolbar-icon { width: 16px; height: 16px; align-self: center; }
 .action-editor-lane-mute .action-editor-toolbar-icon { opacity: 0.4; }
-.action-editor-playback-options .unity-toolbar-toggle { height: 20px; margin: 0; padding-left: 6px; padding-right: 6px; border-width: 0; }
+.action-editor-playback-options .unity-toolbar-toggle { height: 20px; min-width: 42px; margin: 0 1px 0 0; padding-left: 6px; padding-right: 6px; border-width: 1px; border-color: var(--action-border); border-radius: 2px; background-color: var(--action-controls); }
+.action-editor-playback-options .unity-toolbar-toggle:hover { background-color: var(--action-track-hover); }
+.action-editor-playback-options .unity-toolbar-toggle:checked { background-color: rgba(81, 145, 202, 0.26); border-color: var(--action-heading); color: var(--action-heading); }
+.action-editor-transport-bar .action-editor-details-button { height: 20px; min-width: 52px; flex-shrink: 0; margin-left: 4px; padding-left: 6px; padding-right: 6px; border-width: 1px; border-color: var(--action-border); border-radius: 2px; background-color: var(--action-controls); }
+.action-editor-transport-bar .action-editor-details-button:hover { background-color: var(--action-track-hover); }
 .action-editor-frame-label { min-width: 48px; height: 18px; flex-shrink: 0; margin-left: 4px; margin-right: 4px; padding-left: 5px; padding-right: 5px; -unity-text-align: middle-left; background-color: var(--action-canvas); border-width: 1px; border-color: var(--action-border); }
 .action-editor-compact .action-editor-transport-button { width: 22px; min-width: 22px; }
 .action-editor-compact .action-editor-frame-label { min-width: 36px; }
@@ -147,8 +151,10 @@
 .action-editor-duration-line { position: absolute; top: 0; bottom: 0; width: 1px; background-color: rgba(88, 182, 232, 0.78); }
 .action-editor-horizon-line { position: absolute; top: 0; bottom: 0; width: 1px; background-color: rgba(150, 150, 150, 0.42); }
 .action-editor-playhead { position: absolute; top: 0; bottom: 0; width: 1px; background-color: rgb(255, 91, 84); }
-.action-editor-snap-guide { position: absolute; top: 0; bottom: 0; width: 1px; background-color: rgb(89, 181, 240); }
-.action-editor-operation-label { position: absolute; min-width: 120px; height: 20px; padding-left: 6px; padding-right: 6px; color: rgb(225, 225, 225); background-color: rgba(38, 38, 38, 0.94); border-left-width: 1px; border-left-color: rgb(89, 181, 240); -unity-text-align: middle-left; font-size: 10px; }
+.action-editor-snap-guide { position: absolute; top: 0; bottom: 0; width: 2px; background-color: rgb(255, 205, 90); }
+.action-editor-playhead.action-editor-playhead-snapped,
+.action-editor-ruler-playhead.action-editor-playhead-snapped { width: 2px; background-color: rgb(255, 205, 90); }
+.action-editor-operation-label { position: absolute; min-width: 120px; max-width: 320px; height: 20px; padding-left: 6px; padding-right: 6px; color: rgb(225, 225, 225); background-color: rgba(38, 38, 38, 0.94); border-left-width: 1px; border-left-color: rgb(89, 181, 240); -unity-text-align: middle-left; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .action-editor-operation-invalid { color: rgb(255, 201, 201); border-left-color: rgb(230, 86, 91); }
 .action-editor-marquee { position: absolute; background-color: rgba(65, 141, 229, 0.18); border-left-width: 1px; border-right-width: 1px; border-top-width: 1px; border-bottom-width: 1px; border-color: rgb(81, 155, 239); }
 .action-editor-geometry-overflow { position: absolute; top: 0; width: 88px; padding-top: 5px; color: rgb(230, 183, 105); background-color: rgba(83, 57, 28, 0.55); border-left-width: 1px; border-left-color: rgb(188, 126, 48); -unity-text-align: upper-center; font-size: 9px; -unity-font-style: bold; }
@@ -178,6 +184,9 @@
 .action-editor-entry-transient { border-color: rgb(255, 130, 124); }
 .action-editor-entry-active { background-color: rgb(71, 104, 139); }
 .action-editor-entry-hold { border-bottom-color: rgb(112, 190, 238); }
+.action-editor-entry.action-editor-snap-target-start { border-left-width: 3px; border-left-color: rgb(255, 205, 90); }
+.action-editor-entry.action-editor-snap-target-end { border-right-width: 3px; border-right-color: rgb(255, 205, 90); }
+.action-editor-point-entry.action-editor-snap-target-start .action-editor-point-diamond { border-color: rgb(255, 205, 90); background-color: rgb(255, 205, 90); }
 .action-editor-placeholder { background-color: rgb(65, 57, 59); border-color: rgb(164, 85, 89); }
 .action-editor-placeholder-null { background-color: rgb(61, 47, 50); color: rgb(236, 173, 176); }
 .action-editor-placeholder-negative { border-left-width: 3px; border-left-color: rgb(231, 114, 88); }
@@ -394,29 +403,27 @@
 .action-editor-details-pane { min-width: 300px; min-height: 0; overflow: hidden; }
 .action-editor-preview-panel { min-width: 320px; min-height: 0; flex-grow: 1; padding: 4px; overflow: hidden; }
 .action-editor-details-scroll { flex-grow: 1; min-height: 0; }
-.action-editor-details-center { width: 100%; max-width: 720px; min-height: 100%; flex-grow: 1; align-self: center; padding: 14px 18px 24px 18px; }
+.action-editor-details-center { width: 100%; max-width: 720px; min-height: 100%; flex-grow: 1; align-self: center; padding: 8px 10px 12px 10px; }
 .action-editor-details-narrow .action-editor-details-center { padding-left: 8px; padding-right: 8px; }
-.action-editor-details-heading { font-size: 17px; -unity-font-style: bold; margin-bottom: 2px; }
-.action-editor-details-subtitle { color: var(--action-secondary-text); margin-bottom: 12px; white-space: normal; }
-.action-editor-section { margin-bottom: 10px; padding: 10px; }
+.action-editor-asset-inspector { padding: 8px 4px 12px; }
+.action-editor-details-heading { font-size: 15px; -unity-font-style: bold; margin-bottom: 5px; }
+.action-editor-section { margin-bottom: 6px; padding: 6px; }
 .action-editor-details-narrow .action-editor-section { padding-left: 6px; padding-right: 6px; }
-.action-editor-details-window .action-editor-section {
+.action-editor-details-window .action-editor-section,
+.action-editor-asset-inspector .action-editor-section {
     background-color: var(--action-track);
     border-width: 1px;
     border-color: var(--action-border);
     border-radius: 4px;
 }
-.action-editor-section-title { margin-bottom: 7px; color: var(--action-heading); -unity-font-style: bold; }
+.action-editor-section-title { margin-bottom: 4px; color: var(--action-heading); -unity-font-style: bold; }
+.action-editor-card-title { font-size: 14px; }
 .action-editor-readonly-row { min-height: 24px; flex-direction: row; align-items: flex-start; padding-top: 3px; padding-bottom: 3px; }
 .action-editor-readonly-label { width: 170px; color: var(--action-secondary-text); }
 .action-editor-readonly-value { flex-grow: 1; white-space: normal; }
 .action-editor-details-narrow .action-editor-readonly-row { flex-direction: column; }
 .action-editor-details-narrow .action-editor-readonly-label { width: auto; margin-bottom: 2px; }
-.action-editor-selection-summary { min-height: 26px; padding-left: 18px; padding-right: 18px; color: var(--action-secondary-text); background-color: var(--action-surface); border-bottom-width: 1px; border-bottom-color: var(--action-border); -unity-text-align: middle-left; }
-.action-editor-details-narrow .action-editor-selection-summary { padding: 4px 8px; white-space: normal; }
-.action-editor-local-issue { margin-top: 4px; padding: 7px; white-space: normal; color: rgb(228, 178, 180); background-color: rgb(62, 42, 45); border-left-width: 2px; border-left-color: rgb(176, 78, 83); }
-.action-editor-local-setup { margin-top: 4px; padding: 7px; white-space: normal; color: rgb(218, 201, 159); background-color: rgb(56, 51, 39); border-left-width: 2px; border-left-color: rgb(150, 116, 53); }
-.action-editor-edit-field { margin-top: 2px; margin-bottom: 3px; }
+.action-editor-edit-field { margin-top: 1px; margin-bottom: 2px; }
 .action-editor-edit-field > .unity-base-field__label { width: 170px; min-width: 170px; }
 /* PropertyField wraps its BaseField. Keep these selectors above the XYZ component fields. */
 .action-editor-details-narrow .action-editor-edit-field,
@@ -439,6 +446,21 @@
     flex-basis: auto;
     align-self: stretch;
 }
+.action-editor-compact-timing-row { flex-direction: row; flex-wrap: wrap; margin-top: 2px; }
+.action-editor-details-window .action-editor-compact-timing-field { flex-direction: column; align-items: stretch; flex-grow: 1; flex-basis: 72px; min-width: 72px; margin: 0 2px; }
+.action-editor-details-window .action-editor-compact-timing-field > .unity-base-field__label { width: auto; min-width: 0; margin-bottom: 2px; font-size: 10px; }
+.action-editor-details-window .action-editor-compact-timing-field > .unity-base-field__input { min-width: 0; flex-grow: 1; align-self: stretch; }
+.action-editor-details-window .action-editor-source-time-field { flex-basis: 112px; min-width: 112px; }
+.action-editor-compact-timing-value { flex-grow: 1; flex-basis: 72px; min-width: 72px; margin: 0 2px; }
+.action-editor-compact-timing-label { margin-bottom: 2px; font-size: 10px; color: var(--action-secondary-text); }
+.action-editor-compact-timing-result { min-height: 18px; -unity-text-align: middle-left; }
+/* A Boolean needs one compact row even when other fields stack in the narrow pane. */
+.action-editor-details-window .action-editor-bool-field,
+.action-editor-details-window .action-editor-bool-field > .unity-base-field { flex-direction: row; align-items: center; height: auto; }
+.action-editor-details-window .action-editor-bool-field > .unity-base-field__label,
+.action-editor-details-window .action-editor-bool-field > .unity-base-field > .unity-base-field__label { width: auto; min-width: 0; margin-right: 6px; margin-bottom: 0; }
+.action-editor-details-window .action-editor-bool-field > .unity-base-field__input,
+.action-editor-details-window .action-editor-bool-field > .unity-base-field > .unity-base-field__input { flex-grow: 0; flex-basis: auto; align-self: center; }
 .action-editor-nested-card { margin-top: 5px; padding: 7px; }
 .action-editor-details-window .action-editor-nested-card {
     background-color: var(--action-surface);
@@ -448,6 +470,3 @@
 }
 .action-editor-mini-buttons { flex-direction: row; justify-content: flex-end; margin-top: 7px; }
 .action-editor-mini-buttons > Button { margin-left: 4px; min-width: 58px; }
-.action-editor-draft-status { margin-top: 8px; padding: 6px 8px; white-space: normal; background-color: var(--action-controls); border-left-width: 2px; border-left-color: rgb(79, 139, 199); }
-.action-editor-draft-error { color: rgb(232, 180, 182); background-color: rgb(62, 42, 45); border-left-color: rgb(176, 78, 83); }
-.action-editor-page-status { margin-bottom: 10px; padding: 7px 9px; white-space: normal; background-color: var(--action-controls); border-left-width: 2px; border-left-color: rgb(79, 139, 199); }

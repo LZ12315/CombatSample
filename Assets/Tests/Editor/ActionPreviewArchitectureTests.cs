@@ -852,6 +852,48 @@ public sealed class ActionPreviewArchitectureTests
         }
     }
 
+    [TestCase(0d, 0)]
+    [TestCase(2.75d, 2)]
+    [TestCase(2.75d, 1)]
+    public void ManualFrameSeek_StopsPlaybackAndPublishesOneCoherentPausedFrame(double position, int requestedFrame)
+    {
+        ActionAsset action = CreateRootMotionAction(1f, out AnimationAsset animation, out AnimationClip clip, out _);
+        ActionEditorContext context = ActionEditorContext.Shared;
+        ActionAsset previousAction = context.CurrentAction;
+        double previousPosition = context.PreviewPosition;
+        int notifications = 0;
+        ActionEditorChange observed = default;
+        void Observe(ActionEditorChange change)
+        {
+            notifications++;
+            observed = change;
+            Assert.IsFalse(ActionEditorPlayback.IsPlaying);
+            Assert.AreEqual(requestedFrame, context.CurrentFrame);
+            Assert.AreEqual((double)requestedFrame, context.PreviewPosition);
+        }
+
+        try
+        {
+            context.SetAction(action);
+            context.SetPreviewPosition(position);
+            ActionEditorPlayback.Play();
+            ActionEditorContext.Changed += Observe;
+            context.SetFrame(requestedFrame);
+            Assert.AreEqual(1, notifications);
+            Assert.AreNotEqual(ActionEditorChangeFlags.None, observed.Flags & ActionEditorChangeFlags.Playback);
+        }
+        finally
+        {
+            ActionEditorContext.Changed -= Observe;
+            ActionEditorPlayback.Stop(false);
+            context.SetAction(previousAction);
+            context.SetPreviewPosition(previousPosition);
+            Object.DestroyImmediate(action);
+            Object.DestroyImmediate(animation);
+            Object.DestroyImmediate(clip);
+        }
+    }
+
     [TestCase(2.75d, 5, 2.75d, 2)]
     [TestCase(5d, 5, 5d, 4)]
     [TestCase(4.75d, 3, 3d, 2)]
@@ -1176,13 +1218,17 @@ public sealed class ActionPreviewArchitectureTests
     }
 
     [Test]
-    public void TimingDraft_RetainsValuesAcrossMuteButExpiresOnSourceOrTargetChange()
+    public void AnimationTimingDraft_RetainsValuesAcrossLaneMuteButExpiresOnSourceOrTargetChange()
     {
         var action = CreateActionAsset();
         var lane = new GameplayLane();
-        var range = new MotionPolicyItem();
-        range.EditorSetTiming(0, 2);
-        lane.EditorItems.Add(range);
+        var animation = ScriptableObject.CreateInstance<AnimationAsset>();
+        var clip = new AnimationClip();
+        clip.SetCurve(string.Empty, typeof(Transform), "m_LocalPosition.x", AnimationCurve.Linear(0f, 0f, 1f, 1f));
+        animation.EditorSetClip(clip);
+        var segment = new AnimationSegment();
+        segment.EditorSetData(0, animation, 0f, 1f, 1f);
+        action.Timeline.EditorAnimationSegments.Add(segment);
         action.Timeline.EditorGameplayLanes.Add(lane);
         ActionAuthoringIdentity.RepairInvalidIds(action);
         var context = ActionEditorContext.Shared;
@@ -1190,20 +1236,22 @@ public sealed class ActionPreviewArchitectureTests
         try
         {
             context.SetAction(action);
-            var selection = new ActionSelectionValue(ActionSelectionKind.GameplayItem, range.EditorId);
+            var selection = new ActionSelectionValue(ActionSelectionKind.AnimationSegment, segment.EditorId);
             var draft = new ActionDetailsWindow.TimingDraft
             {
-                Kind = selection.Kind, EditorId = selection.EditorId, Source = range, StartFrame = 5, DurationFrames = 3,
+                Kind = selection.Kind, EditorId = selection.EditorId, Source = segment, StartFrame = 5,
+                AnimationAsset = animation, SourceStartTime = 0.1f, SourceEndTime = 0.8f, PlayRate = 2f,
                 Snapshot = ActionTimelineOperationSnapshot.Capture(context.Document,
-                    ActionTimelineOperationKind.SetRangeTiming, new[] { range.EditorId }),
+                    ActionTimelineOperationKind.SetAnimationTiming, new[] { segment.EditorId }),
             };
-            Assert.IsTrue(ActionEditorCommands.SetMuted(action, range.EditorId, true));
+            Assert.IsTrue(ActionEditorCommands.SetMuted(action, lane.EditorId, true));
             Assert.IsTrue(draft.CanRetain(action, selection));
             Assert.AreEqual(5, draft.StartFrame);
-            Assert.AreEqual(3, draft.DurationFrames);
+            Assert.AreEqual(0.1f, draft.SourceStartTime);
+            Assert.AreEqual(0.8f, draft.SourceEndTime);
             Assert.IsFalse(draft.CanRetain(null, selection));
             Assert.IsFalse(draft.CanRetain(action, new ActionSelectionValue(ActionSelectionKind.Action, string.Empty)));
-            range.EditorSetTiming(1, 2);
+            segment.EditorSetData(1, animation, 0f, 1f, 1f);
             Assert.IsFalse(draft.CanRetain(action, selection));
         }
         finally
@@ -1211,6 +1259,8 @@ public sealed class ActionPreviewArchitectureTests
             Undo.ClearUndo(action);
             context.SetAction(previous);
             Object.DestroyImmediate(action);
+            Object.DestroyImmediate(animation);
+            Object.DestroyImmediate(clip);
         }
     }
 

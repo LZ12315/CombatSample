@@ -156,7 +156,8 @@ public sealed class ActionTimelineWindow : EditorWindow
     private string _hoverDisplayKey;
     private string _transientDisplayKey;
     private string _statusNotice;
-    private int? _activeSnapFrame;
+    private ActionTimelineSnapResult? _activeSnap;
+    private VisualElement _snapTargetView;
     private Vector2 _lastPointerWorld;
     private bool _autoPanRegistered;
     private double _lastAutoPanTime;
@@ -220,6 +221,7 @@ public sealed class ActionTimelineWindow : EditorWindow
         ActionEditorTheme.Apply(rootVisualElement, "action-editor-timeline-window");
         rootVisualElement.focusable = true;
         rootVisualElement.RegisterCallback<KeyDownEvent>(OnKeyDown, TrickleDown.TrickleDown);
+        rootVisualElement.RegisterCallback<KeyUpEvent>(OnKeyUp, TrickleDown.TrickleDown);
         rootVisualElement.RegisterCallback<ExecuteCommandEvent>(OnExecuteCommand);
         rootVisualElement.RegisterCallback<GeometryChangedEvent>(OnRootGeometryChanged);
         rootVisualElement.RegisterCallback<DetachFromPanelEvent>(_ => CancelInteraction());
@@ -250,7 +252,7 @@ public sealed class ActionTimelineWindow : EditorWindow
         playback.Add(TransportButton("Animation.NextKey", "Next frame", () => RunTimelineNavigation(() => ActionEditorContext.Shared.SetFrame(ActionEditorContext.Shared.CurrentFrame + 1))));
         playback.Add(TransportButton("Animation.LastKey", "Last frame", () => RunTimelineNavigation(() => ActionEditorContext.Shared.SetFrame(Mathf.Max(0, (_document?.DurationFrames ?? 1) - 1)))));
         transport.Add(playback);
-        _frameLabel = new Label("0") { tooltip = "Current frame" };
+        _frameLabel = new Label("0") { tooltip = "Preview position in frames" };
         _frameLabel.AddToClassList("action-editor-frame-label");
         transport.Add(_frameLabel);
 
@@ -274,7 +276,12 @@ public sealed class ActionTimelineWindow : EditorWindow
         var snap = new ToolbarToggle { text = "Snap", value = _snapEnabled };
         snap.tooltip = "Magnetic snapping (hold Ctrl/Cmd while dragging to invert)";
         snap.AddToClassList("action-editor-snap-toggle");
-        snap.RegisterValueChangedCallback(evt => _snapEnabled = evt.newValue);
+        snap.RegisterValueChangedCallback(evt =>
+        {
+            _snapEnabled = evt.newValue;
+            _activeSnap = null;
+            if (IsManipulating) UpdateManipulationFromPointer(_lastSnapInverted);
+        });
         options.Add(snap);
         options.Add(TransportButton("ViewToolZoom", "Fit the authoring horizon", FitAll));
         transport.Add(options);
@@ -292,6 +299,13 @@ public sealed class ActionTimelineWindow : EditorWindow
             ActionEditorContext.Shared.SetAction(evt.newValue as ActionAsset);
         });
         transport.Add(actionField);
+        var details = new ToolbarButton(ActionDetailsWindow.OpenShared)
+        {
+            text = "Details",
+            tooltip = "Open Action Details and Preview",
+        };
+        details.AddToClassList("action-editor-details-button");
+        transport.Add(details);
         rootVisualElement.Add(transport);
 
         _identityBanner = new VisualElement();
@@ -1223,9 +1237,11 @@ public sealed class ActionTimelineWindow : EditorWindow
             return;
 
         int frame = ActionEditorContext.Shared.CurrentFrame;
-        _frameLabel.text = frame.ToString();
+        double position = ActionEditorContext.Shared.PreviewPosition;
+        _frameLabel.text = position.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+        _frameLabel.tooltip = $"Current Frame: {frame}\nPreview Position: {position:R}\nManual navigation samples an exact integer Frame.";
         float x = _geometry != null
-            ? Mathf.Min(Mathf.Max(0f, _geometry.ContentWidth - 1f), _geometry.FrameToPixel(frame, out _))
+            ? Mathf.Min(Mathf.Max(0f, _geometry.ContentWidth - 1f), _geometry.FramePositionToPixel(position, out _))
             : 0f;
         if (_playhead != null) _playhead.style.left = x;
         if (_rulerPlayhead != null) _rulerPlayhead.style.left = x;
@@ -1954,7 +1970,10 @@ public sealed class ActionTimelineWindow : EditorWindow
             _operationResult = _operationSnapshot.Evaluate(_operationInput);
             _previewValid = _operationResult.State != ActionTimelineOperationState.Rejected;
             _previewMessage = _operationResult.Message;
-            StopPlayback();
+            // Items are integer-framed. Make the visible playhead and its magnetic target agree,
+            // including the inclusive Duration endpoint (which CurrentFrame intentionally excludes).
+            ActionEditorPlayback.PauseAtNearestFrame();
+            _activeSnap = null;
             BuildManipulationGhosts();
             started = true;
             ClearPendingStateOnly();
@@ -2015,6 +2034,9 @@ public sealed class ActionTimelineWindow : EditorWindow
         }
         if (!IsManipulating || evt.pointerId != _capturedPointer)
             return;
+        _lastPointerWorld = evt.position;
+        _gestureCurrent = _contentCanvas.WorldToLocal(evt.position);
+        UpdateManipulationFromPointer(evt.ctrlKey || evt.commandKey);
         ActionTimelineOperationSnapshot snapshot = _operationSnapshot;
         ActionTimelineOperationInput input = _operationInput;
         ActionTimelineOperationState state = _operationResult?.State ?? ActionTimelineOperationState.Rejected;
@@ -2055,30 +2077,35 @@ public sealed class ActionTimelineWindow : EditorWindow
             ? int.MinValue
             : (int)Math.Round(deltaValue, MidpointRounding.AwayFromZero);
         _previewLaneDelta = CalculateLaneDelta(_gestureCurrent.y);
-        string boundaryReason = string.Empty;
-        if (_interaction != InteractionState.Move)
-            rawDelta = _operationSnapshot.ConstrainPointerDelta(rawDelta, out boundaryReason);
+        int constrainedDelta = _operationSnapshot.ConstrainPointerDelta(rawDelta, out string boundaryReason);
+        ActionTimelineSnapResult? retained = _activeSnap;
+        if (constrainedDelta != rawDelta)
+        {
+            deltaValue = constrainedDelta;
+            retained = null; // Hard boundaries take precedence over a previously latched target.
+        }
+        rawDelta = constrainedDelta;
 
-        _activeSnapFrame = null;
+        _activeSnap = null;
         bool snapping = _snapEnabled ^ invertSnap;
         if (snapping)
         {
             List<int> movingEdges = ManipulationEdges();
             List<int> targets = VisibleSnapTargets();
-            if (ActionTimelineInteractionMath.TrySnap(rawDelta, movingEdges, targets,
-                    _manipulationPixelsPerFrame, IsSnapDeltaAllowed, out ActionTimelineSnapResult snap))
+            // Measure the unrounded pointer movement; frame rounding otherwise changes the
+            // magnetic capture distance depending on zoom level.
+            if (ActionTimelineInteractionMath.TrySnap(deltaValue, movingEdges, targets,
+                    _manipulationPixelsPerFrame, IsSnapDeltaAllowed, out ActionTimelineSnapResult snap,
+                    retained, PreviewSnapFrame))
             {
                 rawDelta = snap.Delta;
-                _activeSnapFrame = snap.TargetFrame;
+                _activeSnap = snap;
             }
         }
 
-        if (_interaction != InteractionState.Move)
-        {
-            rawDelta = _operationSnapshot.ConstrainPointerDelta(rawDelta, out string snappedBoundaryReason);
-            if (!string.IsNullOrEmpty(snappedBoundaryReason))
-                boundaryReason = snappedBoundaryReason;
-        }
+        rawDelta = _operationSnapshot.ConstrainPointerDelta(rawDelta, out string snappedBoundaryReason);
+        if (!string.IsNullOrEmpty(snappedBoundaryReason))
+            boundaryReason = snappedBoundaryReason;
         _previewFrameDelta = rawDelta;
         EvaluateManipulation();
         if (!string.IsNullOrEmpty(boundaryReason) && _previewValid)
@@ -2091,8 +2118,7 @@ public sealed class ActionTimelineWindow : EditorWindow
     {
         if (_operationSnapshot == null)
             return false;
-        if (_interaction != InteractionState.Move &&
-            _operationSnapshot.ConstrainPointerDelta(delta, out _) != delta)
+        if (_operationSnapshot.ConstrainPointerDelta(delta, out _) != delta)
             return false;
         ActionTimelineOperationResult result = _operationSnapshot.Evaluate(
             ActionTimelineOperationInput.Delta(delta, _previewLaneDelta));
@@ -2101,20 +2127,16 @@ public sealed class ActionTimelineWindow : EditorWindow
 
     private List<int> ManipulationEdges()
     {
-        if (_manipulationEntries.Count == 0)
-            return new List<int>();
-        if (_interaction == InteractionState.ResizeLeft || _interaction == InteractionState.TrimLeft)
-            return new List<int> { _manipulationEntries[0].StartFrame };
-        if (_interaction == InteractionState.ResizeRight || _interaction == InteractionState.TrimRight)
-            return new List<int> { _manipulationEntries[0].StartFrame + _manipulationEntries[0].DurationFrames };
-        int earliest = _manipulationEntries.Min(item => item.StartFrame);
-        int latest = _manipulationEntries.Max(item => item.StartFrame + item.DurationFrames);
-        return new List<int> { earliest, latest };
+        return ActionTimelineInteractionMath.MovingSnapEdges(
+            _manipulationEntries.Select(item => item.Entry).ToList(), OperationKind(_interaction), _manipulationPrimary);
     }
+
+    private static int PreviewSnapFrame => (int)Math.Round(
+        ActionEditorContext.Shared.PreviewPosition, MidpointRounding.AwayFromZero);
 
     private List<int> VisibleSnapTargets()
     {
-        var targets = new HashSet<int> { 0, ActionEditorContext.Shared.CurrentFrame };
+        var targets = new HashSet<int> { 0, PreviewSnapFrame };
         var moving = new HashSet<object>(_manipulationEntries.Select(item => item.Entry.Source));
         double visibleStart = _geometry?.VisibleStartFrame ?? 0d;
         double visibleEnd = _geometry?.VisibleEndFrame ?? double.MaxValue;
@@ -2245,12 +2267,18 @@ public sealed class ActionTimelineWindow : EditorWindow
 
     private void RefreshManipulationGuides()
     {
+        ClearSnapHighlights();
+        string snapDescription = string.Empty;
         if (_snapGuide != null)
         {
-            bool showSnap = _activeSnapFrame.HasValue && _geometry != null;
+            bool showSnap = _activeSnap.HasValue && _geometry != null;
             _snapGuide.style.display = showSnap ? DisplayStyle.Flex : DisplayStyle.None;
             if (showSnap)
-                _snapGuide.style.left = _geometry.FrameToPixel(_activeSnapFrame.Value, out _);
+            {
+                int frame = _activeSnap.Value.TargetFrame;
+                _snapGuide.style.left = _geometry.FrameToPixel(frame, out _);
+                snapDescription = DescribeSnapTarget(frame);
+            }
         }
         if (_operationLabel == null || _manipulationEntries.Count == 0)
             return;
@@ -2261,17 +2289,59 @@ public sealed class ActionTimelineWindow : EditorWindow
         int duration = candidate?.DurationFrames ?? Math.Max(1, primary.DurationFrames);
         int end = start + duration;
         _operationLabel.text = _previewValid
-            ? _interaction == InteractionState.Move ? $"Start {start}  End {end}" :
+            ? primary.Entry.Source is PointGameplayItem ? $"Frame {start}" :
+              _interaction == InteractionState.Move ? $"Start {start}  End {end}" :
               _interaction == InteractionState.ResizeLeft || _interaction == InteractionState.TrimLeft
                   ? $"Start {start}  Duration {duration}"
                   : $"End {end}  Duration {duration}"
             : _previewMessage;
+        if (_previewValid)
+        {
+            if (!string.IsNullOrEmpty(snapDescription))
+                _operationLabel.text += $"  |  Snap F{_activeSnap.Value.TargetFrame}: {snapDescription}";
+            else if (!string.IsNullOrEmpty(_previewMessage))
+                _operationLabel.text += $"  |  {_previewMessage}";
+        }
+        _operationLabel.tooltip = _operationLabel.text;
         _operationLabel.EnableInClassList("action-editor-operation-invalid", !_previewValid);
         _operationLabel.style.left = Mathf.Clamp(
             _geometry.FrameToPixel(Math.Max(0, _interaction == InteractionState.ResizeLeft || _interaction == InteractionState.TrimLeft ? start : end), out _) + 8f,
-            4f, Mathf.Max(4f, _geometry.ContentWidth - 190f));
+            4f, Mathf.Max(4f, _geometry.ContentWidth - 320f));
         _operationLabel.style.top = _geometry.LaneTop(candidate?.LaneIndex ?? primary.LaneIndex) + 4f;
         _operationLabel.style.display = DisplayStyle.Flex;
+    }
+
+    private string DescribeSnapTarget(int frame)
+    {
+        if (frame == PreviewSnapFrame)
+        {
+            _playhead?.EnableInClassList("action-editor-playhead-snapped", true);
+            _rulerPlayhead?.EnableInClassList("action-editor-playhead-snapped", true);
+            return "Playhead";
+        }
+        if (frame == 0) return "Timeline start";
+        ActionDocumentEntry target = _document.ContentEntries
+            .Where(entry => entry.Source != null && entry.IdentityState == ActionEditorIdentityState.Valid &&
+                            entry.DisplayState == ActionEntryDisplayState.Normal &&
+                            !_manipulationEntries.Any(item => ReferenceEquals(item.Entry.Source, entry.Source)) &&
+                            (entry.StartFrame == frame ||
+                             !(entry.Source is PointGameplayItem) && entry.RawEndFrameExclusive == frame))
+            .OrderBy(entry => entry.LaneIndex == (_manipulationPrimary?.LaneIndex ?? -1) + _previewLaneDelta ? 0 : 1)
+            .FirstOrDefault();
+        if (target == null) return "Item boundary";
+        bool start = target.StartFrame == frame;
+        if (_entryViews.TryGetValue(target.DisplayKey, out _snapTargetView))
+            _snapTargetView.EnableInClassList(start ? "action-editor-snap-target-start" : "action-editor-snap-target-end", true);
+        return $"{target.DisplayName} {(target.Source is PointGameplayItem ? "Frame" : start ? "Start" : "End")}";
+    }
+
+    private void ClearSnapHighlights()
+    {
+        _snapTargetView?.EnableInClassList("action-editor-snap-target-start", false);
+        _snapTargetView?.EnableInClassList("action-editor-snap-target-end", false);
+        _snapTargetView = null;
+        _playhead?.EnableInClassList("action-editor-playhead-snapped", false);
+        _rulerPlayhead?.EnableInClassList("action-editor-playhead-snapped", false);
     }
 
     private static bool CanTrim(AnimationSegment segment)
@@ -2398,7 +2468,8 @@ public sealed class ActionTimelineWindow : EditorWindow
         _previewLaneDelta = 0;
         _previewValid = false;
         _previewMessage = string.Empty;
-        _activeSnapFrame = null;
+        _activeSnap = null;
+        ClearSnapHighlights();
         _manipulationPixelsPerFrame = 0d;
         _operationSnapshot = null;
         _operationResult = null;
@@ -3165,6 +3236,8 @@ public sealed class ActionTimelineWindow : EditorWindow
         {
             if (evt.keyCode == KeyCode.Escape)
                 CancelInteraction();
+            else
+                RefreshSnapModifier(evt.ctrlKey || evt.commandKey);
             evt.StopPropagation();
             return;
         }
@@ -3190,6 +3263,20 @@ public sealed class ActionTimelineWindow : EditorWindow
                 if (CancelInteraction()) evt.StopPropagation();
                 break;
         }
+    }
+
+    private void OnKeyUp(KeyUpEvent evt)
+    {
+        if (!IsManipulating) return;
+        RefreshSnapModifier(evt.ctrlKey || evt.commandKey);
+        evt.StopPropagation();
+    }
+
+    private void RefreshSnapModifier(bool inverted)
+    {
+        if (!IsManipulating || _lastSnapInverted == inverted) return;
+        _activeSnap = null;
+        UpdateManipulationFromPointer(inverted);
     }
 
     private void OnContextChanged(ActionEditorChange change)
