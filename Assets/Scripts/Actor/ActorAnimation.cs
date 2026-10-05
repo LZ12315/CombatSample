@@ -26,11 +26,10 @@ public sealed class ActorAnimation : MonoBehaviour
     private int _nextLocomotionOwnerId;
     private int _activeLocomotionOwnerId;
     private AnimancerState _locomotionState;
-    private AnimancerState _lastMoveState;
     private AnimancerState _protectionState;
-    private AnimationClip _idleClip;
     private readonly List<float> _previousChildWeights = new();
-    private bool _warnedMissingBasePose;
+    private readonly Dictionary<AnimancerState, AnimationFootPhaseTrack> _locomotionFootTracks = new();
+    private readonly List<AnimancerState> _invalidFootStates = new();
 
     public bool HasActiveActionOwner => _actionOwnerActive;
     internal int ActiveActionOwnerId => _actionOwnerActive ? _activeActionOwnerId : 0;
@@ -71,7 +70,7 @@ public sealed class ActorAnimation : MonoBehaviour
         ResolveDependencies();
         ApplyManualUpdateMode();
         EnsureLayers();
-        if (_idleClip != null || _protectionState != null)
+        if (_protectionState != null)
             HoldLocomotionPose();
     }
 
@@ -86,6 +85,7 @@ public sealed class ActorAnimation : MonoBehaviour
             return default;
         if (_activeLocomotionOwnerId != 0)
             HoldLocomotionPose();
+        _locomotionFootTracks.Clear();
         _activeLocomotionOwnerId = ++_nextLocomotionOwnerId;
         return new ActorAnimationLocomotionOwner(_activeLocomotionOwnerId);
     }
@@ -101,18 +101,57 @@ public sealed class ActorAnimation : MonoBehaviour
         HoldLocomotionPose();
         _activeLocomotionOwnerId = 0;
         _locomotionState = null;
-        _lastMoveState = null;
+        _locomotionFootTracks.Clear();
+    }
+
+    internal LocomotionFootPhaseReference GetLocomotionFootPhaseReference(ActorAnimationLocomotionOwner owner)
+    {
+        if (_baseLayer != null && !_baseLayer.Playable.IsValid())
+            _locomotionFootTracks.Clear();
+        if (!IsLocomotionOwnerActive(owner) || _actionOwnerActive) return default;
+
+        _invalidFootStates.Clear();
+        foreach (var binding in _locomotionFootTracks)
+            if (!binding.Key.Playable.IsValid()) _invalidFootStates.Add(binding.Key);
+        foreach (var state in _invalidFootStates) _locomotionFootTracks.Remove(state);
+        _invalidFootStates.Clear();
+
+        AnimancerState dominant = null;
+        float contribution = LocomotionAnimationUtility.WeightEpsilon;
+        FindDominantLocomotionLeaf(_baseLayer, _baseLayer.Weight, ref dominant, ref contribution);
+        return dominant != null && _locomotionFootTracks.TryGetValue(dominant, out var track)
+            && track != null && track.TrySample((float)LocomotionAnimationUtility.EvaluatedTime(dominant), out float phase)
+            ? new LocomotionFootPhaseReference(phase) : default;
+    }
+
+    private static void FindDominantLocomotionLeaf(AnimancerNode node, float weight,
+        ref AnimancerState dominant, ref float contribution)
+    {
+        if (!node.Playable.IsValid() || !LocomotionDataValidation.IsFinite(weight)
+            || weight <= LocomotionAnimationUtility.WeightEpsilon) return;
+        if (node.ChildCount == 0)
+        {
+            if (node is AnimancerState state && LocomotionAnimationUtility.IsUsableClip(state.Clip)
+                && weight > contribution)
+            { dominant = state; contribution = weight; }
+            return;
+        }
+        for (int i = 0; i < node.ChildCount; i++)
+        {
+            var child = node.GetChild(i);
+            if (child != null) FindDominantLocomotionLeaf(child, weight * child.Weight, ref dominant, ref contribution);
+        }
     }
 
     internal bool SubmitLocomotion(ActorAnimationLocomotionOwner owner, in LocomotionAnimationRequest request)
     {
         if (!IsLocomotionOwnerActive(owner))
             return false;
-        if (LocomotionAnimationUtility.IsUsableClip(request.IdleClip))
-            _idleClip = request.IdleClip;
         if (request.State == null || LocomotionAnimationUtility.WasGraphDestroyed(request.State)
             || !LocomotionDataValidation.IsFinite(request.BlendDuration) || request.BlendDuration < 0f
             || !LocomotionDataValidation.IsFinite(request.Parameter)
+            || (request.SampleTime.HasValue && (!LocomotionDataValidation.IsFinite(request.SampleTime.Value)
+                || request.SampleTime.Value < 0f))
             || (request.MovePlayback != null && !LocomotionDataValidation.IsFinite(request.PlaybackContext.DeltaTime)))
         {
             HoldLocomotionPose();
@@ -125,75 +164,49 @@ public sealed class ActorAnimation : MonoBehaviour
             request.MovePlayback?.SuspendFeedback();
             return true;
         }
+        if (request.FootPhaseBindings != null)
+            foreach (var binding in request.FootPhaseBindings)
+                if (binding.State != null && !LocomotionAnimationUtility.WasGraphDestroyed(binding.State))
+                    _locomotionFootTracks[binding.State] = binding.Track;
         if (state != _locomotionState || _baseLayer.CurrentState != state || request.Restart)
         {
-            if (!request.IsMove && _idleClip == null && _lastMoveState != null
-                && _lastMoveState.IsPlaying && _lastMoveState.Weight > LocomotionAnimationUtility.WeightEpsilon)
-                CaptureBasePose(_lastMoveState);
             float fade = _baseLayer.CurrentState == null ? 0f : request.BlendDuration;
             _baseLayer.Play(state, fade);
         }
         state.Speed = 1f;
         if (request.Restart)
             state.TimeD = 0d;
+        if (request.SampleTime.HasValue)
+        {
+            state.TimeD = request.SampleTime.Value;
+            state.Speed = 0f;
+        }
         if (request.IsMove)
         {
-            ApplyMixerParameter(state, request.Parameter);
-            request.MovePlayback?.Prepare(request.PlaybackContext);
-            _lastMoveState = state;
+            if (request.MovePlayback != null)
+                request.MovePlayback.PrepareMove(request.Parameter, request.PlaybackContext);
+            else
+                LocomotionMovePlayback.ApplyParameter(state, request.Parameter, _previousChildWeights);
         }
         _locomotionState = state;
-        _warnedMissingBasePose = false;
         return true;
-    }
-
-    private void ApplyMixerParameter(AnimancerState state, Vector2 parameter)
-    {
-        _previousChildWeights.Clear();
-        for (int i = 0; i < state.ChildCount; i++)
-            _previousChildWeights.Add(state.GetChild(i).Weight);
-        if (state is LinearMixerState linear)
-        {
-            linear.Parameter = parameter.x;
-            linear.RecalculateWeights();
-        }
-        else if (state is DirectionalMixerState directional)
-        {
-            directional.Parameter = parameter;
-            directional.RecalculateWeights();
-        }
-        for (int i = 0; i < state.ChildCount; i++)
-        {
-            AnimancerState child = state.GetChild(i);
-            if (!child.IsLooping && _previousChildWeights[i] <= LocomotionAnimationUtility.WeightEpsilon
-                && child.Weight > LocomotionAnimationUtility.WeightEpsilon)
-                child.TimeD = 0d;
-        }
     }
 
     private void HoldLocomotionPose()
     {
         if (_baseLayer == null || !_baseLayer.Playable.IsValid())
             return;
-        if (LocomotionAnimationUtility.IsUsableClip(_idleClip))
+        // Capture every contributing state, including both sides of an unfinished fade.
+        // Reuse an already protected pose instead of nesting another snapshot around it.
+        for (int i = 0; i < _baseLayer.ChildCount; i++)
         {
-            if (LocomotionAnimationUtility.WasGraphDestroyed(_protectionState)
-                || _protectionState?.Clip != _idleClip)
+            var child = _baseLayer.GetChild(i);
+            if (child != _protectionState && child.Playable.IsValid()
+                && child.Weight > LocomotionAnimationUtility.WeightEpsilon)
             {
-                AnimancerState previous = _protectionState;
-                _protectionState = new ClipState(_idleClip);
-                _baseLayer.Play(_protectionState);
-                LocomotionAnimationUtility.Destroy(previous);
+                CaptureBasePose(_baseLayer);
+                break;
             }
-        }
-        else if (_lastMoveState != null && _lastMoveState.IsPlaying
-            && _lastMoveState.Weight > LocomotionAnimationUtility.WeightEpsilon)
-        {
-            CaptureBasePose(_lastMoveState);
-        }
-        else if (_protectionState == null || LocomotionAnimationUtility.WasGraphDestroyed(_protectionState))
-        {
-            CaptureBasePose(_lastMoveState ?? _locomotionState ?? _baseLayer.CurrentState);
         }
         if (_protectionState != null && !LocomotionAnimationUtility.WasGraphDestroyed(_protectionState))
         {
@@ -202,15 +215,9 @@ public sealed class ActorAnimation : MonoBehaviour
             FreezePose(_protectionState);
             _locomotionState = null;
         }
-        else if (!_warnedMissingBasePose)
-        {
-            Debug.LogWarning("[ActorLocomotion] Cannot establish a valid Layer 0 base pose: " +
-                "no valid Idle sample or previously played base state is available.", this);
-            _warnedMissingBasePose = true;
-        }
     }
 
-    private void CaptureBasePose(AnimancerState source)
+    private void CaptureBasePose(AnimancerNode source)
     {
         if (source == null || !source.Playable.IsValid())
             return;
@@ -223,16 +230,19 @@ public sealed class ActorAnimation : MonoBehaviour
         FreezePose(snapshot);
     }
 
-    private static AnimancerState CreatePoseSnapshot(AnimancerState source)
+    private static AnimancerState CreatePoseSnapshot(AnimancerNode source)
     {
-        if (LocomotionAnimationUtility.IsUsableClip(source.Clip))
-            return new ClipState(source.Clip) { TimeD = source.TimeD, Speed = 0f };
+        if (source is AnimancerState state && LocomotionAnimationUtility.IsUsableClip(state.Clip))
+            return new ClipState(state.Clip) { TimeD = LocomotionAnimationUtility.EvaluatedTime(state), Speed = 0f };
         if (source.ChildCount == 0)
             return null;
         var snapshot = new ManualMixerState { Speed = 0f };
         for (int i = 0; i < source.ChildCount; i++)
         {
             AnimancerState sourceChild = source.GetChild(i);
+            if (!sourceChild.Playable.IsValid()
+                || sourceChild.Weight <= LocomotionAnimationUtility.WeightEpsilon)
+                continue;
             AnimancerState child = CreatePoseSnapshot(sourceChild);
             if (child == null)
             {
@@ -242,6 +252,11 @@ public sealed class ActorAnimation : MonoBehaviour
             snapshot.Add(child);
             snapshot.DontSynchronize(child);
             child.Weight = sourceChild.Weight;
+        }
+        if (snapshot.ChildCount == 0)
+        {
+            snapshot.Destroy();
+            return null;
         }
         return snapshot;
     }
@@ -378,14 +393,21 @@ public sealed class ActorAnimation : MonoBehaviour
 
     private void ClearAnimationState()
     {
-        EndLocomotionSession(new ActorAnimationLocomotionOwner(_activeLocomotionOwnerId));
-        actor?.actorLocomotion?.ResetAnimationSession();
+        LoseLocomotionSession();
         _actionOwnerActive = false;
         _activeActionOwnerId = 0;
         _hasActionPoseThisTick = false;
         ClearActionLayer();
         _baseLayer = null;
         _actionLayer = null;
+        _locomotionFootTracks.Clear();
+    }
+
+    private void LoseLocomotionSession()
+    {
+        var owner = new ActorAnimationLocomotionOwner(_activeLocomotionOwnerId);
+        EndLocomotionSession(owner);
+        actor?.actorLocomotion?.OnAnimationSessionLost(this, owner);
     }
 
     private void ClearActionLayer()
@@ -421,9 +443,10 @@ public sealed class ActorAnimation : MonoBehaviour
         animancer.Layers.SetMinCount(ActionOverrideLayerIndex + 1);
         if (_baseLayer != null && _baseLayer != animancer.Layers[LocomotionBaseLayerIndex])
         {
+            LoseLocomotionSession();
+            _locomotionFootTracks.Clear();
             _activeLocomotionOwnerId = 0;
             _locomotionState = null;
-            _lastMoveState = null;
             _protectionState = null;
             _actionState = null;
             _actionStateClip = null;

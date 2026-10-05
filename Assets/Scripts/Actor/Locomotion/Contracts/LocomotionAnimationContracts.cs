@@ -1,4 +1,5 @@
 using Animancer;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Playables;
 
@@ -7,7 +8,7 @@ public readonly struct LocomotionRuntimeAnimationContext
 {
     public LocomotionRuntimeAnimationContext(LocomotionIntent intent, bool hasIntent,
         Vector3 velocityBeforeMotion, Vector3 modelVelocity, LocomotionMotionContext motor,
-        float verticalSpeed, int actionOwnerId, float deltaTime)
+        float verticalSpeed, int actionOwnerId, float deltaTime, LocomotionFootPhaseReference sourceFootPhase = default)
     {
         Intent = intent;
         HasIntent = hasIntent;
@@ -17,8 +18,10 @@ public readonly struct LocomotionRuntimeAnimationContext
         VerticalSpeed = verticalSpeed;
         ActionOwnerId = actionOwnerId;
         DeltaTime = deltaTime;
+        SourceFootPhase = sourceFootPhase;
     }
 
+    public LocomotionFootPhaseReference SourceFootPhase { get; }
     public LocomotionIntent Intent { get; }
     public bool HasIntent { get; }
     public Vector3 VelocityBeforeMotion { get; }
@@ -46,7 +49,8 @@ public readonly struct LocomotionAnimationRequest
     public LocomotionAnimationRequest(AnimancerState state, float blendDuration = 0f,
         bool restart = false, bool isMove = false, Vector2 parameter = default,
         AnimationClip idleClip = null, LocomotionMovePlayback movePlayback = null,
-        LocomotionRuntimeAnimationContext playbackContext = default)
+        LocomotionRuntimeAnimationContext playbackContext = default, float? sampleTime = null,
+        IReadOnlyList<LocomotionFootPhaseBinding> footPhaseBindings = null)
     {
         State = state;
         BlendDuration = blendDuration;
@@ -56,8 +60,14 @@ public readonly struct LocomotionAnimationRequest
         IdleClip = idleClip;
         MovePlayback = movePlayback;
         PlaybackContext = playbackContext;
+        SampleTime = sampleTime;
+        FootPhaseBindings = footPhaseBindings;
     }
 
+    /// <summary>Captured leaf metadata retained by the playback owner across animation blends.</summary>
+    public IReadOnlyList<LocomotionFootPhaseBinding> FootPhaseBindings { get; }
+    /// <summary>Explicit pose time; disables the normal animation clock for this submission.</summary>
+    public float? SampleTime { get; }
     public AnimancerState State { get; }
     public float BlendDuration { get; }
     public bool Restart { get; }
@@ -68,31 +78,30 @@ public readonly struct LocomotionAnimationRequest
     public LocomotionRuntimeAnimationContext PlaybackContext { get; }
 }
 
+/// <summary>Unknown is the default. A known phase belongs to the dominant evaluated locomotion leaf.</summary>
+public readonly struct LocomotionFootPhaseReference
+{
+    public bool IsKnown { get; }
+    public float Phase { get; }
+    public LocomotionFootPhaseReference(float phase)
+    {
+        IsKnown = LocomotionDataValidation.IsFinite(phase);
+        Phase = IsKnown ? Mathf.Repeat(phase, 1f) : 0f;
+    }
+}
+
+/// <summary>Runtime-bound metadata for one animation leaf; a null track explicitly means unknown.</summary>
+public readonly struct LocomotionFootPhaseBinding
+{
+    public AnimancerState State { get; }
+    public AnimationFootPhaseTrack Track { get; }
+    public LocomotionFootPhaseBinding(AnimancerState state, AnimationFootPhaseTrack track)
+    { State = state; Track = track; }
+}
+
 public readonly struct ActorAnimationLocomotionOwner
 {
     internal ActorAnimationLocomotionOwner(int id) => Id = id;
     internal int Id { get; }
     public bool IsValid => Id != 0;
-}
-
-internal static class LocomotionAnimationUtility
-{
-    internal const float WeightEpsilon = 0.0001f;
-
-    internal static bool IsValidPlanarDirection(Vector3 direction) =>
-        LocomotionDataValidation.IsFinite(direction.x) && LocomotionDataValidation.IsFinite(direction.z)
-        && direction.x * direction.x + direction.z * direction.z > 0.0001f;
-
-    internal static bool IsUsableClip(AnimationClip clip) => clip != null
-        && LocomotionDataValidation.IsFinite(clip.length) && clip.length > 0f;
-
-    internal static bool WasGraphDestroyed(AnimancerState state) =>
-        state != null && state.Graph != null && !state.Playable.IsValid();
-
-    internal static void Destroy(AnimancerState state)
-    {
-        // Graph destruction already removed its native nodes; do not touch stale layer connections.
-        if (state != null && !WasGraphDestroyed(state))
-            state.Destroy();
-    }
 }

@@ -114,6 +114,13 @@ public static class RootMotionBaker
             graph.Play();
             graph.Evaluate(0f);
 
+            Transform leftFoot = settings.ResolveFoot(animator, AnimationFoot.Left);
+            Transform rightFoot = settings.ResolveFoot(animator, AnimationFoot.Right);
+            Vector3 footUp = animator.transform.up;
+            var leftHeights = new List<float>();
+            var rightHeights = new List<float>();
+            SampleFeet(footUp, leftFoot, rightFoot, leftHeights, rightHeights, false);
+
             RootMotionTransform baseline = Capture(animator.transform);
             var sampleTimes = new List<float> { 0f };
             var cumulativePositions = new List<Vector3> { Vector3.zero };
@@ -152,6 +159,8 @@ public static class RootMotionBaker
                     cumulativePositions[previousIndex] = cumulative.Position;
                     cumulativeRotations[previousIndex] = cumulative.Rotation;
                 }
+                SampleFeet(footUp, leftFoot, rightFoot, leftHeights, rightHeights,
+                    leftHeights.Count == sampleTimes.Count);
                 sampleIndex++;
             }
 
@@ -173,6 +182,7 @@ public static class RootMotionBaker
                 sampleTimes,
                 cumulativePositions,
                 cumulativeRotations);
+            result.FootMarkers = AnimationFootContactBaker.Generate(sampleTimes, leftHeights, rightHeights, clip.isLooping);
             diagnostic = RootMotionBakeDiagnostic.Success;
             return true;
         }
@@ -191,6 +201,16 @@ public static class RootMotionBaker
             if (previewRoot != null)
                 Object.DestroyImmediate(previewRoot);
         }
+    }
+
+    private static void SampleFeet(Vector3 up, Transform left, Transform right,
+        List<float> leftHeights, List<float> rightHeights, bool replace)
+    {
+        float l = left != null ? Vector3.Dot(left.position, up) : float.NaN;
+        float r = right != null ? Vector3.Dot(right.position, up) : float.NaN;
+        if (replace)
+        { leftHeights[leftHeights.Count - 1] = l; rightHeights[rightHeights.Count - 1] = r; }
+        else { leftHeights.Add(l); rightHeights.Add(r); }
     }
 
     private static RootMotionTransform Capture(Transform transform)

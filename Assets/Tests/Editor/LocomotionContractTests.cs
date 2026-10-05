@@ -58,7 +58,7 @@ public sealed class LocomotionContractTests
     }
 
     [Test]
-    public void GroundMovement_AcceleratesBrakesAndReversesThroughZero()
+    public void GroundMovement_AcceleratesAndBrakesAtConfiguredRates()
     {
         var runner = new LocomotionRunner();
         runner.Initialize(Quaternion.identity);
@@ -74,9 +74,97 @@ public sealed class LocomotionContractTests
         runner.Prepare(LocomotionIntent.Idle, false, 0.1f, config);
         Assert.That(runner.CachedVelocity.z, Is.EqualTo(1.8f).Within(0.001f));
 
-        runner.Prepare(Intent(Vector3.back), true, 0.1f, config);
+    }
+
+    [TestCase(45f)]
+    [TestCase(90f)]
+    [TestCase(135f)]
+    [TestCase(180f)]
+    public void DirectionChanges_AtFullInputDoNotDependOnStoppingDeceleration(float angle)
+    {
+        var slowBrake = LocomotionMovementConfig.Default;
+        var fastBrake = slowBrake;
+        slowBrake.Deceleration = 2f;
+        fastBrake.Deceleration = 32f;
+        var slow = new LocomotionRunner(); var fast = new LocomotionRunner();
+        slow.Initialize(Quaternion.identity); fast.Initialize(Quaternion.identity);
+        slow.Prepare(Intent(Vector3.forward), true, 0.25f, slowBrake);
+        fast.Prepare(Intent(Vector3.forward), true, 0.25f, fastBrake);
+        Vector3 direction = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
+        for (int i = 0; i < 20; i++)
+        {
+            slow.Prepare(Intent(direction), true, 0.05f, slowBrake);
+            fast.Prepare(Intent(direction), true, 0.05f, fastBrake);
+            Assert.That(Vector3.Distance(slow.CachedVelocity, fast.CachedVelocity), Is.LessThan(1e-5f));
+            Assert.That(slow.CachedVelocity.magnitude, Is.LessThanOrEqualTo(slowBrake.MaxSpeed + 1e-5f));
+            Assert.That(slow.CachedVelocity.y, Is.Zero);
+        }
+        Assert.That(Vector3.Distance(slow.CachedVelocity, direction * slowBrake.MaxSpeed), Is.LessThan(1e-4f));
+        slow.Prepare(LocomotionIntent.Idle, false, 0.1f, slowBrake);
+        fast.Prepare(LocomotionIntent.Idle, false, 0.1f, fastBrake);
+        Assert.That(slow.CachedVelocity.magnitude, Is.EqualTo(4.8f).Within(1e-4f));
+        Assert.That(fast.CachedVelocity.magnitude, Is.EqualTo(1.8f).Within(1e-4f));
+    }
+
+    [Test]
+    public void DirectionResponse_ControlsSteeringWithoutChangingReleaseBrakingOrFacing()
+    {
+        var assisted = LocomotionMovementConfig.Default;
+        assisted.Deceleration = 12f;
+        var unassisted = assisted; unassisted.DirectionResponse = 0f;
+        var fast = new LocomotionRunner(); var slow = new LocomotionRunner();
+        fast.Initialize(Quaternion.identity); slow.Initialize(Quaternion.identity);
+        fast.Prepare(Intent(Vector3.forward), true, 0.25f, assisted);
+        slow.Prepare(Intent(Vector3.forward), true, 0.25f, unassisted);
+        fast.Prepare(LocomotionIntent.Idle, false, 0.1f, assisted);
+        slow.Prepare(LocomotionIntent.Idle, false, 0.1f, unassisted);
+        Assert.That(fast.CachedVelocity, Is.EqualTo(slow.CachedVelocity));
+        Assert.That(fast.CachedVelocity.magnitude, Is.EqualTo(3.8f).Within(1e-4f));
+
+        var right = Intent(Vector3.right); right.FacingDirection = Vector3.forward;
+        fast.Prepare(right, true, 0.05f, assisted);
+        slow.Prepare(right, true, 0.05f, unassisted);
+        Assert.That(Vector3.Angle(fast.CachedVelocity, Vector3.right),
+            Is.LessThan(Vector3.Angle(slow.CachedVelocity, Vector3.right)));
+        Assert.That(Quaternion.Angle(fast.PendingRotation, Quaternion.identity), Is.LessThan(1e-4f));
+    }
+
+    [Test]
+    public void NewInput_DuringBrakingSteersWithoutWaitingForTheOldVelocityToReachZero()
+    {
+        var config = LocomotionMovementConfig.Default; config.Deceleration = 12f;
+        var runner = new LocomotionRunner(); runner.Initialize(Quaternion.identity);
+        runner.Prepare(Intent(Vector3.forward), true, 0.25f, config);
+        runner.Prepare(LocomotionIntent.Idle, false, 0.1f, config);
+        Assert.That(runner.CachedVelocity.z, Is.GreaterThan(0f));
+        runner.Prepare(Intent(Vector3.back), true, 0.05f, config);
         Assert.That(runner.CachedVelocity.z, Is.LessThan(0f));
-        Assert.That(runner.CachedVelocity.z, Is.GreaterThan(-2f));
+        Assert.That(runner.CachedVelocity.x, Is.Zero);
+        Assert.That(runner.CachedVelocity.y, Is.Zero);
+    }
+
+    [Test]
+    public void PartialInput_ReducesStraightLineSpeedAtConfiguredDeceleration()
+    {
+        var config = LocomotionMovementConfig.Default; config.Deceleration = 12f;
+        var runner = new LocomotionRunner(); runner.Initialize(Quaternion.identity);
+        runner.Prepare(Intent(Vector3.forward), true, 0.25f, config);
+        var partial = Intent(Vector3.forward); partial.MoveStrength = 0.5f;
+        runner.Prepare(partial, true, 0.1f, config);
+        Assert.That(runner.CachedVelocity.z, Is.EqualTo(3.8f).Within(1e-4f));
+        runner.Prepare(partial, true, 1f, config);
+        Assert.That(runner.CachedVelocity.z, Is.EqualTo(2.5f).Within(1e-4f));
+    }
+
+    [Test]
+    public void MovementConfig_RejectsInvalidDirectionResponse()
+    {
+        foreach (float value in new[] { -1f, float.NaN, float.PositiveInfinity })
+        {
+            var config = LocomotionMovementConfig.Default; config.DirectionResponse = value;
+            Assert.That(config.IsValid, Is.False);
+            Assert.Throws<System.ArgumentException>(() => config.Sanitize());
+        }
     }
 
     [Test]
@@ -172,23 +260,19 @@ public sealed class LocomotionContractTests
     }
 
     [Test]
-    public void MissingAnimationCoverage_IsReportedWithoutInvalidatingMovement()
+    public void ZeroMovementRates_PreserveVelocityAndFacingWithoutInvalidatingTheAsset()
     {
-        LocomotionSetAsset asset = ScriptableObject.CreateInstance<LocomotionSetAsset>();
-        try
-        {
-            var issues = new List<string>();
-            asset.CollectAnimationCoverageIssues(issues);
-            Assert.That(asset.HasValidMovementConfig, Is.True);
-            Assert.That(issues, Has.Some.Contains("Move 1D samples are missing"));
-            Assert.That(issues, Has.None.Contains("Start"));
-            Assert.That(issues, Has.None.Contains("Stop"));
-            Assert.That(issues, Has.None.Contains("Pivot"));
-        }
-        finally
-        {
-            Object.DestroyImmediate(asset);
-        }
+        var runner = new LocomotionRunner();
+        runner.Initialize(Quaternion.identity);
+        var config = LocomotionMovementConfig.Default;
+        runner.Prepare(Intent(Vector3.forward), true, 0.2f, config);
+        Vector3 velocity = runner.CachedVelocity;
+        Quaternion facing = runner.PendingRotation;
+        config.Acceleration = config.Deceleration = config.DirectionResponse = config.RotateSpeed = 0f;
+        Assert.That(config.IsValid, Is.True);
+        runner.Prepare(Intent(Vector3.back), true, 0.2f, config);
+        Assert.That(runner.CachedVelocity, Is.EqualTo(velocity));
+        Assert.That(runner.PendingRotation, Is.EqualTo(facing));
     }
 
     [Test]
@@ -196,47 +280,6 @@ public sealed class LocomotionContractTests
     {
         Assert.That(new LocomotionMove1DSample().Sync, Is.True);
         Assert.That(new LocomotionMove2DSample().Sync, Is.True);
-    }
-
-    [Test]
-    public void MoveDefinition_ReportsInvalidAndDuplicateThresholds()
-    {
-        const string json = "{\"blendType\":0,\"oneDimensional\":{"
-            + "\"parameter\":0,\"samples\":[{\"threshold\":0},{\"threshold\":0},{\"threshold\":-1}]},"
-            + "\"twoDimensional\":{\"samples\":[]}}";
-        LocomotionMoveDefinition definition = JsonUtility.FromJson<LocomotionMoveDefinition>(json);
-        var issues = new List<string>();
-
-        definition.CollectCoverageIssues(issues);
-
-        Assert.That(issues, Has.Some.Contains("duplicates threshold"));
-        Assert.That(issues, Has.Some.Contains("invalid threshold"));
-    }
-
-    [Test]
-    public void SetDefinition_ReportsInvalidStartStopAndPivotDirections()
-    {
-        LocomotionSetAsset asset = ScriptableObject.CreateInstance<LocomotionSetAsset>();
-        try
-        {
-            const string json = "{"
-                + "\"start\":[{\"targetLocalDirection\":{\"x\":0,\"y\":0}}],"
-                + "\"stop\":[{\"sourceLocalDirection\":{\"x\":0,\"y\":0}}],"
-                + "\"pivot\":[{\"sourceLocalDirection\":{\"x\":0,\"y\":1},"
-                + "\"targetLocalDirection\":{\"x\":0,\"y\":0}}]}";
-            JsonUtility.FromJsonOverwrite(json, asset);
-            var issues = new List<string>();
-
-            asset.CollectAnimationCoverageIssues(issues);
-
-            Assert.That(issues, Has.Some.Contains("Start[0] has an invalid target direction"));
-            Assert.That(issues, Has.Some.Contains("Stop[0] has an invalid source direction"));
-            Assert.That(issues, Has.Some.Contains("Pivot[0] has invalid source/target directions"));
-        }
-        finally
-        {
-            Object.DestroyImmediate(asset);
-        }
     }
 
     [Test]
@@ -486,6 +529,91 @@ public sealed class LocomotionContractTests
     }
 
     [Test]
+    public void ControlTick_LocksInputAndRepeatedBuildDoesNotIntegrateAgain()
+    {
+        var owner = new GameObject("Locomotion Tick Test");
+        var asset = ScriptableObject.CreateInstance<LocomotionMixerAsset>();
+        try
+        {
+            owner.AddComponent<Actor>();
+            var locomotion = owner.AddComponent<ActorLocomotion>();
+            ConfigureAssets(locomotion, asset);
+            locomotion.SetLocomotionIntent(Intent(Vector3.forward));
+            locomotion.BeginControlTick();
+            locomotion.SetLocomotionIntent(Intent(Vector3.right));
+            Assert.That(locomotion.TryGetControlIntent(out var locked), Is.True);
+            Assert.That(locked.WorldMoveDirection, Is.EqualTo(Vector3.forward));
+            var first = locomotion.BuildMotionRequest(Context(ActorGroundState.Grounded));
+            var repeated = locomotion.BuildMotionRequest(Context(ActorGroundState.Grounded));
+            Assert.That(first.WorldPlanarVelocity.z, Is.EqualTo(2f).Within(1e-5f));
+            Assert.That(repeated.WorldPlanarVelocity, Is.EqualTo(first.WorldPlanarVelocity));
+            Assert.That(locomotion.DebugLocomotionVelocity, Is.EqualTo(first.WorldPlanarVelocity));
+            locomotion.BeginControlTick();
+            Assert.That(locomotion.TryGetControlIntent(out locked), Is.True);
+            Assert.That(locked.WorldMoveDirection, Is.EqualTo(Vector3.right));
+            locomotion.BuildMotionRequest(Context(ActorGroundState.Grounded));
+            Assert.That(locomotion.EffectiveIntent.WorldMoveDirection, Is.EqualTo(Vector3.right));
+        }
+        finally { Object.DestroyImmediate(owner); Object.DestroyImmediate(asset); }
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void FrozenControlTick_RestoresOneShotUnlessNewInputOrClearReplacesIt(bool clear)
+    {
+        var owner = new GameObject("Locomotion Frozen Tick Test");
+        try
+        {
+            owner.AddComponent<Actor>();
+            var locomotion = owner.AddComponent<ActorLocomotion>();
+            var frozen = new LocomotionMotionContext(0f, ActorGroundState.Grounded,
+                Vector3.up, Quaternion.identity, default, default);
+            locomotion.SetLocomotionIntent(Intent(Vector3.forward));
+            locomotion.BeginControlTick();
+            locomotion.BuildMotionRequest(frozen);
+            Assert.That(locomotion.DebugLocomotionVelocity, Is.EqualTo(Vector3.zero));
+            locomotion.BeginControlTick();
+            Assert.That(locomotion.TryGetControlIntent(out var locked), Is.True);
+            Assert.That(locked.WorldMoveDirection, Is.EqualTo(Vector3.forward));
+            if (clear) locomotion.ClearLocomotionIntent();
+            else locomotion.SetLocomotionIntent(Intent(Vector3.right));
+            locomotion.BuildMotionRequest(frozen);
+            locomotion.BeginControlTick();
+            Assert.That(locomotion.TryGetControlIntent(out locked), Is.EqualTo(!clear));
+            Assert.That(locked.WorldMoveDirection, Is.EqualTo(clear ? Vector3.zero : Vector3.right));
+        }
+        finally { Object.DestroyImmediate(owner); }
+    }
+
+    [Test]
+    public void UnlockedBuild_UsesNoInputAndCancellationClearsPendingInput()
+    {
+        var owner = new GameObject("Locomotion Unlocked Tick Test");
+        var asset = ScriptableObject.CreateInstance<LocomotionMixerAsset>();
+        try
+        {
+            owner.AddComponent<Actor>();
+            var locomotion = owner.AddComponent<ActorLocomotion>();
+            ConfigureAssets(locomotion, asset);
+            locomotion.SetLocomotionIntent(Intent(Vector3.forward));
+            var request = locomotion.BuildMotionRequest(Context(ActorGroundState.Grounded));
+            Assert.That(request.WorldPlanarVelocity, Is.EqualTo(Vector3.zero));
+            locomotion.BeginControlTick();
+            Assert.That(locomotion.TryGetControlIntent(out _), Is.True);
+            locomotion.SetLocomotionIntent(Intent(Vector3.right));
+            locomotion.CancelControlTick();
+            locomotion.BeginControlTick();
+            Assert.That(locomotion.TryGetControlIntent(out _), Is.False);
+            Assert.That(locomotion.BuildMotionRequest(Context(ActorGroundState.Grounded)).WorldPlanarVelocity,
+                Is.EqualTo(Vector3.zero));
+        }
+        finally { Object.DestroyImmediate(owner); Object.DestroyImmediate(asset); }
+    }
+
+    internal static void ConfigureAssets(ActorLocomotion locomotion, LocomotionAsset asset) =>
+        JsonUtility.FromJsonOverwrite($"{{\"locomotionAssets\":[{{\"instanceID\":{asset.GetInstanceID()}}}]}}", locomotion);
+
+    [Test]
     public void RuntimeLifecycle_EnterAndExitAreIdempotentAndDisposeReleasesState()
     {
         TrackingLocomotionAsset asset = ScriptableObject.CreateInstance<TrackingLocomotionAsset>();
@@ -544,6 +672,9 @@ public sealed class TrackingLocomotionAsset : LocomotionAsset
     public int EnterCount { get; private set; }
     public int ExitCount { get; private set; }
     public int DisposeCount { get; private set; }
+    public int AnimationResetCount { get; private set; }
+    public int AnimationUpdateCount { get; private set; }
+    public LocomotionRuntimeAnimationContext LastAnimationContext { get; private set; }
 
     public override LocomotionRuntime CreateRuntime()
     {
@@ -554,6 +685,12 @@ public sealed class TrackingLocomotionAsset : LocomotionAsset
     internal void RecordEnter() => EnterCount++;
     internal void RecordExit() => ExitCount++;
     internal void RecordDispose() => DisposeCount++;
+    internal void RecordAnimationReset() => AnimationResetCount++;
+    internal void RecordAnimation(in LocomotionRuntimeAnimationContext context)
+    {
+        AnimationUpdateCount++;
+        LastAnimationContext = context;
+    }
 }
 
 public sealed class TrackingLocomotionRuntime : LocomotionRuntime
@@ -565,10 +702,20 @@ public sealed class TrackingLocomotionRuntime : LocomotionRuntime
         _trackingAsset = asset;
     }
 
-    public override LocomotionMotionRequest UpdateMotion(in LocomotionRuntimeMotionContext context) => default;
+    public override LocomotionMotionRequest UpdateMotion(in LocomotionRuntimeMotionContext context) => UpdateSharedMotion(context);
+    public override LocomotionAnimationRequest UpdateAnimation(in LocomotionRuntimeAnimationContext context)
+    {
+        _trackingAsset.RecordAnimation(context);
+        return default;
+    }
+    public override void ResetAnimation() => _trackingAsset.RecordAnimationReset();
 
     protected override void OnEnter(ActorLocomotion owner, Actor actor) => _trackingAsset.RecordEnter();
-    protected override void OnExit(ActorLocomotion owner, Actor actor) => _trackingAsset.RecordExit();
+    protected override void OnExit(ActorLocomotion owner, Actor actor)
+    {
+        _trackingAsset.RecordExit();
+        ResetAnimation();
+    }
     protected override void OnDispose() => _trackingAsset.RecordDispose();
 }
 #endif

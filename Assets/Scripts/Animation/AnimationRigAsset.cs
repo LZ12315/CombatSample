@@ -12,6 +12,10 @@ public sealed class AnimationRigAsset : ScriptableObject
     [SerializeField] private GameObject _defaultPreviewPrefab;
     [SerializeField] private AnimationRigBakeSettings _bakeSettings = new AnimationRigBakeSettings();
 
+    [Tooltip("Paths relative to the Animator. Empty paths use Humanoid foot bones.")]
+    [SerializeField] private string _leftFootPath;
+    [SerializeField] private string _rightFootPath;
+
     public GameObject BakeRigPrefab => _bakeRigPrefab;
     public GameObject DefaultPreviewPrefab => _defaultPreviewPrefab;
     public AnimationRigBakeSettings BakeSettings => _bakeSettings;
@@ -19,7 +23,9 @@ public sealed class AnimationRigAsset : ScriptableObject
     /// <summary>Creates the transient combined settings expected by the existing proven bake pipeline.</summary>
     public RootMotionBakeSettings CreateEffectiveBakeSettings()
     {
-        return _bakeSettings?.CreateEffectiveSettings(_bakeRigPrefab);
+        var settings = _bakeSettings?.CreateEffectiveSettings(_bakeRigPrefab);
+        settings?.EditorSetFeet(_leftFootPath, _rightFootPath);
+        return settings;
     }
 
     public void EditorSet(

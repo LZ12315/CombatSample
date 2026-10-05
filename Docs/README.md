@@ -1,28 +1,33 @@
-# Documentation Index
+# 项目文档索引
 
-Updated 2026-09-28. Current repository code and the user's latest decisions take precedence over historical documents.
+更新：2026-10-06。当前仓库源码和用户最新决定优先；阶段记录中的旧配置、待办与测试结果只代表对应时间。
 
-- [Current](Current/) describes the implemented system.
-- [Proposals](Proposals/) has the frozen Locomotion v1 target and implementation roadmap; no active Action implementation plan.
-- [Archive](Archive/README.md) preserves completed and superseded plans, stage handoffs and validation snapshots.
+| 目录 | 内容 |
+| --- | --- |
+| [Current](Current/README.md) | 当前架构、制作工作流、验证合同与最新审查入口。 |
+| [Proposals](Proposals/README.md) | 尚未实施的方案。本次整理后没有活动方案正文。 |
+| [Archive](Archive/README.md) | 历史计划、阶段交接、调查与验证快照。 |
 
-## Current Action path
+## Locomotion：先读这几份
 
-- [Formal Action editor and playback architecture](Current/CombatSample_Action_Editor_Architecture_2026-09-19_zh-CN.md) — sole ActionAsset / ActionRuntime path and editor responsibilities.
-- [Animation → Action → Actor closure](Current/CombatSample_Animation_Action_Actor_Closure_Audit_2026-09-23_zh-CN.md) — code review, compile result and user acceptance. The stage is closed; Unity Test Runner was not used as an acceptance gate.
-- [Actor motion contract](Current/Actor_Motion_Validation.md) — still-applicable Translation, Rotation, Root Motion and ownership rules.
-- [Scene ownership baseline](Current/Scene_Ownership_Baseline_2026-08-02.md) — scene roles recorded on 2026-08-02; check the scene itself before making changes.
+1. [当前架构](Current/CombatSample_Locomotion_Final_Architecture_v1_zh-CN.md)：理解 ActorLocomotion、Runtime、Motor 和 Animation 的协作。
+2. [配置与制作工作流](Current/CombatSample_Locomotion_Authoring_zh-CN.md)：配置 Move／过渡、烘焙动画、修改停止点与脚标记。
+3. [阶段提交审查](Current/CombatSample_Locomotion_Commit_Review_2026-10-05_zh-CN.md)：本批修改、Kiana 最新配置、已验证内容与剩余检查。
+4. [Actor Motion 验证清单](Current/Actor_Motion_Validation.md)：共享运动合同与回归方法。
 
-## Active Locomotion path
+旧路线图、转向闪帧调查、距离与脚相接入、结构审查和阶段交付见[Locomotion 历史索引](Archive/Locomotion/README.md)。
 
-- [Locomotion final architecture v1](Proposals/CombatSample_Locomotion_Final_Architecture_v1_zh-CN.md) — frozen Asset/Runtime target and fixed-tick ownership; stages 1–4 are implemented.
-- [Locomotion implementation roadmap v1](Proposals/CombatSample_Locomotion_Implementation_Roadmap_v1_zh-CN.md) — stage 3/4 Unity compilation is user-confirmed; tests, resource coverage and character visual acceptance remain pending. Stage 5 Stop Distance Matching is next.
+## Action、Preview 与场景
 
-## Historical references
+- [Action 编辑器与播放架构](Current/CombatSample_Action_Editor_Architecture_2026-09-19_zh-CN.md)：现行 ActionAsset／ActionRuntime 链路。
+- [Animation → Action → Actor 收尾审查](Current/CombatSample_Animation_Action_Actor_Closure_Audit_2026-09-23_zh-CN.md)：该阶段的实施与验收记录。
+- [Preview 确定性审查](Current/ActionPreview_Determinism_Audit_2026-10-01_zh-CN.md)、[Timeline 吸附交接](Current/ActionTimeline_Snapping_Handoff_2026-10-01_zh-CN.md)：对应编辑器问题的核对记录。
+- [场景归属基线](Current/Scene_Ownership_Baseline_2026-08-02.md)：指定日期的职责快照，使用前核对当前场景。
 
-- [Action implementation roadmap](Archive/CombatSample_Action_Implementation_Roadmap_v1_zh-CN.md) — superseded. The planned bulk asset migration was replaced by user-directed reconfiguration from scratch.
-- [Action editor redesign](Archive/CombatSample_Action_V1_Stage_5_Editor_Redesign_Draft_2026-09-01_zh-CN.md) and [Action V1 stage records](Archive/ActionV1/) — implementation history, not active Preview plans.
-- [ActionSequence v3 architecture](Archive/CombatSample_ActionSequence_Final_Architecture_v3_zh-CN.md) and [E3 validation handoff](Archive/CombatSample_E3_v3_Validation_Handoff_2026-08-29_zh-CN.md) — historical Domain design and pre-cutover evidence; their Sequence content is no longer current.
-- [HitStop boundary fixes](Archive/CombatSample_HitStop_Boundary_Fixes_2026-09-19_zh-CN.md) — implementation and prior validation record; obsolete Legacy checks do not remain as tasks.
+## 历史来源
 
-The old ActionSequence, Legacy Timeline and AnimationConfig playback/editor paths have been removed. Locomotion implementation and Camera development are separate next routes; no old Action migration or Test Runner plan is carried forward.
+- [Action V1 阶段记录](Archive/ActionV1/)、[Action 实施路线图](Archive/CombatSample_Action_Implementation_Roadmap_v1_zh-CN.md)：历史实施过程。
+- [ActionSequence v3 架构](Archive/CombatSample_ActionSequence_Final_Architecture_v3_zh-CN.md)、[E3 验收交接](Archive/CombatSample_E3_v3_Validation_Handoff_2026-08-29_zh-CN.md)：旧后端与运动 Domain 的来源。
+- [HitStop 边界修正](Archive/CombatSample_HitStop_Boundary_Fixes_2026-09-19_zh-CN.md)：当时实施与回归结果。
+
+ActionSequence、Legacy Timeline 与 AnimationConfig 的旧路径已退出当前实现依据。Locomotion 和 Camera 开发各自以当前源码与明确任务为准。

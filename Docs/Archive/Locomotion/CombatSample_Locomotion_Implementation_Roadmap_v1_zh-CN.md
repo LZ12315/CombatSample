@@ -1,6 +1,8 @@
 # CombatSample Locomotion Implementation Roadmap v1
 
-> 对应[《Locomotion 最终架构 v1》](CombatSample_Locomotion_Final_Architecture_v1_zh-CN.md)。阶段 0 是历史基线；阶段 1～3 的移动与基础动画链路保留，当前仅保留 Move 速度匹配；先前阶段 4 的脚相和阶段 5 的 Stop Distance Matching 代码已移除。Runtime、Editor（含测试）及非 Editor 静态编译通过；Unity Test Runner、角色素材接入和场景视觉验收待完成。
+> 归档于 2026-10-05。正文中的状态、待办和验证结果保留为当时记录；当前实现见[现行架构](../../Current/CombatSample_Locomotion_Final_Architecture_v1_zh-CN.md)，最新验证与未完成检查见[提交审查](../../Current/CombatSample_Locomotion_Commit_Review_2026-10-05_zh-CN.md)。源码链接用于导航，历史成员和行号不代表当前代码。
+
+> 对应[《Locomotion 最终架构 v1》](../../Current/CombatSample_Locomotion_Final_Architecture_v1_zh-CN.md)。阶段 0 是历史基线；阶段 1～3 的移动与基础动画链路保留，当前仅保留 Move 速度匹配；先前阶段 4 的脚相和阶段 5 的 Stop Distance Matching 代码已移除。Runtime、Editor（含测试）及非 Editor 静态编译通过；Unity Test Runner、角色素材接入和场景视觉验收待完成。
 
 ## 目标与执行原则
 

@@ -52,7 +52,21 @@ public sealed class LocomotionRunner
         UpdateRotation(intent, hasIntent, deltaTime, config);
         Vector3 targetVelocity = ComputeTargetVelocity(config);
         _cachedVelocity = IntegrateVelocity(
-            _cachedVelocity, targetVelocity, config.Acceleration, config.Deceleration, deltaTime);
+            _cachedVelocity, targetVelocity, config.Acceleration, config.Deceleration,
+            config.DirectionResponse, deltaTime);
+    }
+
+    /// <summary>Continuous linear braking prediction, in world metres under the current policy.
+    /// Movement time scale changes the duration, not the integrated stopping distance.</summary>
+    public static bool TryPredictStoppingDistance(float modelSpeed, float deceleration, float locomotionScale,
+        out float distance)
+    {
+        distance = 0f;
+        if (!LocomotionDataValidation.IsFinite(modelSpeed) || modelSpeed < 0f
+            || !LocomotionDataValidation.IsFinite(deceleration) || deceleration <= 0f
+            || !LocomotionDataValidation.IsFinite(locomotionScale) || locomotionScale < 0f) return false;
+        distance = modelSpeed * modelSpeed / (2f * deceleration) * locomotionScale;
+        return LocomotionDataValidation.IsFinite(distance);
     }
 
     private void UpdateRotation(in LocomotionIntent intent, bool hasIntent, float deltaTime,
@@ -93,16 +107,16 @@ public sealed class LocomotionRunner
     }
 
     private static Vector3 IntegrateVelocity(Vector3 current, Vector3 target,
-        float acceleration, float deceleration, float deltaTime)
+        float acceleration, float deceleration, float directionResponse, float deltaTime)
     {
-        if (Vector3.Dot(current, target) < 0f)
-        {
-            float currentSpeed = current.magnitude;
-            float brakingTime = currentSpeed / deceleration;
-            if (deltaTime <= brakingTime)
-                return Vector3.MoveTowards(current, Vector3.zero, deceleration * deltaTime);
-            return Vector3.MoveTowards(Vector3.zero, target, acceleration * (deltaTime - brakingTime));
-        }
+        // No-input braking keeps the constant deceleration used by stop-distance prediction.
+        if (target.sqrMagnitude == 0f)
+            return Vector3.MoveTowards(current, Vector3.zero, deceleration * deltaTime);
+
+        // The same steering rule applies at every angle. Opposing velocities can
+        // cancel naturally, so reversals never need an arbitrary rotation axis.
+        float steering = 1f - Mathf.Exp(-directionResponse * deltaTime);
+        current = Vector3.Lerp(current, target.normalized * current.magnitude, steering);
 
         float rate = target.sqrMagnitude < current.sqrMagnitude ? deceleration : acceleration;
         return Vector3.MoveTowards(current, target, rate * deltaTime);

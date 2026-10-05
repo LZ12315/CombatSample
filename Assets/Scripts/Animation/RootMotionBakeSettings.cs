@@ -20,6 +20,18 @@ public sealed class RootMotionBakeSettings
     [SerializeField, Min(0f)] private float _positionTolerance = 0.001f;
     [SerializeField, Min(0f)] private float _rotationToleranceDegrees = 0.1f;
 
+    private string _leftFootPath = string.Empty;
+    private string _rightFootPath = string.Empty;
+    public string FootSetup => (_leftFootPath ?? string.Empty) + "|" + (_rightFootPath ?? string.Empty);
+    public void EditorSetFeet(string leftPath, string rightPath)
+    { _leftFootPath = leftPath; _rightFootPath = rightPath; }
+    internal Transform ResolveFoot(Animator animator, AnimationFoot foot)
+    {
+        string path = foot == AnimationFoot.Left ? _leftFootPath : _rightFootPath;
+        if (!string.IsNullOrEmpty(path)) return animator.transform.Find(path);
+        return animator.isHuman ? animator.GetBoneTransform(foot == AnimationFoot.Left ? HumanBodyBones.LeftFoot : HumanBodyBones.RightFoot) : null;
+    }
+
     public GameObject ReferenceRigPrefab => _referenceRigPrefab;
     public int SampleRate => _sampleRate;
     public float PositionTolerance => _positionTolerance;

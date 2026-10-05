@@ -85,7 +85,7 @@ public sealed class LocomotionMatchingContractTests
         mixer.DontSynchronize(mixer.GetChild(0));
         var playback = new LocomotionMovePlayback(mixer, new[] { idle, walk, run },
             new[] { false, true, true }, new[] { true, false, false }, false,
-            message => Assert.Fail(message), null, QuerySyntheticTrajectory);
+            QuerySyntheticTrajectory);
         var policy = Policy(1f);
         try
         {
@@ -114,6 +114,104 @@ public sealed class LocomotionMatchingContractTests
     }
 
     [Test]
+    public void MoveReference_CapturesTrajectoryDurationAndSampleFlagsUntilNewPlayback()
+    {
+        var walk = Clip("Walk", 1f, 1f);
+        var run = Clip("Run", 0.5f, 2f);
+        var replacement = Clip("Replacement", 2f, 8f);
+        var mixer = new ManualMixerState();
+        mixer.Add(walk.Clip); mixer.Add(run.Clip);
+        var animations = new[] { walk, run };
+        var sync = new[] { true, true };
+        var idle = new[] { false, false };
+        var playback = new LocomotionMovePlayback(mixer, animations, sync, idle, false, QuerySyntheticTrajectory);
+        try
+        {
+            mixer.GetChild(0).Weight = mixer.GetChild(1).Weight = 0.5f;
+            walk.EditorSetClip(replacement.Clip);
+            walk.EditorSetRootMotionData(replacement.RootMotionData);
+            animations[1] = replacement;
+            sync[0] = sync[1] = false;
+            idle[0] = true;
+            var context = Context(Policy(1f), default);
+            playback.Prepare(context);
+            Assert.That(playback.ReferenceSpeed, Is.EqualTo(2.25f).Within(1e-5f));
+            playback.Reset(); playback.Prepare(context);
+            Assert.That(playback.ReferenceSpeed, Is.EqualTo(2.25f).Within(1e-5f));
+            var fresh = new LocomotionMovePlayback(mixer, animations, sync, idle, false, QuerySyntheticTrajectory);
+            fresh.Prepare(context);
+            Assert.That(fresh.ReferenceSpeed, Is.EqualTo(2f).Within(1e-5f), "Only the replacement sample contributes: .5 * 8m / 2s.");
+        }
+        finally { mixer.Destroy(); }
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void MovePreparation_UsesNewParameterWeightsBeforeMatching(bool directional)
+    {
+        var walk = Clip("Walk", 1f, 1f);
+        var run = Clip("Run", 0.5f, 2f);
+        ManualMixerState mixer;
+        if (directional)
+        {
+            var state = new DirectionalMixerState();
+            state.Add(walk.Clip, Vector2.up); state.Add(run.Clip, Vector2.up * 2f);
+            mixer = state;
+        }
+        else
+        {
+            var state = new LinearMixerState { ExtrapolateSpeed = false };
+            state.Add(walk.Clip, 1f); state.Add(run.Clip, 2f);
+            mixer = state;
+        }
+        var playback = new LocomotionMovePlayback(mixer, new[] { walk, run }, new[] { true, true },
+            new[] { false, false }, false, QuerySyntheticTrajectory);
+        var context = Context(Policy(1f), Result(Policy(1f)));
+        try
+        {
+            playback.PrepareMove(directional ? Vector2.up : Vector2.right, context);
+            Assert.That(playback.ReferenceSpeed, Is.EqualTo(1f).Within(1e-5f));
+            playback.PrepareMove(directional ? Vector2.up * 2f : Vector2.right * 2f, context);
+            Assert.That(mixer.GetChild(1).Weight, Is.EqualTo(1f).Within(1e-5f));
+            Assert.That(playback.ReferenceSpeed, Is.EqualTo(4f).Within(1e-5f));
+            Assert.That(playback.PlayRate, Is.LessThan(1f));
+            playback.PrepareMove(directional ? Vector2.up : Vector2.right,
+                Context(Policy(1f), default, dt: 0f));
+            Assert.That(mixer.GetChild(1).Weight, Is.EqualTo(1f).Within(1e-5f));
+        }
+        finally { mixer.Destroy(); }
+    }
+
+    [Test]
+    public void MovePreparation_RestartsNonLoopingSamplesOnlyWhenTheyRegainWeight()
+    {
+        var loop = Clip("Loop", 1f, 1f);
+        var oneShot = Clip("One shot", 1f, 1f, looping: false);
+        var mixer = new LinearMixerState { ExtrapolateSpeed = false };
+        mixer.Add(loop.Clip, 0f);
+        var child = mixer.Add(oneShot.Clip, 1f);
+        var playback = new LocomotionMovePlayback(mixer, new[] { loop, oneShot }, new[] { false, false },
+            new[] { true, false }, false, QuerySyntheticTrajectory);
+        var context = Context(Policy(1f), default);
+        try
+        {
+            playback.PrepareMove(Vector2.zero, context);
+            child.TimeD = 0.75d;
+            playback.PrepareMove(Vector2.right, context);
+            Assert.That(child.TimeD, Is.Zero);
+            Assert.That(playback.PlayRate, Is.EqualTo(1f), "One-shot samples have no cycle reference.");
+            child.TimeD = 0.25d;
+            playback.PrepareMove(Vector2.right, context);
+            Assert.That(child.TimeD, Is.EqualTo(0.25d));
+            playback.PrepareMove(Vector2.zero, context);
+            child.TimeD = 0.9d;
+            playback.PrepareMove(Vector2.right, context);
+            Assert.That(child.TimeD, Is.Zero);
+        }
+        finally { mixer.Destroy(); }
+    }
+
+    [Test]
     public void UnsynchronizedSample_UsesItsOwnCycleRate()
     {
         AnimationAsset walk = Clip("Walk", 1f, 1f);
@@ -124,7 +222,7 @@ public sealed class LocomotionMatchingContractTests
         mixer.DontSynchronize(mixer.GetChild(1));
         var playback = new LocomotionMovePlayback(mixer, new[] { walk, run },
             new[] { true, false }, new[] { false, false }, false,
-            message => Assert.Fail(message), null, QuerySyntheticTrajectory);
+            QuerySyntheticTrajectory);
         try
         {
             mixer.GetChild(0).Weight = 0.5f;
@@ -144,7 +242,6 @@ public sealed class LocomotionMatchingContractTests
         var mixer = new LinearMixerState();
         mixer.Add(good.Clip, 1f);
         mixer.Add(missing.Clip, 2f);
-        var issues = new List<string>();
         bool Query(AnimationAsset asset, out RootMotionTrajectory trajectory, out string reason)
         {
             trajectory = asset == missing ? null : asset.RootMotionData;
@@ -152,7 +249,7 @@ public sealed class LocomotionMatchingContractTests
             return trajectory != null;
         }
         var playback = new LocomotionMovePlayback(mixer, new[] { good, missing },
-            new[] { true, true }, new[] { false, false }, false, issues.Add, null, Query);
+            new[] { true, true }, new[] { false, false }, false, Query);
         try
         {
             mixer.GetChild(0).Weight = 0.5f;
@@ -161,7 +258,6 @@ public sealed class LocomotionMatchingContractTests
             playback.Prepare(Context(policy, Result(policy)));
             playback.Prepare(Context(policy, Result(policy)));
             Assert.That(playback.PlayRate, Is.EqualTo(1f));
-            Assert.That(issues.Count, Is.EqualTo(1));
             Assert.That(mixer.ChildCount, Is.EqualTo(2));
         }
         finally { mixer.Destroy(); }
@@ -173,9 +269,8 @@ public sealed class LocomotionMatchingContractTests
         AnimationAsset move = Clip("One-shot Move", 1f, 2f, looping: false);
         var mixer = new LinearMixerState();
         mixer.Add(move.Clip, 1f);
-        var issues = new List<string>();
         var playback = new LocomotionMovePlayback(mixer, new[] { move },
-            new[] { false }, new[] { false }, false, issues.Add, null, QuerySyntheticTrajectory);
+            new[] { false }, new[] { false }, false, QuerySyntheticTrajectory);
         try
         {
             mixer.GetChild(0).Weight = 1f;
@@ -183,7 +278,6 @@ public sealed class LocomotionMatchingContractTests
             playback.Prepare(Context(policy, Result(policy)));
             playback.Prepare(Context(policy, Result(policy)));
             Assert.That(playback.PlayRate, Is.EqualTo(1f));
-            Assert.That(issues.Count, Is.EqualTo(1));
         }
         finally { mixer.Destroy(); }
     }
@@ -195,8 +289,7 @@ public sealed class LocomotionMatchingContractTests
         var mixer = new LinearMixerState { ExtrapolateSpeed = false };
         var child = mixer.Add(move.Clip, 1f);
         var playback = new LocomotionMovePlayback(mixer, new[] { move },
-            new[] { true }, new[] { false }, false, message => Assert.Fail(message),
-            null, QuerySyntheticTrajectory);
+            new[] { true }, new[] { false }, false, QuerySyntheticTrajectory);
         var root = new GameObject("Matching Actor");
         _objects.Add(root);
         var animator = root.AddComponent<Animator>();

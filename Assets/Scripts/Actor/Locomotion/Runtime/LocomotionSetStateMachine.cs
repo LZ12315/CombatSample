@@ -1,24 +1,23 @@
 using UnityEngine;
 
-public enum LocomotionSetState
-{
-    Move,
-    Start,
-    Stop,
-    Pivot,
-}
-
 /// <summary>Animation decisions only. It never integrates velocity or reads animation assets.</summary>
 public sealed class LocomotionSetStateMachine
 {
-    private const float StationarySpeed = 0.1f;
-    private const float PivotSpeed = 0.5f;
-    private const float PivotDot = -0.5f;
+    private readonly LocomotionTransitionDecisionConfig _config;
     private bool _hadInput;
     private bool _pivotLatched;
     private int _actionOwnerId;
 
     public LocomotionSetState State { get; private set; }
+
+    public LocomotionSetStateMachine() : this(LocomotionTransitionDecisionConfig.Default) { }
+
+    public LocomotionSetStateMachine(LocomotionTransitionDecisionConfig config)
+    {
+        if (!config.IsValid)
+            throw new System.ArgumentException("Locomotion transition decision configuration is invalid.", nameof(config));
+        _config = config;
+    }
 
     public void Reset()
     {
@@ -40,7 +39,8 @@ public sealed class LocomotionSetStateMachine
         Vector3 target = context.Intent.WorldMoveDirection;
         target.y = 0f;
         float speed = source.magnitude;
-        bool pivot = input && speed >= PivotSpeed && Vector3.Dot(source.normalized, target.normalized) <= PivotDot;
+        bool pivot = input && speed >= _config.PivotMinimumSpeed
+            && Vector3.Angle(source, target) >= _config.PivotMinimumAngleDegrees;
         bool pivotEdge = pivot && !_pivotLatched;
         _pivotLatched = pivot;
 
@@ -58,20 +58,29 @@ public sealed class LocomotionSetStateMachine
             }
             else if (_hadInput || State == LocomotionSetState.Start || State == LocomotionSetState.Pivot)
             {
-                next = speed > StationarySpeed ? LocomotionSetState.Stop : LocomotionSetState.Move;
+                next = speed > _config.StationarySpeed ? LocomotionSetState.Stop : LocomotionSetState.Move;
             }
         }
         else
         {
             if (State == LocomotionSetState.Stop)
-                next = speed <= StationarySpeed ? LocomotionSetState.Start
+                next = speed <= _config.StationarySpeed ? LocomotionSetState.Start
                     : pivotEdge ? LocomotionSetState.Pivot : LocomotionSetState.Move;
-            else if (State == LocomotionSetState.Start || State == LocomotionSetState.Pivot)
+            else if (State == LocomotionSetState.Start)
+            {
+                // A reversal interrupts Start even when its clip completes on this tick.
+                // The runtime falls back to Move if no usable Pivot was authored.
+                if (pivotEdge)
+                    next = LocomotionSetState.Pivot;
+                else if (clipCompleted)
+                    next = LocomotionSetState.Move;
+            }
+            else if (State == LocomotionSetState.Pivot)
             {
                 if (clipCompleted)
                     next = LocomotionSetState.Move;
             }
-            else if (!_hadInput && speed <= StationarySpeed)
+            else if (!_hadInput && speed <= _config.StationarySpeed)
                 next = LocomotionSetState.Start;
             else if (pivotEdge)
                 next = LocomotionSetState.Pivot;

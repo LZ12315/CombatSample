@@ -9,6 +9,8 @@ public sealed class RootMotionBakeResult
     private readonly Vector3[] _cumulativePositions;
     private readonly Quaternion[] _cumulativeRotations;
 
+    public AnimationFootMarker[] FootMarkers { get; internal set; } = Array.Empty<AnimationFootMarker>();
+
     public AnimationClip SourceClip { get; }
     public RootMotionBakeSettings Settings { get; }
     public int BakerVersion { get; }

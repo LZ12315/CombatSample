@@ -146,6 +146,8 @@ public static class AnimationAssetBakeWorkflow
             asset.EditorSetAnimationRigAsset(rig);
         }
         asset.EditorSetRootMotionData(trajectory);
+        asset.EditorSetLocomotionData(new AnimationLocomotionData(clip, dependencyHash, settings.FootSetup,
+            AnimationStopDistanceCurve.FindAutomaticStopTime(trajectory), bake.FootMarkers));
         EditorUtility.SetDirty(asset);
         if (AssetDatabase.Contains(asset))
             AssetDatabase.SaveAssetIfDirty(asset);

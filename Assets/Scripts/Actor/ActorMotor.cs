@@ -8,13 +8,13 @@ public class ActorMotor : MonoBehaviour, ICharacterController
 {
     [SerializeField] private Actor actor;
 
-    [SerializeField, Tooltip("Legacy serialized locomotion tuning; retained for stage 2 asset migration.")]
+    [SerializeField, HideInInspector, Tooltip("Legacy serialized locomotion tuning; retained for stage 2 asset migration.")]
     private float rotateSpeed = 600f;
 
-    [SerializeField, Tooltip("Legacy serialized locomotion tuning; retained for stage 2 asset migration.")]
+    [SerializeField, HideInInspector, Tooltip("Legacy serialized locomotion tuning; retained for stage 2 asset migration.")]
     private float _locomotionBaseSpeed = 5f;
 
-    [SerializeField, Range(0f, 1f), Tooltip("Legacy serialized locomotion tuning; retained for stage 2 asset migration.")]
+    [SerializeField, HideInInspector, Range(0f, 1f), Tooltip("Legacy serialized locomotion tuning; retained for stage 2 asset migration.")]
     private float _airControlFactor = 0.4f;
 
     [SerializeField, Tooltip("Horizontal impulse damping, in 1/second.")]

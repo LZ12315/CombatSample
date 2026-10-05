@@ -11,6 +11,60 @@ public sealed class AnimationAsset : ScriptableObject
     [SerializeField, HideInInspector] private bool _hasRootMotionData;
     [SerializeField, HideInInspector] private RootMotionTrajectory _rootMotionData = new RootMotionTrajectory();
 
+    [SerializeField, HideInInspector] private AnimationLocomotionData _locomotionData;
+    [SerializeField, HideInInspector] private AnimationClip _locomotionOverrideClip;
+    [SerializeField, HideInInspector] private bool _overrideStopTime;
+    [SerializeField, HideInInspector] private float _stopTimeOverride;
+    [SerializeField, HideInInspector] private bool _overrideFootMarkers;
+    [SerializeField, HideInInspector] private AnimationFootMarker[] _footMarkerOverrides = System.Array.Empty<AnimationFootMarker>();
+
+    public AnimationLocomotionData LocomotionData => _locomotionData?.SourceClip == _clip ? _locomotionData : null;
+    public bool HasStopTimeOverride => _locomotionOverrideClip == _clip && _overrideStopTime;
+    public bool HasFootMarkerOverrides => _locomotionOverrideClip == _clip && _overrideFootMarkers;
+    public float StopTime => HasStopTimeOverride ? _stopTimeOverride : LocomotionData?.StopTime ?? 0f;
+    public System.Collections.Generic.IReadOnlyList<AnimationFootMarker> FootMarkers => HasFootMarkerOverrides
+        ? _footMarkerOverrides : LocomotionData?.FootMarkers ?? System.Array.Empty<AnimationFootMarker>();
+
+    internal bool TryCreateStopCurve(out AnimationStopDistanceCurve curve)
+    {
+        curve = null;
+        return LocomotionData != null && TryGetLocomotionTrajectory(out var trajectory, out _)
+            && TryCreateStopCurve(trajectory, out curve);
+    }
+
+    // The binding builder supplies an already qualified trajectory to all derived data.
+    internal bool TryCreateStopCurve(RootMotionTrajectory trajectory, out AnimationStopDistanceCurve curve)
+    {
+        curve = null;
+        return trajectory != null && LocomotionData != null
+            && LocomotionData.TrajectoryHash == trajectory.DependencyHash
+            && AnimationStopDistanceCurve.TryCreate(trajectory, StopTime, out curve);
+    }
+
+    internal AnimationFootPhaseTrack CreateFootPhaseTrack()
+    {
+        if (_clip == null) return null;
+        RootMotionTrajectory trajectory = null;
+        if (!HasFootMarkerOverrides && (LocomotionData == null
+            || !TryGetLocomotionTrajectory(out trajectory, out _))) return null;
+        return CreateFootPhaseTrack(trajectory);
+    }
+
+    internal AnimationFootPhaseTrack CreateFootPhaseTrack(RootMotionTrajectory trajectory)
+    {
+        if (_clip == null) return null;
+        if (!HasFootMarkerOverrides)
+        {
+            var data = LocomotionData;
+            if (data == null || trajectory == null
+                || data.TrajectoryHash != trajectory.DependencyHash) return null;
+#if UNITY_EDITOR
+            if (data.FootSetup != RootMotionBakeSettings?.FootSetup) return null;
+#endif
+        }
+        return new AnimationFootPhaseTrack(FootMarkers, _clip.length, _clip.isLooping);
+    }
+
     public AnimationClip Clip => _clip;
     public RootMotionTrajectory RootMotionData => _hasRootMotionData ? _rootMotionData : null;
 
@@ -45,6 +99,30 @@ public sealed class AnimationAsset : ScriptableObject
     public RootMotionBakeSettings RootMotionBakeSettings => _animationRigAsset != null
         ? _animationRigAsset.CreateEffectiveBakeSettings()
         : null;
+
+    public void EditorSetLocomotionData(AnimationLocomotionData data) => _locomotionData = data;
+
+    public void EditorOverrideStopTime(bool enabled, float time)
+    {
+        BindOverridesToClip();
+        _overrideStopTime = enabled;
+        _stopTimeOverride = time;
+    }
+
+    public void EditorOverrideFootMarkers(bool enabled, AnimationFootMarker[] markers)
+    {
+        BindOverridesToClip();
+        _overrideFootMarkers = enabled;
+        _footMarkerOverrides = markers != null ? (AnimationFootMarker[])markers.Clone() : System.Array.Empty<AnimationFootMarker>();
+    }
+
+    private void BindOverridesToClip()
+    {
+        if (_locomotionOverrideClip == _clip) return;
+        _locomotionOverrideClip = _clip;
+        _overrideStopTime = _overrideFootMarkers = false;
+        _footMarkerOverrides = System.Array.Empty<AnimationFootMarker>();
+    }
 
     public void EditorSetClip(AnimationClip clip)
     {
