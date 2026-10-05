@@ -8,19 +8,25 @@
 
 ## 建议提交范围
 
-按可独立审阅的两个范围提交，顺序如下。第一项同时包含功能、后续结构整理与编辑器：这些修改在同一批尚未提交的文件中，拆分成历史实施阶段需要重新构造中间实现，因此本次以当前完整实现为单位。旧 Locomotion Inspector 仍引用已删除的覆盖告警接口，必须随核心代码一起更新，不能仅将它的移动和新界面留到后续提交。
+最初按可独立审阅的两个范围提交，前两条已于 2026-10-06 推送。第一项同时包含功能、后续结构整理与编辑器：这些修改在同一批文件中，拆分成历史实施阶段需要重新构造中间实现，因此以完整实现为单位。旧 Locomotion Inspector 仍引用已删除的覆盖告警接口，随核心代码一起更新。针对用户询问 Attack_3A 未提交的原因，复核后将其纳入第三条独立补充提交。
 
 | 提交 | 内容与文件范围 |
 | --- | --- |
 | `整理 Locomotion 运行链、动画数据与资产编辑器` | ActorLocomotion、ActorAnimation、ActorMotor、Motion/LocomotionRunner；Locomotion/Configuration、Runtime、Contracts、Editor；旧位置脚本删除与相应新位置 `.meta`；AnimationAsset、AnimationRigAsset、RootMotionBakeSettings、AnimationLocomotionData、AnimationFootContactBaker、烘焙工作流与结果、AnimationAssetEditor；相关合同测试；架构、开发记录、本审查记录与文档索引 |
 | `完善 Kiana Locomotion 动画资源与导入配置` | Motion 下 Idle、Walk、Run、Start、Left/Right Stop 新 AnimationAsset 及 `.meta`；Jump 重烘焙；Kiana Normal 配置；RunBS、Left/Right Stop、StandBy、Walk 的现有 FBX `.meta` 调整 |
+| `保存 Kiana Attack_3A 动画重烘焙数据` | Attack_3A 的烘焙轨迹、动画派生数据和旧字段清理；同步本记录的提交范围 |
 
 每次提交均应包含对应新增／移动文件的 `.meta`，包括新增目录的 `.meta`。本次涉及的资源修改单独呈现，保留当前作者配置。
 
 ## 本次不纳入的工作区差异
 
-- `Assets/Create/Animation/Kiana/Combat/Anim_Kiana_Attack_3A.asset`：Combat 动画的重烘焙、Locomotion 派生数据及旧字段清理，超出本轮 Locomotion 素材提交范围。保留工作区修改，另行确认与提交。
 - `Assets/Settings/Input/PlayerInputControl.inputactions.meta`：Importer 的 `script` 从持久 GUID 引用变成 `{instanceID: 0}`；不是本轮输入或 Locomotion 代码修改所需。推送中应保留 HEAD 版本，工作区现有修改不回退。
+
+## Attack_3A 补充复核（2026-10-06）
+
+最初因为位于 Combat 目录，将 Attack_3A 按额外资源修改排除；此分类不足以判断是否属于本批动画数据更新。复核后，其差异为重烘焙、新增自动停止点／脚标记和清理旧的内嵌 Bake Settings，纳入独立补充提交。
+
+静态对比 HEAD 与待提交资产：Clip、脚本、Rig 引用及全部 95 个采样时间不变，旋转采样不变；位置采样最大差异约 `0.00000428 m`。新增派生数据与根轨迹使用同一个 hash，未启用手工覆盖，数据有限且采样时间严格递增，差异格式检查通过。此复核没有重烘焙或执行 Unity 原生测试，不替代攻击的场景回归。
 
 ## 当前实现摘要
 
