@@ -19,19 +19,41 @@ MonoBehaviour:
   movementConfig:
     MaxSpeed: 5
     Acceleration: 20
-    Deceleration: 32
+    Deceleration: 12
+    DirectionResponse: 12
     RotateSpeed: 600
     TurnResponseTime: 0.08
   move:
     blendType: 0
     oneDimensional:
+      parameter: 2
+      samples:
+      - animation: {fileID: 11400000, guid: 8a62f0b663d5ce257a55b00d70274943, type: 2}
+        threshold: 0
+        sync: 0
+      - animation: {fileID: 11400000, guid: 96f602c4fd6708f91868a4f5fa26732b, type: 2}
+        threshold: 0.5
+        sync: 0
+      - animation: {fileID: 11400000, guid: 51fd43222e61349aeb3af815fd5a6498, type: 2}
+        threshold: 1
+        sync: 0
+    twoDimensional:
       parameter: 0
       samples: []
-    twoDimensional:
-      samples: []
   transitionBlendDuration: 0.1
-  start: []
-  stop: []
+  stopPlaybackMode: 1
+  transitionDecisionConfig:
+    StationarySpeed: 0.1
+    PivotMinimumSpeed: 0.5
+    PivotMinimumAngleDegrees: 120
+  start:
+  - animation: {fileID: 11400000, guid: 4a159366a39408266b85feeff4c503f1, type: 2}
+    targetLocalDirection: {x: 0, y: 1}
+  stop:
+  - animation: {fileID: 11400000, guid: 22b6162bdc40b446aa59a57a90680de7, type: 2}
+    sourceLocalDirection: {x: 0, y: 1}
+  - animation: {fileID: 11400000, guid: 6e82ec67bd9151ad3898868756a9599e, type: 2}
+    sourceLocalDirection: {x: 0, y: 1}
   pivot: []
   references:
     version: 2
