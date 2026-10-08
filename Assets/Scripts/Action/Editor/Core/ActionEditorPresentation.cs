@@ -309,7 +309,7 @@ internal sealed class ActionTimelineGeometry
 
 internal static class ActionEditorTheme
 {
-    internal const string StylePath = "Assets/Scripts/ActionSystem/Editor/Styles/ActionEditorStyles.uss";
+    internal const string StylePath = "Assets/Scripts/Action/Editor/Styles/ActionEditorStyles.uss";
     internal const float RulerHeight = 24f;
     internal const float AnimationLaneHeight = 36f;
     internal const float GameplayLaneHeight = 32f;
