@@ -22,8 +22,8 @@ public enum CancelTargetKind
 /// <see cref="specificTarget"/>（SpecificAction）、所有 SelfTags 含 <see cref="targetTag"/> 的 Action（AnyWithTag）、
 /// 或全表所有 Action（Any）。
 ///
-/// <para><b>职责边界</b>：CancelRule 只负责"把候选加入仲裁列表"。目标 Action 是否真能进入仍由其自身的
-/// <c>CheckEntry</c>（EntryConditions）决定。两层解耦，互不越权。</para>
+/// <para><b>职责边界</b>：CancelRule 描述取消窗口并提供目标匹配，ActionStateManager 负责展开候选与仲裁。
+/// 目标 Action 是否真能进入仍由其自身的 <c>CheckEntry</c>（EntryConditions）决定，目标匹配不代替准入。</para>
 ///
 /// <para><b>与 SelfTags 的配合（AnyWithTag）</b>：<see cref="ActionStateManager"/> 在仲裁阶段扫描
 /// <c>ActionList</c> 中非 Event 的 Action，对每个候选检查 SelfTags 是否与 <see cref="targetTag"/> 匹配
@@ -43,4 +43,52 @@ public class CancelRule
 
     [Tooltip("允许取消的帧窗口。可通过 FrameAnchor 锚点选择从头开始/到结尾，无需手动查帧数。")]
     public CancelWindow window = CancelWindow.FullRange;
+
+    /// <summary>
+    /// Shared target matching for Poll expansion and External validation.
+    /// Callers still own window checks, source eligibility, entry checks and arbitration.
+    /// </summary>
+    internal bool MatchesTarget(ActionAsset action)
+    {
+        if (action == null)
+            return false;
+
+        switch (targetKind)
+        {
+            case CancelTargetKind.SpecificAction:
+                return specificTarget == action;
+            case CancelTargetKind.AnyWithTag:
+                return HasMatchingSelfTag(action);
+            case CancelTargetKind.Any:
+                return action.TriggerMode != ActionTriggerMode.Event;
+            default:
+                return false;
+        }
+    }
+
+    private bool HasMatchingSelfTag(ActionAsset action)
+    {
+        if (targetTag == null)
+            return false;
+
+        Tag ruleTag = targetTag.GetTag();
+        if (ruleTag == null)
+            return false;
+
+        var selfTags = action.SelfTags;
+        if (selfTags == null)
+            return false;
+
+        for (int i = 0; i < selfTags.Count; i++)
+        {
+            var selfRef = selfTags[i];
+            if (selfRef == null)
+                continue;
+            Tag selfTag = selfRef.GetTag();
+            if (selfTag != null && selfTag.Matches(ruleTag))
+                return true;
+        }
+
+        return false;
+    }
 }

@@ -245,7 +245,8 @@ public class ActionStateManager : MonoBehaviour
             switch (rule.targetKind)
             {
                 case CancelTargetKind.SpecificAction:
-                    TryAddPollCandidate(rule.specificTarget);
+                    if (rule.MatchesTarget(rule.specificTarget))
+                        TryAddPollCandidate(rule.specificTarget);
                     break;
 
                 case CancelTargetKind.AnyWithTag:
@@ -257,7 +258,7 @@ public class ActionStateManager : MonoBehaviour
                             var candidate = allActionsForTag[j];
                             if (candidate == null || candidate.TriggerMode == ActionTriggerMode.Event)
                                 continue;
-                            if (ActionHasSelfTagMatchingRule(candidate, rule.targetTag))
+                            if (rule.MatchesTarget(candidate))
                                 TryAddPollCandidate(candidate);
                         }
                     }
@@ -269,9 +270,8 @@ public class ActionStateManager : MonoBehaviour
                         var allActions = _actionList.GetAllAvailableActions();
                         for (int j = 0; j < allActions.Count; j++)
                         {
-                            if (allActions[j] != null && allActions[j].TriggerMode == ActionTriggerMode.Event)
-                                continue;
-                            TryAddPollCandidate(allActions[j]);
+                            if (rule.MatchesTarget(allActions[j]))
+                                TryAddPollCandidate(allActions[j]);
                         }
                     }
                     break;
@@ -323,45 +323,7 @@ public class ActionStateManager : MonoBehaviour
             if (rule == null || !rule.window.ContainsFrame(currentFrame, totalFrames))
                 continue;
 
-            switch (rule.targetKind)
-            {
-                case CancelTargetKind.SpecificAction:
-                    if (rule.specificTarget == requestedAction)
-                        return true;
-                    break;
-
-                case CancelTargetKind.AnyWithTag:
-                    if (ActionHasSelfTagMatchingRule(requestedAction, rule.targetTag))
-                        return true;
-                    break;
-
-                case CancelTargetKind.Any:
-                    return requestedAction.TriggerMode != ActionTriggerMode.Event;
-            }
-        }
-
-        return false;
-    }
-
-    private static bool ActionHasSelfTagMatchingRule(ActionAsset action, TagReference ruleTagRef)
-    {
-        if (action == null || ruleTagRef == null)
-            return false;
-
-        Tag ruleTag = ruleTagRef.GetTag();
-        if (ruleTag == null)
-            return false;
-
-        var selfTags = action.SelfTags;
-        if (selfTags == null) return false;
-
-        for (int i = 0; i < selfTags.Count; i++)
-        {
-            var selfRef = selfTags[i];
-            if (selfRef == null) continue;
-            Tag selfTag = selfRef.GetTag();
-            if (selfTag == null) continue;
-            if (selfTag.Matches(ruleTag))
+            if (rule.MatchesTarget(requestedAction))
                 return true;
         }
 

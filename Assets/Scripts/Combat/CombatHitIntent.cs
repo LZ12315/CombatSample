@@ -70,7 +70,7 @@ internal sealed class CombatHitBuffer
                 PendingHit hit = _hits[i];
                 HitResolveResult result = ResolveOne(hit);
                 if (result.ImpactAllowed)
-                    TriggerImpactEffect(hit);
+                    ImpactSystem.HandleConfirmedHit(hit.HitData, hit.Effects);
             }
         }
         finally
@@ -106,39 +106,5 @@ internal sealed class CombatHitBuffer
             return clipCompare;
 
         return a.TargetStableId.CompareTo(b.TargetStableId);
-    }
-
-    private static void TriggerImpactEffect(in PendingHit hit)
-    {
-        AttackHitData hitData = hit.HitData;
-        ImpactData impactData = ImpactData.FromAttackHit(hitData);
-        if (!HasConfiguredImpactFeedback(impactData, hit.Effects))
-            return;
-
-        ImpactSystem.EnsureExists();
-        if (ImpactSystem.Instance == null)
-            return;
-
-        impactData.VfxSpawnPoint = hitData.HitPoint;
-        impactData.FacingReferenceWorldPosition = HitVfxFacingUtility.ResolveFacingWorldPosition(
-            impactData.TargetReceiver != null ? impactData.TargetReceiver.HitFacingTargetOverride : null,
-            hitData.Attacker);
-
-        Vector3 attackerReference = HitVfxAnchorUtility.GetDefaultAttackerRayOrigin(hitData.Attacker);
-        impactData.PopulateDirectionalReferences(attackerReference);
-
-        ImpactSystem.Instance.ApplyImpact(impactData, hit.Effects);
-    }
-
-    internal static bool HasConfiguredImpactFeedback(
-        ImpactData impactData,
-        IReadOnlyList<ImpactEffectConfig> clipEffects)
-    {
-        for (int i = 0; clipEffects != null && i < clipEffects.Count; i++)
-            if (clipEffects[i] != null && clipEffects[i].enabled)
-                return true;
-
-        return impactData?.TargetProfile != null
-               && impactData.TargetProfile.HasConfiguredImpactEffects();
     }
 }

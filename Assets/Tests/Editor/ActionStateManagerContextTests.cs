@@ -476,6 +476,52 @@ public sealed class ActionStateManagerContextTests
         Assert.AreEqual(7f, ContextRecordingCondition.Contexts[0].Magnitude);
     }
 
+    [Test]
+    public void CancelSpecificTarget_MatchesIdentityWithoutFilteringEventMode()
+    {
+        ActionAsset target = CreateAction("Specific Event Target", ActionTriggerMode.Event);
+        ActionAsset other = CreateAction("Other Target", ActionTriggerMode.Poll);
+        var rule = new CancelRule { targetKind = CancelTargetKind.SpecificAction, specificTarget = target };
+
+        Assert.IsTrue(rule.MatchesTarget(target));
+        Assert.IsFalse(rule.MatchesTarget(other));
+        Assert.IsFalse(rule.MatchesTarget(null));
+    }
+
+    [TestCase(ActionTriggerMode.Poll, true)]
+    [TestCase(ActionTriggerMode.Event, false)]
+    public void CancelAnyTarget_ExcludesEventActions(ActionTriggerMode triggerMode, bool expected)
+    {
+        ActionAsset target = CreateAction("Any Target", triggerMode);
+        var rule = new CancelRule { targetKind = CancelTargetKind.Any };
+
+        Assert.AreEqual(expected, rule.MatchesTarget(target));
+        Assert.IsFalse(rule.MatchesTarget(null));
+    }
+
+    [Test]
+    public void CancelTagTarget_MatchesSelfTagHierarchyAndRejectsMissingTags()
+    {
+        Tag child = CreateTag("Test.Cancel.Target.Child");
+        Tag parent = Tag.GetTagFromFullName("Test.Cancel.Target");
+        ActionAsset target = CreateAction("Tagged Target", ActionTriggerMode.Poll);
+        SetPrivateField(target, "_selfTags", new List<TagReference> { null, CreateTagReference(child) });
+        var rule = new CancelRule
+        {
+            targetKind = CancelTargetKind.AnyWithTag,
+            targetTag = CreateTagReference(parent),
+        };
+
+        Assert.IsTrue(rule.MatchesTarget(target));
+        rule.targetTag = CreateTagReference(child);
+        Assert.IsTrue(rule.MatchesTarget(target));
+        rule.targetTag = null;
+        Assert.IsFalse(rule.MatchesTarget(target));
+        rule.targetTag = CreateTagReference(parent);
+        SetPrivateField(target, "_selfTags", new List<TagReference>());
+        Assert.IsFalse(rule.MatchesTarget(target));
+    }
+
     private TestRig CreateRig()
     {
         var owner = new GameObject("ActionStateManagerContextTests Actor");

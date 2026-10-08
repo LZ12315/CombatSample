@@ -292,9 +292,27 @@ public sealed class ActionSpeedEffectTests
         profile.effects.Add(new SpeedEffectConfig());
         var data = new ImpactData(null, null, Vector3.zero, 0f) { TargetProfile = profile };
 
-        Assert.IsTrue(CombatHitBuffer.HasConfiguredImpactFeedback(data, null));
+        Assert.IsTrue(ImpactSystem.HasConfiguredImpactFeedback(data, null));
         profile.effects.Clear();
-        Assert.IsFalse(CombatHitBuffer.HasConfiguredImpactFeedback(data, null));
+        Assert.IsFalse(ImpactSystem.HasConfiguredImpactFeedback(data, null));
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void AttackFeedback_RequiresAnEnabledEffect(bool enabled)
+    {
+        var effects = new ImpactEffectConfig[] { null, new SpeedEffectConfig { enabled = enabled } };
+        Assert.AreEqual(enabled, ImpactSystem.HasConfiguredImpactFeedback(null, effects));
+        Assert.IsFalse(ImpactSystem.HasConfiguredImpactFeedback(null, null));
+    }
+
+    [Test]
+    public void ConfirmedHit_WithoutFeedbackDoesNotRequireAnImpactManager()
+    {
+        // No scene objects or clock are needed for a hit with no configured feedback.
+        ImpactSystem.HandleConfirmedHit(new AttackHitData(10f, null, null, null, Vector3.zero),
+            new ImpactEffectConfig[] { null, new SpeedEffectConfig { enabled = false } });
+        UnityEngine.TestTools.LogAssert.NoUnexpectedReceived();
     }
 
     [Test]

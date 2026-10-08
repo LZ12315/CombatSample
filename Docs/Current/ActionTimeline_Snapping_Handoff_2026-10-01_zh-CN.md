@@ -2,6 +2,8 @@
 
 日期：2026-10-01。
 
+源码路径于 2026-10-08 随 Scripts 整理更新为 `Assets/Scripts/Action/`；本文测试结果仍是 2026-10-01 的记录。本轮验证见[Scripts 整理记录](CombatSample_Scripts_Organization_2026-10-08_zh-CN.md)。
+
 ## 修复原因
 
 - 移动手势跳过 `ConstrainPointerDelta`，鼠标拖过 0 帧后直接进入非法候选状态，松手无法完成操作。
@@ -22,10 +24,10 @@
 
 ## 改动文件
 
-- `Assets/Scripts/ActionSystem/Editor/Core/ActionEditorOperations.cs`：移动边界、未取整位移的磁吸、保持 / 释放、目标优先级、真实移动边缘。
-- `Assets/Scripts/ActionSystem/Editor/Core/ActionEditorPlayback.cs`：暂停并定位就近整数帧。
-- `Assets/Scripts/ActionSystem/Editor/Windows/ActionTimelineWindow.cs`：接入新规则、播放线目标、反馈和快捷键事件。
-- `Assets/Scripts/ActionSystem/Editor/Styles/ActionEditorStyles.uss`：辅助线与目标高亮。
+- `Assets/Scripts/Action/Editor/Core/ActionEditorOperations.cs`：移动边界、未取整位移的磁吸、保持 / 释放、目标优先级、真实移动边缘。
+- `Assets/Scripts/Action/Editor/Core/ActionEditorPlayback.cs`：暂停并定位就近整数帧。
+- `Assets/Scripts/Action/Editor/Windows/ActionTimelineWindow.cs`：接入新规则、播放线目标、反馈和快捷键事件。
+- `Assets/Scripts/Action/Editor/Styles/ActionEditorStyles.uss`：辅助线与目标高亮。
 - `Assets/Tests/Editor/ActionTimelineSnappingTests.cs`：15 个确定性契约用例。
 - 当前编辑器架构文档与本文。
 

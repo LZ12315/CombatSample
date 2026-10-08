@@ -2,6 +2,10 @@
 
 当前源码和用户最新决定优先。架构说明描述现行实现；审查和交付记录分别标明验证时间与边界。
 
+## Scripts 组织
+
+- [Scripts 整理记录](CombatSample_Scripts_Organization_2026-10-08_zh-CN.md)：目录职责、文件归位、反馈与 HitBox 边界、取消匹配共用规则、验证边界，以及输入历史和 Details 配置绘制的独立后续事项。
+
 ## Locomotion
 
 建议按以下顺序阅读：

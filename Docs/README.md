@@ -1,6 +1,6 @@
 # 项目文档索引
 
-更新：2026-10-06。当前仓库源码和用户最新决定优先；阶段记录中的旧配置、待办与测试结果只代表对应时间。
+更新：2026-10-08。当前仓库源码和用户最新决定优先；阶段记录中的旧配置、待办与测试结果只代表对应时间。
 
 | 目录 | 内容 |
 | --- | --- |
@@ -19,6 +19,7 @@
 
 ## Action、Preview 与场景
 
+- [Scripts 整理记录](Current/CombatSample_Scripts_Organization_2026-10-08_zh-CN.md)：当前目录约定、本轮职责调整及独立后续事项。
 - [Action 编辑器与播放架构](Current/CombatSample_Action_Editor_Architecture_2026-09-19_zh-CN.md)：现行 ActionAsset／ActionRuntime 链路。
 - [Animation → Action → Actor 收尾审查](Current/CombatSample_Animation_Action_Actor_Closure_Audit_2026-09-23_zh-CN.md)：该阶段的实施与验收记录。
 - [Preview 确定性审查](Current/ActionPreview_Determinism_Audit_2026-10-01_zh-CN.md)、[Timeline 吸附交接](Current/ActionTimeline_Snapping_Handoff_2026-10-01_zh-CN.md)：对应编辑器问题的核对记录。

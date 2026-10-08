@@ -71,6 +71,45 @@ public class ImpactSystem : MonoBehaviour
     private readonly List<ImpactEffect> activeEffects = new List<ImpactEffect>();
     private readonly List<ActionSpeedEffect> activeSpeedEffects = new List<ActionSpeedEffect>();
 
+    /// <summary>
+    /// Handles feedback synchronously after Combat has resolved and accepted one hit.
+    /// Receiver lookup and spatial preparation belong here, not in the hit buffer.
+    /// </summary>
+    internal static void HandleConfirmedHit(
+        in AttackHitData hit,
+        IReadOnlyList<ImpactEffectConfig> attackEffects)
+    {
+        ImpactData impactData = ImpactData.FromAttackHit(hit);
+        if (!HasConfiguredImpactFeedback(impactData, attackEffects))
+            return;
+
+        EnsureExists();
+        if (Instance == null)
+            return;
+
+        impactData.VfxSpawnPoint = hit.HitPoint;
+        impactData.FacingReferenceWorldPosition = HitVfxFacingUtility.ResolveFacingWorldPosition(
+            impactData.TargetReceiver != null ? impactData.TargetReceiver.HitFacingTargetOverride : null,
+            hit.Attacker);
+
+        Vector3 attackerReference = HitVfxAnchorUtility.GetDefaultAttackerRayOrigin(hit.Attacker);
+        impactData.PopulateDirectionalReferences(attackerReference);
+
+        Instance.ApplyImpact(impactData, attackEffects);
+    }
+
+    internal static bool HasConfiguredImpactFeedback(
+        ImpactData impactData,
+        IReadOnlyList<ImpactEffectConfig> attackEffects)
+    {
+        for (int i = 0; attackEffects != null && i < attackEffects.Count; i++)
+            if (attackEffects[i] != null && attackEffects[i].enabled)
+                return true;
+
+        return impactData?.TargetProfile != null
+               && impactData.TargetProfile.HasConfiguredImpactEffects();
+    }
+
     public void ApplyImpact(ImpactData impactData, IReadOnlyList<ImpactEffectConfig> clipEffects)
     {
         if (impactData == null) return;

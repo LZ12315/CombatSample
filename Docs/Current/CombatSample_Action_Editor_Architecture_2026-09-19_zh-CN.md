@@ -1,6 +1,6 @@
 # Action 编辑与播放正式架构
 
-状态：当前仓库实现说明。更新于 2026-10-01。旧 V1、ActionSequence 和 Unity Timeline Action 文档均为历史记录。
+状态：当前仓库实现说明。更新于 2026-10-08。旧 V1、ActionSequence 和 Unity Timeline Action 文档均为历史记录。
 
 ## 1. 唯一路径
 
@@ -76,10 +76,10 @@ Timeline 条目实际开始拖动时暂停播放，并把 PreviewPosition 就近
 
 ## 4. 目录职责
 
-    Assets/Scripts/ActionSystem/
+    Assets/Scripts/Action/
       Data/                 ActionAsset、ActionTimelineData、Cancel 等资产数据
       Conditions/           Action 准入与退出条件
-      Runtime/              ActionRuntime、Item Runtime、采样与执行上下文
+      Runtime/              ActionStateManager、ActionPlayer、ActionRuntime、Item Runtime、采样与执行上下文
         Playback/           播放接口与 ActionRuntimePlaybackSession
       Editor/
         Core/               Context、Document、Commands、Operations、Playback、Presentation
@@ -93,7 +93,9 @@ Timeline 条目实际开始拖动时暂停播放，并把 PreviewPosition 就近
       EffectListGUI.cs           Details 与 Profile Inspector 共用的 Effect 列表绘制
       HitFeedbackProfileInspector.cs
 
-HitBox 的正式绑定使用 ActionHitBoxAnchor。旧 BoneReference、旧 Playable、Assets/Scripts/Legacy、AnimationConfig 与字符串动画键路径均已删除。Locomotion 动画呈现暂时留空，由独立路线重新设计；Action 动画继续直接使用 AnimationAsset。
+HitBox 的正式绑定使用 ActionHitBoxAnchor，检测实现位于 `Assets/Scripts/Combat/HitBox/ActorHitBoxRuntime.cs`，由 ActorSimulationRuntime 持有并在固定阶段调用。普通取消候选和 External 取消请求共用 `CancelRule.MatchesTarget`；来源过滤、窗口、准入和仲裁仍由 ActionStateManager 负责。命中允许反馈后同步交给 `ImpactSystem.HandleConfirmedHit`，Receiver/Profile 与空间参考准备由 Impact 负责。
+
+图任务与适配代码位于 `Assets/Scripts/Graph/`，保留 NodeCanvas 的类型名和命名空间。HitFeedbackProfile、HitFeedbackReceiver 位于 Impact。旧 BoneReference、旧 Playable、Assets/Scripts/Legacy、AnimationConfig 与字符串动画键路径均已删除。Action 动画继续直接使用 AnimationAsset；Locomotion 由 ActorLocomotion、Locomotion Runtime 与 ActorAnimation 协作，见[现行 Locomotion 架构](CombatSample_Locomotion_Final_Architecture_v1_zh-CN.md)。目录与职责整理范围及验证见[Scripts 整理记录](CombatSample_Scripts_Organization_2026-10-08_zh-CN.md)。
 
 ## 5. 资产边界
 
@@ -102,6 +104,8 @@ HitBox 的正式绑定使用 ActionHitBoxAnchor。旧 BoneReference、旧 Playab
 AnimationAsset 和 AnimationRigAsset 位于 `Assets/Create/Animation/`；Locomotion 配置位于 `Assets/Create/Locomotion/`，`Assets/Create/Test/` 保留测试资产。当前 Action List 随角色放在 `Assets/Create/Action/`，旧列表位于 `Assets/Create/Archive/ActionList/`；行为图位于 `Assets/Create/Graph/`。旧资源不作为兼容输入。
 
 ## 6. 验证
+
+2026-10-08 Scripts 整理的编译、纯逻辑测试和 Unity 原生验证边界见[本轮记录](CombatSample_Scripts_Organization_2026-10-08_zh-CN.md)。以下结果保留其原验证日期，不作为本轮完整验收。
 
 2026-10-01 Timeline 磁吸与 0 帧边界：
 
