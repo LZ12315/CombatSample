@@ -1,0 +1,133 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2fb589b8fd064b95b2feff521d1c2c92, type: 3}
+  m_Name: Anim_Jaeger_Run_Loop
+  m_EditorClassIdentifier: 
+  _clip: {fileID: 1827226128182048838, guid: 5cc54bdba6821ac40b4924ff715304a7, type: 3}
+  _hasRootMotionData: 1
+  _rootMotionData:
+    sourceClip: {fileID: 1827226128182048838, guid: 5cc54bdba6821ac40b4924ff715304a7,
+      type: 3}
+    sampleRate: 60
+    duration: 0.4666667
+    bakerVersion: 1
+    dependencyHash: 72537efcceac7366e91c4b64a83abbb3
+    sampleTimes:
+    - 0
+    - 0.016666668
+    - 0.033333335
+    - 0.05
+    - 0.06666667
+    - 0.083333336
+    - 0.1
+    - 0.11666667
+    - 0.13333334
+    - 0.15
+    - 0.16666667
+    - 0.18333334
+    - 0.2
+    - 0.21666667
+    - 0.23333333
+    - 0.25
+    - 0.26666668
+    - 0.28333333
+    - 0.3
+    - 0.31666666
+    - 0.33333334
+    - 0.35
+    - 0.36666667
+    - 0.38333333
+    - 0.4
+    - 0.41666666
+    - 0.43333334
+    - 0.45
+    - 0.46666667
+    - 0.4666667
+    cumulativePositions:
+    - {x: 0, y: 0, z: 0}
+    - {x: 0.000716959, y: 0, z: 0.18406905}
+    - {x: 0.0006723173, y: 0, z: 0.4190066}
+    - {x: -0.0011760858, y: 0, z: 0.6374199}
+    - {x: -0.0024295216, y: 0, z: 0.83777726}
+    - {x: -0.00407749, y: 0, z: 1.0182631}
+    - {x: -0.0069308844, y: 0, z: 1.1827345}
+    - {x: -0.009067351, y: 0, z: 1.3416888}
+    - {x: -0.008566542, y: 0, z: 1.5032697}
+    - {x: -0.007181234, y: 0, z: 1.6680056}
+    - {x: -0.0064803255, y: 0, z: 1.8311088}
+    - {x: -0.0063562244, y: 0, z: 1.9927477}
+    - {x: -0.0069068484, y: 0, z: 2.1530917}
+    - {x: -0.0080137225, y: 0, z: 2.3123097}
+    - {x: -0.007742325, y: 0, z: 2.4705708}
+    - {x: -0.0013537286, y: 0, z: 2.6280441}
+    - {x: 0.004286413, y: 0, z: 2.7848985}
+    - {x: 0.008831933, y: 0, z: 2.941303}
+    - {x: 0.012061443, y: 0, z: 3.1004152}
+    - {x: 0.013866417, y: 0, z: 3.2644725}
+    - {x: 0.012985093, y: 0, z: 3.432263}
+    - {x: 0.007972268, y: 0, z: 3.6025748}
+    - {x: 0.0061019952, y: 0, z: 3.774198}
+    - {x: 0.006493329, y: 0, z: 3.9459205}
+    - {x: 0.007985807, y: 0, z: 4.1165304}
+    - {x: 0.007978182, y: 0, z: 4.2848167}
+    - {x: 0.0038670264, y: 0, z: 4.443493}
+    - {x: -0.001129155, y: 0, z: 4.5888405}
+    - {x: -0.00000028160866, y: 0, z: 4.725003}
+    - {x: -0.00000028160866, y: 0, z: 4.725003}
+    cumulativeRotations:
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+  _locomotionData:
+    sourceClip: {fileID: 1827226128182048838, guid: 5cc54bdba6821ac40b4924ff715304a7,
+      type: 3}
+    trajectoryHash: 72537efcceac7366e91c4b64a83abbb3
+    footSetup: '|'
+    stopTime: 0.46666667
+    footMarkers:
+    - time: 0.05
+      foot: 0
+    - time: 0.25
+      foot: 1
+  _locomotionOverrideClip: {fileID: 0}
+  _overrideStopTime: 0
+  _stopTimeOverride: 0
+  _overrideFootMarkers: 0
+  _footMarkerOverrides: []
+  _animationRigAsset: {fileID: 11400000, guid: a99ff27486f6460abde68087f5112461, type: 2}

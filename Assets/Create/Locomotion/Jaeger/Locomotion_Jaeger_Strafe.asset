@@ -1,0 +1,68 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 36138833d0694e709fdfe0fd2fb6b3d6, type: 3}
+  m_Name: Locomotion_Jaeger_Strafe
+  m_EditorClassIdentifier: 
+  priority: 0
+  entryConditions:
+  - rid: 1002
+  selfTags: []
+  movementConfig:
+    MaxSpeed: 7
+    Acceleration: 25
+    Deceleration: 45
+    DirectionResponse: 12
+    RotateSpeed: 600
+    TurnResponseTime: 0.08
+  move:
+    blendType: 1
+    oneDimensional:
+      parameter: 2
+      samples:
+      - animation: {fileID: 11400000, guid: 04e228846bf7d86c0b5dad71c154650b, type: 2}
+        threshold: 0
+        sync: 0
+      - animation: {fileID: 11400000, guid: a803abd811692cea8bc17056270793c9, type: 2}
+        threshold: 1
+        sync: 0
+    twoDimensional:
+      parameter: 0
+      samples:
+      - animation: {fileID: 11400000, guid: a508ead0367505da18a276a79de1099f, type: 2}
+        threshold: {x: 0, y: 1}
+        sync: 0
+      - animation: {fileID: 11400000, guid: d42bbd08ec707320c9949461bfe6a1fd, type: 2}
+        threshold: {x: 0, y: -1}
+        sync: 0
+      - animation: {fileID: 11400000, guid: 8165f9a88087008ccab0135ff06cf01e, type: 2}
+        threshold: {x: -1, y: 0}
+        sync: 0
+      - animation: {fileID: 11400000, guid: 0c2a85f66bcf71389a1bc3737d7d8780, type: 2}
+        threshold: {x: 1, y: 0}
+        sync: 0
+  transitionBlendDuration: 0.1
+  stopPlaybackMode: 1
+  transitionDecisionConfig:
+    StationarySpeed: 0.1
+    PivotMinimumSpeed: 0.5
+    PivotMinimumAngleDegrees: 120
+  start: []
+  stop: []
+  pivot: []
+  references:
+    version: 2
+    RefIds:
+    - rid: 1002
+      type: {class: LocomotionGroundStateCondition, ns: , asm: Assembly-CSharp}
+      data:
+        invertResult: 0
+        acceptedStates: 3

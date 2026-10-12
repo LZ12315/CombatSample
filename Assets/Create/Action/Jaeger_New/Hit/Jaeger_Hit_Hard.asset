@@ -1,0 +1,85 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d4a14c808be2c4f4a8f1b6d45ebd172f, type: 3}
+  m_Name: Jaeger_Hit_Hard
+  m_EditorClassIdentifier: 
+  _actionTimeline:
+    _animationSegments:
+    - _editorId: 40cc502c814a422a88542443081adaba
+      _startFrame: 0
+      _animationAsset: {fileID: 11400000, guid: 0f211f3d7f0805cd79986a495522674b,
+        type: 2}
+      _sourceStartTime: 0
+      _sourceEndTime: 1.6666667
+      _playRate: 1
+    _gameplayLanes:
+    - _editorId: d654c8b762184e9fb03c76e93cf05f31
+      _name: Gameplay
+      _muted: 0
+      _items:
+      - rid: 6801509870119944217
+    - _editorId: a95110061c5e4b2684816c56ae72b32b
+      _name: Gameplay 2
+      _muted: 0
+      _items:
+      - rid: 6801509870119944218
+  _priorityLayer: 1
+  _priorityValue: 0
+  _cancelRules: []
+  _selfTags: []
+  _triggerMode: 1
+  _eventTriggerTag:
+    TagId: -1300321786
+  _startContextMode: 0
+  isLoop: 0
+  _allowReenterWhilePlaying: 0
+  _entryConditions:
+  - rid: 6801509870119944216
+  _exitConditions: []
+  references:
+    version: 2
+    RefIds:
+    - rid: 6801509870119944216
+      type: {class: GroundStateCondition, ns: , asm: Assembly-CSharp}
+      data:
+        invertResult: 0
+        overrideAll: 0
+        acceptedStates: 1
+    - rid: 6801509870119944217
+      type: {class: RootMotionItem, ns: , asm: Assembly-CSharp}
+      data:
+        _editorId: 47e6e218a590456cba8473f619bdb0b8
+        _muted: 0
+        _startFrame: 0
+        _durationFrames: 101
+        _config:
+          animationAsset: {fileID: 11400000, guid: 0f211f3d7f0805cd79986a495522674b,
+            type: 2}
+          sourceStartTime: 0
+          playRate: 1
+    - rid: 6801509870119944218
+      type: {class: SelfRotationItem, ns: , asm: Assembly-CSharp}
+      data:
+        _editorId: dda9afa394c44cd3939502e72c54c11b
+        _muted: 0
+        _startFrame: 0
+        _durationFrames: 1
+        _config:
+          source: 1
+          mode: 0
+          targetSource: 0
+          directionSource: 0
+          presetLocalDirection: {x: 0, y: 0, z: 1}
+          angularSpeedDegrees: 720
+          animationAsset: {fileID: 0}
+          sourceStartTime: 0
+          playRate: 1
