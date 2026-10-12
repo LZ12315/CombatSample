@@ -1,5 +1,6 @@
 #if UNITY_EDITOR
 using System;
+using MackySoft.SerializeReferenceExtensions.Editor;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -8,13 +9,19 @@ using UnityEngine.UIElements;
 public sealed class ActionAssetInspector : Editor
 {
     private VisualElement _root;
+    private ActionAuthoringListGUI _entryConditions;
+    private ActionAuthoringListGUI _exitConditions;
+    private ActionAuthoringListGUI _cancelRules;
 
     public override VisualElement CreateInspectorGUI()
     {
         _root = new VisualElement();
         ActionEditorTheme.Apply(_root, "action-editor-asset-inspector");
-        Undo.undoRedoPerformed -= Repaint;
-        Undo.undoRedoPerformed += Repaint;
+        _entryConditions = new ActionAuthoringListGUI(ApplyConditionTypeSelection);
+        _exitConditions = new ActionAuthoringListGUI(ApplyConditionTypeSelection);
+        _cancelRules = new ActionAuthoringListGUI();
+        Undo.undoRedoPerformed -= OnUndoRedo;
+        Undo.undoRedoPerformed += OnUndoRedo;
         ActionEditorInteractionGate.Changed -= Repaint;
         ActionEditorInteractionGate.Changed += Repaint;
 
@@ -42,10 +49,10 @@ public sealed class ActionAssetInspector : Editor
         });
         AddCard("Conditions", () =>
         {
-            DrawFoldoutProperty("Entry Conditions", "_entryConditions");
-            DrawFoldoutProperty("Exit Conditions", "_exitConditions");
+            DrawAuthoringList(_entryConditions, "Entry Conditions", "_entryConditions");
+            DrawAuthoringList(_exitConditions, "Exit Conditions", "_exitConditions");
         });
-        AddCard("Cancellation", () => DrawFoldoutProperty("Cancel Rules", "_cancelRules"));
+        AddCard("Cancellation", () => DrawAuthoringList(_cancelRules, "Cancel Rules", "_cancelRules"));
         AddCard("Tags", () => DrawFoldoutProperty("Self Tags", "_selfTags"));
         _root.Add(new IMGUIContainer(DrawInteractionMessage));
         return _root;
@@ -53,9 +60,44 @@ public sealed class ActionAssetInspector : Editor
 
     private void OnDisable()
     {
-        Undo.undoRedoPerformed -= Repaint;
+        Undo.undoRedoPerformed -= OnUndoRedo;
         ActionEditorInteractionGate.Changed -= Repaint;
         _root = null;
+    }
+
+    private void OnUndoRedo()
+    {
+        _entryConditions?.Reset();
+        _exitConditions?.Reset();
+        _cancelRules?.Reset();
+        Repaint();
+    }
+
+    private void DrawAuthoringList(ActionAuthoringListGUI list, string title, string path)
+    {
+        SerializedProperty property = serializedObject.FindProperty(path);
+        if (property != null)
+            list.Draw(property, title);
+    }
+
+    private void ApplyConditionTypeSelection(SerializedObject source, string path, Type type)
+    {
+        if (this == null || target == null || source != serializedObject)
+            return;
+        ActionAsset action = target as ActionAsset;
+        if (ActionEditorInteractionGate.IsActive && action == ActionEditorContext.Shared.CurrentAction)
+            return;
+        source.UpdateIfRequiredOrScript();
+        SerializedProperty current = source.FindProperty(path);
+        if (current == null || current.propertyType != SerializedPropertyType.ManagedReference)
+            return;
+        current.SetManagedReference(type);
+        current.isExpanded = type != null;
+        if (source.ApplyModifiedProperties())
+            ReportAssetChange(action);
+        _entryConditions.Reset();
+        _exitConditions.Reset();
+        Repaint();
     }
 
     private void AddCard(string title, Action draw)

@@ -522,6 +522,110 @@ public sealed class ActionStateManagerContextTests
         Assert.IsFalse(rule.MatchesTarget(target));
     }
 
+    [Test]
+    public void ReentryEligibility_DoesNotBlockAnotherAction()
+    {
+        TestRig rig = CreateRig();
+        ActionAsset current = CreateAction("Current", ActionTriggerMode.Poll, priorityValue: 100);
+        ActionAsset other = CreateAction("Other", ActionTriggerMode.Poll);
+        current.EditorCancelRules.Add(new CancelRule { targetKind = CancelTargetKind.Any });
+        current.EditorCancelRules.Add(ReturnRule());
+        rig.SetActionList(current, other);
+        rig.Player.BeginAction(current, ActionContext.ForSelf(rig.Actor));
+
+        rig.RunActionStateManager();
+
+        Assert.AreSame(other, rig.Player.CurrentAction.Config);
+        Assert.AreEqual(1, ContextRecordingCondition.ClaimCount);
+    }
+
+    [Test]
+    public void LocomotionReturn_YieldsToAnEligibleAction()
+    {
+        TestRig rig = CreateRig();
+        ActionAsset current = CreateAction("Current", ActionTriggerMode.Poll);
+        ActionAsset next = CreateAction("Next", ActionTriggerMode.Poll, priorityValue: -100);
+        current.EditorCancelRules.Add(ReturnRule(0.25f));
+        current.EditorCancelRules.Add(new CancelRule { specificTarget = next });
+        rig.Player.BeginAction(current, ActionContext.ForSelf(rig.Actor));
+        rig.Locomotion.SetLocomotionIntent(new LocomotionIntent
+        {
+            WorldMoveDirection = Vector3.right, MoveStrength = 1f,
+        });
+        rig.Locomotion.BeginControlTick();
+
+        rig.RunActionStateManager();
+
+        Assert.AreSame(next, rig.Player.CurrentAction.Config);
+        Assert.AreEqual(1, ContextRecordingCondition.ClaimCount);
+    }
+
+    [Test]
+    public void LocomotionReturn_DoesNotAdmitNeutralActionsUntilNextDecisionAndCompletesRequestsOnce()
+    {
+        TestRig rig = CreateRig();
+        ActionAsset current = CreateLongAction("Return Cleanup");
+        ActionAsset next = CreateAction("Neutral", ActionTriggerMode.Poll);
+        current.EditorCancelRules.Add(ReturnRule(1f));
+        current.EditorCancelRules.Add(ReturnRule());
+        current.EditorCancelRules.Add(ReturnRule());
+        rig.SetActionList(next);
+        rig.Player.BeginAction(current, ActionContext.ForSelf(rig.Actor));
+        Assert.IsTrue(rig.Player.PlayActionFrame(CombatSimulationTiming.FixedDeltaTime));
+        rig.Player.FinishActionFrame();
+        Assert.AreEqual(1, rig.Motor.MotionPolicy.DebugLocomotionScaleOwnerCount);
+        rig.Locomotion.SetLocomotionIntent(new LocomotionIntent
+        {
+            WorldMoveDirection = Vector3.right, MoveStrength = 1f,
+        });
+        rig.Locomotion.BeginControlTick();
+        int callbacks = 0;
+        bool? first = null;
+        bool? submittedInCallback = null;
+        rig.Asm.RequestExternalAction(next, ActionContext.ForSelf(rig.Actor), result =>
+        {
+            callbacks++;
+            first = result;
+            rig.Asm.RequestExternalAction(next, ActionContext.ForSelf(rig.Actor), value => submittedInCallback = value);
+        });
+
+        rig.RunActionStateManager();
+
+        Assert.IsNull(rig.Player.CurrentAction);
+        Assert.AreEqual(0, rig.Motor.MotionPolicy.DebugLocomotionScaleOwnerCount);
+        Assert.AreEqual(1f, rig.Motor.MotionPolicy.LocomotionScale);
+        Assert.AreEqual(0, ContextRecordingCondition.ClaimCount);
+        Assert.AreEqual(false, first);
+        Assert.AreEqual(1, callbacks);
+        Assert.IsNull(submittedInCallback);
+
+        rig.RunActionStateManager();
+
+        Assert.AreSame(next, rig.Player.CurrentAction.Config);
+        Assert.AreEqual(true, submittedInCallback);
+        Assert.AreEqual(1, callbacks);
+        Assert.AreEqual(1, ContextRecordingCondition.ClaimCount);
+    }
+
+    private static CancelRule ReturnRule(float threshold = 0.01f) => new CancelRule
+    {
+        targetKind = CancelTargetKind.Locomotion,
+        locomotionIntentThreshold = threshold,
+    };
+
+    private ActionAsset CreateLongAction(string name)
+    {
+        ActionAsset action = CreateAction(name, ActionTriggerMode.Poll);
+        var policy = new MotionPolicyItem();
+        policy.EditorSetTiming(0, 8);
+        policy.Config.useLocomotionScale = true;
+        policy.Config.locomotionScale = 0f;
+        var lane = new GameplayLane();
+        lane.EditorItems.Add(policy);
+        action.Timeline.EditorGameplayLanes.Add(lane);
+        return action;
+    }
+
     private TestRig CreateRig()
     {
         var owner = new GameObject("ActionStateManagerContextTests Actor");

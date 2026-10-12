@@ -15,12 +15,15 @@ public enum CancelTargetKind
 
     /// <summary>不做任何目标过滤，把 ActionList 全表（跳过 Event 模式）送入候选。</summary>
     Any = 2,
+
+    /// <summary>结束当前 Action，释放覆盖并交回 ActorLocomotion。</summary>
+    Locomotion = 3,
 }
 
 /// <summary>
 /// 取消规则：当某 Action 播放到 <see cref="window"/> 覆盖的帧范围时，允许取消到
 /// <see cref="specificTarget"/>（SpecificAction）、所有 SelfTags 含 <see cref="targetTag"/> 的 Action（AnyWithTag）、
-/// 或全表所有 Action（Any）。
+/// 或全表所有 Action（Any）；Locomotion 则结束当前 Action，交回基础移动。
 ///
 /// <para><b>职责边界</b>：CancelRule 描述取消窗口并提供目标匹配，ActionStateManager 负责展开候选与仲裁。
 /// 目标 Action 是否真能进入仍由其自身的 <c>CheckEntry</c>（EntryConditions）决定，目标匹配不代替准入。</para>
@@ -32,7 +35,7 @@ public enum CancelTargetKind
 [Serializable]
 public class CancelRule
 {
-    [Tooltip("目标选择方式：SpecificAction 直接指向一个 Action；AnyWithTag 匹配所有 SelfTags 含指定 Tag 的 Action；Any 全表开放。")]
+    [Tooltip("SpecificAction 指定 Action；AnyWithTag 匹配 Action 的 SelfTags；Any 开放 Action 全表；Locomotion 结束当前 Action 并交回基础移动。")]
     public CancelTargetKind targetKind = CancelTargetKind.SpecificAction;
 
     [Tooltip("仅 targetKind = SpecificAction 时使用。")]
@@ -40,6 +43,9 @@ public class CancelRule
 
     [Tooltip("仅 targetKind = AnyWithTag 时使用。与目标 Action 的 SelfTags 做 Tag.Matches（含层级）。")]
     public TagReference targetTag;
+
+    [Range(0f, 1f), Tooltip("仅 targetKind = Locomotion 时使用。当前 Tick 的移动意图强度 MoveStrength 严格大于此阈值，且有有效水平移动方向时，允许返回 Locomotion。")]
+    public float locomotionIntentThreshold = 0.01f;
 
     [Tooltip("允许取消的帧窗口。可通过 FrameAnchor 锚点选择从头开始/到结尾，无需手动查帧数。")]
     public CancelWindow window = CancelWindow.FullRange;
@@ -61,6 +67,8 @@ public class CancelRule
                 return HasMatchingSelfTag(action);
             case CancelTargetKind.Any:
                 return action.TriggerMode != ActionTriggerMode.Event;
+            case CancelTargetKind.Locomotion:
+                return false;
             default:
                 return false;
         }

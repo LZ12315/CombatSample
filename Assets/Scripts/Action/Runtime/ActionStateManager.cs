@@ -5,7 +5,7 @@ using DeiveEx.TagTree;
 
 /// <summary>
 /// Action 状态管理器：在固定 Tick 收集候选 Action（Neutral / CancelRule / Event / External 请求），
-/// 统一优先级仲裁后播放。External 和 Event 请求仅登记，在下一次 <see cref="DecideAction"/> 中裁决。
+/// 统一裁决播放 Action 或返回 Locomotion；合法 Action 优先。External 和 Event 请求仅登记，在下一次 <see cref="DecideAction"/> 中裁决。
 /// 有当前 Action 时 External 必须匹配当前帧打开的 <see cref="CancelRule"/>，不绕过取消规则。
 /// </summary>
 [RequireComponent(typeof(Actor))]
@@ -67,6 +67,33 @@ public class ActionStateManager : MonoBehaviour
             Order = order;
             ExternalRequest = externalRequest;
         }
+    }
+
+    private enum ActionDecisionKind
+    {
+        None = 0,
+        PlayAction = 1,
+        ReturnToLocomotion = 2,
+    }
+
+    private readonly struct ActionDecision
+    {
+        public readonly ActionDecisionKind Kind;
+        public readonly ActionCandidate Candidate;
+        public readonly ActionInstance SourceAction;
+
+        private ActionDecision(ActionDecisionKind kind, ActionCandidate candidate, ActionInstance sourceAction)
+        {
+            Kind = kind;
+            Candidate = candidate;
+            SourceAction = sourceAction;
+        }
+
+        public static ActionDecision Play(ActionCandidate candidate) =>
+            new ActionDecision(ActionDecisionKind.PlayAction, candidate, null);
+
+        public static ActionDecision Return(ActionInstance sourceAction) =>
+            new ActionDecision(ActionDecisionKind.ReturnToLocomotion, default, sourceAction);
     }
 
     [Header("References")]
@@ -157,14 +184,10 @@ public class ActionStateManager : MonoBehaviour
 
             _validCandidatesCache.Clear();
 
-            CollectNormalCandidates(currentInst);
+            ActionInstance returnCandidate = CollectNormalCandidates(currentInst);
             CollectEventCandidatesIntoPool();
 
-            ActionCandidate? chosen = _validCandidatesCache.Count > 0
-                ? SelectHighestPriorityAction(_validCandidatesCache)
-                : null;
-
-            startedCandidate = TryPlayChosenAction(chosen);
+            startedCandidate = ExecuteDecision(SelectDecision(returnCandidate));
         }
         catch
         {
@@ -176,12 +199,15 @@ public class ActionStateManager : MonoBehaviour
         ClearDecidingSnapshot();
     }
 
-    private void CollectNormalCandidates(ActionInstance currentInst)
+    private ActionInstance CollectNormalCandidates(ActionInstance currentInst)
     {
         if (currentInst == null)
+        {
             CollectNeutralCandidates();
-        else
-            CollectCancelCandidates(currentInst);
+            return null;
+        }
+
+        return CollectCancelCandidates(currentInst);
     }
 
     private void CollectNeutralCandidates()
@@ -222,19 +248,21 @@ public class ActionStateManager : MonoBehaviour
         }
     }
 
-    private void CollectCancelCandidates(ActionInstance currentInst)
+    private ActionInstance CollectCancelCandidates(ActionInstance currentInst)
     {
-        CollectCancelRuleCandidates(currentInst);
+        ActionInstance returnCandidate = CollectCancelRuleCandidates(currentInst);
         CollectExternalCancelCandidates(currentInst);
+        return returnCandidate;
     }
 
-    private void CollectCancelRuleCandidates(ActionInstance currentInstance)
+    private ActionInstance CollectCancelRuleCandidates(ActionInstance currentInstance)
     {
         var rules = currentInstance.Config.CancelRules;
-        if (rules == null || rules.Count == 0) return;
+        if (rules == null || rules.Count == 0) return null;
 
         int currentFrame = _actionPlayer.CurrentFrame;
         int totalFrames = _actionPlayer.TotalFrames;
+        ActionInstance returnCandidate = null;
 
         for (int i = 0; i < rules.Count; i++)
         {
@@ -244,6 +272,11 @@ public class ActionStateManager : MonoBehaviour
 
             switch (rule.targetKind)
             {
+                case CancelTargetKind.Locomotion:
+                    if (CanReturnToLocomotion(rule))
+                        returnCandidate = currentInstance;
+                    break;
+
                 case CancelTargetKind.SpecificAction:
                     if (rule.MatchesTarget(rule.specificTarget))
                         TryAddPollCandidate(rule.specificTarget);
@@ -277,6 +310,22 @@ public class ActionStateManager : MonoBehaviour
                     break;
             }
         }
+
+        return returnCandidate;
+    }
+
+    private bool CanReturnToLocomotion(CancelRule rule)
+    {
+        ActorLocomotion locomotion = _actor != null ? _actor.actorLocomotion : null;
+        if (locomotion == null || !locomotion.isActiveAndEnabled)
+            return false;
+
+        float threshold = rule.locomotionIntentThreshold;
+        return LocomotionDataValidation.IsFinite(threshold) && threshold >= 0f && threshold <= 1f
+               && locomotion.TryGetControlIntent(out LocomotionIntent intent)
+               && LocomotionDataValidation.IsFinite(intent.MoveStrength)
+               && intent.MoveStrength > threshold
+               && LocomotionAnimationUtility.IsValidPlanarDirection(intent.WorldMoveDirection);
     }
 
     private void CollectExternalCancelCandidates(ActionInstance currentInst)
@@ -336,12 +385,32 @@ public class ActionStateManager : MonoBehaviour
             TryAddCandidate(_decidingEventCandidates[i]);
     }
 
-    private ActionCandidate? TryPlayChosenAction(ActionCandidate? chosen)
+    private ActionDecision SelectDecision(ActionInstance returnCandidate)
     {
-        if (!chosen.HasValue)
-            return null;
+        if (_validCandidatesCache.Count > 0)
+            return ActionDecision.Play(SelectHighestPriorityAction(_validCandidatesCache));
 
-        ActionCandidate candidate = chosen.Value;
+        return returnCandidate != null ? ActionDecision.Return(returnCandidate) : default;
+    }
+
+    private ActionCandidate? ExecuteDecision(ActionDecision decision)
+    {
+        switch (decision.Kind)
+        {
+            case ActionDecisionKind.PlayAction:
+                return TryPlayChosenAction(decision.Candidate);
+            case ActionDecisionKind.ReturnToLocomotion:
+                // Never stop a replacement Action or collect Neutral candidates again in this tick.
+                if (ReferenceEquals(_actionPlayer.CurrentAction, decision.SourceAction))
+                    _actionPlayer.StopAction();
+                break;
+        }
+
+        return null;
+    }
+
+    private ActionCandidate? TryPlayChosenAction(ActionCandidate candidate)
+    {
         ActionAsset action = candidate.Action;
         if (action == null)
             return null;
@@ -516,6 +585,9 @@ public class ActionStateManager : MonoBehaviour
     {
         ActionAsset action = candidate.Action;
         if (action == null)
+            return false;
+
+        if (CurrentActionAsset == action && !action.AllowReenterWhilePlaying)
             return false;
 
         return candidate.Origin == ActionCandidateOrigin.Event

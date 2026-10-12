@@ -62,6 +62,8 @@ Action 已不再选择播放后端。每个 ActionAsset 都保存一份 ActionTi
 | EffectListGUI / HitFeedbackProfileInspector | 共用 Effect 列表绘制；各入口自行提交修改，Details 负责 Action 变更通知 |
 | ActionRuntimePlaybackSession | 固定帧播放管线与 ActionRuntime 的衔接 |
 
+Inspector 的 Entry Conditions、Exit Conditions 与 Cancel Rules 使用 `ActionAuthoringListGUI` 统一列表边距、折叠位置、增删和排序。Condition 元素以类型选择器作为标题，展开后直接绘制字段或已有具体类型 Drawer，不再叠加 SubclassSelector 的外层缩进。`CancelRuleDrawer` 负责目标类型对应的有效字段；`CancelWindowDrawer` 将窗口展开为固定的 From / To 两行，仅 Custom 锚点显示帧输入，切换目标类型或锚点不清除隐藏配置。Inspector 仍负责提交 SerializedObject 修改、Undo 与 Action 编辑上下文通知。
+
 窗口刷新不修改共享状态；Preview 不控制 Action 或播放。
 
 Details 在刷新属性页之前转发预览通知；播放头更新只重绘预览，不重建属性控件。分隔条调整不写资产、不产生 Undo，也不丢弃未提交的 Timing 草稿。预览相机和设置折叠状态由 Details 序列化保存；关闭窗口或脚本重载时释放资源，进入 Play Mode 时释放预览对象，失焦或面板卸载时结束相机拖动。旧独立 Preview 窗口的布局和相机状态不迁移。

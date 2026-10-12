@@ -7,7 +7,8 @@ public class ActionDataConditionDrawer : PropertyDrawer
 {
     public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
     {
-        float totalHeight = EditorGUIUtility.singleLineHeight;
+        float totalHeight = EditorGUIUtility.singleLineHeight * 3f +
+                            EditorGUIUtility.standardVerticalSpacing * 2f;
 
         var checkTypeProp = property.FindPropertyRelative(nameof(ActionDataCondition.checkType));
 
@@ -20,7 +21,7 @@ public class ActionDataConditionDrawer : PropertyDrawer
                 totalHeight += EditorGUIUtility.singleLineHeight + EditorGUIUtility.standardVerticalSpacing;
         }
 
-        return totalHeight + EditorGUIUtility.standardVerticalSpacing;
+        return totalHeight;
     }
 
     public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
@@ -40,7 +41,10 @@ public class ActionDataConditionDrawer : PropertyDrawer
 
         Rect curRect = new Rect(position.x, position.y, position.width, EditorGUIUtility.singleLineHeight);
 
-        // 绘制 CheckType
+        EditorGUI.PropertyField(curRect, property.FindPropertyRelative(nameof(ActionCondition.invertResult)));
+        curRect.y += EditorGUIUtility.singleLineHeight + EditorGUIUtility.standardVerticalSpacing;
+        EditorGUI.PropertyField(curRect, property.FindPropertyRelative(nameof(ActionCondition.overrideAll)));
+        curRect.y += EditorGUIUtility.singleLineHeight + EditorGUIUtility.standardVerticalSpacing;
         EditorGUI.PropertyField(curRect, checkTypeProp, new GUIContent("Check Type"));
 
         int currentMask = checkTypeProp.intValue;
@@ -50,23 +54,21 @@ public class ActionDataConditionDrawer : PropertyDrawer
         {
             curRect.y += EditorGUIUtility.singleLineHeight + EditorGUIUtility.standardVerticalSpacing;
 
-            float labelWidth = EditorGUIUtility.labelWidth;
-            Rect labelRect = new Rect(curRect.x, curRect.y, labelWidth, curRect.height);
-            EditorGUI.LabelField(labelRect, "Progress Range");
-
-            Rect sliderRect = new Rect(curRect.x + labelWidth, curRect.y, curRect.width - labelWidth, curRect.height);
-            float fieldWidth = 40f;
-            float sliderWidth = sliderRect.width - (fieldWidth * 2) - 10;
+            Rect sliderRect = EditorGUI.PrefixLabel(curRect, new GUIContent("Progress Range"));
+            bool showSlider = sliderRect.width >= 130f;
+            float fieldWidth = showSlider ? 40f : Mathf.Max(0f, (sliderRect.width - 5f) * 0.5f);
+            float sliderWidth = Mathf.Max(0f, sliderRect.width - fieldWidth * 2f - 10f);
 
             Rect minFieldRect = new Rect(sliderRect.x, sliderRect.y, fieldWidth, sliderRect.height);
-            Rect sliderControlRect = new Rect(sliderRect.x + fieldWidth + 5, sliderRect.y, sliderWidth, sliderRect.height);
-            Rect maxFieldRect = new Rect(sliderRect.x + fieldWidth + sliderWidth + 10, sliderRect.y, fieldWidth, sliderRect.height);
+            Rect sliderControlRect = new Rect(sliderRect.x + fieldWidth + 5f, sliderRect.y, sliderWidth, sliderRect.height);
+            Rect maxFieldRect = new Rect(sliderRect.xMax - fieldWidth, sliderRect.y, fieldWidth, sliderRect.height);
 
             float minVal = minProgressProp.floatValue;
             float maxVal = maxProgressProp.floatValue;
 
             minVal = EditorGUI.FloatField(minFieldRect, (float)System.Math.Round(minVal, 2));
-            EditorGUI.MinMaxSlider(sliderControlRect, ref minVal, ref maxVal, 0f, 1f);
+            if (showSlider)
+                EditorGUI.MinMaxSlider(sliderControlRect, ref minVal, ref maxVal, 0f, 1f);
             maxVal = EditorGUI.FloatField(maxFieldRect, (float)System.Math.Round(maxVal, 2));
 
             minProgressProp.floatValue = Mathf.Clamp01(minVal);
