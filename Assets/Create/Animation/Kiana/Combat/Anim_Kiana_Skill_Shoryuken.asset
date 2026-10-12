@@ -20,7 +20,7 @@ MonoBehaviour:
     sampleRate: 60
     duration: 1.0666667
     bakerVersion: 1
-    dependencyHash: 940b71d783d4f3e3030b563f7b8ef12c
+    dependencyHash: 6745a6e418b4023e36a1bd843b18f01c
     sampleTimes:
     - 0
     - 0.016666668
@@ -219,4 +219,20 @@ MonoBehaviour:
     - {x: 0, y: 0, z: 0, w: 1}
     - {x: 0, y: 0, z: 0, w: 1}
     - {x: 0, y: 0, z: 0, w: 1}
+  _locomotionData:
+    sourceClip: {fileID: -5162396539273815617, guid: 98e88d980c496e54ca221c9b0343dfaa,
+      type: 3}
+    trajectoryHash: 6745a6e418b4023e36a1bd843b18f01c
+    footSetup: '|'
+    stopTime: 0
+    footMarkers:
+    - time: 0.15
+      foot: 0
+    - time: 0.21666667
+      foot: 1
+  _locomotionOverrideClip: {fileID: 0}
+  _overrideStopTime: 0
+  _stopTimeOverride: 0
+  _overrideFootMarkers: 0
+  _footMarkerOverrides: []
   _animationRigAsset: {fileID: 11400000, guid: 5aaab66086512594bbea586c804d60be, type: 2}

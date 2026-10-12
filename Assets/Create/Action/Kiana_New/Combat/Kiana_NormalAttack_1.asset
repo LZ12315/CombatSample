@@ -32,6 +32,11 @@ MonoBehaviour:
       _muted: 0
       _items:
       - rid: 4981112630720593931
+    - _editorId: 664d6b33ced54e60a37535d08f918869
+      _name: Gameplay
+      _muted: 0
+      _items:
+      - rid: 6801509870119944215
     - _editorId: 3ac3eb2601de436a98c255f072f9b4b8
       _name: HitBox
       _muted: 0
@@ -39,15 +44,48 @@ MonoBehaviour:
       - rid: 4981112630720593929
   _priorityLayer: 1
   _priorityValue: 0
-  _cancelRules: []
-  _selfTags: []
+  _cancelRules:
+  - targetKind: 0
+    specificTarget: {fileID: 11400000, guid: d68dfb659ba108c3db61b1d59bec3266, type: 2}
+    targetTag:
+      TagId: 0
+    locomotionIntentThreshold: 0.01
+    window:
+      startAnchor: 0
+      startFrame: 40
+      endAnchor: 0
+      endFrame: 89
+  - targetKind: 1
+    specificTarget: {fileID: 11400000, guid: d68dfb659ba108c3db61b1d59bec3266, type: 2}
+    targetTag:
+      TagId: -2107794142
+    locomotionIntentThreshold: 0.01
+    window:
+      startAnchor: 0
+      startFrame: 90
+      endAnchor: 2
+      endFrame: 40
+  - targetKind: 3
+    specificTarget: {fileID: 11400000, guid: d68dfb659ba108c3db61b1d59bec3266, type: 2}
+    targetTag:
+      TagId: -2107794142
+    locomotionIntentThreshold: 0.12
+    window:
+      startAnchor: 0
+      startFrame: 90
+      endAnchor: 2
+      endFrame: 40
+  _selfTags:
+  - TagId: -2107794142
   _triggerMode: 0
   _eventTriggerTag:
     TagId: 0
   _startContextMode: 0
   isLoop: 0
-  _allowReenterWhilePlaying: 0
-  _entryConditions: []
+  _allowReenterWhilePlaying: 1
+  _entryConditions:
+  - rid: 6801509870119944192
+  - rid: 6801509870119944194
   _exitConditions: []
   references:
     version: 2
@@ -83,7 +121,7 @@ MonoBehaviour:
           dataConfig:
             targetLayers:
               serializedVersion: 2
-              m_Bits: 128
+              m_Bits: 64
             _baseDamage: 10
             hitEventTag:
               TagId: 645108757
@@ -142,3 +180,39 @@ MonoBehaviour:
         - {fileID: 8300000, guid: a65d792d6907f744490c9b15bb70edfe, type: 3}
         volume: 1
         pitchVariation: 0.1
+    - rid: 6801509870119944192
+      type: {class: InputSequenceCondition, ns: , asm: Assembly-CSharp}
+      data:
+        invertResult: 0
+        overrideAll: 0
+        maxInputInterval: 0.25
+        inputSequence:
+        - rid: 6801509870119944193
+    - rid: 6801509870119944193
+      type: {class: ButtonInputCheck, ns: , asm: Assembly-CSharp}
+      data:
+        requiredButtons: 8
+        requiredState: 2
+    - rid: 6801509870119944194
+      type: {class: GroundStateCondition, ns: , asm: Assembly-CSharp}
+      data:
+        invertResult: 0
+        overrideAll: 0
+        acceptedStates: 1
+    - rid: 6801509870119944215
+      type: {class: SelfRotationItem, ns: , asm: Assembly-CSharp}
+      data:
+        _editorId: fae5f92c24264c38a5172434d75ea286
+        _muted: 0
+        _startFrame: 0
+        _durationFrames: 1
+        _config:
+          source: 1
+          mode: 0
+          targetSource: 0
+          directionSource: 0
+          presetLocalDirection: {x: 0, y: 0, z: 1}
+          angularSpeedDegrees: 720
+          animationAsset: {fileID: 0}
+          sourceStartTime: 0
+          playRate: 1

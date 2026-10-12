@@ -39,7 +39,25 @@ MonoBehaviour:
       - rid: 4981112630720593929
   _priorityLayer: 1
   _priorityValue: 0
-  _cancelRules: []
+  _cancelRules:
+  - targetKind: 0
+    specificTarget: {fileID: 11400000, guid: e2e2adb77f6774ada8fd0c62e8b98d93, type: 2}
+    targetTag:
+      TagId: 0
+    window:
+      startAnchor: 0
+      startFrame: 18
+      endAnchor: 0
+      endFrame: 35
+  - targetKind: 1
+    specificTarget: {fileID: 11400000, guid: e2e2adb77f6774ada8fd0c62e8b98d93, type: 2}
+    targetTag:
+      TagId: -2107794142
+    window:
+      startAnchor: 0
+      startFrame: 46
+      endAnchor: 2
+      endFrame: 33
   _selfTags: []
   _triggerMode: 0
   _eventTriggerTag:
@@ -47,7 +65,9 @@ MonoBehaviour:
   _startContextMode: 0
   isLoop: 0
   _allowReenterWhilePlaying: 0
-  _entryConditions: []
+  _entryConditions:
+  - rid: 6801509870119944199
+  - rid: 6801509870119944201
   _exitConditions: []
   references:
     version: 2
@@ -70,7 +90,7 @@ MonoBehaviour:
         _editorId: 9fe7de0f079c4d69884bcc6b6cef0f34
         _muted: 0
         _startFrame: 11
-        _durationFrames: 12
+        _durationFrames: 3
         _config:
           anchor: 0
           hitboxConfig:
@@ -83,7 +103,7 @@ MonoBehaviour:
           dataConfig:
             targetLayers:
               serializedVersion: 2
-              m_Bits: 128
+              m_Bits: 64
             _baseDamage: 10
             hitEventTag:
               TagId: 645108757
@@ -142,3 +162,22 @@ MonoBehaviour:
         - {fileID: 8300000, guid: a65d792d6907f744490c9b15bb70edfe, type: 3}
         volume: 1
         pitchVariation: 0.1
+    - rid: 6801509870119944199
+      type: {class: InputSequenceCondition, ns: , asm: Assembly-CSharp}
+      data:
+        invertResult: 0
+        overrideAll: 0
+        maxInputInterval: 0.25
+        inputSequence:
+        - rid: 6801509870119944200
+    - rid: 6801509870119944200
+      type: {class: ButtonInputCheck, ns: , asm: Assembly-CSharp}
+      data:
+        requiredButtons: 8
+        requiredState: 2
+    - rid: 6801509870119944201
+      type: {class: GroundStateCondition, ns: , asm: Assembly-CSharp}
+      data:
+        invertResult: 0
+        overrideAll: 0
+        acceptedStates: 1

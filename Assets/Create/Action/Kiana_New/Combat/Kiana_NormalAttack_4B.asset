@@ -39,7 +39,16 @@ MonoBehaviour:
       - rid: 6801509690979385350
   _priorityLayer: 1
   _priorityValue: 0
-  _cancelRules: []
+  _cancelRules:
+  - targetKind: 1
+    specificTarget: {fileID: 0}
+    targetTag:
+      TagId: -2107794142
+    window:
+      startAnchor: 0
+      startFrame: 100
+      endAnchor: 2
+      endFrame: 0
   _selfTags: []
   _triggerMode: 0
   _eventTriggerTag:
@@ -47,7 +56,9 @@ MonoBehaviour:
   _startContextMode: 0
   isLoop: 0
   _allowReenterWhilePlaying: 0
-  _entryConditions: []
+  _entryConditions:
+  - rid: 6801509870119944208
+  - rid: 6801509870119944210
   _exitConditions: []
   references:
     version: 2
@@ -100,7 +111,7 @@ MonoBehaviour:
           dataConfig:
             targetLayers:
               serializedVersion: 2
-              m_Bits: 128
+              m_Bits: 64
             _baseDamage: 10
             hitEventTag:
               TagId: 1151343024
@@ -142,3 +153,22 @@ MonoBehaviour:
         - {fileID: 8300000, guid: a65d792d6907f744490c9b15bb70edfe, type: 3}
         volume: 1
         pitchVariation: 0.1
+    - rid: 6801509870119944208
+      type: {class: InputSequenceCondition, ns: , asm: Assembly-CSharp}
+      data:
+        invertResult: 0
+        overrideAll: 0
+        maxInputInterval: 0.25
+        inputSequence:
+        - rid: 6801509870119944209
+    - rid: 6801509870119944209
+      type: {class: ButtonInputCheck, ns: , asm: Assembly-CSharp}
+      data:
+        requiredButtons: 8
+        requiredState: 2
+    - rid: 6801509870119944210
+      type: {class: GroundStateCondition, ns: , asm: Assembly-CSharp}
+      data:
+        invertResult: 0
+        overrideAll: 0
+        acceptedStates: 1
