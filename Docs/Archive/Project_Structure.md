@@ -1,9 +1,12 @@
 # Project Structure
 
-> Status: Current  
+> Status: Archived historical snapshot
+>
 > Verified against repository contents: 2026-08-29
+>
+> Current structure: [Docs/Current/Project_Structure.md](../Current/Project_Structure.md)
 
-This file describes the repository as it exists today. Proposed reorganizations belong in a separate proposal and must not be presented here as completed structure.
+This file preserves the repository layout as verified on the date above. Paths and working rules below are historical, not the current layout or an active migration plan.
 
 ## Root
 

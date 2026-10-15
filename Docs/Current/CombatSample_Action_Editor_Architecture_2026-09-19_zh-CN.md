@@ -1,6 +1,6 @@
 # Action 编辑与播放正式架构
 
-状态：当前仓库实现说明。更新于 2026-10-08。旧 V1、ActionSequence 和 Unity Timeline Action 文档均为历史记录。
+状态：当前仓库实现说明。更新于 2026-10-16。旧 V1、ActionSequence 和 Unity Timeline Action 文档均为历史记录。
 
 ## 1. 唯一路径
 
@@ -22,7 +22,7 @@ Action 已不再选择播放后端。每个 ActionAsset 都保存一份 ActionTi
 
 ## 2. 正式入口
 
-- 创建：Assets/Create/CombatSample/Action/Action。在当前 Project 目录直接创建 New Action.asset。
+- 创建：菜单 `Assets/Create/CombatSample/Action/Action`。这是 Unity 菜单路径，不是磁盘目录；在当前选中的 Project 文件夹直接创建 New Action.asset。
 - 打开：双击任意 ActionAsset 或在 Inspector 点击 Open Action Timeline。
 - 工具：Tools/CombatSample/Action Timeline。
 - 属性与预览：Tools/CombatSample/Action Details，或从 Timeline 的条目打开。
@@ -101,9 +101,13 @@ HitBox 的正式绑定使用 ActionHitBoxAnchor，检测实现位于 `Assets/Scr
 
 ## 5. 资产边界
 
-`Assets/Create/Action/` 按角色归类 Action 资产，并保留原有 GUID；Kiana 的新正式动作位于 `Action/Kiana_New/Combat/`。目录移动没有转换旧资产内容：旧资产仍可能序列化 `_timelineAsset`、`_playbackBackend`、`_sequenceData` 和已删除的 managed-reference 类型；旧 Sequence 内容不能继续播放。项目负责人按需从当前格式重新配置动作，不把目录归位当作迁移完成。
+`Assets/Data/Action/` 按 Jaeger、Kiana 归类 Action 资产与各自的 Action List。Kiana 普攻位于 `Assets/Data/Action/Kiana/Attack/`，受击与移动动作分别位于该角色的 `Hit/`、`Move/`；Jaeger 受击动作位于 `Assets/Data/Action/Jaeger/Hit/`。
 
-AnimationAsset 和 AnimationRigAsset 位于 `Assets/Create/Animation/`；Locomotion 配置位于 `Assets/Create/Locomotion/`，`Assets/Create/Test/` 保留测试资产。当前 Action List 随角色放在 `Assets/Create/Action/`，旧列表位于 `Assets/Create/Archive/ActionList/`；行为图位于 `Assets/Create/Graph/`。旧资源不作为兼容输入。
+AnimationAsset 和 AnimationRigAsset 位于 `Assets/Data/Animation/`；Locomotion 配置位于 `Assets/Data/Locomotion/`；行为图位于 `Assets/Data/Graph/`。当前不再存在 `Assets/Create/`、`Action/Kiana_New/`、`Assets/Data/Test/` 或旧的资产 Archive 目录。当前项目目录约定见[项目结构](Project_Structure.md)。
+
+旧归档从工作区删除后，部分行为图、角色 Prefab 和场景仍保留旧 Action、Action List 或 Timeline 引用，当前资产整理尚未整体验收；具体范围见[项目结构中的未收口引用](Project_Structure.md#尚未收口旧归档删除的引用)。不把目录归位或编译通过当作这些图和场景已可正常运行。
+
+Impact 只保留正式配置路径：速度效果使用 `SpeedEffectConfig`，命中特效使用 `HitVfxConfig`。旧 HitStop/HitStick、屏幕向/世界向独立配置及其兼容执行入口已删除；两个朝向解算器仍由 `HitVfxConfig` 使用。历史资产不是兼容输入，若以后重新导入，应先迁移到当前数据类型；移动目录本身不会转换旧资产内容。
 
 ## 6. 验证
 
