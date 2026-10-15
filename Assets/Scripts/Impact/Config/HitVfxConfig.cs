@@ -16,7 +16,7 @@ public enum VfxOrientationMode
 }
 
 /// <summary>
-/// 统一的空间 VFX 配置，取代 ScreenOrientedImpactEffectConfig 与 WorldDirectionalImpactEffectConfig。
+/// 统一的空间 VFX 配置，支持屏幕向与世界向两种朝向。
 /// 通过 orientationMode 选择朝向，通过 anchorMode 选择生成位置。
 /// </summary>
 [Serializable]

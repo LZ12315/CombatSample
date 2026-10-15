@@ -61,14 +61,11 @@ public class ImpactSystem : MonoBehaviour
 
     struct GatheredAttackerEffects
     {
-        public HitStopEffectConfig HitStop;
-        public HitStickEffectConfig HitStick;
         public SpeedEffectConfig SpeedEffect;
         public ScreenShakeEffectConfig ScreenShake;
     }
 
     #region 效果管理
-    private readonly List<ImpactEffect> activeEffects = new List<ImpactEffect>();
     private readonly List<ActionSpeedEffect> activeSpeedEffects = new List<ActionSpeedEffect>();
 
     /// <summary>
@@ -133,42 +130,8 @@ public class ImpactSystem : MonoBehaviour
                 HandleEffect(impactData, effect, ImpactEffectSource.TargetProfile, ref gathered);
         }
 
-        // 处理新的 SpeedEffectConfig（推荐）
         if (gathered.SpeedEffect != null)
-        {
             TryStartSpeedEffect(impactData, gathered.SpeedEffect);
-        }
-        // 兼容旧配置：如果配置了旧版 HitStop/HitStick 但没有 SpeedEffect
-        else if (gathered.HitStop != null || gathered.HitStick != null)
-        {
-            if (!TryValidateLegacySpeedEffects(gathered.HitStop, gathered.HitStick, out string failureReason))
-            {
-                Debug.LogWarning($"[ActionSpeedEffect] Legacy effect was rejected: {failureReason}", this);
-            }
-            else
-            {
-                // 合并旧配置：取最慢速度，最长时长，仅攻击者（旧行为）
-                float duration = Mathf.Max(
-                    gathered.HitStop?.duration ?? 0f,
-                    gathered.HitStick?.duration ?? 0f);
-                float speed = 1f;
-                if (gathered.HitStop != null && gathered.HitStick != null)
-                    speed = Mathf.Min(gathered.HitStop.timeScale, gathered.HitStick.speedScale);
-                else if (gathered.HitStop != null)
-                    speed = gathered.HitStop.timeScale;
-                else if (gathered.HitStick != null)
-                    speed = gathered.HitStick.speedScale;
-
-                var legacyConfig = new SpeedEffectConfig
-                {
-                    enabled = true,
-                    duration = duration,
-                    speedScale = speed,
-                    affectBothParties = false // 旧配置默认仅攻击者
-                };
-                TryStartSpeedEffect(impactData, legacyConfig);
-            }
-        }
 
         if (gathered.ScreenShake != null)
             TriggerScreenShake(impactData, gathered.ScreenShake);
@@ -196,41 +159,6 @@ public class ImpactSystem : MonoBehaviour
             speedEffect.Reset();
             throw;
         }
-    }
-
-#pragma warning disable CS0618 // Legacy HitStop/HitStick remain an intentional compatibility path.
-    private static bool TryValidateLegacySpeedEffects(
-        HitStopEffectConfig hitStop,
-        HitStickEffectConfig hitStick,
-        out string failureReason)
-    {
-        failureReason = null;
-        if (hitStop != null
-            && (!IsFiniteNonNegative(hitStop.duration) || !IsFiniteUnitScale(hitStop.timeScale)))
-        {
-            failureReason = "HitStop duration and time scale must be finite; duration must be non-negative and scale within [0, 1].";
-            return false;
-        }
-
-        if (hitStick != null
-            && (!IsFiniteNonNegative(hitStick.duration) || !IsFiniteUnitScale(hitStick.speedScale)))
-        {
-            failureReason = "HitStick duration and speed scale must be finite; duration must be non-negative and scale within [0, 1].";
-            return false;
-        }
-
-        return true;
-    }
-#pragma warning restore CS0618
-
-    private static bool IsFiniteNonNegative(float value)
-    {
-        return !float.IsNaN(value) && !float.IsInfinity(value) && value >= 0f;
-    }
-
-    private static bool IsFiniteUnitScale(float value)
-    {
-        return !float.IsNaN(value) && !float.IsInfinity(value) && value >= 0f && value <= 1f;
     }
 
     internal void AdvanceFixedSpeedEffects()
@@ -264,29 +192,11 @@ public class ImpactSystem : MonoBehaviour
 
         switch (effect)
         {
-            case HitStopEffectConfig stop:
-                if (gathered.HitStop == null)
-                    gathered.HitStop = stop;
-                else
-                    Debug.LogWarning("Duplicate HitStopEffectConfig found. Only the first one will be used.", this);
-                break;
-            case HitStickEffectConfig stick:
-                if (gathered.HitStick == null)
-                    gathered.HitStick = stick;
-                else
-                    Debug.LogWarning("Duplicate HitStickEffectConfig found. Only the first one will be used.", this);
-                break;
             case SpeedEffectConfig speed:
                 if (gathered.SpeedEffect == null)
                     gathered.SpeedEffect = speed;
                 else
                     Debug.LogWarning("Duplicate SpeedEffectConfig found. Only the first one will be used.", this);
-                break;
-            case ScreenOrientedImpactEffectConfig screenOriented:
-                SpawnScreenOrientedImpactVfx(impactData, screenOriented);
-                break;
-            case WorldDirectionalImpactEffectConfig worldDirectional:
-                SpawnWorldDirectionalImpactVfx(impactData, worldDirectional);
                 break;
             case HitVfxConfig hitVfx:
                 SpawnHitVfx(impactData, hitVfx);
@@ -336,33 +246,6 @@ public class ImpactSystem : MonoBehaviour
         src.spatialBlend = 1f;
         src.playOnAwake = false;
         return src;
-    }
-
-    void SpawnScreenOrientedImpactVfx(ImpactData impactData, ScreenOrientedImpactEffectConfig config)
-    {
-        if (config == null || config.prefab == null) return;
-
-        Vector3 spawnPos = impactData.VfxSpawnPoint;
-        var rotation = ScreenOrientedImpactRotationResolver.Resolve(
-            config.angleMode,
-            config.anglePresetDegrees,
-            config.angleRandomRange,
-            spawnPos);
-        SpawnHitVfxInstance(config.prefab, spawnPos, rotation, config.occlusionMode, config.scale, config.lifetime, config.simulationSpeed);
-    }
-
-    void SpawnWorldDirectionalImpactVfx(ImpactData impactData, WorldDirectionalImpactEffectConfig config)
-    {
-        if (config == null || config.prefab == null) return;
-
-        Vector3 spawnPos = impactData.VfxSpawnPoint;
-        var rotation = WorldDirectionalImpactRotationResolver.Resolve(
-            config.directionMode,
-            config.rollMode,
-            config.rollPresetDegrees,
-            config.rollRandomRange,
-            impactData);
-        SpawnHitVfxInstance(config.prefab, spawnPos, rotation, config.occlusionMode, config.scale, config.lifetime, config.simulationSpeed);
     }
 
     /// <summary>
@@ -481,34 +364,17 @@ public class ImpactSystem : MonoBehaviour
         ClearAllEffects();
     }
 
-    void Update()
-    {
-        for (int i = activeEffects.Count - 1; i >= 0; i--)
-        {
-            if (!activeEffects[i].Update())
-            {
-                activeEffects[i].Reset();
-                activeEffects.RemoveAt(i);
-            }
-        }
-    }
-
     #endregion
 
     #region 工具方法
     public void ClearAllEffects()
     {
-        foreach (var effect in activeEffects)
-        {
-            effect.Reset();
-        }
-        activeEffects.Clear();
         ClearFixedSpeedEffects();
     }
 
     public bool HasActiveEffects()
     {
-        return activeEffects.Count > 0 || activeSpeedEffects.Count > 0;
+        return activeSpeedEffects.Count > 0;
     }
     #endregion
 }

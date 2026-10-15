@@ -149,9 +149,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   actor: {fileID: 1829239684118840258}
-  rotateSpeed: 600
-  _locomotionBaseSpeed: 5
-  _airControlFactor: 0.4
   _horizontalDrag: 5
   _verticalImpulseAirDrag: 0
   _verticalSmoothTime: 0.1

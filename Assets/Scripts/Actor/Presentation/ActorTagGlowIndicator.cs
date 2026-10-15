@@ -359,7 +359,7 @@ public sealed class ActorTagGlowIndicator : MonoBehaviour
         {
             Renderer overlay = _bindings[i].Overlay;
             if (overlay != null)
-                DestroyObject(overlay.gameObject);
+                DestroyGlowObject(overlay.gameObject);
         }
 
         _bindings.Clear();
@@ -371,11 +371,11 @@ public sealed class ActorTagGlowIndicator : MonoBehaviour
         if (_runtimeMaterial == null)
             return;
 
-        DestroyObject(_runtimeMaterial);
+        DestroyGlowObject(_runtimeMaterial);
         _runtimeMaterial = null;
     }
 
-    private static void DestroyObject(Object target)
+    private static void DestroyGlowObject(Object target)
     {
         if (target == null)
             return;
