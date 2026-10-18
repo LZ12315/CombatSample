@@ -6,6 +6,15 @@
 
 - [项目结构与归位约定](Project_Structure.md)：当前 Assets 目录职责、Data 与 Resources 边界、本轮兼容代码清理及验证范围。
 
+## 开发就绪审查
+
+- [Demo 开发就绪审查](Demo_Development_Readiness_Audit.md)：2026-10-18 的主链路问题快照、缺陷与能力缺口、GUID 扫描范围及验证边界；页首记录已实施范围，不代表发布验收通过。
+
+## 玩家输入
+
+- [玩家输入合同与本轮修复](Player_Input_Contract.md)：当前工作区已实现的设备采集、固定 Tick、当前 State / 纯 Event Sequence、方向基准、候选原子消费、生命周期与验证边界。
+- [State / Sequence 方案与时间窗口调研](Player_Input_Sequence_Design.md)：已执行的设计与迁移、可调的 0.5 秒整段默认窗口、公开资料及证据限制；77 个选定纯逻辑用例通过，Unity 原生集成与手感验收待做。
+
 ## Scripts 组织
 
 - [Scripts 整理记录](CombatSample_Scripts_Organization_2026-10-08_zh-CN.md)：目录职责、文件归位、反馈与 HitBox 边界、取消匹配共用规则、验证边界，以及输入历史和 Details 配置绘制的独立后续事项。

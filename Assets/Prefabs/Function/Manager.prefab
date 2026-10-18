@@ -51,9 +51,6 @@ MonoBehaviour:
   controlledActor: {fileID: 0}
   debug: 0
   timeScale: 1
-  ShortPress_Frame: 80
-  LongPress_Frame: 100000
-  joystickHard_Distance: 0.6
   joystick_DeadZone: 0.1
 --- !u!114 &5917383404489912123
 MonoBehaviour:

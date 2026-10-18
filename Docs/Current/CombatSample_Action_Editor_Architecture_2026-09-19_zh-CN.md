@@ -62,7 +62,9 @@ Action 已不再选择播放后端。每个 ActionAsset 都保存一份 ActionTi
 | EffectListGUI / HitFeedbackProfileInspector | 共用 Effect 列表绘制；各入口自行提交修改，Details 负责 Action 变更通知 |
 | ActionRuntimePlaybackSession | 固定帧播放管线与 ActionRuntime 的衔接 |
 
-Inspector 的 Entry Conditions、Exit Conditions 与 Cancel Rules 使用 `ActionAuthoringListGUI` 统一列表边距、折叠位置、增删和排序。Condition 元素以类型选择器作为标题，展开后直接绘制字段或已有具体类型 Drawer，不再叠加 SubclassSelector 的外层缩进。`CancelRuleDrawer` 负责目标类型对应的有效字段；`CancelWindowDrawer` 将窗口展开为固定的 From / To 两行，仅 Custom 锚点显示帧输入，切换目标类型或锚点不清除隐藏配置。Inspector 仍负责提交 SerializedObject 修改、Undo 与 Action 编辑上下文通知。
+Inspector 的 Entry Conditions、Exit Conditions 与 Cancel Rules 使用 `ActionAuthoringListGUI` 统一列表边距、折叠位置、增删和排序。Condition 元素以类型选择器作为标题，展开后直接绘制字段或已有具体类型 Drawer，不再叠加 SubclassSelector 的外层缩进。`CancelRuleDrawer` 负责目标类型对应的有效字段；`CancelWindowDrawer` 将 Window 画成紧凑区间：宽 Inspector 同行显示 `[anchor] [frame] – [anchor] [frame]`，视图宽度小于 480 编辑器逻辑像素时改为 From / To 两行，Window 标签不单独占一行。锚点菜单与帧数框限制为紧凑宽度，仅 Custom 锚点（或多选混合值）显示帧输入；隐藏数值位置仍保留，切换目标类型或锚点不清除原配置。Inspector 仍负责提交 SerializedObject 修改、Undo 与 Action 编辑上下文通知。
+
+卡片内容使用 12px 内边距，窄 Details 页左右收为 8px。Inspector 展开的条件/取消列表在标题之后额外留 4px、底部按钮之后额外留 8px，元素上下各留 5px；间距覆盖整个列表而非只缩进字段。保留原列表边框、拖动柄、选中背景及增删交互，内层 Input Steps 不额外逐层增加横向缩进。实际窄窗布局与视觉密度由人工确认，不新增 UI 几何测试。
 
 窗口刷新不修改共享状态；Preview 不控制 Action 或播放。
 
