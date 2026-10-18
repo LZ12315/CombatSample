@@ -6,8 +6,8 @@ using HeaderAttribute = ParadoxNotion.Design.HeaderAttribute;
 namespace NodeCanvas.Tasks.Actions
 {
     /// <summary>
-    /// 通过 <see cref="ActionStateManager.RequestExternalAction"/> 请求播放 Action；
-    /// ASM 在本帧统一仲裁后回调，成功表示本帧确实开始播放该 Action。
+    /// 通过可撤销请求交给 ASM，在下一次固定步骤仲裁后报告是否开始动作。
+    /// 任务结束或暂停只撤销待决请求，不强停已开始的动作；旧执行轮次的回调无效。
     /// </summary>
     [Name("Play Action Via ASM")]
     [Category("Custom/Combat")]
@@ -31,40 +31,58 @@ namespace NodeCanvas.Tasks.Actions
         public BBParameter<ActionAsset> actionToPlay;
         public RequestMode requestMode = RequestMode.EnterOnce;
         public ResultMode resultMode = ResultMode.ByActionStarted;
-        [Tooltip("仅 UntilStarted：超时仍未开始播放则失败。")]
+        [Tooltip("UntilStarted only: fail if the action has not started within this many scaled-time seconds.")]
         public float timeout = 0.3f;
 
         private bool _active;
         private bool _waitingForResult;
         private float _startTime;
+        private uint _executionId;
+        private ActionStateManager.ExternalActionRequest _request;
 
         protected override void OnExecute()
         {
+            ReleasePendingRequest();
             _active = true;
-            _waitingForResult = false;
             _startTime = Time.time;
             SubmitRequest();
         }
 
         protected override void OnUpdate()
         {
-            if (requestMode == RequestMode.EnterOnce)
+            if (!_active)
                 return;
 
-            if (Time.time - _startTime >= timeout)
+            if (requestMode != RequestMode.EnterOnce && Time.time - _startTime >= timeout)
             {
                 EndWithResult(false);
                 return;
             }
 
+            // Also submits a fresh EnterOnce request after resuming from a pause.
             if (!_waitingForResult)
                 SubmitRequest();
         }
 
-        protected override void OnStop()
+        protected override void OnStop() => ReleasePendingRequest();
+
+        protected override void OnPause() => ReleasePendingRequest();
+
+        protected override void OnResume()
         {
+            // Preserve the original Time.time timeout; resuming does not extend its deadline.
+            _active = true;
+        }
+
+        private void ReleasePendingRequest()
+        {
+            // Invalidate callbacks before Cancel, which may report false synchronously.
             _active = false;
             _waitingForResult = false;
+            unchecked { _executionId++; }
+            var request = _request;
+            _request = null;
+            request?.Cancel();
         }
 
         private void SubmitRequest()
@@ -77,18 +95,26 @@ namespace NodeCanvas.Tasks.Actions
                 return;
             }
 
+            uint executionId = _executionId;
             _waitingForResult = true;
-            actorValue.actionManager.RequestExternalAction(
+            var request = actorValue.actionManager.RequestCancellableExternalAction(
                 actionValue,
                 ActionContext.ForSelf(actorValue),
-                HandleRequestResult);
+                started => HandleRequestResult(executionId, started));
+
+            // Inactive ASM can complete synchronously, possibly ending this execution before return.
+            if (_active && executionId == _executionId && _waitingForResult)
+                _request = request;
+            else
+                request.Cancel();
         }
 
-        private void HandleRequestResult(bool started)
+        private void HandleRequestResult(uint executionId, bool started)
         {
-            if (!_active)
+            if (!_active || executionId != _executionId)
                 return;
 
+            _request = null;
             _waitingForResult = false;
 
             if (started)

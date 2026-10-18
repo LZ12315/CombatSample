@@ -18,26 +18,69 @@ public class ActionStateManager : MonoBehaviour
         External = 2,
     }
 
-    private sealed class ExternalActionRequest
+    /// <summary>A single external request. Cancellation never stops an Action already being started.</summary>
+    public sealed class ExternalActionRequest
     {
-        public ActionAsset Action;
-        public ActionContext Context;
-        public Action<bool> Callback;
-        public int Order;
+        internal readonly ActionAsset Action;
+        internal readonly ActionContext Context;
+        internal readonly int Order;
+        private readonly ActionStateManager _owner;
+        private Action<bool> _callback;
+        private bool _starting;
         private bool _completed;
 
-        public void Complete(bool started, UnityEngine.Object logContext)
+        internal ExternalActionRequest(ActionStateManager owner, ActionAsset action, ActionContext context,
+            Action<bool> callback, int order)
+        {
+            _owner = owner;
+            Action = action;
+            Context = context;
+            _callback = callback;
+            Order = order;
+        }
+
+        internal bool IsPending => !_starting && !_completed;
+
+        /// <summary>
+        /// Withdraw this request before the start attempt, reporting false exactly once.
+        /// Returns false if it was already resolved or ASM has begun starting it.
+        /// Other requests and running Actions are unaffected. Call on the Unity main thread.
+        /// </summary>
+        public bool Cancel()
+        {
+            if (!IsPending)
+                return false;
+
+            // Do not mutate the deciding snapshot while candidate collection/callbacks iterate it.
+            _owner._pendingExternalRequests.Remove(this);
+            Complete(false, _owner);
+            return true;
+        }
+
+        internal bool TryBegin()
+        {
+            if (!IsPending)
+                return false;
+
+            // Begin invokes lifecycle code; cancellation must not revoke a start already in progress.
+            _starting = true;
+            return true;
+        }
+
+        internal void Complete(bool started, UnityEngine.Object logContext)
         {
             if (_completed)
                 return;
 
             _completed = true;
-            if (Callback == null)
+            Action<bool> callback = _callback;
+            _callback = null;
+            if (callback == null)
                 return;
 
             try
             {
-                Callback(started);
+                callback(started);
             }
             catch (Exception exception)
             {
@@ -148,21 +191,24 @@ public class ActionStateManager : MonoBehaviour
     /// </summary>
     public void RequestExternalAction(ActionAsset action, ActionContext context, Action<bool> callback)
     {
-        var request = new ExternalActionRequest
-        {
-            Action = action,
-            Context = context,
-            Callback = callback,
-            Order = AllocateCandidateOrder(),
-        };
+        RequestCancellableExternalAction(action, context, callback);
+    }
+
+    /// <summary>
+    /// Same arbitration as RequestExternalAction, with a handle for withdrawing this pending request.
+    /// An inactive ASM reports false synchronously and returns an already completed handle.
+    /// </summary>
+    public ExternalActionRequest RequestCancellableExternalAction(ActionAsset action, ActionContext context,
+        Action<bool> callback)
+    {
+        var request = new ExternalActionRequest(this, action, context, callback, AllocateCandidateOrder());
 
         if (!isActiveAndEnabled)
-        {
             request.Complete(false, this);
-            return;
-        }
+        else
+            _pendingExternalRequests.Add(request);
 
-        _pendingExternalRequests.Add(request);
+        return request;
     }
 
     internal void DecideAction()
@@ -390,6 +436,14 @@ public class ActionStateManager : MonoBehaviour
 
     private ActionDecision SelectDecision(ActionInstance returnCandidate)
     {
+        // Later entry checks may withdraw an external candidate collected earlier in this snapshot.
+        for (int i = _validCandidatesCache.Count - 1; i >= 0; i--)
+        {
+            var request = _validCandidatesCache[i].ExternalRequest;
+            if (request != null && !request.IsPending)
+                _validCandidatesCache.RemoveAt(i);
+        }
+
         if (_validCandidatesCache.Count > 0)
             return ActionDecision.Play(SelectHighestPriorityAction(_validCandidatesCache));
 
@@ -424,6 +478,8 @@ public class ActionStateManager : MonoBehaviour
             return null;
 
         if (!candidate.EntryMatch.IsCurrentFor(_actor.PlayerInput))
+            return null;
+        if (candidate.ExternalRequest != null && !candidate.ExternalRequest.TryBegin())
             return null;
         if (!PlayNewAction(action, candidate.Context))
             return null;
@@ -583,10 +639,12 @@ public class ActionStateManager : MonoBehaviour
     private void TryAddCandidate(ActionCandidate candidate)
     {
         if (candidate.Action == null || _actor == null) return;
+        if (candidate.ExternalRequest != null && !candidate.ExternalRequest.IsPending) return;
         if (ContainsEquivalentCandidate(candidate)) return;
         if (CurrentActionAsset == candidate.Action && !candidate.Action.AllowReenterWhilePlaying) return;
         if (!candidate.Action.TryMatchEntry(_actor, candidate.Context,
                 candidate.Origin == ActionCandidateOrigin.Event, out ActionEntryMatch match)) return;
+        if (candidate.ExternalRequest != null && !candidate.ExternalRequest.IsPending) return;
         _validCandidatesCache.Add(new ActionCandidate(candidate.Action, candidate.Context,
             candidate.Origin, candidate.Order, candidate.ExternalRequest, match));
     }

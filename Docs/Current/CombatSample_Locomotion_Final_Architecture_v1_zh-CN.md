@@ -76,6 +76,25 @@ FacingDirection                   = 想面向哪里
 
 因此资产中不需要 `FacingMode` 或 `LocomotionStyle`。1D/2D 只影响 Move 动画的混合输入，不决定 Gameplay 朝向。
 
+### AI 战术绕行（NodeCanvas）
+
+`Custom/Combat/Strafe Around Combat Target` 位于 `Assets/Scripts/Graph/Action/StrafeAroundCombatTargetTask.cs`。节点只提交持续 `LocomotionIntent`，不直接设置 Transform、不播放 Action 或动画，也不增加导航系统。目标沿用 `Target Override` 优先、否则 `Actor.combater.CombatTarget` 的规则，不主动索敌。
+
+| 参数 | 默认值与含义 |
+| --- | --- |
+| Actor / Target Override | 受控角色与可选覆盖目标 |
+| Side | Random；也可指定 Left / Right，以面向目标时的左右切向为准，每次执行只选择一次，恢复不重新随机 |
+| Preferred Distance | 3 个世界单位，期望水平距离，必须有限且大于 0 |
+| Distance Tolerance | 0.5，非负的距离浮动范围；范围内只侧移 |
+| Move Strength | 0.4，有限的 0～1 输入强度，不是世界速度；0 只请求面向 |
+| Duration | 1.5 秒，有限且非负；0 在合法输入下立即成功，不提交移动 |
+
+每次更新重新计算目标水平方向，朝向意图始终指向目标，实际转身由现有 Locomotion 转速控制。移动以左/右切向为主，距离超出 `Preferred Distance ± Distance Tolerance` 后，按超出量与期望距离之比逐渐叠加向内或向外修正，并限制修正不超过切向强度。因此移动方向相对切向的最大偏转为 45 度，不突然变成纯追击或纯后退。距离带是期望范围，不是位置硬约束；惯性、离散更新和碰撞可能导致暂时越界。
+
+节点运行到 Duration 后返回 Success；角色/Locomotion 不可用、目标丢失或停用、非法参数、非法位置以及水平位置重合（距离小于 0.01）均返回 Failure。停止、中止和暂停释放持续意图，不直接清零 Motor 速度；释放从下一次 Control 锁定生效。恢复时重新检查目标和计算方向，沿用本轮选定的左右。计时使用现有 `Time.time` 游戏时间，任务暂停不延长截止时间；游戏时间继续推进时，恢复后可能直接完成。持续移动仍遵守同一 Actor 只能有一个活动移动任务的约束。
+
+第一版不处理寻路、避障、悬崖、卡墙脱困、多人站位或自动攻击。绕行、等待、追击和攻击的节奏由行为树组织；角色能否表现正确的侧走/后退动画，仍取决于其 Locomotion 资源配置。`CombatStrafeMovementTests` 包含 10 个纯计算合同用例，保护左右、水平面朝向、距离修正、边界连续性、强度和非法输入；源码已编译，未执行 Test Runner。节点生命周期、随机方向在单次执行中保持不变、实际动画与场景效果由用户手工验收。
+
 ### 输入与资源的合法使用边界
 
 - 同一 Actor 同时只有一个移动控制者；同一 AI 图同时只有一个活动移动任务。输入不是多 owner 仲裁系统，多个控制者并行争用属于错误使用。

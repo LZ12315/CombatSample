@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using DeiveEx.TagTree;
+using NodeCanvas.Framework;
+using NodeCanvas.Tasks.Actions;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -434,6 +436,143 @@ public sealed class ActionStateManagerContextTests
     }
 
     [Test]
+    public void ExternalRequest_CancelledBeforeDecisionNeverStartsAndCompletesOnce()
+    {
+        TestRig rig = CreateRig();
+        ActionAsset action = CreateAction("Cancelled External", ActionTriggerMode.Poll);
+        int callbacks = 0;
+        bool? result = null;
+        var request = rig.Asm.RequestCancellableExternalAction(action, ActionContext.ForSelf(rig.Actor), value =>
+        {
+            callbacks++;
+            result = value;
+        });
+
+        Assert.IsTrue(request.Cancel());
+        Assert.IsFalse(request.Cancel());
+        rig.RunActionStateManager();
+        rig.RunActionStateManager();
+
+        Assert.AreEqual(1, callbacks);
+        Assert.AreEqual(false, result);
+        Assert.IsNull(rig.Player.CurrentAction);
+        Assert.IsEmpty(ContextRecordingCondition.Contexts, "A withdrawn request must not evaluate its entry conditions.");
+    }
+
+    [Test]
+    public void ExternalRequest_CancelledDuringCollectionDoesNotBlockAnotherCandidate()
+    {
+        TestRig rig = CreateRig();
+        ActionAsset withdrawn = CreateAction("Withdrawn High Priority", ActionTriggerMode.Poll, priorityValue: 20);
+        ActionAsset fallback = CreateAction("Remaining Candidate", ActionTriggerMode.Poll);
+        bool? withdrawnResult = null;
+        bool? fallbackResult = null;
+        var request = rig.Asm.RequestCancellableExternalAction(withdrawn, ActionContext.ForSelf(rig.Actor),
+            value => withdrawnResult = value);
+        SetPrivateField(fallback, "_entryConditions", new List<ActionCondition>
+        {
+            new EntryCallbackCondition(() => request.Cancel()),
+        });
+        rig.Asm.RequestExternalAction(fallback, ActionContext.ForSelf(rig.Actor), value => fallbackResult = value);
+
+        rig.RunActionStateManager();
+
+        Assert.AreEqual(false, withdrawnResult);
+        Assert.AreEqual(true, fallbackResult);
+        Assert.AreSame(fallback, rig.Player.CurrentAction.Config);
+    }
+
+    [Test]
+    public void ExternalRequest_CancelAfterStartDoesNotStopAction()
+    {
+        TestRig rig = CreateRig();
+        ActionAsset action = CreateLongAction("Started External");
+        bool? result = null;
+        var request = rig.Asm.RequestCancellableExternalAction(action, ActionContext.ForSelf(rig.Actor),
+            value => result = value);
+        rig.RunActionStateManager();
+        ActionInstance started = rig.Player.CurrentAction;
+
+        Assert.IsFalse(request.Cancel());
+        Assert.AreEqual(true, result);
+        Assert.IsNotNull(started);
+        Assert.AreSame(started, rig.Player.CurrentAction);
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void PlayActionTask_StopOrPauseWithdrawsRequestAndAllowsFreshExecution(bool pause)
+    {
+        TestRig rig = CreateRig();
+        ActionAsset action = CreateAction("Task External", ActionTriggerMode.Poll);
+        PlayActionTask task = CreatePlayActionTask(rig, action);
+        Assert.AreEqual(Status.Running, task.Execute(rig.Actor, null));
+
+        if (pause)
+            task.Pause();
+        else
+            task.EndAction((bool?)null);
+        rig.RunActionStateManager();
+        Assert.IsNull(rig.Player.CurrentAction);
+
+        Assert.AreEqual(Status.Running, task.Execute(rig.Actor, null));
+        rig.RunActionStateManager();
+
+        Assert.AreSame(action, rig.Player.CurrentAction.Config);
+        Assert.AreEqual(Status.Success, task.Execute(rig.Actor, null));
+    }
+
+    [Test]
+    public void PlayActionTask_OldStartCallbackCannotCompleteRestartedTask()
+    {
+        TestRig rig = CreateRig();
+        ActionAsset current = CreateLongAction("Current Before Task");
+        current.EditorCancelRules.Add(new CancelRule { targetKind = CancelTargetKind.Any });
+        ActionAsset first = CreateAction("Old Task Request", ActionTriggerMode.Poll);
+        ActionAsset second = CreateAction("New Task Request", ActionTriggerMode.Poll);
+        rig.Player.BeginAction(current, ActionContext.ForSelf(rig.Actor));
+        PlayActionTask task = CreatePlayActionTask(rig, first);
+        Assert.AreEqual(Status.Running, task.Execute(rig.Actor, null));
+
+        // Starting the first request invokes the current Action's interruption lifecycle.
+        // Restart there: cancellation can no longer undo the start attempt, so its late result
+        // must be rejected by execution identity rather than the task's active flag alone.
+        Action<ActionInstance> restart = null;
+        restart = _ =>
+        {
+            rig.Player.OnActionInterrupted -= restart;
+            task.EndAction((bool?)null);
+            task.actionToPlay.value = second;
+            Assert.AreEqual(Status.Running, task.Execute(rig.Actor, null));
+        };
+        rig.Player.OnActionInterrupted += restart;
+
+        rig.RunActionStateManager();
+
+        Assert.AreSame(first, rig.Player.CurrentAction.Config);
+        Assert.IsTrue(task.isRunning, "The old start callback must not finish the new execution.");
+
+        rig.Player.StopAction();
+        rig.RunActionStateManager();
+        Assert.AreSame(second, rig.Player.CurrentAction.Config);
+        Assert.AreEqual(Status.Success, task.Execute(rig.Actor, null));
+    }
+
+    [Test]
+    public void PlayActionTask_ZeroTimeoutWithdrawsPendingRequest()
+    {
+        TestRig rig = CreateRig();
+        PlayActionTask task = CreatePlayActionTask(rig, CreateAction("Expired Task", ActionTriggerMode.Poll));
+        task.requestMode = PlayActionTask.RequestMode.UntilStarted;
+        task.timeout = 0f;
+
+        Assert.AreEqual(Status.Failure, task.Execute(rig.Actor, null));
+        rig.RunActionStateManager();
+
+        Assert.IsNull(rig.Player.CurrentAction);
+    }
+
+    [Test]
     public void ExternalRequest_OutsideCancelWindowFailsOnceAndDoesNotPersist()
     {
         TestRig rig = CreateRig();
@@ -859,6 +998,41 @@ public sealed class ActionStateManagerContextTests
         public void DisableActionStateManager()
         {
             InvokePrivate(Asm, "OnDisable");
+        }
+    }
+
+    private static PlayActionTask CreatePlayActionTask(TestRig rig, ActionAsset action)
+    {
+        var task = new PlayActionTask
+        {
+            actor = new BBParameter<Actor> { value = rig.Actor },
+            actionToPlay = new BBParameter<ActionAsset> { value = action },
+        };
+        task.SetOwnerSystem(new TestTaskSystem(rig.Actor));
+        return task;
+    }
+
+    private sealed class TestTaskSystem : ITaskSystem
+    {
+        public TestTaskSystem(Component agent) { this.agent = agent; }
+        public Component agent { get; }
+        public IBlackboard blackboard => null;
+        public UnityEngine.Object contextObject => agent;
+        public float elapsedTime => 0f;
+        public float deltaTime => 0f;
+        public void UpdateTasksOwner() { }
+        public void SendEvent(string name, object value, object sender) { }
+        public void SendEvent<T>(string name, T value, object sender) { }
+    }
+
+    private sealed class EntryCallbackCondition : ActionCondition
+    {
+        private readonly Action _onCheck;
+        public EntryCallbackCondition(Action onCheck) { _onCheck = onCheck; }
+        protected override bool OnCheck(Actor actor)
+        {
+            _onCheck();
+            return true;
         }
     }
 
