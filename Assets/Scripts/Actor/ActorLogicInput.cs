@@ -10,7 +10,7 @@ public class ActorLogicInput : MonoBehaviour
     [SerializeField] private ActorCameraControl cameraControl;
 
     [Header("Input Buffer")]
-    [SerializeField, Tooltip("Deprecated. Player input history now lives on PlayerInputController.")]
+    [SerializeField, Tooltip("Deprecated serialized value. Runtime input is published on Actor.PlayerInput.")]
     private float _bufferValidTime = 0.2f;
 
     public Vector2 MoveInput => PlayerInputController.Instance != null &&
@@ -27,10 +27,9 @@ public class ActorLogicInput : MonoBehaviour
         ? actor.actorLocomotion.EffectiveIntent
         : LocomotionIntent.Idle;
 
-    public IReadOnlyList<PlayerInputController.BufferedInput> InputBuffer =>
-        PlayerInputController.Instance != null && PlayerInputController.Instance.IsControlledActor(actor)
-            ? PlayerInputController.Instance.InputHistory
-            : Array.Empty<PlayerInputController.BufferedInput>();
+    public IReadOnlyList<PlayerInputEvent> InputBuffer => actor != null && actor.PlayerInput != null
+        ? actor.PlayerInput.Events
+        : Array.Empty<PlayerInputEvent>();
 
     private void Awake()
     {
@@ -38,29 +37,8 @@ public class ActorLogicInput : MonoBehaviour
         _bufferValidTime = Mathf.Max(0f, _bufferValidTime);
     }
 
-    public void InputMove(Vector2 moveInput)
-    {
-    }
-
-    public void InputLook(Vector2 lookInput)
-    {
-    }
-
-    public void GetInputData(InputData inputData)
-    {
-    }
-
     public void ClearBuffer()
     {
-        if (PlayerInputController.Instance != null && PlayerInputController.Instance.IsControlledActor(actor))
-            PlayerInputController.Instance.ClearInputHistory();
-    }
-
-    public void RegisterForInputEvent(object registrant, Action<InputData> callback)
-    {
-    }
-
-    public void UnregisterFromInputEvent(object registrant)
-    {
+        actor?.PlayerInput?.ClearEvents();
     }
 }

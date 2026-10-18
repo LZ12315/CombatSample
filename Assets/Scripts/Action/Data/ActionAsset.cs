@@ -50,7 +50,7 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
     [SerializeField, Tooltip("Loop this action")]
     private bool isLoop = false;
 
-    [SerializeField, Tooltip("若开启：本 Action 已在播放时仍允许被再次选中并从头重播（ClaimEntry + BeginAction）。用于受击等需连续打断自身的 Event 动作；关闭时与 ASM 默认行为一致（同 Action 不重播）。")]
+    [SerializeField, Tooltip("若开启：本 Action 已在播放时仍允许被再次选中并从头重播（重新开始并消费本次候选输入）。用于受击等需连续打断自身的 Event 动作；关闭时与 ASM 默认行为一致（同 Action 不重播）。")]
     private bool _allowReenterWhilePlaying = false;
 
     [SerializeReference, SubclassSelector, Tooltip("All conditions in this list must pass. Then this action can run.")]
@@ -58,6 +58,9 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
 
     [SerializeReference, SubclassSelector, Tooltip("自愿退出条件。空列表 = 永不自愿退出（需被其他 Action 抢占或自然播完）。与 EntryConditions 对称但空列表语义相反。")]
     private List<ActionCondition> _exitConditions = new List<ActionCondition>();
+
+    [NonSerialized] private bool _reportedInvalidEntry;
+    [NonSerialized] private bool _reportedInvalidExit;
 
     #region 属性封装
     /// <summary>Inline authoring and runtime source.</summary>
@@ -91,162 +94,64 @@ public class ActionAsset : ScriptableObject, ISerializationCallbackReceiver
         return new ActionInstance(this);
     }
 
-    /// <summary>
-    /// 检查角色当前状态是否满足准入条件 (无状态极速验证)
-    /// </summary>
-    public bool CheckEntry(Actor actor)
+    /// <summary>Read-only entry check. Poll needs at least one condition; all must pass.</summary>
+    public bool CheckEntry(Actor actor) => CheckEntry(actor, ActionContext.ForSelf(actor));
+
+    public bool CheckEntry(Actor actor, ActionContext context) =>
+        TryMatchEntry(actor, context, false, out _);
+
+    /// <summary>Event submissions supply their trigger; only player-input checks are skipped.</summary>
+    public bool CheckEntryForEvent(Actor actor) => CheckEntryForEvent(actor, ActionContext.ForSelf(actor));
+
+    public bool CheckEntryForEvent(Actor actor, ActionContext context) =>
+        TryMatchEntry(actor, context, true, out _);
+
+    internal bool TryMatchEntry(Actor actor, ActionContext context, bool eventTriggered, out ActionEntryMatch match)
     {
-        return CheckEntry(actor, ActionContext.ForSelf(actor));
-    }
+        match = default;
+        if (!ValidateConditions(_entryConditions, false, eventTriggered)) return false;
+        if (_entryConditions == null || _entryConditions.Count == 0) return eventTriggered;
 
-    public bool CheckEntry(Actor actor, ActionContext context)
-    {
-        if (_entryConditions == null || _entryConditions.Count == 0)
-            return false;
-
-        bool hasNormalConditions = false;
-        bool allNormalPassed = true;
-
+        List<PlayerInputMatch> inputs = null;
         for (int i = 0; i < _entryConditions.Count; i++)
         {
-            var cond = _entryConditions[i];
-
-            bool isMet = cond.Check(actor, context);
-
-            if (cond.overrideAll)
-            {
-                if (isMet)
-                    return true;
-            }
-            else
-            {
-                hasNormalConditions = true;
-                if (!isMet)
-                    allNormalPassed = false;
-            }
+            ActionCondition condition = _entryConditions[i];
+            if (eventTriggered && condition.RequiresPlayerInput) continue;
+            if (!condition.TryEvaluate(actor, context, out PlayerInputMatch input)) return false;
+            if (!condition.ConsumesInput) continue;
+            if (inputs == null) inputs = new List<PlayerInputMatch>();
+            inputs.Add(input);
         }
-
-        if (hasNormalConditions)
-        {
-            return allNormalPassed;
-        }
-
-        return false;
-    }
-
-    /// <summary>
-    /// 事件路径专用的条件检查：跳过输入相关条件（InputStateCondition / InputSequenceCondition），
-    /// 其余条件正常检查。用于 SendEvent 触发时的候选筛选。
-    /// </summary>
-    public bool CheckEntryForEvent(Actor actor)
-    {
-        return CheckEntryForEvent(actor, ActionContext.ForSelf(actor));
-    }
-
-    public bool CheckEntryForEvent(Actor actor, ActionContext context)
-    {
-        if (_entryConditions == null || _entryConditions.Count == 0)
-            return true; // 事件 Action 无条件时默认通过（与 Poll 不同）
-
-        bool hasNormalConditions = false;
-        bool allNormalPassed = true;
-
-        for (int i = 0; i < _entryConditions.Count; i++)
-        {
-            var cond = _entryConditions[i];
-
-            // 跳过输入相关条件
-            if (cond is InputStateCondition || cond is InputSequenceCondition)
-                continue;
-
-            bool isMet = cond.Check(actor, context);
-
-            if (cond.overrideAll)
-            {
-                if (isMet)
-                    return true;
-            }
-            else
-            {
-                hasNormalConditions = true;
-                if (!isMet)
-                    allNormalPassed = false;
-            }
-        }
-
-        if (hasNormalConditions)
-            return allNormalPassed;
-
-        // 所有条件都被跳过了（全是输入条件），视为通过
+        match = new ActionEntryMatch(inputs);
         return true;
     }
 
     /// <summary>
-    /// 检查当前 Action 是否满足自愿退出条件（与 <see cref="CheckEntry"/> 对称语义，但空列表返回值相反）。
-    /// <para>规则：</para>
-    /// <list type="number">
-    ///   <item><b>空列表 → 返回 false</b>：永不自愿退出，只能被其他 Action 抢占或自然播完（与 CheckEntry 空列表返回 false 在形式上相同，但语义含义不同——那边是"拒绝进入"，这边是"拒绝离开"）。</item>
-    ///   <item>任一 <c>overrideAll = true</c> 的条件满足 → 立即返回 true（强制退出）。</item>
-    ///   <item>否则所有 normal 条件全部通过 → 返回 true（正常退出）。</item>
-    ///   <item>只有 overrideAll 条件但都未命中 → 返回 false。</item>
-    /// </list>
+    /// All exit state checks must pass. Empty means no voluntary exit.
+    /// Consumable input events are entry triggers, not repeatable exit state checks.
     /// </summary>
-    public bool CheckExit(Actor actor)
-    {
-        return CheckExit(actor, ActionContext.ForSelf(actor));
-    }
+    public bool CheckExit(Actor actor) => CheckExit(actor, ActionContext.ForSelf(actor));
 
     public bool CheckExit(Actor actor, ActionContext context)
     {
-        if (_exitConditions == null || _exitConditions.Count == 0)
-            return false;
-
-        bool hasNormalConditions = false;
-        bool allNormalPassed = true;
-
+        if (!ValidateConditions(_exitConditions, true, false)) return false;
+        if (_exitConditions == null || _exitConditions.Count == 0) return false;
         for (int i = 0; i < _exitConditions.Count; i++)
-        {
-            var cond = _exitConditions[i];
-            if (cond == null) continue;
-
-            bool isMet = cond.Check(actor, context);
-
-            if (cond.overrideAll)
-            {
-                if (isMet)
-                    return true;
-            }
-            else
-            {
-                hasNormalConditions = true;
-                if (!isMet)
-                    allNormalPassed = false;
-            }
-        }
-
-        if (hasNormalConditions)
-            return allNormalPassed;
-
-        return false;
-    }
-
-    /// <summary>
-    /// 胜选回调：当 ActionStateManager 选中此 Action 并决定真正进入时调用。
-    /// 遍历所有 EntryCondition 触发 OnClaim，让带有"消费型"语义的条件（例如 InputSequenceCondition）
-    /// 把本次命中的输入从 buffer 中标记为已消费，避免同一组输入驱动下一个 Action（如一段跳→二段跳）。
-    /// </summary>
-    public void ClaimEntry(Actor actor)
-    {
-        if (actor == null || _entryConditions == null) return;
-
-        for (int i = 0; i < _entryConditions.Count; i++)
-        {
-            var cond = _entryConditions[i];
-            if (cond == null) continue;
-            cond.OnClaim(actor);
-        }
+            if (!_exitConditions[i].Check(actor, context)) return false;
+        return true;
     }
     #endregion
+
+    private bool ValidateConditions(IReadOnlyList<ActionCondition> conditions, bool exit, bool skipInput)
+    {
+        bool valid = ActionCondition.TryValidateAll(conditions, skipInput, out int invalidIndex, exit);
+        bool reported = exit ? _reportedInvalidExit : _reportedInvalidEntry;
+        if (!valid && !reported)
+            Debug.LogWarning($"[Action] '{name}' {(exit ? "Exit" : "Entry")} condition[{invalidIndex}] is incomplete, unsupported here or invalid. This condition set is rejected.", this);
+        if (exit) _reportedInvalidExit = !valid;
+        else _reportedInvalidEntry = !valid;
+        return valid;
+    }
 
     #region 生命周期和序列化
 

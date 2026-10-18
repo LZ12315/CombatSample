@@ -1,6 +1,5 @@
 using Cinemachine;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 /// <summary>
 /// Extends CinemachineInputProvider with DMC5-style dominant-axis filtering.
@@ -22,10 +21,13 @@ public class FilteredCinemachineInputProvider : CinemachineInputProvider
 
     public override float GetAxisValue(int axis)
     {
-        if (axis == 2)
-            return base.GetAxisValue(2);
-        if (axis < 0 || axis > 2)
+        if (!isActiveAndEnabled || axis < 0 || axis > 1)
             return 0f;
+        if (PlayerInputController.Instance == null || !PlayerInputController.Instance.IsLookInputEnabled)
+        {
+            _cachedFrame = -1;
+            return 0f;
+        }
 
         if (Time.frameCount != _cachedFrame)
         {
@@ -38,15 +40,15 @@ public class FilteredCinemachineInputProvider : CinemachineInputProvider
 
     private Vector2 ReadAndFilterXY()
     {
-        InputAction action = ResolveForPlayer(0, XYAxis);
-        if (action == null)
+        PlayerInputController input = PlayerInputController.Instance;
+        if (input == null || !input.TryGetLookInput(out Vector2 raw, out bool isMouse))
             return Vector2.zero;
-
-        Vector2 raw = action.ReadValue<Vector2>();
+        // Do not ResolveForPlayer/auto-enable XYAxis: that would create a second
+        // independent input authority outside the player's menu/focus permissions.
         if (!enableMouseDominantAxisFilter)
             return raw;
 
-        if (filterOnlyMouse && !IsMouseAction(action))
+        if (filterOnlyMouse && !isMouse)
             return raw;
 
         if (raw.magnitude < mouseDeadZone)
@@ -61,11 +63,5 @@ public class FilteredCinemachineInputProvider : CinemachineInputProvider
             raw.y *= minorAxisSuppression;
 
         return raw;
-    }
-
-    private static bool IsMouseAction(InputAction action)
-    {
-        return action.activeControl != null
-            && action.activeControl.device is Mouse;
     }
 }

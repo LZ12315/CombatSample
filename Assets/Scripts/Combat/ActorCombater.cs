@@ -70,6 +70,8 @@ public class ActorCombater : MonoBehaviour, IDamageable
     public GameObject CombatTarget => combatTarget;
     public Enums.LockMode LockMode => lockMode;
     public bool IsLocked => lockMode != Enums.LockMode.None;
+    // Records transient clear/relock or target switches even within one input tick.
+    internal long LockRevision { get; private set; }
     public float CurrentHealth => _currentHealth;
     public float MaxHealth => _maxHealth;
     public float HealthNormalized => _maxHealth > 0f ? Mathf.Clamp01(_currentHealth / _maxHealth) : 0f;
@@ -85,6 +87,9 @@ public class ActorCombater : MonoBehaviour, IDamageable
     {
         if (_actor == null)
             _actor = GetComponent<Actor>();
+        // Backfill the hub so an unassigned Actor.combater never silently disables damage.
+        if (_actor != null && _actor.combater == null)
+            _actor.combater = this;
         if (_asm == null)
             _asm = GetComponent<ActionStateManager>();
         _maxHealth = Mathf.Max(1f, _maxHealth);
@@ -99,6 +104,7 @@ public class ActorCombater : MonoBehaviour, IDamageable
 
     private void OnDisable()
     {
+        LockRevision++;
         _activeCombaters.Remove(this);
     }
 
@@ -118,7 +124,7 @@ public class ActorCombater : MonoBehaviour, IDamageable
     {
         if (lockMode == Enums.LockMode.None)
         {
-            combatTarget = FindBestAutoTarget()?.gameObject;
+            SetLockState(FindBestAutoTarget()?.gameObject, lockMode);
         }
         else
         {
@@ -128,7 +134,7 @@ public class ActorCombater : MonoBehaviour, IDamageable
             }
             else if (TryFindBestLockFallback(out var fallback))
             {
-                combatTarget = fallback;
+                SetLockState(fallback, lockMode);
             }
             else
             {
@@ -246,8 +252,7 @@ public class ActorCombater : MonoBehaviour, IDamageable
             : FindBestAutoTarget()?.gameObject;
         if (target == null) return false;
 
-        combatTarget = target;
-        lockMode = Enums.LockMode.SoftLock;
+        SetLockState(target, Enums.LockMode.SoftLock);
         return true;
     }
 
@@ -260,15 +265,20 @@ public class ActorCombater : MonoBehaviour, IDamageable
             : FindBestAutoTarget()?.gameObject;
         if (target == null) return false;
 
-        combatTarget = target;
-        lockMode = Enums.LockMode.HardLock;
+        SetLockState(target, Enums.LockMode.HardLock);
         return true;
     }
 
     public void ClearLock()
     {
-        lockMode = Enums.LockMode.None;
-        combatTarget = FindBestAutoTarget()?.gameObject;
+        SetLockState(FindBestAutoTarget()?.gameObject, Enums.LockMode.None);
+    }
+
+    private void SetLockState(GameObject target, Enums.LockMode mode)
+    {
+        if (combatTarget != target || lockMode != mode) LockRevision++;
+        combatTarget = target;
+        lockMode = mode;
     }
 
     public void ToggleSoftLock()

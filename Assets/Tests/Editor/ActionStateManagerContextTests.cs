@@ -14,7 +14,6 @@ public sealed class ActionStateManagerContextTests
     public void TearDown()
     {
         ContextRecordingCondition.Contexts.Clear();
-        ContextRecordingCondition.ClaimCount = 0;
 
         for (int i = _objects.Count - 1; i >= 0; i--)
         {
@@ -267,10 +266,11 @@ public sealed class ActionStateManagerContextTests
     }
 
     [Test]
-    public void ExternalRequest_RuntimeBeginFailureReportsFalseAndDoesNotClaimEntry()
+    public void ExternalRequest_RuntimeBeginFailureReportsFalseAndDoesNotConsumeInput()
     {
         TestRig rig = CreateRig();
         ActionAsset action = CreateInvalidActionRuntimeAction("Invalid ActionRuntime");
+        PlayerInputBuffer input = BindPressedInput(rig, action);
         bool? result = null;
         LogAssert.Expect(
             LogType.Warning,
@@ -284,7 +284,7 @@ public sealed class ActionStateManagerContextTests
 
         Assert.AreEqual(false, result);
         Assert.IsNull(rig.Player.CurrentAction);
-        Assert.AreEqual(0, ContextRecordingCondition.ClaimCount);
+        Assert.IsTrue(input.TryFindEvent(Enums.InputButton.LightAttack, InputButtonEventKind.Pressed, out _));
     }
 
     [Test]
@@ -292,6 +292,7 @@ public sealed class ActionStateManagerContextTests
     {
         TestRig rig = CreateRig();
         ActionAsset action = CreateValidActionRuntimeAction("Valid ActionRuntime");
+        PlayerInputBuffer input = BindPressedInput(rig, action);
         bool? result = null;
 
         rig.Asm.RequestExternalAction(
@@ -303,7 +304,7 @@ public sealed class ActionStateManagerContextTests
         Assert.AreEqual(true, result);
         Assert.IsNotNull(rig.Player.CurrentAction);
         Assert.AreSame(action, rig.Player.CurrentAction.Config);
-        Assert.AreEqual(1, ContextRecordingCondition.ClaimCount);
+        Assert.IsFalse(input.TryFindEvent(Enums.InputButton.LightAttack, InputButtonEventKind.Pressed, out _));
 
         Assert.IsTrue(rig.Player.PlayActionFrame(CombatSimulationTiming.FixedDeltaTime));
         rig.Player.FinishActionFrame();
@@ -327,6 +328,90 @@ public sealed class ActionStateManagerContextTests
         Assert.IsFalse(started);
         StringAssert.Contains("failed to start", failureReason);
         Assert.IsNull(rig.Player.CurrentAction);
+    }
+
+    [Test]
+    public void InputCandidates_OnlyTheWinnerConsumesItsMatchedEvent()
+    {
+        TestRig rig = CreateRig();
+        ActionAsset high = CreateAction("Light Input", ActionTriggerMode.Poll, priorityValue: 10);
+        ActionAsset low = CreateAction("Heavy Input", ActionTriggerMode.Poll);
+        PlayerInputBuffer input = BindPressedInput(rig, high);
+        SetPrivateField(low, "_entryConditions", new List<ActionCondition>
+        {
+            new InputSequenceCondition { clips = new[] { new InputEventClip { button = Enums.InputButton.HeavyAttack } } },
+        });
+        input.QueueButton(Enums.InputButton.HeavyAttack, true, 1d);
+        input.BeginFixedTick(1d);
+        rig.SetActionList(high, low);
+
+        rig.RunActionStateManager();
+
+        Assert.AreSame(high, rig.Player.CurrentAction.Config);
+        Assert.IsFalse(input.TryFindEvent(Enums.InputButton.LightAttack, InputButtonEventKind.Pressed, out _));
+        Assert.IsTrue(input.TryFindEvent(Enums.InputButton.HeavyAttack, InputButtonEventKind.Pressed, out _));
+    }
+
+    [Test]
+    public void InputTrigger_DoesNotBypassAnotherEntryConditionOrConsumeOnRejection()
+    {
+        TestRig rig = CreateRig();
+        ActionAsset blocked = CreateAction("Blocked Input", ActionTriggerMode.Poll, priorityValue: 100);
+        ActionAsset fallback = CreateAction("Fallback", ActionTriggerMode.Poll);
+        PlayerInputBuffer input = BindPressedInput(rig, blocked);
+        SetPrivateField(blocked, "_entryConditions", new List<ActionCondition>
+        {
+            new InputSequenceCondition { clips = new[] { new InputEventClip { button = Enums.InputButton.LightAttack } } },
+            new AlwaysTrueCondition { invertResult = true },
+        });
+        rig.SetActionList(blocked, fallback);
+
+        rig.RunActionStateManager();
+
+        Assert.AreSame(fallback, rig.Player.CurrentAction.Config);
+        Assert.IsTrue(input.TryFindEvent(Enums.InputButton.LightAttack, InputButtonEventKind.Pressed, out _));
+    }
+
+    [TestCase(true)]
+    [TestCase(false)]
+    public void DirectionSequence_UsesExistingArbitrationAndAllowsLegalNormalFallback(bool specialLegal)
+    {
+        TestRig rig = CreateRig();
+        ActionAsset special = CreateAction("Direction Special", ActionTriggerMode.Poll, priorityValue: 100);
+        ActionAsset normal = CreateAction("Normal Input", ActionTriggerMode.Poll);
+        var input = new PlayerInputBuffer();
+        var directions = new PlayerInputDirections();
+        var frame = new InputDirectionFrame(1, 0, 0, Vector3.forward, Vector3.right, Vector3.forward);
+        input.BeginFixedTick(0d);
+        directions.Publish(input, frame);
+        input.QueueMove(Vector2.down, 0d);
+        input.QueueMove(Vector2.up, 0.25d);
+        input.QueueButton(Enums.InputButton.LightAttack, true, 0.45d);
+        input.BeginFixedTick(0.45d);
+        directions.Publish(input, frame);
+        rig.Actor.PlayerInput = input;
+        rig.Actor.PlayerInputDirections = directions;
+        SetPrivateField(special, "_entryConditions", new List<ActionCondition>
+        {
+            new InputSequenceCondition { clips = new[]
+            {
+                new InputEventClip { type = InputEventType.DirectionEntered, direction = InputDirection.Back },
+                new InputEventClip { type = InputEventType.DirectionEntered, direction = InputDirection.Forward },
+                new InputEventClip { button = Enums.InputButton.LightAttack },
+            } },
+            new AlwaysTrueCondition { invertResult = !specialLegal },
+        });
+        SetPrivateField(normal, "_entryConditions", new List<ActionCondition>
+        {
+            new InputSequenceCondition { clips = new[] { new InputEventClip { button = Enums.InputButton.LightAttack } } },
+        });
+        rig.SetActionList(special, normal);
+
+        rig.RunActionStateManager();
+
+        Assert.AreSame(specialLegal ? special : normal, rig.Player.CurrentAction.Config);
+        Assert.IsFalse(input.TryFindEvent(Enums.InputButton.LightAttack, InputButtonEventKind.Pressed, out _));
+        Assert.AreEqual(!specialLegal, input.IsAvailable(input.MoveEvents[0]), "Only the special consumes direction context.");
     }
 
     [Test]
@@ -459,7 +544,6 @@ public sealed class ActionStateManagerContextTests
         rig.RunActionStateManager();
 
         Assert.AreSame(action, rig.Player.CurrentAction.Config);
-        Assert.AreEqual(1, ContextRecordingCondition.ClaimCount);
     }
 
     [Test]
@@ -536,7 +620,6 @@ public sealed class ActionStateManagerContextTests
         rig.RunActionStateManager();
 
         Assert.AreSame(other, rig.Player.CurrentAction.Config);
-        Assert.AreEqual(1, ContextRecordingCondition.ClaimCount);
     }
 
     [Test]
@@ -557,7 +640,6 @@ public sealed class ActionStateManagerContextTests
         rig.RunActionStateManager();
 
         Assert.AreSame(next, rig.Player.CurrentAction.Config);
-        Assert.AreEqual(1, ContextRecordingCondition.ClaimCount);
     }
 
     [Test]
@@ -594,7 +676,6 @@ public sealed class ActionStateManagerContextTests
         Assert.IsNull(rig.Player.CurrentAction);
         Assert.AreEqual(0, rig.Motor.MotionPolicy.DebugLocomotionScaleOwnerCount);
         Assert.AreEqual(1f, rig.Motor.MotionPolicy.LocomotionScale);
-        Assert.AreEqual(0, ContextRecordingCondition.ClaimCount);
         Assert.AreEqual(false, first);
         Assert.AreEqual(1, callbacks);
         Assert.IsNull(submittedInCallback);
@@ -604,7 +685,19 @@ public sealed class ActionStateManagerContextTests
         Assert.AreSame(next, rig.Player.CurrentAction.Config);
         Assert.AreEqual(true, submittedInCallback);
         Assert.AreEqual(1, callbacks);
-        Assert.AreEqual(1, ContextRecordingCondition.ClaimCount);
+    }
+
+    private static PlayerInputBuffer BindPressedInput(TestRig rig, ActionAsset action)
+    {
+        var input = new PlayerInputBuffer();
+        input.QueueButton(Enums.InputButton.LightAttack, true, 1d);
+        input.BeginFixedTick(1d);
+        rig.Actor.PlayerInput = input;
+        SetPrivateField(action, "_entryConditions", new List<ActionCondition>
+        {
+            new InputSequenceCondition { clips = new[] { new InputEventClip { button = Enums.InputButton.LightAttack } } },
+        });
+        return input;
     }
 
     private static CancelRule ReturnRule(float threshold = 0.01f) => new CancelRule
@@ -772,7 +865,6 @@ public sealed class ActionStateManagerContextTests
     private sealed class ContextRecordingCondition : ActionCondition
     {
         public static readonly List<ActionContext> Contexts = new List<ActionContext>();
-        public static int ClaimCount;
 
         protected override bool OnCheck(Actor actor)
         {
@@ -785,10 +877,6 @@ public sealed class ActionStateManagerContextTests
             return true;
         }
 
-        public override void OnClaim(Actor actor)
-        {
-            ClaimCount++;
-        }
     }
 
 }

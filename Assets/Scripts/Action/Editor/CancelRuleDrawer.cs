@@ -1,4 +1,5 @@
 #if UNITY_EDITOR
+using DeiveEx.TagTree;
 using UnityEditor;
 using UnityEngine;
 
@@ -52,17 +53,29 @@ public sealed class CancelRuleDrawer : PropertyDrawer
         }
     }
 
+    /// <summary>Collapsed row shows only the destination: Action name, Tag, Any or Locomotion.</summary>
     private static GUIContent HeaderLabel(SerializedProperty property, GUIContent fallback)
     {
         SerializedProperty kind = property.FindPropertyRelative(nameof(CancelRule.targetKind));
         if (kind == null || kind.hasMultipleDifferentValues)
             return fallback;
-        string title = ObjectNames.NicifyVariableName(((CancelTargetKind)kind.intValue).ToString());
-        if ((CancelTargetKind)kind.intValue == CancelTargetKind.SpecificAction)
+
+        var targetKind = (CancelTargetKind)kind.intValue;
+        string title = ObjectNames.NicifyVariableName(targetKind.ToString());
+        switch (targetKind)
         {
-            UnityEngine.Object target = property.FindPropertyRelative(nameof(CancelRule.specificTarget)).objectReferenceValue;
-            if (target != null)
-                title += " → " + target.name;
+            case CancelTargetKind.SpecificAction:
+                UnityEngine.Object target = property.FindPropertyRelative(nameof(CancelRule.specificTarget)).objectReferenceValue;
+                if (target != null)
+                    title = target.name;
+                break;
+            case CancelTargetKind.AnyWithTag:
+                SerializedProperty tagId = property.FindPropertyRelative(nameof(CancelRule.targetTag))
+                    ?.FindPropertyRelative("TagId");
+                Tag tag = tagId != null ? Tag.GetTagFromId(tagId.intValue) : null;
+                if (tag != null && !string.IsNullOrEmpty(tag.FullTagName))
+                    title = tag.FullTagName;
+                break;
         }
         return new GUIContent(title, property.tooltip);
     }

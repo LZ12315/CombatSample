@@ -1,5 +1,6 @@
 #if UNITY_EDITOR
 using System;
+using System.Collections.Generic;
 using MackySoft.SerializeReferenceExtensions.Editor;
 using UnityEditor;
 using UnityEditor.IMGUI.Controls;
@@ -10,7 +11,9 @@ using UnityEngine;
 internal sealed class ActionAuthoringListGUI
 {
     private const float HeaderInset = 20f;
-    private const float ElementPadding = 2f;
+    private const float ElementPadding = 5f;
+    private const float TitleSpacing = 4f;
+    private const float BottomSpacing = 8f;
     private readonly Action<SerializedObject, string, Type> _onTypeSelected;
     private ReorderableList _list;
 
@@ -54,7 +57,12 @@ internal sealed class ActionAuthoringListGUI
                 _list.index = Mathf.Min(selected, property.arraySize - 1);
             }
             if (property.isExpanded)
+            {
+                // Space the whole list, including its border, handles and footer.
+                GUILayout.Space(TitleSpacing);
                 _list.DoLayoutList();
+                GUILayout.Space(BottomSpacing);
+            }
         }
         finally
         {
@@ -116,7 +124,7 @@ internal sealed class ActionAuthoringListGUI
                 if (TryGetConditionDrawer(element, out PropertyDrawer drawer))
                     height += EditorGUIUtility.standardVerticalSpacing + drawer.GetPropertyHeight(element, GUIContent.none);
                 else
-                    foreach (SerializedProperty child in element.GetChildProperties())
+                    foreach (SerializedProperty child in VisibleChildren(element))
                         height += EditorGUIUtility.standardVerticalSpacing + EditorGUI.GetPropertyHeight(child, true);
             }
         }
@@ -152,13 +160,24 @@ internal sealed class ActionAuthoringListGUI
             }
             else
             {
-                foreach (SerializedProperty child in element.GetChildProperties())
+                foreach (SerializedProperty child in VisibleChildren(element))
                 {
                     field.height = EditorGUI.GetPropertyHeight(child, true);
                     EditorGUI.PropertyField(field, child, true);
                     field.y += field.height + EditorGUIUtility.standardVerticalSpacing;
                 }
             }
+        }
+    }
+
+    private static IEnumerable<SerializedProperty> VisibleChildren(SerializedProperty element)
+    {
+        var condition = element.managedReferenceValue as ActionCondition;
+        foreach (SerializedProperty child in element.GetChildProperties())
+        {
+            if (child.name == nameof(ActionCondition.invertResult) && condition?.SupportsInversion == false)
+                continue;
+            yield return child;
         }
     }
 

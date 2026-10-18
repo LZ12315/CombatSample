@@ -18,6 +18,9 @@ public class Actor : MonoBehaviour
     public ActorCombater combater;
 
     internal ActorHitBoxRuntime HitBoxes => _simulationRuntime?.HitBoxes;
+    // Runtime-only view, published by the local player at the fixed input boundary.
+    internal PlayerInputBuffer PlayerInput { get; set; }
+    internal PlayerInputDirections PlayerInputDirections { get; set; }
 
     [Header("Camera")]
     [Tooltip("相机观察该 Actor 时使用的目标点。玩家通常指向 CameraPivot；敌人可指向胸口/锁定点。未配置时回退到 Actor Transform。")]
@@ -44,6 +47,7 @@ public class Actor : MonoBehaviour
         animancer = animancer != null ? animancer : GetComponentInChildren<AnimancerComponent>();
         actorAnimation = actorAnimation != null ? actorAnimation : GetComponent<ActorAnimation>();
         actorLocomotion = actorLocomotion != null ? actorLocomotion : GetComponent<ActorLocomotion>();
+        combater = combater != null ? combater : GetComponent<ActorCombater>();
         if (actorAnimation == null && animancer != null)
             actorAnimation = gameObject.AddComponent<ActorAnimation>();
         actorAnimation?.Bind(this);
@@ -65,6 +69,9 @@ public class Actor : MonoBehaviour
 
     private void OnDisable()
     {
+        PlayerInput?.ResetPreservingHeldButtons();
+        PlayerInput = null;
+        PlayerInputDirections = null;
         if (_simulationRuntime != null)
         {
             _simulationRuntime.CancelFrame();

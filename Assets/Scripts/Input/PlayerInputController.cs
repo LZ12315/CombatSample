@@ -1,45 +1,50 @@
 using System;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
+/// <summary>
+/// Single local-player device adapter. Gameplay consumes the journal at the Driver's
+/// fixed boundary; camera/UI keep their presentation clock. This component owns the
+/// runtime action instance and all enable/disable permissions.
+/// </summary>
 public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerActions
 {
     private PlayerInputControl actions;
-
     public Actor controlledActor;
 
     [Header("Debug")]
-    public bool debug = false;
+    public bool debug;
     public float timeScale = 0.1f;
 
-    [Header("Press Times")]
-    [SerializeField] private int ShortPress_Frame = 40;
-    [SerializeField] private int LongPress_Frame = 120;
-
-    [SerializeField] private float joystickHard_Distance = 0.6f;
+    [Header("Gameplay Input")]
     [SerializeField] private float joystick_DeadZone = 0.1f;
-
-    [Header("Raw Axes")]
-    private Vector2 rawMove = Vector2.zero;
-    private Vector2 rawLook = Vector2.zero;
-
-    private readonly Dictionary<Enums.InputButton, InputPressState> buttonStates = new();
-    private readonly Dictionary<Enums.InputJoystick, InputPressState> joystickStates = new();
-
-    [Header("Input History")]
-    [SerializeField, Tooltip("Max age in real seconds for buffered player input events.")]
+    [SerializeField, Tooltip("Freshness of a terminal command in real seconds, including during hit stop.")]
     private float _bufferValidTime = 0.2f;
 
-    private readonly List<BufferedInput> _inputHistory = new List<BufferedInput>(32);
-    private readonly PlayerLocomotionIntentResolver _locomotionResolver = new PlayerLocomotionIntentResolver();
+    private Vector2 rawLook;
+    private bool _lookIsMouse;
+    private bool _ownsInput;
+    private bool _hasFocus = true;
+    private bool _gameplayEnabled = true;
+    private bool _lookEnabled = true;
+    private bool _uiEnabled;
+    private bool _availableLast;
+    private Enums.InputButton _physicallyHeld;
     private Actor _lastControlledActor;
     private ActorCameraControl _cachedCameraControl;
+    private readonly PlayerInputBuffer _buffer = new PlayerInputBuffer();
+    private readonly PlayerInputDirections _directions = new PlayerInputDirections();
+    private readonly PlayerLocomotionIntentResolver _locomotionResolver = new PlayerLocomotionIntentResolver();
 
     public static PlayerInputController Instance { get; private set; }
-    public Vector2 RawMove => rawMove;
-    public Vector2 RawLook => rawLook;
-    public IReadOnlyList<BufferedInput> InputHistory => _inputHistory;
+    public Vector2 RawMove => CanUseGameplay ? _buffer.Move : Vector2.zero;
+    public Vector2 RawLook => CanUseLook ? rawLook : Vector2.zero;
+    public bool IsLookInputEnabled => CanUseLook;
+    public InputActionAsset InputActions => actions?.asset;
+    public System.Collections.Generic.IReadOnlyList<PlayerInputEvent> InputEvents => _buffer.Events;
+    private bool CanUseGameplay => _ownsInput && isActiveAndEnabled && _hasFocus && _gameplayEnabled
+        && controlledActor != null && controlledActor.isActiveAndEnabled;
+    private bool CanUseLook => _ownsInput && isActiveAndEnabled && _hasFocus && _lookEnabled;
 
     private void Awake()
     {
@@ -48,441 +53,283 @@ public class PlayerInputController : MonoBehaviour, PlayerInputControl.IPlayerAc
             Destroy(gameObject);
             return;
         }
-
         Instance = this;
-
+        _ownsInput = true;
         actions = new PlayerInputControl();
-        if (actions.asset == null)
-        {
-            Debug.LogError($"{nameof(PlayerInputControl)} failed to build InputActionAsset.", this);
-            enabled = false;
-            return;
-        }
-
         actions.Player.SetCallbacks(this);
-    }
-
-    private void OnDestroy()
-    {
-        ClearPendingPlayerLocomotionIntent();
-        if (Instance == this)
-            Instance = null;
-
-        actions?.Dispose();
-        actions = null;
-    }
-
-    private void Start()
-    {
-        Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;
-
-        if (debug)
-            Time.timeScale = timeScale;
+        // Held-at-enable buttons must enter the native action state too, so their
+        // eventual release is observable even though the initial press is blocked.
+        actions.Player.LightAttack.wantsInitialStateCheck = true;
+        actions.Player.HeavyAttack.wantsInitialStateCheck = true;
+        actions.Player.Dodge.wantsInitialStateCheck = true;
+        actions.Player.Jump.wantsInitialStateCheck = true;
+        actions.Player.Lock.wantsInitialStateCheck = true;
     }
 
     private void OnEnable()
     {
-        actions?.Enable();
+        if (!_ownsInput) return;
+        _hasFocus = Application.isFocused;
+        RefreshActionMaps();
+        _physicallyHeld = ReadPhysicallyHeldButtons();
+        SyncControlledActorChange();
+        ResetGameplayState();
+        _availableLast = CanUseGameplay;
     }
 
     private void OnDisable()
     {
-        ClearPendingPlayerLocomotionIntent();
+        // Gate and discard before Disable emits synthetic canceled callbacks.
+        ResetGameplayState();
+        rawLook = Vector2.zero;
         actions?.Disable();
+        _availableLast = false;
+    }
+
+    private void OnDestroy()
+    {
+        ResetGameplayState();
+        if (Instance == this) Instance = null;
+        actions?.Dispose();
+        actions = null;
+    }
+
+    private void OnApplicationFocus(bool focus)
+    {
+        _hasFocus = focus;
+        ResetGameplayState();
+        rawLook = Vector2.zero;
+        RefreshActionMaps();
+        if (focus) _physicallyHeld = ReadPhysicallyHeldButtons();
+        _buffer.Reset(_physicallyHeld);
+        _availableLast = CanUseGameplay;
+    }
+
+    private void Start()
+    {
+        if (!_ownsInput) return;
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
+        if (debug) Time.timeScale = timeScale;
     }
 
     private void Update()
     {
-        MaintainInputHistory();
         SyncControlledActorChange();
-
+        SyncAvailability();
         if (Input.GetKeyDown(KeyCode.Escape))
         {
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
         }
-
-        if (Input.GetKeyDown(KeyCode.R))
-        {
 #if UNITY_EDITOR
+        if (Input.GetKeyDown(KeyCode.R))
             UnityEditor.EditorApplication.isPaused = !UnityEditor.EditorApplication.isPaused;
 #endif
-        }
-
-        UpdateInputState();
     }
 
-    public bool GetInputState(Enums.InputButton button)
+    private void OnValidate()
     {
-        if (buttonStates.TryGetValue(button, out InputPressState state))
-            return state.isActive;
-
-        buttonStates[button] = new InputPressState(false);
-        return false;
+        _bufferValidTime = float.IsNaN(_bufferValidTime) || float.IsInfinity(_bufferValidTime)
+            ? 0.2f : Mathf.Max(0f, _bufferValidTime);
+        joystick_DeadZone = Mathf.Clamp01(joystick_DeadZone);
     }
 
-    public bool GetInputState(Enums.InputJoystick joystick)
+    public void SetControlledActor(Actor actor)
     {
-        if (joystickStates.TryGetValue(joystick, out InputPressState state))
-            return state.isActive;
-
-        joystickStates[joystick] = new InputPressState(false);
-        return false;
+        controlledActor = actor;
+        SyncControlledActorChange();
     }
 
-    public bool IsControlledActor(Actor actor)
+    public void SetGameplayInputEnabled(bool enabled)
     {
-        return actor != null && controlledActor == actor;
+        if (_gameplayEnabled == enabled) return;
+        _gameplayEnabled = enabled;
+        ResetGameplayState();
+        RefreshActionMaps();
+        _physicallyHeld = ReadPhysicallyHeldButtons();
+        _buffer.Reset(_physicallyHeld);
+        _availableLast = CanUseGameplay;
     }
 
-    public void ClearInputHistory()
+    public void SetLookInputEnabled(bool enabled)
     {
-        _inputHistory.Clear();
+        _lookEnabled = enabled;
+        rawLook = Vector2.zero;
+        RefreshActionMaps();
     }
 
-    public bool TryConsumeInputHistory(IReadOnlyList<BufferedInput> entries)
+    public void SetUIInputEnabled(bool enabled)
     {
-        if (entries == null || entries.Count == 0)
-            return false;
+        _uiEnabled = enabled;
+        RefreshActionMaps();
+    }
 
-        for (int i = 0; i < entries.Count; i++)
+    /// <summary>Menu integration point, not a pause-menu or time-scale implementation.</summary>
+    public void SetMenuInputActive(bool active)
+    {
+        SetGameplayInputEnabled(!active);
+        SetLookInputEnabled(!active);
+        SetUIInputEnabled(active);
+    }
+
+    private void RefreshActionMaps()
+    {
+        if (actions == null) return;
+        bool active = _ownsInput && isActiveAndEnabled && _hasFocus;
+        if (active && (_gameplayEnabled || _lookEnabled)) actions.Player.Enable();
+        else actions.Player.Disable();
+        if (active && _uiEnabled) actions.UI.Enable();
+        else actions.UI.Disable();
+    }
+
+    public bool TryGetLookInput(out Vector2 look, out bool isMouse)
+    {
+        if (CanUseLook)
         {
-            BufferedInput entry = entries[i];
-            if (entry == null || entry.IsConsumed || !_inputHistory.Contains(entry))
-                return false;
+            rawLook = actions.Player.Look.ReadValue<Vector2>();
+            _lookIsMouse = actions.Player.Look.activeControl != null
+                && actions.Player.Look.activeControl.device is Mouse;
         }
-
-        for (int i = 0; i < entries.Count; i++)
-            entries[i].Consume();
-
-        return true;
+        look = RawLook;
+        isMouse = _lookIsMouse;
+        return CanUseLook;
     }
+
+    public bool IsControlledActor(Actor actor) => CanUseGameplay && controlledActor == actor;
+    public bool GetInputState(Enums.InputButton button) => CanUseGameplay && _buffer.IsHeld(button);
+    public double GetHeldSeconds(Enums.InputButton button) => CanUseGameplay ? _buffer.HeldSeconds(button) : 0d;
+    public void ClearInputEvents() => _buffer.ClearEvents();
 
     internal void SubmitLocomotionIntentForFixedTick()
     {
-        if (!isActiveAndEnabled)
-            return;
-
         SyncControlledActorChange();
-        if (controlledActor == null || controlledActor.actorLocomotion == null)
-            return;
-
+        SyncAvailability();
+        if (!CanUseGameplay) return;
+        // Poll continuous Move after re-enable even if no new value-change callback
+        // arrives. Buttons remain edge-driven and must be released to re-arm.
+        double now = Time.realtimeSinceStartupAsDouble;
+        QueueMove(actions.Player.Move.ReadValue<Vector2>(), now);
+        _buffer.BeginFixedTick(now, _bufferValidTime);
+        controlledActor.PlayerInput = _buffer;
+        while (_buffer.TryConsumePress(Enums.InputButton.Lock))
+            controlledActor.combater?.ToggleSoftLock();
         ActorCameraControl cameraControl = ResolveCameraControl();
-        LocomotionIntent intent = _locomotionResolver.Resolve(controlledActor, cameraControl, rawMove);
-        controlledActor.actorLocomotion.SetLocomotionIntent(intent);
+        // One coordinate sample for this publication, after Lock has been applied.
+        // This is a fixed-boundary approximation, not historical camera/target replay.
+        _directions.Publish(_buffer, PlayerLocomotionIntentResolver.CaptureDirectionFrame(controlledActor, cameraControl));
+        controlledActor.PlayerInputDirections = _directions;
+        if (controlledActor.actorLocomotion != null)
+        {
+            LocomotionIntent intent = _locomotionResolver.Resolve(controlledActor, cameraControl, _buffer.Move);
+            controlledActor.actorLocomotion.SetLocomotionIntent(intent);
+        }
     }
 
     public void OnMove(InputAction.CallbackContext context)
     {
-        rawMove = context.ReadValue<Vector2>();
-        float distance = rawMove.sqrMagnitude;
-
-        switch (context.phase)
-        {
-            case InputActionPhase.Performed:
-                if (distance >= joystickHard_Distance)
-                    SendJoystickInputData(CastVectorToDirection(rawMove), Enums.JoystickVigor.Hard);
-                else
-                    SendJoystickInputData(CastVectorToDirection(rawMove), Enums.JoystickVigor.Light);
-
-                SetInputState(CastVectorToDirection(rawMove), true);
-                break;
-
-            case InputActionPhase.Canceled:
-                SendJoystickInputData(CastVectorToDirection(rawMove), Enums.JoystickVigor.Idle);
-                SetInputState(Enums.InputJoystick.Idle, true);
-                break;
-        }
+        SyncControlledActorChange();
+        SyncAvailability();
+        if (!CanUseGameplay) return;
+        QueueMove(context.ReadValue<Vector2>(), context.time);
     }
+
+    private void QueueMove(Vector2 move, double time) =>
+        _buffer.QueueMove(move.sqrMagnitude < joystick_DeadZone * joystick_DeadZone ? Vector2.zero : move, time);
 
     public void OnLook(InputAction.CallbackContext context)
     {
+        if (!CanUseLook) return;
         rawLook = context.ReadValue<Vector2>();
+        _lookIsMouse = context.control != null && context.control.device is Mouse;
     }
 
-    public void OnLock(InputAction.CallbackContext context)
-    {
-        if (controlledActor == null || !context.performed)
-            return;
-
-        controlledActor.combater?.ToggleSoftLock();
-    }
-
-    public void OnDodge(InputAction.CallbackContext context)
-    {
-        if (controlledActor == null)
-            return;
-
-        switch (context.phase)
-        {
-            case InputActionPhase.Started:
-                SetInputState(Enums.InputButton.Dodge, true);
-                break;
-
-            case InputActionPhase.Canceled:
-                SetInputState(Enums.InputButton.Dodge, false);
-                break;
-        }
-    }
+    public void OnLock(InputAction.CallbackContext context) => RecordButton(Enums.InputButton.Lock, context);
+    public void OnDodge(InputAction.CallbackContext context) => RecordButton(Enums.InputButton.Dodge, context);
+    public void OnHeavyAttack(InputAction.CallbackContext context) => RecordButton(Enums.InputButton.HeavyAttack, context);
+    public void OnJump(InputAction.CallbackContext context) => RecordButton(Enums.InputButton.Jump, context);
 
     public void OnLightAttack(InputAction.CallbackContext context)
     {
-        if (controlledActor == null)
-            return;
-
-        if (Cursor.lockState == CursorLockMode.None)
+        if (CanUseGameplay && context.performed && Cursor.lockState == CursorLockMode.None)
         {
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
         }
+        RecordButton(Enums.InputButton.LightAttack, context);
+    }
 
-        switch (context.phase)
+    private void RecordButton(Enums.InputButton button, InputAction.CallbackContext context)
+    {
+        if (!context.performed && !context.canceled) return;
+        SyncControlledActorChange();
+        SyncAvailability();
+        bool down = context.performed;
+        if (down) _physicallyHeld |= button;
+        else _physicallyHeld &= ~button;
+        if (!CanUseGameplay) return;
+        _buffer.QueueButton(button, down, context.time);
+        if (debug) Debug.Log($"{button}: {(down ? "Pressed" : "Released")} @ {context.time:R}");
+    }
+
+    private Enums.InputButton ReadPhysicallyHeldButtons()
+    {
+        if (actions == null) return Enums.InputButton.None;
+        Enums.InputButton held = Enums.InputButton.None;
+        Check(actions.Player.LightAttack, Enums.InputButton.LightAttack);
+        Check(actions.Player.HeavyAttack, Enums.InputButton.HeavyAttack);
+        Check(actions.Player.Dodge, Enums.InputButton.Dodge);
+        Check(actions.Player.Jump, Enums.InputButton.Jump);
+        Check(actions.Player.Lock, Enums.InputButton.Lock);
+        return held;
+        void Check(InputAction action, Enums.InputButton button)
         {
-            case InputActionPhase.Started:
-                SetInputState(Enums.InputButton.LightAttack, true);
-                break;
-
-            case InputActionPhase.Canceled:
-                SetInputState(Enums.InputButton.LightAttack, false);
-                break;
-        }
-    }
-
-    public void OnHeavyAttack(InputAction.CallbackContext context)
-    {
-        if (controlledActor == null)
-            return;
-
-        switch (context.phase)
-        {
-            case InputActionPhase.Started:
-                SetInputState(Enums.InputButton.HeavyAttack, true);
-                break;
-
-            case InputActionPhase.Canceled:
-                SetInputState(Enums.InputButton.HeavyAttack, false);
-                break;
-        }
-    }
-
-    public void OnJump(InputAction.CallbackContext context)
-    {
-        if (controlledActor == null)
-            return;
-
-        switch (context.phase)
-        {
-            case InputActionPhase.Started:
-                SetInputState(Enums.InputButton.Jump, true);
-                break;
-
-            case InputActionPhase.Canceled:
-                SetInputState(Enums.InputButton.Jump, false);
-                break;
-        }
-    }
-
-    private void SendButtonInputData(Enums.InputButton button, Enums.ButtonState state)
-    {
-        var buttonInput = new InputButtonData(button, state);
-        AddInputHistory(buttonInput);
-
-        if (debug)
-            Debug.Log(buttonInput.inputButton + "   " + buttonInput.buttonState);
-    }
-
-    private void SendJoystickInputData(Enums.InputJoystick joystick, Enums.JoystickVigor vigor)
-    {
-        var joystickInput = new InputJoystickData(joystick, vigor);
-        AddInputHistory(joystickInput);
-
-        if (debug)
-            Debug.Log(joystickInput.inputJoystick + "   " + joystickInput.joystickVigor);
-    }
-
-    private void SetInputState(Enums.InputButton button, bool active)
-    {
-        if (buttonStates.TryGetValue(button, out InputPressState state))
-            state.isActive = active;
-        else
-            buttonStates[button] = state = new InputPressState(active);
-
-        if (!active)
-        {
-            if (state.elapsedFrame == 0)
-                return;
-
-            if (state.elapsedFrame < ShortPress_Frame)
-                SendButtonInputData(button, Enums.ButtonState.ShortPress);
-            else
-                SendButtonInputData(button, Enums.ButtonState.LongPress_Stop);
-        }
-    }
-
-    private void SetInputState(Enums.InputJoystick joystick, bool active)
-    {
-        foreach (InputPressState state in joystickStates.Values)
-            state.isActive = false;
-
-        if (joystickStates.TryGetValue(joystick, out InputPressState current))
-            current.isActive = active;
-        else
-            joystickStates[joystick] = new InputPressState(active);
-    }
-
-    private void UpdateInputState()
-    {
-        foreach (var pair in buttonStates)
-        {
-            InputPressState state = pair.Value;
-            if (!state.isActive)
-            {
-                state.elapsedFrame = 0;
-                continue;
-            }
-
-            state.elapsedFrame++;
-
-            if (state.elapsedFrame == ShortPress_Frame)
-            {
-                SendButtonInputData(pair.Key, Enums.ButtonState.LongPress_Start);
-                continue;
-            }
-
-            if (state.elapsedFrame > LongPress_Frame)
-            {
-                SendButtonInputData(pair.Key, Enums.ButtonState.LongPress_Stop);
-                state.isActive = false;
-            }
-        }
-
-        foreach (var pair in joystickStates)
-        {
-            InputPressState state = pair.Value;
-            if (!state.isActive)
-            {
-                state.elapsedFrame = 0;
-                continue;
-            }
-
-            state.elapsedFrame++;
-        }
-    }
-
-    private Enums.InputJoystick CastVectorToDirection(Vector2 input)
-    {
-        if (input.sqrMagnitude < joystick_DeadZone)
-            return Enums.InputJoystick.Idle;
-
-        Vector2 normalized = input.normalized;
-        float angle = Mathf.Atan2(normalized.y, normalized.x) * Mathf.Rad2Deg;
-        if (angle < 0f)
-            angle += 360f;
-
-        return AngleToDirection(angle);
-    }
-
-    private static Enums.InputJoystick AngleToDirection(float angle)
-    {
-        if (angle <= 45f || angle >= 315f)
-            return Enums.InputJoystick.East;
-
-        if (angle <= 135f)
-            return Enums.InputJoystick.North;
-
-        if (angle <= 225f)
-            return Enums.InputJoystick.West;
-
-        return Enums.InputJoystick.South;
-    }
-
-    private void AddInputHistory(InputData inputData)
-    {
-        if (inputData == null)
-            return;
-
-        _inputHistory.Add(new BufferedInput(inputData, Time.unscaledTime));
-    }
-
-    private void MaintainInputHistory()
-    {
-        float now = Time.unscaledTime;
-        for (int i = _inputHistory.Count - 1; i >= 0; i--)
-        {
-            if (now - _inputHistory[i].Timestamp > _bufferValidTime)
-                _inputHistory.RemoveAt(i);
+            foreach (InputControl control in action.controls)
+                if (control.IsPressed()) { held |= button; break; }
         }
     }
 
     private void SyncControlledActorChange()
     {
-        if (_lastControlledActor == controlledActor)
-            return;
-
-        ClearPendingPlayerLocomotionIntent(_lastControlledActor);
+        if (_lastControlledActor == controlledActor) return;
+        ResetGameplayState();
         _lastControlledActor = controlledActor;
         _cachedCameraControl = null;
+        _availableLast = CanUseGameplay;
+    }
+
+    private void SyncAvailability()
+    {
+        bool available = CanUseGameplay;
+        if (_availableLast == available) return;
+        ResetGameplayState();
+        _availableLast = available;
+    }
+
+    private void ResetGameplayState()
+    {
+        if (_lastControlledActor != null)
+        {
+            _lastControlledActor.actorLocomotion?.ClearLocomotionIntent();
+            if (ReferenceEquals(_lastControlledActor.PlayerInput, _buffer))
+            {
+                _lastControlledActor.PlayerInput = null;
+                _lastControlledActor.PlayerInputDirections = null;
+            }
+        }
+        _buffer.Reset(_physicallyHeld);
     }
 
     private ActorCameraControl ResolveCameraControl()
     {
         if (_cachedCameraControl != null && _cachedCameraControl.actor == controlledActor)
             return _cachedCameraControl;
-
-        _cachedCameraControl = null;
-        if (controlledActor == null)
-            return null;
-
         _cachedCameraControl = controlledActor.GetComponent<ActorCameraControl>();
-        if (_cachedCameraControl == null)
-            _cachedCameraControl = controlledActor.GetComponentInChildren<ActorCameraControl>();
-        if (_cachedCameraControl == null)
-            _cachedCameraControl = controlledActor.GetComponentInParent<ActorCameraControl>();
-
+        if (_cachedCameraControl == null) _cachedCameraControl = controlledActor.GetComponentInChildren<ActorCameraControl>();
+        if (_cachedCameraControl == null) _cachedCameraControl = controlledActor.GetComponentInParent<ActorCameraControl>();
         return _cachedCameraControl;
     }
 
-    private void ClearPendingPlayerLocomotionIntent()
-    {
-        Actor actor = _lastControlledActor != null ? _lastControlledActor : controlledActor;
-        ClearPendingPlayerLocomotionIntent(actor);
-    }
-
-    private static void ClearPendingPlayerLocomotionIntent(Actor actor)
-    {
-        actor?.actorLocomotion?.ClearLocomotionIntent();
-    }
-
-    public class InputPressState
-    {
-        public bool isActive;
-        public int elapsedFrame;
-
-        public InputPressState(bool active = false, int frame = 0)
-        {
-            isActive = active;
-            elapsedFrame = frame;
-        }
-    }
-
-    public sealed class BufferedInput
-    {
-        public BufferedInput(InputData data, float timestamp)
-        {
-            Data = data;
-            Timestamp = timestamp;
-        }
-
-        public InputData Data { get; }
-        public float Timestamp { get; }
-        public bool IsConsumed { get; private set; }
-
-        internal void Consume()
-        {
-            IsConsumed = true;
-        }
-    }
 }
 
 internal sealed class PlayerLocomotionIntentResolver
@@ -492,22 +339,11 @@ internal sealed class PlayerLocomotionIntentResolver
         Vector2 move = Vector2.ClampMagnitude(rawMove, 1f);
         bool hasHardLockFacing = TryResolveHardLockFacing(actor, out Vector3 hardLockFacing);
         if (move.sqrMagnitude <= 0.01f)
-        {
-            return hasHardLockFacing
-                ? new LocomotionIntent { FacingDirection = hardLockFacing }
-                : LocomotionIntent.Idle;
-        }
-
-        Vector3 worldDir = ResolveWorldMoveDirection(cameraControl, move,
-            hasHardLockFacing ? hardLockFacing : Vector3.zero);
+            return hasHardLockFacing ? new LocomotionIntent { FacingDirection = hardLockFacing } : LocomotionIntent.Idle;
+        Vector3 worldDir = ResolveWorldMoveDirection(cameraControl, move, hasHardLockFacing ? hardLockFacing : Vector3.zero);
         worldDir.y = 0f;
         if (worldDir.sqrMagnitude < 0.0001f)
-        {
-            return hasHardLockFacing
-                ? new LocomotionIntent { FacingDirection = hardLockFacing }
-                : LocomotionIntent.Idle;
-        }
-
+            return hasHardLockFacing ? new LocomotionIntent { FacingDirection = hardLockFacing } : LocomotionIntent.Idle;
         worldDir.Normalize();
         return new LocomotionIntent
         {
@@ -517,20 +353,30 @@ internal sealed class PlayerLocomotionIntentResolver
         };
     }
 
-    private static Vector3 ResolveWorldMoveDirection(
-        ActorCameraControl cameraControl,
-        Vector2 move,
-        Vector3 hardLockFacing)
+    internal static InputDirectionFrame CaptureDirectionFrame(Actor actor, ActorCameraControl cameraControl)
+    {
+        if (actor == null || actor.combater == null || !actor.combater.isActiveAndEnabled || !actor.combater.IsLocked) return default;
+        GameObject target = actor.combater.CombatTarget;
+        if (target == null || !target.activeInHierarchy) return default;
+        ActorCombater targetCombat = target.GetComponent<ActorCombater>();
+        if (targetCombat == null || !targetCombat.isActiveAndEnabled || targetCombat.IsDead) return default;
+        Vector3 facing = target.transform.position - actor.transform.position;
+        facing.y = 0f;
+        if (facing.sqrMagnitude <= 0.0001f) return default;
+        facing.Normalize();
+        bool hard = TryResolveHardLockFacing(actor, out Vector3 hardFacing);
+        Camera camera = !hard && cameraControl != null ? Camera.main : null;
+        return new InputDirectionFrame(target.GetInstanceID(), camera != null ? camera.GetInstanceID() : 0,
+            (int)actor.combater.LockMode,
+            ResolveWorldMoveDirection(cameraControl, Vector2.up, hard ? hardFacing : Vector3.zero),
+            ResolveWorldMoveDirection(cameraControl, Vector2.right, hard ? hardFacing : Vector3.zero), facing, actor.combater.LockRevision);
+    }
+
+    private static Vector3 ResolveWorldMoveDirection(ActorCameraControl cameraControl, Vector2 move, Vector3 hardLockFacing)
     {
         if (hardLockFacing.sqrMagnitude > 0.0001f)
-        {
-            Vector3 tangentRight = Vector3.Cross(Vector3.up, hardLockFacing).normalized;
-            return hardLockFacing * move.y + tangentRight * move.x;
-        }
-
-        if (cameraControl != null)
-            return cameraControl.ToWorldMoveDirection(move);
-
+            return hardLockFacing * move.y + Vector3.Cross(Vector3.up, hardLockFacing).normalized * move.x;
+        if (cameraControl != null) return cameraControl.ToWorldMoveDirection(move);
         Vector3 fallback = new Vector3(move.x, 0f, move.y);
         return fallback.sqrMagnitude > 0.0001f ? fallback.normalized : Vector3.zero;
     }
@@ -538,21 +384,12 @@ internal sealed class PlayerLocomotionIntentResolver
     private static bool TryResolveHardLockFacing(Actor actor, out Vector3 facing)
     {
         facing = Vector3.zero;
-
-        if (actor?.combater == null || actor.combater.LockMode != Enums.LockMode.HardLock)
-            return false;
-
-        Transform target = actor.combater.CombatTarget != null
-            ? actor.combater.CombatTarget.transform
-            : null;
-        if (target == null)
-            return false;
-
+        if (actor?.combater == null || actor.combater.LockMode != Enums.LockMode.HardLock) return false;
+        Transform target = actor.combater.CombatTarget != null ? actor.combater.CombatTarget.transform : null;
+        if (target == null) return false;
         Vector3 toTarget = target.position - actor.transform.position;
         toTarget.y = 0f;
-        if (toTarget.sqrMagnitude <= 0.0001f)
-            return false;
-
+        if (toTarget.sqrMagnitude <= 0.0001f) return false;
         facing = toTarget.normalized;
         return true;
     }

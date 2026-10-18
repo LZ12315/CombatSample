@@ -7,8 +7,8 @@ public class ActionDataConditionDrawer : PropertyDrawer
 {
     public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
     {
-        float totalHeight = EditorGUIUtility.singleLineHeight * 3f +
-                            EditorGUIUtility.standardVerticalSpacing * 2f;
+        float totalHeight = EditorGUIUtility.singleLineHeight * 2f +
+                            EditorGUIUtility.standardVerticalSpacing;
 
         var checkTypeProp = property.FindPropertyRelative(nameof(ActionDataCondition.checkType));
 
@@ -42,8 +42,6 @@ public class ActionDataConditionDrawer : PropertyDrawer
         Rect curRect = new Rect(position.x, position.y, position.width, EditorGUIUtility.singleLineHeight);
 
         EditorGUI.PropertyField(curRect, property.FindPropertyRelative(nameof(ActionCondition.invertResult)));
-        curRect.y += EditorGUIUtility.singleLineHeight + EditorGUIUtility.standardVerticalSpacing;
-        EditorGUI.PropertyField(curRect, property.FindPropertyRelative(nameof(ActionCondition.overrideAll)));
         curRect.y += EditorGUIUtility.singleLineHeight + EditorGUIUtility.standardVerticalSpacing;
         EditorGUI.PropertyField(curRect, checkTypeProp, new GUIContent("Check Type"));
 

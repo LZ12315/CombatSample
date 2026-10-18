@@ -53,19 +53,22 @@ public class ActionStateManager : MonoBehaviour
         public readonly ActionCandidateOrigin Origin;
         public readonly int Order;
         public readonly ExternalActionRequest ExternalRequest;
+        public readonly ActionEntryMatch EntryMatch;
 
         public ActionCandidate(
             ActionAsset action,
             ActionContext context,
             ActionCandidateOrigin origin,
             int order,
-            ExternalActionRequest externalRequest = null)
+            ExternalActionRequest externalRequest = null,
+            ActionEntryMatch entryMatch = default)
         {
             Action = action;
             Context = context;
             Origin = origin;
             Order = order;
             ExternalRequest = externalRequest;
+            EntryMatch = entryMatch;
         }
     }
 
@@ -420,10 +423,14 @@ public class ActionStateManager : MonoBehaviour
         if (sameAsCurrent && !action.AllowReenterWhilePlaying)
             return null;
 
+        if (!candidate.EntryMatch.IsCurrentFor(_actor.PlayerInput))
+            return null;
         if (!PlayNewAction(action, candidate.Context))
             return null;
 
-        action.ClaimEntry(_actor);
+        // Begin can invoke lifecycle code. A reset/owner change invalidates the
+        // receipt rather than consuming input belonging to a different session.
+        candidate.EntryMatch.TryConsume(_actor.PlayerInput);
         return candidate;
     }
 
@@ -576,23 +583,12 @@ public class ActionStateManager : MonoBehaviour
     private void TryAddCandidate(ActionCandidate candidate)
     {
         if (candidate.Action == null || _actor == null) return;
-        if (!CandidatePassesEntry(candidate)) return;
         if (ContainsEquivalentCandidate(candidate)) return;
-        _validCandidatesCache.Add(candidate);
-    }
-
-    private bool CandidatePassesEntry(ActionCandidate candidate)
-    {
-        ActionAsset action = candidate.Action;
-        if (action == null)
-            return false;
-
-        if (CurrentActionAsset == action && !action.AllowReenterWhilePlaying)
-            return false;
-
-        return candidate.Origin == ActionCandidateOrigin.Event
-            ? action.CheckEntryForEvent(_actor, candidate.Context)
-            : action.CheckEntry(_actor, candidate.Context);
+        if (CurrentActionAsset == candidate.Action && !candidate.Action.AllowReenterWhilePlaying) return;
+        if (!candidate.Action.TryMatchEntry(_actor, candidate.Context,
+                candidate.Origin == ActionCandidateOrigin.Event, out ActionEntryMatch match)) return;
+        _validCandidatesCache.Add(new ActionCandidate(candidate.Action, candidate.Context,
+            candidate.Origin, candidate.Order, candidate.ExternalRequest, match));
     }
 
     private bool ContainsEquivalentCandidate(ActionCandidate candidate)

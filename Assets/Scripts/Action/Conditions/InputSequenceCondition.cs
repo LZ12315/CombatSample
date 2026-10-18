@@ -2,73 +2,95 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
+public enum InputEventType { ButtonPressed = 0, ButtonReleased = 1, DirectionEntered = 2 }
+
 [Serializable]
-public class InputSequenceCondition : ActionCondition
+public struct InputEventClip
 {
-    [Header("Settings")]
-    [Tooltip("Max time gap between inputs.")]
-    [SerializeField] private float maxInputInterval = 0.25f;
+    public InputEventType type;
+    public Enums.InputButton button;
+    [Tooltip("Enter a direction, not merely hold it. Neutral means return to center.")]
+    public InputDirection direction;
 
-    [SerializeReference, SubclassSelector]
-    private List<InputCheckBase> inputSequence = new List<InputCheckBase>();
+    internal bool IsValid => type == InputEventType.DirectionEntered
+        ? direction >= InputDirection.Neutral && direction <= InputDirection.Right
+        : (type == InputEventType.ButtonPressed || type == InputEventType.ButtonReleased)
+            && PlayerInputBuffer.IsButton(button);
 
-    [NonSerialized] private readonly List<PlayerInputController.BufferedInput> _matchedInputs =
-        new List<PlayerInputController.BufferedInput>(8);
-
-    protected override bool OnCheck(Actor actor)
+    internal bool Matches(PlayerInputEvent input, InputDirection entered)
     {
-        _matchedInputs.Clear();
+        if (type == InputEventType.DirectionEntered) return input.IsMove && direction == entered;
+        return !input.IsMove && input.Button == button && (int)input.Kind == (int)type;
+    }
+}
 
-        if (actor == null || inputSequence == null || inputSequence.Count == 0)
-            return false;
+/// <summary>Ordered physical events only. Intervening records are allowed; states belong outside.</summary>
+[Serializable]
+public sealed class InputSequenceCondition : PlayerInputCondition
+{
+    [Tooltip("Whole sequence span in real seconds, not an added delay or a per-step timeout. Supported range: 0–2 seconds.")]
+    [Range(0f, 2f)] public float maxSequenceTime = 0.5f;
+    public InputEventClip[] clips = Array.Empty<InputEventClip>();
+    public override bool ConsumesInput => true;
 
-        PlayerInputController input = PlayerInputController.Instance;
-        if (input == null || !input.IsControlledActor(actor))
-            return false;
-
-        IReadOnlyList<PlayerInputController.BufferedInput> buffer = input.InputHistory;
-        if (buffer.Count == 0)
-            return false;
-
-        int seqIndex = inputSequence.Count - 1;
-        float lastMatchedTime = -1f;
-
-        for (int i = buffer.Count - 1; i >= 0; i--)
+    protected override bool IsInputConfigurationValid
+    {
+        get
         {
-            PlayerInputController.BufferedInput item = buffer[i];
-            if (item == null || item.IsConsumed)
-                continue;
-
-            if (lastMatchedTime >= 0f && lastMatchedTime - item.Timestamp > maxInputInterval)
-            {
-                _matchedInputs.Clear();
-                return false;
-            }
-
-            if (!inputSequence[seqIndex].CheckInput(item.Data))
-                continue;
-
-            lastMatchedTime = item.Timestamp;
-            _matchedInputs.Add(item);
-            seqIndex--;
-
-            if (seqIndex < 0)
-                return true;
+            if (float.IsNaN(maxSequenceTime) || float.IsInfinity(maxSequenceTime)
+                || maxSequenceTime < 0f || maxSequenceTime > PlayerInputBuffer.MaxContextSeconds
+                || clips == null || clips.Length == 0) return false;
+            foreach (InputEventClip clip in clips) if (!clip.IsValid) return false;
+            return true;
         }
-
-        _matchedInputs.Clear();
-        return false;
     }
 
-    public override void OnClaim(Actor actor)
+    private readonly struct Record
     {
-        if (_matchedInputs.Count == 0)
-            return;
+        public readonly PlayerInputEvent Input;
+        public readonly InputDirection Direction;
+        public Record(PlayerInputEvent input, InputDirection direction = default) { Input = input; Direction = direction; }
+    }
 
-        PlayerInputController input = PlayerInputController.Instance;
-        if (input != null && input.IsControlledActor(actor))
-            input.TryConsumeInputHistory(_matchedInputs);
+    internal override bool OnCheckInput(PlayerInputBuffer input, PlayerInputDirections directions, out PlayerInputMatch match)
+    {
+        match = default;
+        bool needsDirections = false;
+        foreach (InputEventClip clip in clips) needsDirections |= clip.type == InputEventType.DirectionEntered;
+        if (needsDirections && (directions == null || !directions.IsCurrentFor(input) || !directions.HasReference)) return false;
 
-        _matchedInputs.Clear();
+        var records = new List<Record>();
+        foreach (PlayerInputEvent item in input.Events)
+            if (input.IsAvailable(item) && (!needsDirections || directions.IsInReference(item))) records.Add(new Record(item));
+        if (needsDirections)
+            foreach (PlayerInputDirections.Entry entry in directions.Events)
+                if (input.IsAvailable(entry.Source)) records.Add(new Record(entry.Source, entry.Direction));
+        records.Sort((a, b) => PlayerInputBuffer.Compare(a.Input.Time, a.Input.Id, b.Input.Time, b.Input.Id));
+
+        // Oldest fresh terminal first, preserving rapid clicks as distinct requests.
+        for (int end = 0; end < records.Count; end++)
+        {
+            Record terminal = records[end];
+            if (input.Now - terminal.Input.Time > input.BufferSeconds + PlayerInputBuffer.TimeEpsilon
+                || !clips[clips.Length - 1].Matches(terminal.Input, terminal.Direction)) continue;
+            var selected = new PlayerInputEventMatch[clips.Length];
+            double validUntil = terminal.Input.Time + input.BufferSeconds;
+            selected[selected.Length - 1] = new PlayerInputEventMatch(input, terminal.Input, validUntil);
+            int position = end - 1;
+            int step = clips.Length - 2;
+            // Latest predecessor at each step maximizes the first event's time.
+            // Therefore, if this chain exceeds the span, no earlier chain for this terminal can fit.
+            for (; step >= 0; step--)
+            {
+                while (position >= 0 && !clips[step].Matches(records[position].Input, records[position].Direction)) position--;
+                if (position < 0) break;
+                selected[step] = new PlayerInputEventMatch(input, records[position].Input, validUntil);
+                position--;
+            }
+            if (step >= 0 || terminal.Input.Time - selected[0].Input.Time > maxSequenceTime + PlayerInputBuffer.TimeEpsilon) continue;
+            match = new PlayerInputMatch(selected, needsDirections ? directions : null);
+            return match.IsCurrentFor(input);
+        }
+        return false;
     }
 }

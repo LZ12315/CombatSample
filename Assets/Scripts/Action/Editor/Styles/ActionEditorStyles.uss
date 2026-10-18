@@ -407,8 +407,8 @@
 .action-editor-details-narrow .action-editor-details-center { padding-left: 8px; padding-right: 8px; }
 .action-editor-asset-inspector { padding: 8px 4px 12px; }
 .action-editor-details-heading { font-size: 15px; -unity-font-style: bold; margin-bottom: 5px; }
-.action-editor-section { margin-bottom: 6px; padding: 6px; }
-.action-editor-details-narrow .action-editor-section { padding-left: 6px; padding-right: 6px; }
+.action-editor-section { margin-bottom: 6px; padding: 12px; }
+.action-editor-details-narrow .action-editor-section { padding-left: 8px; padding-right: 8px; }
 .action-editor-details-window .action-editor-section,
 .action-editor-asset-inspector .action-editor-section {
     background-color: var(--action-track);

@@ -1,43 +1,30 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
-using CombatSample.Utils;
 
+public enum InputStateType { Button = 0, Direction = 1 }
+
+/// <summary>Current input only. Does not constrain the state when a cached event happened.</summary>
 [Serializable]
-public class InputStateCondition : ActionCondition
+public sealed class InputStateCondition : PlayerInputCondition
 {
-    [Header("Settings")]
-    [SerializeReference, SubclassSelector]
-    private InputStateCheckBase stateCheck;
+    public InputStateType type;
+    public Enums.InputButton button;
+    public bool held = true;
+    [Min(0f), Tooltip("Minimum current hold in real seconds; ignored for Not Held.")]
+    public float minimumHoldSeconds;
+    [Tooltip("Current target-relative direction, not a recent direction-enter event.")]
+    public InputDirection direction;
 
-    // 1. 读当前 Actor 的输入状态（通过单例 PlayerInputController，避免每帧传 actor 进 InputSystem）。
-    protected override bool OnCheck(Actor actor)
+    protected override bool IsInputConfigurationValid => type == InputStateType.Direction
+        ? direction >= InputDirection.Neutral && direction <= InputDirection.Right
+        : type == InputStateType.Button && PlayerInputBuffer.IsButton(button)
+            && (!held || (!float.IsNaN(minimumHoldSeconds) && !float.IsInfinity(minimumHoldSeconds) && minimumHoldSeconds >= 0f));
+
+    internal override bool OnCheckInput(PlayerInputBuffer input, PlayerInputDirections directions, out PlayerInputMatch match)
     {
-        PlayerInputController input = PlayerInputController.Instance;
-        if (input == null || !input.IsControlledActor(actor))
-            return false;
-
-        if (stateCheck is ButtonStateCheck buttonCheck)
-        {
-            foreach (var button in EnumUtils.GetFlags(buttonCheck.check))
-            {
-                if (input.GetInputState(button) == buttonCheck.requiredState)
-                    return true;
-            }
-        }
-
-        if (stateCheck is JoystickStateCheck joystickCheck)
-        {
-            foreach (var joyStick in EnumUtils.GetFlags(joystickCheck.check))
-            {
-                if (input.GetInputState(joyStick) == joystickCheck.requiredState)
-                    return true;
-            }
-        }
-
-        return false;
+        match = default;
+        if (type == InputStateType.Direction)
+            return directions != null && directions.IsCurrentFor(input) && directions.HasReference && directions.Current == direction;
+        return held ? input.IsHeld(button) && input.HeldSeconds(button) >= minimumHoldSeconds : !input.IsHeld(button);
     }
-
-    // 2. 条件为 ScriptableObject 时由 Clone() 深拷贝；此处无额外状态可略。
 }

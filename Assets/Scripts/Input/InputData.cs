@@ -1,39 +1,71 @@
-using System;
-
-public abstract class InputData
+/// <summary>Physical button edges, not tap/hold gameplay interpretations.</summary>
+public enum InputButtonEventKind
 {
+    Pressed = 0,
+    Released = 1,
 }
 
-[Serializable]
-public class InputButtonData : InputData
+/// <summary>Immutable captured fact. A release retains its press identity and actual duration.</summary>
+public readonly struct PlayerInputEvent
 {
-    public Enums.InputButton inputButton;
-    public Enums.ButtonState buttonState;
+    public long Id { get; }
+    public long PressId { get; }
+    public Enums.InputButton Button { get; }
+    public InputButtonEventKind Kind { get; }
+    public double Time { get; }
+    public double HeldSeconds { get; }
+    public bool IsMove { get; }
+    public UnityEngine.Vector2 Move { get; }
 
-    public InputButtonData(Enums.InputButton button = Enums.InputButton.None, Enums.ButtonState state = Enums.ButtonState.None)
+    internal PlayerInputEvent(long id, UnityEngine.Vector2 move, double time)
     {
-        inputButton = button;
-        buttonState = state;
+        Id = id;
+        Move = move;
+        Time = time;
+        IsMove = true;
+        PressId = 0;
+        Button = Enums.InputButton.None;
+        Kind = default;
+        HeldSeconds = 0d;
+    }
+
+    internal PlayerInputEvent(long id, long pressId, Enums.InputButton button,
+        InputButtonEventKind kind, double time, double heldSeconds)
+    {
+        Id = id;
+        PressId = pressId;
+        Button = button;
+        Kind = kind;
+        Time = time;
+        HeldSeconds = heldSeconds;
+        IsMove = false;
+        Move = default;
     }
 }
 
-[Serializable]
-public class InputJoystickData : InputData
+/// <summary>A read-only receipt, valid only for its owner, session and fixed tick.</summary>
+internal readonly struct PlayerInputEventMatch
 {
-    public Enums.InputJoystick inputJoystick;
-    public Enums.JoystickVigor joystickVigor;
+    internal PlayerInputBuffer Owner { get; }
+    internal long Tick { get; }
+    internal long Generation { get; }
+    public PlayerInputEvent Input { get; }
+    internal double ValidUntil { get; }
 
-    public InputJoystickData(Enums.InputJoystick joystick = Enums.InputJoystick.Idle, Enums.JoystickVigor vigor = Enums.JoystickVigor.Idle)
+    internal PlayerInputEventMatch(PlayerInputBuffer owner, PlayerInputEvent input, double? validUntil = null)
     {
-        inputJoystick = joystick;
-        joystickVigor = vigor;
+        Owner = owner;
+        Tick = owner.Tick;
+        Generation = owner.Generation;
+        Input = input;
+        ValidUntil = validUntil ?? input.Time + owner.BufferSeconds;
     }
-
 }
 
 public static partial class Enums
 {
-    [System.Flags]
+    // Numeric values are retained for existing button selections. A condition selects
+    // one button; masks are only used internally for lifecycle re-arming.
     public enum InputButton
     {
         None = 0,
@@ -42,33 +74,6 @@ public static partial class Enums
         LightAttack = 8,
         HeavyAttack = 16,
         Jump = 32,
-    }
-
-    [System.Flags]
-    public enum ButtonState
-    {
-        None = 0,
-        ShortPress = 2,
-        LongPress_Start = 4,
-        LongPress_Stop = 8
-    }
-
-    [System.Flags]
-    public enum InputJoystick
-    {
-        Idle = 0,
-        East = 2,
-        South = 4,
-        West = 8,
-        North = 16,
-    }
-
-    [System.Flags]
-    public enum JoystickVigor
-    {
-        None = 0,
-        Idle = 2,
-        Light = 4,
-        Hard = 8
+        Lock = 64,
     }
 }
