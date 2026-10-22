@@ -475,6 +475,14 @@ internal sealed class ActionPreviewRenderer : IDisposable
             _animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
             _animator.enabled = true;
             _instance.SetActive(true);
+            foreach (SkinnedMeshRenderer skin in _instance.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+            {
+                // Scrubbing can sample and render several poses within one Unity update.
+                // Do not rely on a per-frame skinning matrix cache across editor repaints:
+                // each render must consume the current pose, not a previously rendered one.
+                skin.forceMatrixRecalculationPerRender = true;
+                skin.updateWhenOffscreen = true;
+            }
             _poseSampler = new ActionPreviewPoseSampler(_instance, _animator);
             _baselineRootPosition = _poseSampler.RootPosition;
             _baselineRootRotation = _poseSampler.RootRotation;
