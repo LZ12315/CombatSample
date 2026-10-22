@@ -207,10 +207,18 @@ public sealed partial class ActorLocomotion : MonoBehaviour
         float timeScale = snapshot.Motor.MotionState.MovementTimeScale;
         float verticalSpeed = motor != null && timeScale > 0f
             ? Vector3.Dot(motor.RequestedVelocity, snapshot.Motor.CharacterUp) / timeScale : 0f;
+        // Motion has already been composed. Follow the Motor's chosen path, including at 180 degrees,
+        // instead of resolving a second left/right choice from the input's start/end directions.
+        Quaternion requestedRotation = motor != null ? motor.RequestedRotation
+            : _tick.MotionRequest.HasRotation ? _tick.MotionRequest.TargetWorldRotation : snapshot.Motor.CurrentWorldRotation;
+        Vector3 up = snapshot.Motor.CharacterUp;
+        float facingYawDelta = Vector3.SignedAngle(
+            Vector3.ProjectOnPlane(snapshot.Motor.CurrentWorldRotation * Vector3.forward, up),
+            Vector3.ProjectOnPlane(requestedRotation * Vector3.forward, up), up);
         var context = new LocomotionRuntimeAnimationContext(snapshot.Intent, snapshot.HasIntent,
             snapshot.VelocityBeforeMotion, snapshot.ModelVelocity, snapshot.Motor,
             verticalSpeed, animation.ActiveActionOwnerId, deltaTime,
-            animation.GetLocomotionFootPhaseReference(_animationOwner));
+            animation.GetLocomotionFootPhaseReference(_animationOwner), facingYawDelta);
         LocomotionAnimationRequest request = _currentRuntime.UpdateAnimation(context);
         bool accepted = animation.SubmitLocomotion(_animationOwner, request);
 #if UNITY_EDITOR

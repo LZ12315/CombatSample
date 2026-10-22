@@ -8,7 +8,8 @@ public readonly struct LocomotionRuntimeAnimationContext
 {
     public LocomotionRuntimeAnimationContext(LocomotionIntent intent, bool hasIntent,
         Vector3 velocityBeforeMotion, Vector3 modelVelocity, LocomotionMotionContext motor,
-        float verticalSpeed, int actionOwnerId, float deltaTime, LocomotionFootPhaseReference sourceFootPhase = default)
+        float verticalSpeed, int actionOwnerId, float deltaTime, LocomotionFootPhaseReference sourceFootPhase = default,
+        float facingYawDelta = 0f)
     {
         Intent = intent;
         HasIntent = hasIntent;
@@ -19,8 +20,11 @@ public readonly struct LocomotionRuntimeAnimationContext
         ActionOwnerId = actionOwnerId;
         DeltaTime = deltaTime;
         SourceFootPhase = sourceFootPhase;
+        FacingYawDelta = facingYawDelta;
     }
 
+    /// <summary>Motor-requested yaw change for this tick: negative left, positive right; zero means no turn.</summary>
+    public float FacingYawDelta { get; }
     public LocomotionFootPhaseReference SourceFootPhase { get; }
     public LocomotionIntent Intent { get; }
     public bool HasIntent { get; }

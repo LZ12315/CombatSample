@@ -13,7 +13,7 @@ public sealed class LocomotionMovePlayback
     private readonly bool[] _hasTrajectory;
     private readonly float[] _durations;
     private readonly Vector3[] _cycleDisplacements;
-    private readonly bool _vertical;
+    private readonly bool _skipHorizontalMatching;
     private readonly LocomotionVelocityFeedback _feedback = new();
 
     public float PlayRate { get; private set; } = 1f;
@@ -34,7 +34,9 @@ public sealed class LocomotionMovePlayback
         _mixer = mixer;
         _sync = (bool[])sync.Clone();
         _idle = (bool[])idle.Clone();
-        _vertical = vertical;
+        // Keep the public constructor's 'vertical' argument for existing callers;
+        // internally this also covers pose-only parameter spaces.
+        _skipHorizontalMatching = vertical;
         int count = animations.Length;
         _hasTrajectory = new bool[count];
         _durations = new float[count];
@@ -93,10 +95,10 @@ public sealed class LocomotionMovePlayback
             linear.Parameter = parameter.x;
             linear.RecalculateWeights();
         }
-        else if (state is DirectionalMixerState directional)
+        else if (state is Vector2MixerState vector2)
         {
-            directional.Parameter = parameter;
-            directional.RecalculateWeights();
+            vector2.Parameter = parameter;
+            vector2.RecalculateWeights();
         }
         for (int i = 0; i < state.ChildCount; i++)
         {
@@ -112,7 +114,7 @@ public sealed class LocomotionMovePlayback
         if (!LocomotionDataValidation.IsFinite(context.DeltaTime) || context.DeltaTime <= 0f)
         { SuspendFeedback(); return; }
         bool qualified = _feedback.TryGetSpeed(context, out float actualSpeed);
-        if (_vertical) { PlayRate = 1f; _mixer.Speed = 1f; return; }
+        if (_skipHorizontalMatching) { PlayRate = 1f; _mixer.Speed = 1f; return; }
 
         // Animancer's synchronized children share a weighted normalized speed.
         float syncWeight = 0f, weightedFrequency = 0f;

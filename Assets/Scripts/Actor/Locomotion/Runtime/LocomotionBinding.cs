@@ -27,23 +27,58 @@ internal sealed class LocomotionBoundMove
 {
     private readonly LocomotionBoundMoveSample[] _samples;
     internal LocomotionMoveBlendType BlendType { get; }
-    internal LocomotionMove1DParameter Parameter1D { get; }
-    internal LocomotionMove2DParameter Parameter2D { get; }
+    internal LocomotionMoveParameter XParameter { get; }
+    internal LocomotionMoveParameter YParameter { get; }
+    internal LocomotionMove2DAlgorithm Algorithm { get; }
+    internal LocomotionTurnLeanConfig TurnLean { get; }
+    internal bool UsesLean => XParameter == LocomotionMoveParameter.TurnLean
+        || (BlendType == LocomotionMoveBlendType.TwoDimensional && YParameter == LocomotionMoveParameter.TurnLean);
     internal AnimationClip IdleClip { get; }
     internal int SampleCount => _samples.Length;
     internal LocomotionBoundMoveSample GetSample(int index) => _samples[index];
-    internal bool IsVertical => BlendType == LocomotionMoveBlendType.OneDimensional
-        && Parameter1D == LocomotionMove1DParameter.VerticalSpeed;
+    // Pose-only and any vertical-speed space have no horizontal stride reference.
+    internal bool MatchesHorizontalSpeed => XParameter != LocomotionMoveParameter.VerticalSpeed
+        && (BlendType != LocomotionMoveBlendType.TwoDimensional || YParameter != LocomotionMoveParameter.VerticalSpeed)
+        && (LocomotionMoveParameters.IsHorizontalMovement(XParameter)
+            || (BlendType == LocomotionMoveBlendType.TwoDimensional && LocomotionMoveParameters.IsHorizontalMovement(YParameter)));
 
-    private LocomotionBoundMove(LocomotionMoveBlendType blendType, LocomotionMove1DParameter parameter1D,
-        LocomotionMove2DParameter parameter2D, AnimationClip idleClip, LocomotionBoundMoveSample[] samples)
+    private LocomotionBoundMove(LocomotionMoveBlendType blendType, LocomotionMoveParameter xParameter,
+        LocomotionMoveParameter yParameter, LocomotionMove2DAlgorithm algorithm, LocomotionTurnLeanConfig turnLean,
+        AnimationClip idleClip, LocomotionBoundMoveSample[] samples)
     {
         BlendType = blendType;
-        Parameter1D = parameter1D;
-        Parameter2D = parameter2D;
+        XParameter = xParameter;
+        YParameter = yParameter;
+        Algorithm = algorithm;
+        TurnLean = turnLean;
         IdleClip = idleClip;
         _samples = samples;
     }
+
+    private static bool IsIdleThreshold(Vector2 threshold, LocomotionMoveBlendType blendType,
+        LocomotionMoveParameter x, LocomotionMoveParameter y)
+    {
+        bool horizontalX = LocomotionMoveParameters.IsHorizontalMovement(x);
+        bool horizontalY = blendType == LocomotionMoveBlendType.TwoDimensional && LocomotionMoveParameters.IsHorizontalMovement(y);
+        bool vertical = x == LocomotionMoveParameter.VerticalSpeed
+            || (blendType == LocomotionMoveBlendType.TwoDimensional && y == LocomotionMoveParameter.VerticalSpeed);
+        // A lone local component being zero does not imply stationary movement.
+        // Require a magnitude/strength source or both components of the same vector.
+        bool twoD = blendType == LocomotionMoveBlendType.TwoDimensional;
+        bool hasStationaryReference = IsMagnitude(x) || (twoD && (IsMagnitude(y)
+            || IsPair(x, y, LocomotionMoveParameter.LocalInputX, LocomotionMoveParameter.LocalInputZ)
+            || IsPair(x, y, LocomotionMoveParameter.LocalVelocityX, LocomotionMoveParameter.LocalVelocityZ)));
+        var movementThreshold = new Vector2(horizontalX ? threshold.x : 0f, horizontalY ? threshold.y : 0f);
+        return !vertical && hasStationaryReference
+            && movementThreshold.sqrMagnitude <= LocomotionDataValidation.ThresholdEpsilon * LocomotionDataValidation.ThresholdEpsilon;
+    }
+
+    private static bool IsMagnitude(LocomotionMoveParameter source) =>
+        source == LocomotionMoveParameter.HorizontalSpeed || source == LocomotionMoveParameter.InputStrength;
+
+    private static bool IsPair(LocomotionMoveParameter x, LocomotionMoveParameter y,
+        LocomotionMoveParameter first, LocomotionMoveParameter second) =>
+        (x == first && y == second) || (x == second && y == first);
 
     internal static LocomotionBoundMove Capture(LocomotionAsset asset, LocomotionBindingBuilder builder)
     {
@@ -51,13 +86,22 @@ internal sealed class LocomotionBoundMove
         AnimationClip idleClip = null;
         var definition = asset.Move;
         var blendType = definition?.BlendType ?? LocomotionMoveBlendType.OneDimensional;
-        var parameter1D = definition?.OneDimensional?.Parameter ?? LocomotionMove1DParameter.HorizontalSpeed;
-        var parameter2D = definition?.TwoDimensional?.Parameter ?? LocomotionMove2DParameter.LocalVelocity;
+        var x = blendType == LocomotionMoveBlendType.TwoDimensional
+            ? definition?.TwoDimensional?.XParameter ?? LocomotionMoveParameter.LocalVelocityX
+            : definition?.OneDimensional?.Parameter ?? LocomotionMoveParameter.HorizontalSpeed;
+        var y = definition?.TwoDimensional?.YParameter ?? LocomotionMoveParameter.LocalVelocityZ;
+        var algorithm = definition?.TwoDimensional?.Algorithm ?? LocomotionMove2DAlgorithm.Directional;
+        var lean = definition?.TurnLean ?? LocomotionTurnLeanConfig.Default;
         var samples = new List<LocomotionBoundMoveSample>();
-        bool vertical = blendType == LocomotionMoveBlendType.OneDimensional
-            && parameter1D == LocomotionMove1DParameter.VerticalSpeed;
-        if (blendType == LocomotionMoveBlendType.OneDimensional
-            && Enum.IsDefined(typeof(LocomotionMove1DParameter), parameter1D)
+        bool usesLean = x == LocomotionMoveParameter.TurnLean
+            || (blendType == LocomotionMoveBlendType.TwoDimensional && y == LocomotionMoveParameter.TurnLean);
+        // Invalid visual settings disable only the lean source (Update returns zero), not Move.
+        // Binding runs once per Runtime, so this never logs every animation tick or graph rebuild.
+        if (usesLean && !lean.IsValid)
+            Debug.LogWarning($"[Locomotion] Asset '{asset.name}': invalid Turn Lean settings. TurnLean will be zero; Move samples remain available. "
+                + "Full Lean Acceleration must be finite and positive; Minimum Speed and Smooth Seconds must be finite and non-negative.", asset);
+        bool valid = LocomotionMoveParameters.IsValid(x);
+        if (blendType == LocomotionMoveBlendType.OneDimensional && valid
             && definition?.OneDimensional?.Samples != null)
         {
             foreach (var sample in definition.OneDimensional.Samples)
@@ -66,7 +110,7 @@ internal sealed class LocomotionBoundMove
                     || !LocomotionDataValidation.IsFinite(sample.Threshold)) continue;
                 if (samples.Exists(existing => Mathf.Abs(existing.Threshold.x - sample.Threshold)
                     <= LocomotionDataValidation.ThresholdEpsilon)) continue;
-                bool idle = !vertical && Mathf.Abs(sample.Threshold) <= LocomotionDataValidation.ThresholdEpsilon;
+                bool idle = IsIdleThreshold(new Vector2(sample.Threshold, 0f), blendType, x, y);
                 var animation = builder.BindAnimation(sample.Animation);
                 samples.Add(new LocomotionBoundMoveSample(animation, new Vector2(sample.Threshold, 0f), sample.Sync, idle));
                 if (idle && idleClip == null) idleClip = animation.Clip;
@@ -74,7 +118,8 @@ internal sealed class LocomotionBoundMove
             samples.Sort((left, right) => left.Threshold.x.CompareTo(right.Threshold.x));
         }
         else if (blendType == LocomotionMoveBlendType.TwoDimensional
-            && Enum.IsDefined(typeof(LocomotionMove2DParameter), parameter2D)
+            && valid && LocomotionMoveParameters.IsValid(y)
+            && Enum.IsDefined(typeof(LocomotionMove2DAlgorithm), algorithm)
             && definition?.TwoDimensional?.Samples != null)
         {
             foreach (var sample in definition.TwoDimensional.Samples)
@@ -84,13 +129,13 @@ internal sealed class LocomotionBoundMove
                     || !LocomotionDataValidation.IsFinite(sample.Threshold.sqrMagnitude)) continue;
                 if (samples.Exists(existing => (existing.Threshold - sample.Threshold).sqrMagnitude
                     <= LocomotionDataValidation.ThresholdEpsilon * LocomotionDataValidation.ThresholdEpsilon)) continue;
-                bool idle = sample.Threshold.sqrMagnitude <= LocomotionDataValidation.ThresholdEpsilon * LocomotionDataValidation.ThresholdEpsilon;
+                bool idle = IsIdleThreshold(sample.Threshold, blendType, x, y);
                 var animation = builder.BindAnimation(sample.Animation);
                 samples.Add(new LocomotionBoundMoveSample(animation, sample.Threshold, sample.Sync, idle));
                 if (idle && idleClip == null) idleClip = animation.Clip;
             }
         }
-        return new LocomotionBoundMove(blendType, parameter1D, parameter2D, idleClip, samples.ToArray());
+        return new LocomotionBoundMove(blendType, x, y, algorithm, lean, idleClip, samples.ToArray());
     }
 }
 
@@ -150,11 +195,13 @@ internal sealed class LocomotionBoundSet
         {
             LocomotionPivotEntry entry = asset.Pivot[i];
             pivot[i] = new LocomotionBoundTransition(builder.BindAnimation(entry?.Animation),
-                entry?.SourceLocalDirection ?? Vector2.zero, entry?.TargetLocalDirection ?? Vector2.zero);
+                Vector2.zero, Vector2.zero, entry?.SignedTurnAngleDegrees ?? 0f);
         }
         start = BindUsableTransitions(start);
         stop = BindUsableTransitions(stop);
-        pivot = BindUsableTransitions(pivot);
+        pivot = Array.FindAll(BindUsableTransitions(pivot), sample =>
+            LocomotionDataValidation.IsFinite(sample.SignedTurnAngleDegrees)
+            && Mathf.Abs(sample.SignedTurnAngleDegrees) > 0f && Mathf.Abs(sample.SignedTurnAngleDegrees) <= 180f);
         return new LocomotionBoundSet(asset, move, start, stop, pivot);
     }
 
@@ -167,15 +214,18 @@ internal sealed class LocomotionBoundSet
 
 internal readonly struct LocomotionBoundTransition
 {
-    internal LocomotionBoundTransition(LocomotionBoundAnimation animation, Vector2 source, Vector2 target)
+    internal LocomotionBoundTransition(LocomotionBoundAnimation animation, Vector2 source, Vector2 target,
+        float signedTurnAngleDegrees = 0f)
     {
         Clip = animation.Clip;
         StopCurve = animation.StopCurve;
         FootPhase = animation.FootPhase;
         Source = source;
         Target = target;
+        SignedTurnAngleDegrees = signedTurnAngleDegrees;
     }
 
+    internal float SignedTurnAngleDegrees { get; }
     internal AnimationStopDistanceCurve StopCurve { get; }
     internal AnimationFootPhaseTrack FootPhase { get; }
     internal AnimationClip Clip { get; }

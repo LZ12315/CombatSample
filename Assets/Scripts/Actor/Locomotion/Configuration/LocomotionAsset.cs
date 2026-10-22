@@ -88,17 +88,23 @@ public enum LocomotionMoveBlendType
     TwoDimensional = 1,
 }
 
-public enum LocomotionMove1DParameter
+// Keep the original 1D numeric values: existing assets need no rewrite.
+public enum LocomotionMoveParameter
 {
     HorizontalSpeed = 0,
     VerticalSpeed = 1,
     InputStrength = 2,
+    LocalInputX = 3,
+    LocalInputZ = 4,
+    LocalVelocityX = 5,
+    LocalVelocityZ = 6,
+    TurnLean = 7,
 }
 
-public enum LocomotionMove2DParameter
+public enum LocomotionMove2DAlgorithm
 {
-    LocalVelocity = 0,
-    LocalInput = 1,
+    Directional = 0,
+    Cartesian = 1,
 }
 
 [Serializable]
@@ -107,7 +113,9 @@ public sealed class LocomotionMoveDefinition
     [SerializeField] private LocomotionMoveBlendType blendType;
     [SerializeField] private LocomotionMove1DDefinition oneDimensional = new();
     [SerializeField] private LocomotionMove2DDefinition twoDimensional = new();
+    [SerializeField] private LocomotionTurnLeanConfig turnLean = LocomotionTurnLeanConfig.Default;
 
+    public LocomotionTurnLeanConfig TurnLean => turnLean;
     public LocomotionMoveBlendType BlendType => blendType;
     public LocomotionMove1DDefinition OneDimensional => oneDimensional;
     public LocomotionMove2DDefinition TwoDimensional => twoDimensional;
@@ -116,21 +124,59 @@ public sealed class LocomotionMoveDefinition
 [Serializable]
 public sealed class LocomotionMove1DDefinition
 {
-    [SerializeField] private LocomotionMove1DParameter parameter;
+    [SerializeField, Tooltip("InputStrength: 0–1; local input: -1–1; speed/velocity: m/s; TurnLean: -1 left, +1 right.")]
+    private LocomotionMoveParameter parameter;
     [SerializeField] private List<LocomotionMove1DSample> samples = new();
 
-    public LocomotionMove1DParameter Parameter => parameter;
+    public LocomotionMoveParameter Parameter => parameter;
     public IReadOnlyList<LocomotionMove1DSample> Samples => samples;
 }
 
 [Serializable]
 public sealed class LocomotionMove2DDefinition
 {
-    [SerializeField] private LocomotionMove2DParameter parameter;
+    // Read-only compatibility with old LocalVelocity=0 / LocalInput=1 assets.
+    // Only an explicit axis edit in the Inspector opts into independent axes.
+    [SerializeField, HideInInspector] private int parameter;
+    [SerializeField, HideInInspector] private bool axesConfigured;
+    [SerializeField] private LocomotionMoveParameter xParameter = LocomotionMoveParameter.LocalVelocityX;
+    [SerializeField] private LocomotionMoveParameter yParameter = LocomotionMoveParameter.LocalVelocityZ;
+    [SerializeField] private LocomotionMove2DAlgorithm algorithm;
     [SerializeField] private List<LocomotionMove2DSample> samples = new();
 
-    public LocomotionMove2DParameter Parameter => parameter;
+    public LocomotionMoveParameter XParameter => axesConfigured ? xParameter : ResolveLegacyAxis(parameter, true);
+    public LocomotionMoveParameter YParameter => axesConfigured ? yParameter : ResolveLegacyAxis(parameter, false);
+    public LocomotionMove2DAlgorithm Algorithm => algorithm;
     public IReadOnlyList<LocomotionMove2DSample> Samples => samples;
+
+    // Shared with the Inspector so legacy data has one interpretation without rewriting assets.
+    internal static LocomotionMoveParameter ResolveLegacyAxis(int parameter, bool x) => parameter == 0
+        ? (x ? LocomotionMoveParameter.LocalVelocityX : LocomotionMoveParameter.LocalVelocityZ)
+        : parameter == 1
+            ? (x ? LocomotionMoveParameter.LocalInputX : LocomotionMoveParameter.LocalInputZ)
+            : (LocomotionMoveParameter)(-1);
+}
+
+[Serializable]
+public struct LocomotionTurnLeanConfig
+{
+    [Tooltip("Lateral model acceleration producing full lean (m/s²). Must be positive.")]
+    public float FullLeanAcceleration;
+    [Tooltip("Target lean is zero below this model speed (m/s); full speed influence at twice this speed.")]
+    public float MinimumSpeed;
+    [Tooltip("Exponential response time in motion seconds. Zero responds immediately.")]
+    public float SmoothSeconds;
+
+    public static LocomotionTurnLeanConfig Default => new LocomotionTurnLeanConfig
+    {
+        FullLeanAcceleration = 20f,
+        MinimumSpeed = 0.5f,
+        SmoothSeconds = 0.1f,
+    };
+
+    public bool IsValid => LocomotionDataValidation.IsFinite(FullLeanAcceleration) && FullLeanAcceleration > 0f
+        && LocomotionDataValidation.IsFinite(MinimumSpeed) && MinimumSpeed >= 0f
+        && LocomotionDataValidation.IsFinite(SmoothSeconds) && SmoothSeconds >= 0f;
 }
 
 [Serializable]

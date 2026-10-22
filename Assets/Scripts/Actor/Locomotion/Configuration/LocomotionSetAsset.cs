@@ -33,7 +33,7 @@ public struct LocomotionTransitionDecisionConfig
     public float StationarySpeed;
     [Tooltip("Minimum model speed required to enter Pivot (m/s).")]
     public float PivotMinimumSpeed;
-    [Tooltip("Minimum input reversal angle required to enter Pivot (degrees).")]
+    [Tooltip("Minimum angle required for BOTH movement reversal and the body turn from current facing to FacingDirection (degrees). Does not change Motor rotation.")]
     public float PivotMinimumAngleDegrees;
 
     public static LocomotionTransitionDecisionConfig Default => new LocomotionTransitionDecisionConfig
@@ -73,13 +73,11 @@ public sealed class LocomotionStopEntry
 public sealed class LocomotionPivotEntry
 {
     [SerializeField] private AnimationAsset animation;
-    [SerializeField] private Vector2 sourceLocalDirection = Vector2.up;
-    [SerializeField] private Vector2 targetLocalDirection = Vector2.down;
+    [SerializeField, Range(-180f, 180f), Tooltip("Animation selection only: negative turns left, positive turns right. -180 and +180 are distinct. Zero is not a Pivot.")]
+    private float signedTurnAngleDegrees = 180f;
 
     public AnimationAsset Animation => animation;
-    public Vector2 SourceLocalDirection => sourceLocalDirection;
-    public Vector2 TargetLocalDirection => targetLocalDirection;
-    public float SignedAngle => Vector2.SignedAngle(sourceLocalDirection, targetLocalDirection);
+    public float SignedTurnAngleDegrees => signedTurnAngleDegrees;
 }
 
 public enum LocomotionStopPlaybackMode { Time, Distance }

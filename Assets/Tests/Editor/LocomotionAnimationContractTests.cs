@@ -192,14 +192,21 @@ public sealed class LocomotionSetDecisionTests
     internal static LocomotionRuntimeAnimationContext Context(Vector3 input, Vector3 before,
         Vector3? model = null, float dt = 1f / 60f, int action = 0,
         Quaternion? facing = null, float vertical = 0f, float scale = 1f, float strength = 1f,
-        LocomotionFootPhaseReference sourceFootPhase = default)
+        LocomotionFootPhaseReference sourceFootPhase = default, float? facingYawDelta = null,
+        Vector3? facingDirection = null)
     {
         var policy = new MotionStateSnapshot(scale, 1f, 1f, 1f, false, false, false, false);
-        var motor = new LocomotionMotionContext(dt, true, Vector3.up,
-            facing ?? Quaternion.identity, default, policy);
+        Quaternion rotation = facing ?? Quaternion.identity;
+        Vector3 face = facingDirection ?? input;
+        Quaternion requested = face.sqrMagnitude > 0.0001f
+            ? Quaternion.RotateTowards(rotation, Quaternion.LookRotation(face), 1f) : rotation;
+        float yaw = facingYawDelta ?? Vector3.SignedAngle(rotation * Vector3.forward,
+            requested * Vector3.forward, Vector3.up);
+        var motor = new LocomotionMotionContext(dt, true, Vector3.up, rotation, default, policy);
         return new LocomotionRuntimeAnimationContext(
-            new LocomotionIntent { WorldMoveDirection = input, MoveStrength = input == Vector3.zero ? 0f : strength },
-            input != Vector3.zero, before, model ?? before, motor, vertical, action, dt, sourceFootPhase);
+            new LocomotionIntent { WorldMoveDirection = input, FacingDirection = face,
+                MoveStrength = input == Vector3.zero ? 0f : strength },
+            input != Vector3.zero, before, model ?? before, motor, vertical, action, dt, sourceFootPhase, yaw);
     }
 }
 
@@ -407,7 +414,7 @@ public sealed class LocomotionAnimationContractTests
         string entries = $",\"start\":[{{\"animation\":{Ref(startForward)},\"targetLocalDirection\":{{\"x\":0,\"y\":1}}}},"
             + $"{{\"animation\":{Ref(startRight)},\"targetLocalDirection\":{{\"x\":1,\"y\":0}}}}],"
             + $"\"stop\":[{{\"animation\":{Ref(stop)},\"sourceLocalDirection\":{{\"x\":1,\"y\":0}}}}],"
-            + $"\"pivot\":[{{\"animation\":{Ref(pivot)},\"sourceLocalDirection\":{{\"x\":1,\"y\":0}},\"targetLocalDirection\":{{\"x\":-1,\"y\":0}}}}]";
+            + $"\"pivot\":[{PivotEntry(pivot, -180)}]";
         var runtime = Runtime<LocomotionSetRuntime>(Asset<LocomotionSetAsset>(Move1D(idle, move), entries));
         LocomotionAnimationRequest start = runtime.UpdateAnimation(Context(Vector3.right, Vector3.zero));
         Assert.That(start.State.Clip, Is.SameAs(startRight.Clip));
@@ -421,7 +428,8 @@ public sealed class LocomotionAnimationContractTests
         LocomotionAnimationRequest stopping = runtime.UpdateAnimation(Context(Vector3.zero, Vector3.right));
         Assert.That(stopping.State.Clip, Is.SameAs(stop.Clip));
         _animation.SubmitLocomotion(_owner, stopping);
-        LocomotionAnimationRequest reversing = runtime.UpdateAnimation(Context(Vector3.left, Vector3.right));
+        LocomotionAnimationRequest reversing = runtime.UpdateAnimation(Context(Vector3.left, Vector3.right,
+            facing: Quaternion.Euler(0f, 90f, 0f), facingYawDelta: -3f));
         Assert.That(reversing.State.Clip, Is.SameAs(pivot.Clip));
         _animation.SubmitLocomotion(_owner, reversing);
         _animation.Evaluate(0.2f);
@@ -437,6 +445,90 @@ public sealed class LocomotionAnimationContractTests
             Is.SameAs(startForward.Clip), "Equal direction scores retain authored order.");
     }
 
+    [TestCase(-1f)]
+    [TestCase(1f)]
+    public void Pivot_180FollowsMotorSideAndKeepsTheEnteredClip(float side)
+    {
+        var idle = Clip("Idle", 1f); var move = Clip("Move", 2f);
+        var left = Clip("Left 180", 3f, false); var right = Clip("Right 180", 4f, false);
+        var runtime = Runtime<LocomotionSetRuntime>(Asset<LocomotionSetAsset>(Move1D(idle, move),
+            $",\"pivot\":[{PivotEntry(left, -180)},{PivotEntry(right, 180)}]"));
+        runtime.UpdateAnimation(Context(Vector3.forward, Vector3.forward));
+        var entered = runtime.UpdateAnimation(Context(Vector3.back, Vector3.forward, facingYawDelta: side * 3f));
+        Assert.That(runtime.AnimationState, Is.EqualTo(LocomotionSetState.Pivot));
+        Assert.That(entered.State.Clip, Is.SameAs(side < 0f ? left.Clip : right.Clip));
+        var continuing = runtime.UpdateAnimation(Context(Vector3.back, Vector3.forward, facingYawDelta: -side * 3f));
+        Assert.That(continuing.State, Is.SameAs(entered.State));
+        Assert.That(continuing.Restart, Is.False);
+    }
+
+    [TestCase(-105, -90)]
+    [TestCase(105, 90)]
+    [TestCase(-165, -180)]
+    [TestCase(165, 180)]
+    public void Pivot_MatchesFacingTurnMagnitudeAfterChoosingMotorSide(int targetAngle, int expectedAngle)
+    {
+        var idle = Clip("Idle", 1f); var move = Clip("Move", 2f);
+        var ninety = Clip("Same Side 90", 3f, false); var halfTurn = Clip("Same Side 180", 4f, false);
+        var opposite = Clip("Opposite Side", 5f, false);
+        int side = targetAngle < 0 ? -1 : 1;
+        var asset = Asset<LocomotionSetAsset>(Move1D(idle, move),
+            $",\"pivot\":[{PivotEntry(opposite, -side * Math.Abs(expectedAngle))},"
+            + $"{PivotEntry(ninety, side * 90)},{PivotEntry(halfTurn, side * 180)}]");
+        JsonUtility.FromJsonOverwrite("{\"transitionDecisionConfig\":{\"PivotMinimumAngleDegrees\":90}}", asset);
+        var runtime = Runtime<LocomotionSetRuntime>(asset);
+        runtime.UpdateAnimation(Context(Vector3.forward, Vector3.forward));
+        var request = runtime.UpdateAnimation(Context(Vector3.back, Vector3.forward, facingYawDelta: side * 3f,
+            facingDirection: Quaternion.Euler(0f, targetAngle, 0f) * Vector3.forward));
+        Assert.That(request.State.Clip, Is.SameAs(Math.Abs(expectedAngle) == 90 ? ninety.Clip : halfTurn.Clip));
+    }
+
+    [TestCase(-5f, false)]
+    [TestCase(5f, false)]
+    [TestCase(-89f, false)]
+    [TestCase(89f, false)]
+    [TestCase(-90f, true)]
+    [TestCase(90f, true)]
+    [TestCase(-91f, true)]
+    [TestCase(91f, true)]
+    public void Pivot_RequiresBothMovementReversalAndTheConfiguredBodyTurn(float angle, bool pivots)
+    {
+        var idle = Clip("Idle", 1f); var move = Clip("Move", 2f);
+        var left = Clip("Left Pivot", 3f, false); var right = Clip("Right Pivot", 4f, false);
+        var asset = Asset<LocomotionSetAsset>(Move1D(idle, move),
+            $",\"pivot\":[{PivotEntry(left, -180)},{PivotEntry(right, 180)}]");
+        JsonUtility.FromJsonOverwrite("{\"transitionDecisionConfig\":{\"PivotMinimumAngleDegrees\":90}}", asset);
+        var runtime = Runtime<LocomotionSetRuntime>(asset);
+        runtime.UpdateAnimation(Context(Vector3.forward, Vector3.forward));
+        // Use an exact perpendicular vector at the inclusive boundary, not trigonometric round-off.
+        Vector3 target = Mathf.Abs(angle) == 90f ? Vector3.right * Mathf.Sign(angle)
+            : Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
+        var request = runtime.UpdateAnimation(Context(Vector3.back, Vector3.forward,
+            facingYawDelta: Mathf.Sign(angle) * 3f, facingDirection: target));
+        Assert.That(runtime.AnimationState, Is.EqualTo(pivots ? LocomotionSetState.Pivot : LocomotionSetState.Move));
+        Assert.That(request.IsMove, Is.EqualTo(!pivots));
+        if (pivots) Assert.That(request.State.Clip, Is.SameAs(angle < 0f ? left.Clip : right.Clip));
+    }
+
+    [TestCase(0f, true, -180)]  // Locked facing: reversing movement alone is not a body turn.
+    [TestCase(0f, false, -180)] // A facing target without any Motor turn must not trigger Pivot either.
+    [TestCase(float.NaN, false, -180)]
+    [TestCase(3f, false, -180)] // Never substitute a left animation for a right turn.
+    [TestCase(3f, false, 0)]
+    [TestCase(3f, false, 181)]
+    [TestCase(-3f, false, -181)]
+    public void Pivot_NoMotorTurnOrNoUsableSameSideClipReturnsToMove(float yaw, bool lockedFacing, int clipAngle)
+    {
+        var idle = Clip("Idle", 1f); var move = Clip("Move", 2f); var pivot = Clip("Pivot", 3f, false);
+        var runtime = Runtime<LocomotionSetRuntime>(Asset<LocomotionSetAsset>(Move1D(idle, move),
+            $",\"pivot\":[{PivotEntry(pivot, clipAngle)}]"));
+        runtime.UpdateAnimation(Context(Vector3.forward, Vector3.forward));
+        var request = runtime.UpdateAnimation(Context(Vector3.back, Vector3.forward, facingYawDelta: yaw,
+            facingDirection: lockedFacing ? Vector3.forward : Vector3.back));
+        Assert.That(request.IsMove, Is.True);
+        Assert.That(runtime.AnimationState, Is.EqualTo(LocomotionSetState.Move));
+    }
+
     [TestCase(false)]
     [TestCase(true)]
     public void StartReversal_UsesPivotWhenAvailableOtherwiseReturnsToMove(bool hasPivot)
@@ -445,7 +537,7 @@ public sealed class LocomotionAnimationContractTests
         AnimationAsset start = Clip("Start", 7f, false), pivot = Clip("Pivot", 9f, false);
         string entries = $",\"start\":[{{\"animation\":{Ref(start)},\"targetLocalDirection\":{{\"x\":0,\"y\":1}}}}]";
         if (hasPivot)
-            entries += $",\"pivot\":[{{\"animation\":{Ref(pivot)},\"sourceLocalDirection\":{{\"x\":0,\"y\":1}},\"targetLocalDirection\":{{\"x\":0,\"y\":-1}}}}]";
+            entries += $",\"pivot\":[{PivotEntry(pivot, 180)}]";
         var runtime = Runtime<LocomotionSetRuntime>(Asset<LocomotionSetAsset>(Move1D(idle, move), entries));
         var starting = runtime.UpdateAnimation(Context(Vector3.forward, Vector3.zero));
         Assert.That(starting.State.Clip, Is.SameAs(start.Clip));
@@ -516,7 +608,7 @@ public sealed class LocomotionAnimationContractTests
         AnimationAsset idle = Clip("Idle", 1f), move = Clip("Move", 3f);
         AnimationAsset transition = Clip("Transition", 7f, false);
         string entries = usePivot
-            ? $",\"pivot\":[{{\"animation\":{Ref(transition)},\"sourceLocalDirection\":{{\"x\":0,\"y\":1}},\"targetLocalDirection\":{{\"x\":0,\"y\":-1}}}}]"
+            ? $",\"pivot\":[{PivotEntry(transition, 180)}]"
             : $",\"start\":[{{\"animation\":{Ref(transition)},\"targetLocalDirection\":{{\"x\":0,\"y\":1}}}}]";
         var runtime = Runtime<LocomotionSetRuntime>(Asset<LocomotionSetAsset>(Move1D(idle, move), entries));
         if (usePivot) runtime.UpdateAnimation(Context(Vector3.forward, Vector3.forward));
@@ -948,6 +1040,52 @@ public sealed class LocomotionAnimationContractTests
         Assert.That(asset.DisposeCount, Is.EqualTo(1));
     }
 
+    [TestCase(0f)]
+    [TestCase(137f)]
+    public void MotionAnimationPipeline_FollowsComposedMotorRotationInsteadOfLocomotionProposal(float initialYaw)
+    {
+        _root.transform.rotation = Quaternion.Euler(0f, initialYaw, 0f);
+        _root.AddComponent<Actor>();
+        var locomotion = _root.AddComponent<ActorLocomotion>();
+        var motor = _root.AddComponent<ActorMotor>();
+        // EditMode does not run MonoBehaviour startup. Dispatch the standard Unity lifecycle once;
+        // assertions below use the real Motor composition and animation context, not private fields.
+        _root.SendMessage("Awake");
+        var asset = ScriptableObject.CreateInstance<TrackingLocomotionAsset>();
+        _objects.Add(asset);
+        LocomotionContractTests.ConfigureAssets(locomotion, asset);
+        MotionOwner rotationOwner = default;
+        try
+        {
+            Assert.That(motor.BeginScriptedRotation(out rotationOwner), Is.True);
+            Assert.That(motor.SubmitScriptedRotation(rotationOwner, Quaternion.Euler(0f, -7f, 0f)), Is.True);
+            locomotion.SetLocomotionIntent(new LocomotionIntent
+            {
+                WorldMoveDirection = _root.transform.forward,
+                FacingDirection = _root.transform.right,
+                MoveStrength = 1f,
+            });
+            locomotion.BeginControlTick();
+            var motionContext = motor.BeginMotion(1f / 60f);
+            var proposal = locomotion.BuildMotionRequest(motionContext);
+            motor.ComposeMotion(proposal);
+            Assert.That(Vector3.SignedAngle(motionContext.CurrentWorldRotation * Vector3.forward,
+                proposal.TargetWorldRotation * Vector3.forward, motionContext.CharacterUp), Is.GreaterThan(0f));
+            Assert.That(Quaternion.Angle(motor.RequestedRotation,
+                motionContext.CurrentWorldRotation * Quaternion.Euler(0f, -7f, 0f)), Is.LessThan(0.001f));
+
+            locomotion.UpdateAnimation(_animation, motor, 1f / 60f);
+            Assert.That(asset.AnimationUpdateCount, Is.EqualTo(1));
+            Assert.That(asset.LastAnimationContext.FacingYawDelta, Is.EqualTo(-7f).Within(0.001f),
+                "Animation must follow the Motor's winning rotation, not the opposite Locomotion proposal.");
+        }
+        finally
+        {
+            motor.CancelPreparedMotion();
+            if (rotationOwner.IsValid) motor.EndScriptedRotation(rotationOwner);
+        }
+    }
+
     [Test]
     public void MotionAnimationPipeline_UsesLockedMotionSnapshotAndSubmitsOnceAfterZeroDelta()
     {
@@ -957,11 +1095,13 @@ public sealed class LocomotionAnimationContractTests
         _objects.Add(asset);
         LocomotionContractTests.ConfigureAssets(locomotion, asset);
         var motor = new LocomotionMotionContext(0.1f, true, Vector3.up, Quaternion.identity, default, default);
+        Quaternion requestedRotation = Quaternion.identity;
         void Build()
         {
-            locomotion.SetLocomotionIntent(new LocomotionIntent { WorldMoveDirection = Vector3.forward, MoveStrength = 1f });
+            locomotion.SetLocomotionIntent(new LocomotionIntent { WorldMoveDirection = Vector3.forward,
+                FacingDirection = Vector3.back, MoveStrength = 1f });
             locomotion.BeginControlTick();
-            locomotion.BuildMotionRequest(motor);
+            requestedRotation = locomotion.BuildMotionRequest(motor).TargetWorldRotation;
         }
         Build();
         locomotion.UpdateAnimation(_animation, null, 0f);
@@ -976,6 +1116,9 @@ public sealed class LocomotionAnimationContractTests
         Assert.That(asset.LastAnimationContext.ModelVelocity.z, Is.EqualTo(2f).Within(1e-5f));
         Assert.That(asset.LastAnimationContext.Intent.WorldMoveDirection, Is.EqualTo(Vector3.forward));
         Assert.That(asset.LastAnimationContext.Motor.CurrentWorldRotation, Is.EqualTo(Quaternion.identity));
+        Assert.That(asset.LastAnimationContext.FacingYawDelta, Is.EqualTo(Vector3.SignedAngle(
+            Vector3.forward, requestedRotation * Vector3.forward, Vector3.up)).Within(0.0001f));
+        Assert.That(Mathf.Abs(asset.LastAnimationContext.FacingYawDelta), Is.GreaterThan(0f));
         Build();
         locomotion.UpdateAnimation(_animation, null, 0.1f);
         Assert.That(asset.AnimationUpdateCount, Is.EqualTo(2));
@@ -1017,7 +1160,7 @@ public sealed class LocomotionAnimationContractTests
         AnimationAsset right = FootClip("Right Stop", 6f, AnimationFoot.Right, false);
         string entries = StopEntries(left, right) + (returningFromStart
             ? $",\"start\":[{{\"animation\":{Ref(transition)}}}]"
-            : $",\"pivot\":[{{\"animation\":{Ref(transition)},\"sourceLocalDirection\":{{\"x\":0,\"y\":1}},\"targetLocalDirection\":{{\"x\":0,\"y\":-1}}}}]");
+            : $",\"pivot\":[{PivotEntry(transition, 180)}]");
         var runtime = Runtime<LocomotionSetRuntime>(Asset<LocomotionSetAsset>(Move1D(idle, run), entries));
         var old = runtime.UpdateAnimation(Context(Vector3.forward, returningFromStart ? Vector3.zero : Vector3.forward));
         _animation.SubmitLocomotion(_owner, old);
@@ -1142,6 +1285,116 @@ public sealed class LocomotionAnimationContractTests
         Assert.That(fresh.UpdateAnimation(Context(Vector3.forward,Vector3.forward)).State, Is.Null);
     }
 
+    [TestCase(LocomotionMove2DAlgorithm.Directional)]
+    [TestCase(LocomotionMove2DAlgorithm.Cartesian)]
+    public void IndependentAxes_SubmitThroughTheSamePlaybackPath(LocomotionMove2DAlgorithm algorithm)
+    {
+        var idle = Clip("Idle", 1f);
+        var run = Clip("Run", 3f);
+        var asset = Asset<LocomotionMixerAsset>(
+            "{\"blendType\":1,\"twoDimensional\":{\"axesConfigured\":true,\"xParameter\":3,\"yParameter\":2,"
+            + $"\"algorithm\":{(int)algorithm},\"samples\":[{Sample2D(idle, 0, 0, false)},{Sample2D(run, 1, 1, true)}]}}}}");
+        var runtime = Runtime<LocomotionMixerRuntime>(asset);
+        var context = Context(Vector3.right, Vector3.back * 5f, strength: 0.4f);
+        var request = runtime.UpdateAnimation(context);
+        Assert.That(request.Parameter, Is.EqualTo(new Vector2(0.4f, 0.4f)));
+        Assert.That(request.State is CartesianMixerState, Is.EqualTo(algorithm == LocomotionMove2DAlgorithm.Cartesian));
+        Assert.That(_animation.SubmitLocomotion(_owner, request), Is.True);
+        _animation.Evaluate(0f);
+        Assert.That(request.State.GetChild(1).Weight, Is.EqualTo(0.4f).Within(0.001f));
+        Assert.That(_probe.localPosition.x, Is.EqualTo(1.8f).Within(0.001f));
+
+        var scalar = Runtime<LocomotionMixerRuntime>(Asset<LocomotionMixerAsset>(
+            "{\"oneDimensional\":{\"parameter\":2,\"samples\":[" + Sample1D(run, 1, false) + "]}}"));
+        Assert.That(scalar.UpdateAnimation(context).Parameter.x, Is.EqualTo(request.Parameter.y));
+    }
+
+    [Test]
+    public void ParameterSpace_NotAlgorithm_DeterminesIdleAndHorizontalMatching()
+    {
+        var pose = Clip("Pose", 1f);
+        LocomotionBoundMove Bind(int x, int y, int sampleX, int sampleY) => LocomotionBoundMove.Capture(
+            Asset<LocomotionMixerAsset>("{\"blendType\":1,\"twoDimensional\":{\"axesConfigured\":true,"
+                + $"\"xParameter\":{x},\"yParameter\":{y},\"algorithm\":1,\"samples\":[{Sample2D(pose, sampleX, sampleY, false)}]}}}}"),
+            new LocomotionBindingBuilder());
+        var uprightRun = Bind(7, 2, 0, 1);
+        Assert.That(uprightRun.MatchesHorizontalSpeed, Is.True);
+        Assert.That(uprightRun.GetSample(0).Idle, Is.False, "Zero lean does not mean Idle.");
+        Assert.That(Bind(7, 2, 1, 0).GetSample(0).Idle, Is.True, "Only the movement axis determines stationary samples.");
+        var vertical = Bind(7, 1, 0, 0);
+        Assert.That(vertical.MatchesHorizontalSpeed, Is.False);
+        Assert.That(vertical.GetSample(0).Idle, Is.False);
+        var poseOnly = Bind(7, 7, 0, 0);
+        Assert.That(poseOnly.MatchesHorizontalSpeed, Is.False);
+        Assert.That(poseOnly.GetSample(0).Idle, Is.False);
+        foreach (var pair in new[] { (3, 4), (4, 3), (5, 6), (6, 5) })
+        {
+            Assert.That(Bind(pair.Item1, pair.Item2, 0, 0).GetSample(0).Idle, Is.True);
+            Assert.That(Bind(pair.Item1, pair.Item2, 0, 1).GetSample(0).Idle, Is.False);
+        }
+        foreach (var pair in new[] { (3, 7), (7, 4), (5, 5), (3, 6) })
+            Assert.That(Bind(pair.Item1, pair.Item2, 0, 0).GetSample(0).Idle, Is.False,
+                "Incomplete or mixed vectors cannot establish stationary movement.");
+        for (int source = 0; source <= 7; source++)
+        {
+            var scalar = LocomotionBoundMove.Capture(Asset<LocomotionMixerAsset>(
+                "{\"oneDimensional\":{\"parameter\":" + source + ",\"samples\":[" + Sample1D(pose, 0, false) + "]}}"),
+                new LocomotionBindingBuilder());
+            Assert.That(scalar.GetSample(0).Idle, Is.EqualTo(source == 0 || source == 2));
+        }
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void InvalidLeanSettings_DisableOnlyLeanAndKeepMovePlayable(bool twoD)
+    {
+        var run = Clip("Run", 3f);
+        string space = twoD
+            ? "\"blendType\":1,\"twoDimensional\":{\"axesConfigured\":true,\"xParameter\":7,\"yParameter\":2,\"algorithm\":1,\"samples\":["
+                + Sample2D(run, 0, 1, false) + "]}"
+            : "\"oneDimensional\":{\"parameter\":7,\"samples\":[" + Sample1D(run, 0, false) + "]}";
+        var asset = Asset<LocomotionMixerAsset>("{" + space
+            + ",\"turnLean\":{\"FullLeanAcceleration\":0,\"MinimumSpeed\":0.5,\"SmoothSeconds\":0.1}}");
+        LogAssert.Expect(LogType.Warning, new System.Text.RegularExpressions.Regex("invalid Turn Lean settings"));
+        var runtime = Runtime<LocomotionMixerRuntime>(asset);
+        var context = Context(Vector3.right, Vector3.forward * 5f, model: new Vector3(1f, 0f, 5f));
+        for (int i = 0; i < 2; i++)
+        {
+            runtime.ResetAnimation();
+            var request = runtime.UpdateAnimation(context);
+            Assert.That(request.State.ChildCount, Is.EqualTo(1));
+            Assert.That(request.Parameter, Is.EqualTo(twoD ? Vector2.up : Vector2.zero));
+            Assert.That(_animation.SubmitLocomotion(_owner, request), Is.True);
+            _animation.Evaluate(0f);
+            Assert.That(_probe.localPosition.x, Is.EqualTo(3f).Within(0.001f));
+        }
+        LogAssert.NoUnexpectedReceived(); // No repeat warnings on ticks/reset/reuse.
+    }
+
+    [Test]
+    public void LeanAxes_ShareOneUpdateAndRuntimeCapturesSettings()
+    {
+        var pose = Clip("Pose", 1f);
+        var asset = Asset<LocomotionMixerAsset>(
+            "{\"blendType\":1,\"twoDimensional\":{\"axesConfigured\":true,\"xParameter\":7,\"yParameter\":7,"
+            + "\"algorithm\":1,\"samples\":[" + Sample2D(pose, 0, 0, false) + "]},"
+            + "\"turnLean\":{\"FullLeanAcceleration\":20,\"MinimumSpeed\":0.5,\"SmoothSeconds\":0.1}}");
+        var runtime = Runtime<LocomotionMixerRuntime>(asset);
+        var context = Context(Vector3.right, Vector3.forward * 5f, model: new Vector3(1f, 0f, 5f), dt: 0.1f);
+        var first = runtime.UpdateAnimation(context);
+        Assert.That(first.Parameter.x, Is.EqualTo(0.5f * (1f - Mathf.Exp(-1f))).Within(0.0001f));
+        Assert.That(first.Parameter.y, Is.EqualTo(first.Parameter.x));
+        JsonUtility.FromJsonOverwrite("{\"move\":{\"turnLean\":{\"FullLeanAcceleration\":1000}}}", asset);
+        runtime.ResetAnimation();
+        Assert.That(runtime.UpdateAnimation(context).Parameter, Is.EqualTo(first.Parameter), "Existing runtime keeps its bound settings.");
+
+        // ActorLocomotion calls this hook on zero animation dt; unlike Update(motionDt=0),
+        // it represents a feedback gap. The first resumed tick must not replay old steering.
+        runtime.SuspendAnimationFeedback();
+        Assert.That(runtime.UpdateAnimation(context).Parameter, Is.EqualTo(Vector2.zero));
+        Assert.That(runtime.UpdateAnimation(context).Parameter, Is.EqualTo(first.Parameter));
+    }
+
     private AnimationAsset FootClip(string name, float pose, AnimationFoot foot, bool looping = true)
     {
         var asset = Clip(name, pose, looping);
@@ -1156,11 +1409,15 @@ public sealed class LocomotionAnimationContractTests
         $",\"stop\":[{{\"animation\":{Ref(left)},\"sourceLocalDirection\":{{\"x\":0,\"y\":1}}}},"
             + $"{{\"animation\":{Ref(right)},\"sourceLocalDirection\":{{\"x\":0,\"y\":1}}}}]";
 
+    private static string PivotEntry(AnimationAsset animation, int angle) =>
+        $"{{\"animation\":{Ref(animation)},\"signedTurnAngleDegrees\":{angle}}}";
+
     private LocomotionRuntimeAnimationContext Context(Vector3 input, Vector3 before,
         Quaternion? facing = null, float vertical = 0f, float scale = 1f, Vector3? model = null,
-        float dt = 1f / 60f, float strength = 1f) =>
+        float dt = 1f / 60f, float strength = 1f, float? facingYawDelta = null, Vector3? facingDirection = null) =>
         LocomotionSetDecisionTests.Context(input, before, model, dt, facing: facing, vertical: vertical, scale: scale, strength: strength,
-            sourceFootPhase: _animation.GetLocomotionFootPhaseReference(_owner));
+            sourceFootPhase: _animation.GetLocomotionFootPhaseReference(_owner), facingYawDelta: facingYawDelta,
+            facingDirection: facingDirection);
 
     private AnimationAsset Clip(string name, float value, bool looping = true)
     {

@@ -107,6 +107,9 @@ public sealed class LocomotionSetRuntime : LocomotionAnimationRuntime
     private LocomotionBoundTransition? SelectTransition(LocomotionSetState next,
         in LocomotionRuntimeAnimationContext context, float? distance)
     {
+        if (next == LocomotionSetState.Pivot)
+            return SelectPivot(context);
+
         Vector2 source = context.ToLocalDirection(context.VelocityBeforeMotion);
         Vector2 target = context.ToLocalDirection(context.Intent.WorldMoveDirection);
         LocomotionBoundTransition? best = null;
@@ -118,8 +121,7 @@ public sealed class LocomotionSetRuntime : LocomotionAnimationRuntime
         {
             LocomotionBoundTransition sample = samples[i];
             float score = next == LocomotionSetState.Start ? Vector2.Angle(target, sample.Target)
-                : next == LocomotionSetState.Stop ? Vector2.Angle(source, sample.Source)
-                : Vector2.Angle(source, sample.Source) + Vector2.Angle(target, sample.Target);
+                : Vector2.Angle(source, sample.Source);
             float phaseScore = float.PositiveInfinity;
             if (next == LocomotionSetState.Stop && hasPhase && sample.FootPhase != null)
             {
@@ -133,6 +135,41 @@ public sealed class LocomotionSetRuntime : LocomotionAnimationRuntime
             if (score < bestScore - 0.0001f || (Mathf.Abs(score - bestScore) <= 0.0001f && phaseScore < bestPhaseScore))
             { bestScore = score; bestPhaseScore = phaseScore; best = sample; }
         }
+        return best;
+    }
+
+    private LocomotionBoundTransition? SelectPivot(in LocomotionRuntimeAnimationContext context)
+    {
+        // A movement reversal while strafing is not necessarily a body turn.
+        if (!LocomotionDataValidation.IsFinite(context.FacingYawDelta)
+            || Mathf.Abs(context.FacingYawDelta) <= 0.0001f)
+            return null;
+        Vector3 up = context.Motor.CharacterUp;
+        Vector3 facing = Vector3.ProjectOnPlane(context.Motor.CurrentWorldRotation * Vector3.forward, up);
+        Vector3 target = Vector3.ProjectOnPlane(context.Intent.FacingDirection, up);
+        if (!LocomotionAnimationUtility.IsValidPlanarDirection(target))
+            return null;
+        float angle = Vector3.Angle(facing, target);
+        // The same minimum angle applies to movement reversal AND the required body turn.
+        // A small lock-on facing correction must not turn a strafe reversal into a 180 Pivot.
+        if (!LocomotionDataValidation.IsFinite(angle) || angle <= 0.0001f
+            || angle < _definition.DecisionConfig.PivotMinimumAngleDegrees)
+            return null;
+
+        LocomotionBoundTransition? best = null;
+        float bestScore = float.PositiveInfinity;
+        var samples = _definition.GetTransitions(LocomotionSetState.Pivot);
+        for (int i = 0; i < samples.Count; i++)
+        {
+            LocomotionBoundTransition sample = samples[i];
+            if (Mathf.Sign(sample.SignedTurnAngleDegrees) != Mathf.Sign(context.FacingYawDelta))
+                continue;
+            // Compare magnitudes only AFTER choosing the Motor's side. Never wrap -180 to +180.
+            float score = Mathf.Abs(Mathf.Abs(sample.SignedTurnAngleDegrees) - angle);
+            if (score < bestScore - 0.0001f)
+            { bestScore = score; best = sample; }
+        }
+        // No same-side clip means Move, not an animation turning against the Motor.
         return best;
     }
 
