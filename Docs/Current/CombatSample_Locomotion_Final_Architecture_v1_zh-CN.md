@@ -1,6 +1,6 @@
 # CombatSample Locomotion 当前架构
 
-> 更新：2026-10-06。本文描述当前源码的职责与数据模型，包括 Stop 距离匹配、脚相择优、配置绑定和结构整理。配置入口见[制作工作流](CombatSample_Locomotion_Authoring_zh-CN.md)，本批验证与剩余检查见[提交审查](CombatSample_Locomotion_Commit_Review_2026-10-05_zh-CN.md)。[历史路线图](../Archive/Locomotion/CombatSample_Locomotion_Implementation_Roadmap_v1_zh-CN.md)保留迁移过程，不作为当前待办。
+> 本文描述当前源码的职责与数据模型，包括统一标量参数、独立二维轴、Directional／Cartesian、TurnLean，以及 Stop 距离匹配、脚相择优和配置绑定。配置入口见[制作工作流](CombatSample_Locomotion_Authoring_zh-CN.md)，本批验证与剩余检查见[提交审查](CombatSample_Locomotion_Commit_Review_2026-10-05_zh-CN.md)。[历史路线图](../Archive/Locomotion/CombatSample_Locomotion_Implementation_Roadmap_v1_zh-CN.md)保留迁移过程，不作为当前待办。
 
 ## 1. 系统目标与唯一链路
 
@@ -181,27 +181,45 @@ LocomotionSetAsset
 ```text
 MoveDefinition
 ├─ BlendType: OneDimensional | TwoDimensional
-├─ 1D Parameter: HorizontalSpeed | VerticalSpeed | InputStrength
+├─ 1D Parameter: 一个 LocomotionMoveParameter
 │  └─ Samples[]: AnimationAsset + float Threshold + bool Sync=true
-└─ 2D Parameter: LocalVelocity | LocalInput
-   └─ Samples[]: AnimationAsset + Vector2 Threshold + bool Sync=true
+├─ 2D XParameter / YParameter: 各一个 LocomotionMoveParameter
+│  ├─ Algorithm: Directional | Cartesian
+│  └─ Samples[]: AnimationAsset + Vector2 Threshold + bool Sync=true
+└─ TurnLeanConfig: FullLeanAcceleration / MinimumSpeed / SmoothSeconds
 ```
 
 约束：
 
 - HorizontalSpeed 使用政策缩放后的水平模型速度；VerticalSpeed 使用 Motor 已准备的请求垂直速度并去除时间缩放，允许有符号值；这两个模式保留原有序列化值；
 - InputStrength 直接使用 0～1 的 `LocomotionIntent.MoveStrength`；LocalInput 使用局部空间的输入方向 × 强度。输入值范围不限制作者填写样本阈值的范围。没有输入时参数为零，不改读残余速度，也不套用 Start/Stop/Pivot 的输入判定阈值；
-- 2D 的 `LocalVelocity` 与 `LocalInput` 都使用角色当前 Facing 建立的局部空间；
+- 标量来源共用于 1D 和 2D：HorizontalSpeed、VerticalSpeed、InputStrength、LocalInputX/Z、LocalVelocityX/Z、TurnLean。局部分量从同一份角色当前 Facing 快照计算；角色局部 Z 与混合空间 Y 是不同坐标概念；
+- 2D 的参数选择不依赖算法。Directional 使用极坐标方向／长度插值，Cartesian 使用二维坐标关系插值；不为 Directional 单独绑定向量来源；
+- 旧 1D 三项序列化数值不变。旧 2D `parameter`（LocalVelocity=0、LocalInput=1）仅作为兼容读取，未启用独立轴时映射成相应 X/Z；默认算法为 Directional。Inspector 主动修改轴时才写入 `axesConfigured` 与独立轴值，查看不写回资产；
 - 绑定跳过非有限阈值和重复阈值；重复值保留作者顺序中的第一条可用样本；
 - 每个样本的 `Sync` 默认开启，可单独退出同步；
-- Idle 不设独立字段。零阈值／零方向样本参与 Move 的正常混合；交接保护不根据这些样本另选 Idle；
-- 各参数模式允许任意可安全插值的有限样本阈值，不强制 Idle 与移动样本配对；单样本可播放。VerticalSpeed 不使用 Move 播放倍率匹配；
+- Idle 不设独立字段。仅当空间含 HorizontalSpeed／InputStrength 或同源完整 LocalInputX/Z、LocalVelocityX/Z 分量对时，才根据所有水平运动轴阈值为零推断 Idle，忽略 TurnLean 轴。单个／重复／异源局部分量无法证明静止，按普通样本参与步速匹配；纯姿态和含 VerticalSpeed 的空间不推断 Idle。样本正常参与混合，交接保护不另选 Idle；
+- 各参数模式允许任意可安全插值的有限样本阈值，不强制 Idle 与移动样本配对；单样本可播放。任一活动轴含 VerticalSpeed 或空间只有姿态来源时，不使用水平 Move 播放倍率匹配。其他含水平运动来源的空间继续匹配，与算法无关；
 - Loop 来自源 `AnimationClip`，不在 LocomotionAsset 重复配置；
 - Runtime 创建并缓存 Animancer Mixer；不同步的样本调用 `DontSynchronize`。
 
 1D/2D 是连续 Move 混合空间，不限制 Start/Stop/Pivot 的方向覆盖。典型 FreeMove 可以使用 1D Speed Move，同时拥有左前 Start 和 180° Pivot。输入模式的 Threshold 使用归一化输入单位；速度模式的 Threshold 保持速度单位。Move 的播放倍率匹配仍独立使用实际速度。
 
-### 4.4 LocomotionSetAsset 的过渡条目
+### 4.4 参数求值与 TurnLean
+
+`LocomotionMoveParameters` 将同一 Tick 的局部输入、政策缩放后的局部／水平速度、垂直速度、输入强度与侧倾组成只读样本；读取 X/Y 无副作用。1D 与 2D 共享求值语义。
+
+`LocomotionTurnLean` 属于每 Actor Runtime。由同一 Motion 快照中积分前后的平面模型速度求横向加速度，投影到旧移动方向的右向，乘当前 LocomotionScale，再按 FullLeanAcceleration 映射、低速抑制、限幅并指数平滑。默认满幅加速度 20 m/s²、最低模型速度 0.5 m/s、平滑时间 0.1 个 Motion 秒。直线加减速不产生侧倾；单 Tick 转角 ≥120° 不作为普通弧线转弯。其意义是移动模型转弯响应，不是身体朝向误差，也不是 KCC 本 Tick 尚未发布的世界结果。
+
+仅选中 TurnLean 时更新其状态，同一次 MoveRequest 只更新一次，再读取两轴；设置随绑定固定。dt 使用 Motor.EffectiveDeltaTime。无有效移动输入时侧倾清零；Action、外部平移／旋转 owner、离地和 LocomotionScale≤0 中断侧倾，恢复首 Tick 重新建立基线。Lean 使用同 Tick 的速度快照，不再复用用于跨 Tick World 反馈的 SamePolicy：正值倍率／有效时间变化以及无关的重力／空中倍率变化不重置侧倾。
+
+零 Motion dt 的直接 Update 保持值；动画暂停通过 ActorLocomotion → SuspendAnimationFeedback → Lean.Suspend 清理状态，恢复第一 Tick 为零，之后重新平滑。Runtime 重置／退出或动画图重建同样清理状态，不跨接管保留旧转弯。此计算不改变 Intent、运动积分、Motor 或 Root Motion 来源。
+
+非法 Lean 设置仅使侧倾来源输出零，不阻止有效 Move 样本绑定，也不改写资产。Inspector 提供配置提示，绑定时记录每 Runtime 一次的警告；资产选择与运动配置不因视觉参数无效而被替换。FullLeanAcceleration 默认仍为 20 m/s²，不根据单 Tick 目标饱和推断最终侧倾幅度。
+
+典型配置：输入 Strafe 为 LocalInputX/Z + Directional；自由跑为 TurnLean/InputStrength + Cartesian。完整 Lean 跑步循环按完整样本混合，不当作加法姿态。HardLock、Tag、控制参考系与资产条件不属于本轮改动。
+
+### 4.5 LocomotionSetAsset 的过渡条目
 
 ```text
 StartEntry
@@ -214,13 +232,14 @@ StopEntry
 
 PivotEntry
 ├─ AnimationAsset
-├─ SourceLocalDirection
-└─ TargetLocalDirection
+└─ SignedTurnAngleDegrees
 ```
 
-方向是在进入状态时，相对于角色 Facing 的二维局部运动方向：`x` 为右，`y` 为前。Start 使用目标 Intent；Stop 使用积分前的模型速度；Pivot 使用旧运动方向和新目标方向。Pivot 的有符号角度由两向量计算，不再单独重复配置 `TurnAngle`。
+Start／Stop 的方向是在进入状态时，相对于角色 Facing 的二维局部运动方向：`x` 为右，`y` 为前。Start 使用目标 Intent；Stop 使用积分前的模型速度。
 
-Start/Stop/Pivot 可独立留空。绑定时跳过缺 Clip、无有效时长或含非有限方向值的条目，其余条目继续按统一角度规则匹配；零方向没有额外的覆盖检查。基础过渡不要求 Root Motion 轨迹。
+Pivot 显式配置有符号转角：负数左转、正数右转，-180 与 +180 是不同动画。起终方向不能表达 180° 的左右路径，因此 Pivot 不再保存 Source／Target 两向量。角度只参与选片，不控制 Motor。ActorLocomotion 在 Motion 已组合、动画尚未求值时，从 tick 起始朝向与 Motor.RequestedRotation 计算本 Tick 的有符号 yaw 增量并传入动画上下文；不从反向输入重新决定左右。Pivot 先限制为 Motor 正在转的同侧，再用当前角色朝向到 Intent.FacingDirection 的夹角匹配转角大小，不使用环绕角差。完全同分按作者顺序；进入后不逐帧重新选片。
+
+Start/Stop/Pivot 可独立留空。绑定时跳过缺 Clip、无有效时长或含非有限方向值的条目；Pivot 还跳过零度、非有限和超出 [-180, 180] 的转角。Start／Stop 零方向没有额外覆盖检查。移动反向但 Motor 没有身体转向、所需身体转角不足 `PivotMinimumAngleDegrees`、FacingDirection 无效或没有同侧 Pivot 时继续 Move，不播放反侧素材。基础过渡不要求 Root Motion 轨迹。当前 Katana 两条 Pivot 已由旧两向量配置迁移为 -180／+180；外部旧配置需显式重填，不保留猜测路径的旧接口。
 
 `TransitionBlendDuration` 是 Set 级的统一基础淡入淡出时间。第一版不为每条动画暴露 Fade、SpeedRange、Foot、ExitTime、PlaybackSpeed、Priority 或任意 Condition；实际制作证明需要后再扩展。
 
@@ -259,11 +278,11 @@ Move ↔ Pivot
 
 - 静止时出现有效移动意图，存在可播放的 Start 才进入 Start，否则继续 Move；
 - 失去移动意图且仍有速度，存在可播放的 Stop 才进入 Stop，否则 Move 随模型减速；
-- 有速度时目标方向发生足够强的反转，存在可播放的 Pivot 才进入 Pivot，否则继续 Move 并正常 Gameplay 转向；
+- 有速度时移动目标方向发生足够强的反转，且所需身体转角达到同一个最小转角阈值、Motor 本 Tick 正在身体转向、存在同侧可播放的 Pivot 才进入 Pivot，否则继续 Move 并正常 Gameplay 转向；
 - 新输入可打断 Stop；Action/Asset 切换可以中断所有过渡；
 - Runtime 先取得下一状态建议，选择并准备有效 Clip 后才提交状态。未进入的过渡不排队，输入边沿仍在有效 Tick 消费；零 dt 不推进决策；
 - 所有过渡完成后返回使用当前参数源的 Move，不锁存零速；Start/Pivot 释放输入但没有 Stop 时同样返回 Move；
-- 状态拓扑、优先级和打断规则由代码统一维护；Set 的 `TransitionDecisionConfig` 配置静止速度（默认 0.1 m/s）、Pivot 最低速度（默认 0.5 m/s）和最小转角（默认 120°），不做成任意 Condition 图。Start 使用速度 ≤ 静止阈值，Stop 使用速度 > 静止阈值，Pivot 使用速度 ≥ 最低速度且转角 ≥ 最小转角；
+- 状态拓扑、优先级和打断规则由代码统一维护；Set 的 `TransitionDecisionConfig` 配置静止速度（默认 0.1 m/s）、Pivot 最低速度（默认 0.5 m/s）和最小转角（默认 120°），不做成任意 Condition 图。Start 使用速度 ≤ 静止阈值，Stop 使用速度 > 静止阈值，Pivot 使用速度 ≥ 最低速度，且移动反向夹角与当前 Facing 到 FacingDirection 的身体转角均 ≥ 同一个最小转角；小幅锁定跟随修正不能让移动反向误触发转身素材，不新增另一套角度参数；
 - 基础 Move 没有任何可用样本时，不启动可选过渡；沿现有姿势保护路径处理，不输出配置告警，不改变 Gameplay 积分。
 
 `ActorAnimation` 继续拥有 Animancer Graph。Runtime 只通过窄的 Layer 0 请求接口提交 Mixer、Clip、参数、时间和淡入淡出，不直接拥有最终动画图。
@@ -274,7 +293,7 @@ Move ↔ Pivot
 
 Runtime 构造期间使用 `LocomotionBindingBuilder` 按 AnimationAsset 去重，取得一次轨迹资格结果，再生成脚相、Stop 曲线与周期位移。`LocomotionBoundMove`、`LocomotionBoundSet` 私有保存过滤后的样本与条目，复制参数源、方向、Sync、混合时长及决策配置；构建器和作者列表不进入执行阶段。运动配置继续由 Runtime 基类捕获，资产引用仅保留身份。
 
-Runtime 持有绑定定义、决策状态和播放节点缓存。图失效后丢弃节点，下一次使用同一绑定定义重建；Exit 后重入仍使用原配置。ActorAnimation 先挂接状态、处理重播或显式采样，再执行 `LocomotionMovePlayback.PrepareMove`：更新参数 → 重算权重 → 重置重新入场的非循环样本 → 计算参考速度与倍率。无 MovePlayback 的兼容请求复用同一个参数处理函数。公开 `Prepare(context)` 继续支持已有调用。
+Runtime 持有绑定定义、决策状态、TurnLean 平滑状态和播放节点缓存。图失效后丢弃节点，下一次使用同一绑定定义重建；Exit 后重入仍使用原配置。ActorAnimation 先挂接状态、处理重播或显式采样，再执行 `LocomotionMovePlayback.PrepareMove`：更新参数（2D 经 Vector2MixerState 共同接口）→ 重算权重 → 重置重新入场的非循环样本 → 按参数语义决定是否计算水平参考速度与倍率。无 MovePlayback 的兼容请求复用同一个参数处理函数。公开 `Prepare(context)` 继续支持已有调用。
 
 ### 5.2 Tick 与会话归属
 
@@ -334,7 +353,7 @@ AnimationAsset
     描述动画自身实际发生了什么
 ```
 
-LocomotionAsset 保存 Move threshold/sync，以及 Start/Stop/Pivot 的方向关系。AnimationAsset 保存 Clip 与累计 Root Motion 轨迹。相同 AnimationAsset 被多个 LocomotionAsset 引用时不重复录入轨迹。
+LocomotionAsset 保存 Move threshold/sync、Start／Stop 的局部方向，以及 Pivot 的显式有符号转角。AnimationAsset 保存 Clip 与累计 Root Motion 轨迹。相同 AnimationAsset 被多个 LocomotionAsset 引用时不重复录入轨迹。
 
 ### 7.1 Move velocity matching
 
@@ -362,6 +381,7 @@ HorizontalSpeed 直接使用政策缩放后的水平模型速度，不额外截�
 - `LocomotionMixerAsset` 与 `LocomotionSetAsset`；
 - Gameplay 加减速、转向和空中控制；
 - Layer 0 Move/Start/Stop/Pivot；
+- 统一标量参数、独立二维轴、Directional／Cartesian 与模型转弯响应 TurnLean；
 - Air Move Mixer，Jump/Land Action；
 - Move velocity matching；
 - Stop Distance Matching 与 Stop 脚相择优；
@@ -380,6 +400,14 @@ HorizontalSpeed 直接使用政策缩放后的水平模型速度，不额外截�
 
 主要代码入口：[ActorLocomotion](../../Assets/Scripts/Actor/ActorLocomotion.cs)、[ActorMotor](../../Assets/Scripts/Actor/ActorMotor.cs)、[ActorSimulationRuntime](../../Assets/Scripts/Actor/ActorSimulationRuntime.cs)、[ActorAnimation](../../Assets/Scripts/Actor/ActorAnimation.cs)、[LocomotionRunner](../../Assets/Scripts/Actor/Motion/LocomotionRunner.cs)、[AnimationAsset](../../Assets/Scripts/Animation/AnimationAsset.cs)。
 
+
+### 本轮统一参数与 Lean 的验证
+
+- Runtime、去除 UNITY_EDITOR 的 Runtime、Editor／测试程序集均通过独立 Roslyn 编译；输出仅在系统临时目录，未编辑生成工程或生成目录。
+- 复查修正后重新编译 Runtime、去除 UNITY_EDITOR 的 Runtime、Editor／测试程序集，均通过（Runtime 仍有序列化字段未显式赋值等警告）。使用实际编译程序集在 Unity 自带 Mono 下执行 14 个不依赖原生引擎调用的 Lean 用例，全部通过，包含新增的正值策略连续变化测试。纯数学／生命周期用例与原生调用链测试分开报告，不能把单独 Update(dt=0) 的结果当成实际暂停入口的结果。
+- EditMode 合同覆盖旧数据兼容、独立轴、Cartesian 参数提交／播放、完整与不完整参数空间的 Idle 分类、非法 Lean 设置保留可播放样本、绑定不热刷新，以及 Runtime 暂停反馈后的重新建立基线。
+- 增加真实 LocomotionRunner 速度积分驱动的转弯测试（对称、限幅和平滑后回正），以及仅使用临时 ScriptableObject 的多选轴编辑／待提交修改／Undo／Redo 合同。后者保护序列化用户数据，不测试 UI 几何或依赖仓库资产。
+- 待 Unity 原生验收：上述 Editor／播放合同，Inspector 多选／Undo／仅查看不标脏、旧资源首次载入默认值、窄面板、Directional／Cartesian 实际混合、Lean 脚步相位、Action／HitStop／图重建衔接。编译与独立 Mono 执行不能替代这些验证。本轮不修改资源、HardLock Tag 或进入条件。
 
 ## 10. AnimationAsset 的停止点与脚标记
 

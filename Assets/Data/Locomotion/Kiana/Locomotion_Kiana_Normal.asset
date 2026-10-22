@@ -39,7 +39,15 @@ MonoBehaviour:
         sync: 0
     twoDimensional:
       parameter: 0
+      axesConfigured: 0
+      xParameter: 5
+      yParameter: 6
+      algorithm: 1
       samples: []
+    turnLean:
+      FullLeanAcceleration: 20
+      MinimumSpeed: 0.5
+      SmoothSeconds: 0.1
   transitionBlendDuration: 0.1
   stopPlaybackMode: 1
   transitionDecisionConfig:

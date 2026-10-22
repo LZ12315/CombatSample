@@ -1,6 +1,6 @@
 # Locomotion 资产配置与动画制作工作流
 
-更新：2026-10-06。本文说明当前 Inspector 的配置入口和运行含义。代码职责见[当前架构](CombatSample_Locomotion_Final_Architecture_v1_zh-CN.md)，验证状态与 Kiana 配置快照见[提交审查](CombatSample_Locomotion_Commit_Review_2026-10-05_zh-CN.md)。
+本文说明当前 Inspector 的配置入口和运行含义；本轮补充统一标量参数、独立二维轴和 TurnLean。代码职责见[当前架构](CombatSample_Locomotion_Final_Architecture_v1_zh-CN.md)，验证状态与 Kiana 配置快照见[提交审查](CombatSample_Locomotion_Commit_Review_2026-10-05_zh-CN.md)。
 
 ## 1. 配置 LocomotionAsset
 
@@ -11,36 +11,83 @@ ActorLocomotion 持有候选资产列表。MixerAsset 提供持续 Move；SetAss
 | Mode Selection | Priority 与 Entry Conditions。条件全部通过的候选中取最高优先级；同分时保持当前合法候选，否则按列表顺序。空条件列表表示无条件通过。 |
 | Tags | 当前资产激活期间取得 Self Tags，退出时配对释放。 |
 | Movement Config | Max Speed、Acceleration、Deceleration、Direction Response、Rotate Speed、Turn Response Time。方向速度响应、朝向旋转和松键减速分别控制。 |
-| Move | Blend Type、Parameter、Samples，分别表示混合维度、参数源和样本；字段平铺，样本继续使用原列表。 |
+| Move | `Mode` 统一选择 1D／2D Directional／2D Cartesian；1D 选择一个来源，2D 独立选择 X／Y 来源。含义、单位与符号方向放在 tooltip，样本使用原生列表中的紧凑行。 |
 | Transitions（Set） | 统一混合时长、Stop Playback Mode、状态决策阈值与 Start／Stop／Pivot 列表。 |
 
 没有合格候选时结束当前模式。没有可选过渡时继续 Move；不能播放的条目被跳过。Locomotion Inspector 不检查素材覆盖或表现质量，Runtime 保证核心数值、插值和生命周期安全。
 
+### Move 的编辑操作
+
+- 全部使用原生控件：`Mode`、`Parameter`、`X Parameter`、`Y Parameter` 是标准下拉框；`Samples` 是原生数组，外框、元素标题、拖排、增删和多选都由 Unity 渲染。
+- 每个样本只占一行：`Animation`、`Threshold`、`Sync` 横向排列。这是通过 `LocomotionMove1DSample`／`LocomotionMove2DSample` 的 `PropertyDrawer` 控制元素内容与行高实现的，不接管列表外框。
+- 列表外框和元素呈现交给 Unity；不依赖特定版本是否显示 `Element N` 标题。样本行保留上下留白，窄面板时限制数值列占用，避免动画引用列出现负宽度。极窄面板的实际可用性仍需人工检查。
+- 混合方式合并了维度与算法的入口，但不改变数据模型。切换算法不改 X/Y 来源；切回 1D 也保留未激活的 2D 配置。
+- 混合方式或参数来源不一致时显示混合值；多选下样本走原生数组编辑。
+- 字段名使用英文：`Mode`、`Parameter`、`X Parameter`、`Y Parameter`、`Samples`、`Turn Lean`、`Full Lean Acceleration`、`Minimum Speed`、`Smooth Seconds`。
+- 不在 Inspector 里堆常驻说明文字：参数含义、单位与方向（例如 `Local Input Z` 负数为后）放在参数字段 tooltip 中。混合方式冲突／无效或活动 Lean 设置非法时才显示诊断提示。
+- 选择 `Turn Lean` 作为任一轴参数时出现 `Turn Lean` 折叠区，其说明同样只在 tooltip 中。
+- 写入走原生 `SerializedProperty`，自动获得 Undo；查看与展开不迁移、不保存资产。本轮没有二维拖点图或动画预览。
+
 ### Move 参数与样本
+
+1D 与 2D 共用同一组标量来源；2D 将两个读取结果组成 Vector2，不根据算法改变参数含义。
 
 | 参数源 | Threshold 的含义 |
 | --- | --- |
-| 1D Horizontal Speed | 政策缩放后的水平模型速度，通常以 m/s 配置。 |
-| 1D Vertical Speed | Motor 已准备的请求垂直速度，去除时间缩放；上升／下降可用正负阈值。此模式不使用 Move 速度倍率匹配。 |
-| 1D Input Strength | 控制者提交的 0～1 输入强度。松键时为 0。 |
-| 2D Local Velocity | 相对角色当前朝向的局部水平模型速度，Vector2 的 x 为右、y 为前。 |
-| 2D Local Input | 相对角色当前朝向的归一化输入方向 × 强度。 |
+| Horizontal Speed | 政策缩放后的水平模型速度大小，m/s。 |
+| Vertical Speed | Motor 已准备的请求垂直速度，去除时间缩放，m/s；上升／下降可用正负阈值。 |
+| Input Strength | 控制者提交的 0～1 输入强度。松键时为 0，不改读残余速度。 |
+| Local Input X / Z | 同一份角色当前朝向快照下的局部输入分量：X 为右，Z 为前；通常 -1～1。 |
+| Local Velocity X / Z | 同一份朝向快照下、政策缩放后的局部模型速度分量，m/s。 |
+| Turn Lean | 由自主模型转弯响应得到的侧倾强度：-1 左倾，+1 右倾；不改变 Gameplay 运动。 |
 
-参数源决定 Mixer 权重。Move 速度匹配另外读取合格的实际运动反馈，调整动画播放快慢。使用 Input Strength 仍可进行速度匹配。
+角色局部 Z 可以放在混合空间的 Y 轴；轴来源独立选择，算法不限制参数取值正负。
 
-零阈值或零向量样本可以作为 Idle；没有独立 Idle 字段。有限阈值不强制落在输入值范围内，单样本也可播放；重复阈值保留作者顺序中的第一条可用样本。Loop 来自 Clip，Sync 由各样本配置，默认开启。Move 播放倍率需要合格的循环轨迹数据，缺失时保持中性倍率并继续基础播放。
+- **Directional** 按方向与长度插值，典型 Strafe 配置为 X=LocalInputX、Y=LocalInputZ；速度驱动可换为 LocalVelocityX/Z。
+- **Cartesian** 按二维坐标关系插值，典型 Lean 跑步配置为 X=TurnLean、Y=InputStrength；速度驱动可将 Y 换成 HorizontalSpeed。不同单位的轴比例会影响插值，需要按素材制作样本坐标。
+- 例如 Cartesian 的 Idle=(0,0)、普通快跑=(0,1)、左倾快跑=(-1,1)、右倾快跑=(1,1)。这是示例，本轮没有修改任何角色资源。
+
+参数源决定 Mixer 权重，Move 速度匹配另读取合格实际运动反馈，调整播放快慢。任一活动轴使用 VerticalSpeed，或者所有活动轴都是 TurnLean 等纯姿态参数时，禁用水平步速匹配；其他含水平运动参数的空间继续匹配，与 Directional／Cartesian 无关。
+
+Idle 推断需要足以判断静止的参数：至少一个 HorizontalSpeed／InputStrength，或完整的 LocalInputX/Z、LocalVelocityX/Z 同源分量对（允许交换轴）。同时要求所有活动水平运动轴的阈值为零，忽略 TurnLean 轴。含 VerticalSpeed 或纯姿态空间不推断 Idle。单个局部分量、重复分量或输入／速度混合分量不能凭零值判断静止，因此按普通样本参与步速匹配；例如 LocalInputX=0 的向前跑不会被排除。没有独立 Idle 字段，需要自动识别 Idle 时应选择上述完整参数空间。原有 1D Speed／InputStrength 和 2D 完整向量空间的语义不变。
+
+有限阈值不强制落在输入值范围内，单样本也可播放；重复阈值保留作者顺序中的第一条可用样本。Loop 来自 Clip，Sync 默认开启；Idle 建议退出同步。同步只对齐归一化时间，不自动修复素材落脚相位。播放倍率需要合格的循环轨迹，缺失时使用倍率 1，不代表必然出现滑步。
+
+### TurnLean 设置与边界
+
+- 满幅侧倾加速度（Full Lean Acceleration）：m/s²，必须大于 0，默认 20。值越大越不容易倾满，越小侧倾越明显。
+- 低速抑制（Minimum Speed）：模型速度低于该值时目标侧倾为零，从此速度到两倍速度逐渐恢复完整影响，默认 0.5 m/s。
+- 平滑时间（Smooth Seconds）：以 Motion 有效时间计算的指数响应时间，默认 0.1 秒。越大越柔和、越滞后，0 表示立即响应。
+
+使用同一 Tick 积分前后的平面模型速度，提取垂直于旧移动方向的加速度，乘当前 LocomotionScale 后映射、限幅和平滑；直线加减速不产生左右侧倾。单 Tick 方向变化达到 120° 时不作为普通弧线转弯。它适用于向前自由跑素材，不保证同一组完整 Lean 循环可用于侧跑或倒跑。
+
+无有效移动输入时侧倾立即归零，避免 InputStrength=0 时残余侧倾混回跑步姿态。Action、平移／旋转 owner、离地或 LocomotionScale≤0 会清理侧倾；恢复首 Tick 重新建立基线。正值 LocomotionScale 和有效时间变化不构成接管，继续按本 Tick 速度快照计算；地面上的重力／空中倍率变化也不重置侧倾。
+
+零 Motion dt 的直接参数采样不推进状态；实际动画暂停由 ActorLocomotion 调用 SuspendAnimationFeedback，清理 Lean，恢复首 Tick 为零、之后重新平滑。这是保守的中断策略，不表示暂停帧会立即提交直身姿态，也不保留跨接管的旧侧倾。设置在 Runtime 创建时绑定，不支持运行时热改。
+
+Lean 设置非法时只禁用侧倾来源（TurnLean=0），不丢弃有效 Move 样本，也不改写资产为默认值。Inspector 在折叠区外显示提示；每个 Runtime 创建绑定时警告一次，不在每 Tick、重置或重建动画图时重复报告。默认 20／0.5／0.1 保持不变；实际效果需要结合模型响应、平滑和素材观察，不能把限幅前后的目标值当成最终姿态。
+
+### 旧配置兼容
+
+原 1D 的三种参数保持原数值含义。旧 2D LocalInput 在读取时等价于 LocalInputX/Z，LocalVelocity 等价于 LocalVelocityX/Z，算法默认 Directional；不写回资源。Inspector 展示有效轴，只有用户主动修改某个轴才保存独立轴配置。多选轴编辑先提交已有修改，再分别保留每个目标的另一有效轴，最后刷新外层 SerializedObject，避免外层提交覆盖逐资产修改；相关写入合并到同一 Undo 组。查看 Inspector 不主动写入配置。修改算法、样本也不会擅自替换原参数来源。
+
+手动验收：混选旧 LocalVelocity、旧 LocalInput 和新独立轴资产，分别只改 X／只改 Y，确认另一轴各自保持；一次 Undo／Redo 应恢复／重做整次编辑。另检查仅查看不标脏、旧资产首次载入、样本拖排以及窄面板显示。
 
 ### Start、Stop、Pivot 的方向
 
-方向是状态进入时相对角色朝向的局部 Vector2，不是素材质量检查或输入强度阈值。
+Start／Stop 使用状态进入时相对角色朝向的局部 Vector2；Pivot 使用显式有符号转角。它们是选片信息，不是 Motor 的旋转指令。
 
-| 过渡 | 使用的方向 |
+| 过渡 | 选片配置 |
 | --- | --- |
 | Start | 目标输入方向 Target Local Direction。 |
 | Stop | 本 Tick 积分前模型速度方向 Source Local Direction。 |
-| Pivot | 旧运动方向 Source 与新输入方向 Target。 |
+| Pivot | Signed Turn Angle Degrees：负数左转、正数右转；例如 Turn_L = -180、Turn_R = +180。 |
 
-配置可以只覆盖部分方向。Runtime 按角度选最接近的候选，不因缺少某个方向的专用素材而禁止过渡。素材效果由作者预览与跑测调整。
+Start／Stop 按方向夹角选最接近的候选。Pivot 只接受非零且在 [-180, 180] 内的有限转角，-180 与 +180 是不同动作，不做环绕角度等价匹配。
+
+Pivot 要求速度达到最低速度，且移动反向夹角与角色当前朝向到 FacingDirection 的身体转角都达到同一个 `PivotMinimumAngleDegrees`（默认 120°，含边界）；不增加第二套角度参数。左右跟随本 Tick Motor 已请求的实际 yaw 增量，同侧再按身体转角大小匹配，完全同分保留列表顺序。没有身体转向、仅有小幅锁定跟随修正、没有有效 FacingDirection 或没有同侧 Clip 时返回 Move，不用反侧动画凑数。例如移动反向 175°、身体只需修正 5°，即使 Motor 正在转，也不播放 180° Pivot。进入 Pivot 后固定所选 Clip，直到完成或被原有打断规则中断。
+
+旧 Pivot 的 Source／Target 两向量已移除；当前仓库非空的 Katana Pivot 已迁移为 -180／+180。外部旧资产需按素材实际转身方向填写新角度，不从两个端点猜测 180° 路径。移动、FacingDirection 和 Motor 的旋转积分规则不变。
 
 ## 2. 准备 AnimationAsset
 

@@ -20,6 +20,7 @@ MonoBehaviour:
     MaxSpeed: 2
     Acceleration: 6
     Deceleration: 3
+    DirectionResponse: 12
     RotateSpeed: 600
     TurnResponseTime: 0.08
   move:
@@ -28,6 +29,7 @@ MonoBehaviour:
       parameter: 1
       samples: []
     twoDimensional:
+      parameter: 0
       samples: []
   references:
     version: 2
