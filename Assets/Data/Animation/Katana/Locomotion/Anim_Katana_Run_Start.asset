@@ -1,0 +1,133 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2fb589b8fd064b95b2feff521d1c2c92, type: 3}
+  m_Name: Anim_Katana_Run_Start
+  m_EditorClassIdentifier: 
+  _clip: {fileID: 7400000, guid: 19e82275ebdd37c499e8f76ddf6d5c72, type: 2}
+  _hasRootMotionData: 1
+  _rootMotionData:
+    sourceClip: {fileID: 7400000, guid: 19e82275ebdd37c499e8f76ddf6d5c72, type: 2}
+    sampleRate: 60
+    duration: 0.5
+    bakerVersion: 1
+    dependencyHash: 0eff78fce4c2563c2f3f7f36a4153599
+    sampleTimes:
+    - 0
+    - 0.016666668
+    - 0.033333335
+    - 0.05
+    - 0.06666667
+    - 0.083333336
+    - 0.1
+    - 0.11666667
+    - 0.13333334
+    - 0.15
+    - 0.16666667
+    - 0.18333334
+    - 0.2
+    - 0.21666667
+    - 0.23333333
+    - 0.25
+    - 0.26666668
+    - 0.28333333
+    - 0.3
+    - 0.31666666
+    - 0.33333334
+    - 0.35
+    - 0.36666667
+    - 0.38333333
+    - 0.4
+    - 0.41666666
+    - 0.43333334
+    - 0.45
+    - 0.46666667
+    - 0.48333332
+    - 0.5
+    cumulativePositions:
+    - {x: 0, y: 0, z: 0}
+    - {x: -0.008359697, y: 0, z: 0.01854814}
+    - {x: -0.025437823, y: 0, z: 0.059921242}
+    - {x: -0.04427936, y: 0, z: 0.10976066}
+    - {x: -0.06021744, y: 0, z: 0.15614289}
+    - {x: -0.06954262, y: 0, z: 0.18895364}
+    - {x: -0.0734304, y: 0, z: 0.21011108}
+    - {x: -0.07728055, y: 0, z: 0.2504711}
+    - {x: -0.08142844, y: 0, z: 0.33311588}
+    - {x: -0.08245239, y: 0, z: 0.45320594}
+    - {x: -0.080974214, y: 0, z: 0.5946185}
+    - {x: -0.07623411, y: 0, z: 0.7504307}
+    - {x: -0.06863599, y: 0, z: 0.9136827}
+    - {x: -0.06129531, y: 0, z: 1.0842779}
+    - {x: -0.05520237, y: 0, z: 1.2585344}
+    - {x: -0.050497346, y: 0, z: 1.435378}
+    - {x: -0.04696698, y: 0, z: 1.6136405}
+    - {x: -0.043746285, y: 0, z: 1.7938197}
+    - {x: -0.040679775, y: 0, z: 1.9705446}
+    - {x: -0.038231276, y: 0, z: 2.1409097}
+    - {x: -0.037031014, y: 0, z: 2.3026853}
+    - {x: -0.037073076, y: 0, z: 2.4520657}
+    - {x: -0.03815327, y: 0, z: 2.5996444}
+    - {x: -0.040065814, y: 0, z: 2.74141}
+    - {x: -0.04021054, y: 0, z: 2.8902798}
+    - {x: -0.040383432, y: 0, z: 3.0373833}
+    - {x: -0.04066055, y: 0, z: 3.180425}
+    - {x: -0.041315656, y: 0, z: 3.3221872}
+    - {x: -0.04258111, y: 0, z: 3.4618425}
+    - {x: -0.044475168, y: 0, z: 3.606343}
+    - {x: -0.04587523, y: 0, z: 3.7263541}
+    cumulativeRotations:
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+  _locomotionData:
+    sourceClip: {fileID: 7400000, guid: 19e82275ebdd37c499e8f76ddf6d5c72, type: 2}
+    trajectoryHash: 0eff78fce4c2563c2f3f7f36a4153599
+    footSetup: '|'
+    stopTime: 0.5
+    footMarkers:
+    - time: 0.43333334
+      foot: 1
+  _locomotionOverrideClip: {fileID: 7400000, guid: 864654293d3c1c041b269201f2e523b7,
+    type: 2}
+  _overrideStopTime: 0
+  _stopTimeOverride: 0
+  _overrideFootMarkers: 1
+  _footMarkerOverrides: []
+  _animationRigAsset: {fileID: 11400000, guid: fc89eaa1b4d3b4c42b7e1abef2592b1d, type: 2}
