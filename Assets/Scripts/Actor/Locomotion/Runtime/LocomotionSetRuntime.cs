@@ -8,7 +8,8 @@ public sealed class LocomotionSetRuntime : LocomotionAnimationRuntime
     private readonly LocomotionBoundSet _definition;
     private readonly LocomotionSetStateMachine _machine;
     private readonly Dictionary<AnimationClip, ClipState> _clips = new();
-    private ClipState _transition;
+    private readonly Dictionary<LocomotionBoundTransition, LocomotionStartPoseState> _starts = new();
+    private AnimancerState _transition;
     private LocomotionFootPhaseBinding[] _transitionFootBindings;
     private readonly LocomotionStopDistancePlayback _stopPlayback = new();
 
@@ -28,6 +29,7 @@ public sealed class LocomotionSetRuntime : LocomotionAnimationRuntime
         _transition = null;
         _stopPlayback.Begin(null);
         _transitionFootBindings = null;
+        foreach (var state in _starts.Values) state.ResetSession();
     }
 
     public override LocomotionAnimationRequest UpdateAnimation(in LocomotionRuntimeAnimationContext context)
@@ -47,14 +49,18 @@ public sealed class LocomotionSetRuntime : LocomotionAnimationRuntime
 
         bool completed = _transition != null && LocomotionAnimationUtility.EvaluatedTime(_transition) >= _transition.Length;
         LocomotionSetState next = _machine.DecideNextState(context, completed);
+        if (next == LocomotionSetState.Start && _transition is LocomotionStartPoseState currentStart
+            && !currentStart.CanContinue(context))
+            next = LocomotionSetState.Move;
         float? distance = PredictStopDistance(context);
-        ClipState prepared = _transition;
+        AnimancerState prepared = _transition;
         if (next != _machine.State)
         {
             LocomotionBoundTransition? sample = next == LocomotionSetState.Move ? null : SelectTransition(next, context, distance);
-            prepared = sample.HasValue ? GetClipState(sample.Value.Clip) : null;
+            prepared = sample.HasValue ? GetTransitionState(sample.Value) : null;
+            AnimancerState leaf = prepared is LocomotionStartPoseState startPose ? startPose.Pose : prepared;
             _transitionFootBindings = prepared != null
-                ? new[] { new LocomotionFootPhaseBinding(prepared, sample.Value.FootPhase) } : null;
+                ? new[] { new LocomotionFootPhaseBinding(leaf, sample.Value.FootPhase) } : null;
             _stopPlayback.Begin(next == LocomotionSetState.Stop && distance.HasValue && sample.HasValue
                 && _definition.StopMode == LocomotionStopPlaybackMode.Distance ? sample.Value.StopCurve : null);
             if (prepared == null)
@@ -62,12 +68,17 @@ public sealed class LocomotionSetRuntime : LocomotionAnimationRuntime
         }
         bool entered = _machine.CommitState(next);
         _transition = next == LocomotionSetState.Move ? null : prepared;
+        if (entered && _transition is LocomotionStartPoseState starting) starting.Begin(context);
+        // Outgoing starts retain their own correction during fades, including Stop/Action interruption.
+        foreach (var state in _starts.Values)
+            if (!LocomotionAnimationUtility.WasGraphDestroyed(state)) state.Advance(context);
         if (next == LocomotionSetState.Move)
             return move;
 
         return new LocomotionAnimationRequest(_transition, _definition.BlendDuration,
             entered, idleClip: move.IdleClip,
-            sampleTime: next == LocomotionSetState.Stop ? _stopPlayback.Sample(distance) : null,
+            sampleTime: _transition is LocomotionStartPoseState aligned ? aligned.SampleTime
+                : next == LocomotionSetState.Stop ? _stopPlayback.Sample(distance) : null,
             footPhaseBindings: _transitionFootBindings);
     }
 
@@ -76,10 +87,23 @@ public sealed class LocomotionSetRuntime : LocomotionAnimationRuntime
         foreach (ClipState state in _clips.Values)
             LocomotionAnimationUtility.Destroy(state);
         _clips.Clear();
+        foreach (var state in _starts.Values) LocomotionAnimationUtility.Destroy(state);
+        _starts.Clear();
         _transition = null;
         _transitionFootBindings = null;
         _stopPlayback.Begin(null);
         base.OnDispose();
+    }
+
+    private AnimancerState GetTransitionState(in LocomotionBoundTransition sample)
+    {
+        if (sample.StartYaw == null) return GetClipState(sample.Clip);
+        if (_starts.TryGetValue(sample, out var state) && !LocomotionAnimationUtility.WasGraphDestroyed(state))
+            return state;
+        LocomotionAnimationUtility.Destroy(state);
+        state = new LocomotionStartPoseState(sample.Clip, sample.StartYaw, sample.SignedTurnAngleDegrees);
+        _starts[sample] = state;
+        return state;
     }
 
     private ClipState GetClipState(AnimationClip clip)
@@ -114,12 +138,16 @@ public sealed class LocomotionSetRuntime : LocomotionAnimationRuntime
         Vector2 target = context.ToLocalDirection(context.Intent.WorldMoveDirection);
         LocomotionBoundTransition? best = null;
         float bestScore = float.PositiveInfinity, bestPhaseScore = float.PositiveInfinity;
+        int bestSidePenalty = int.MaxValue;
         float currentPhase = context.SourceFootPhase.Phase;
         bool hasPhase = context.SourceFootPhase.IsKnown;
         var samples = _definition.GetTransitions(next);
         for (int i = 0; i < samples.Count; i++)
         {
             LocomotionBoundTransition sample = samples[i];
+            if (sample.StartYaw != null && !LocomotionStartAlignment.IsTurnToMove(context)) continue;
+            int sidePenalty = sample.StartYaw != null
+                ? LocomotionStartAlignment.TurnSidePenalty(sample.SignedTurnAngleDegrees, context.FacingYawDelta) : 0;
             float score = next == LocomotionSetState.Start ? Vector2.Angle(target, sample.Target)
                 : Vector2.Angle(source, sample.Source);
             float phaseScore = float.PositiveInfinity;
@@ -131,9 +159,10 @@ public sealed class LocomotionSetRuntime : LocomotionAnimationRuntime
                 if (sample.FootPhase.TrySample(time, out float phase))
                     phaseScore = AnimationFootPhaseTrack.Difference(currentPhase, phase);
             }
-            // Direction first, foot phase only among equally close directions, then authored order.
-            if (score < bestScore - 0.0001f || (Mathf.Abs(score - bestScore) <= 0.0001f && phaseScore < bestPhaseScore))
-            { bestScore = score; bestPhaseScore = phaseScore; best = sample; }
+            // Direction first; Start turn side / Stop foot phase break equal-direction ties, then authored order.
+            if (score < bestScore - 0.0001f || (Mathf.Abs(score - bestScore) <= 0.0001f
+                && (sidePenalty < bestSidePenalty || (sidePenalty == bestSidePenalty && phaseScore < bestPhaseScore))))
+            { bestScore = score; bestSidePenalty = sidePenalty; bestPhaseScore = phaseScore; best = sample; }
         }
         return best;
     }

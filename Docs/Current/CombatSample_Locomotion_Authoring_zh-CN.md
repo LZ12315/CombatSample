@@ -75,15 +75,20 @@ Lean 设置非法时只禁用侧倾来源（TurnLean=0），不丢弃有效 Move
 
 ### Start、Stop、Pivot 的方向
 
-Start／Stop 使用状态进入时相对角色朝向的局部 Vector2；Pivot 使用显式有符号转角。它们是选片信息，不是 Motor 的旋转指令。
+Directional Start／Stop 使用状态进入时相对角色朝向的局部 Vector2；TurnToMove Start／Pivot 使用显式有符号转角。它们不是 Motor 的旋转指令；TurnToMove Start 还使用该角度将素材的姿态转换到前向 RunLoop 的朝向基准。
 
 | 过渡 | 选片配置 |
 | --- | --- |
-| Start | 目标输入方向 Target Local Direction。 |
+| Start — Directional | 目标输入方向 Target Local Direction。保持旧的仅选片语义，适用于已正确制作的方向性／Strafe 姿态。 |
+| Start — TurnToMove | Signed Turn Angle Degrees：素材结束时相对入场前方的行进／面向角；左负右正，后左 -180、后右 +180。需要当前有效烘焙轨迹和非循环 Humanoid Clip。 |
 | Stop | 本 Tick 积分前模型速度方向 Source Local Direction。 |
 | Pivot | Signed Turn Angle Degrees：负数左转、正数右转；例如 Turn_L = -180、Turn_R = +180。 |
 
-Start／Stop 按方向夹角选最接近的候选。Pivot 只接受非零且在 [-180, 180] 内的有限转角，-180 与 +180 是不同动作，不做环绕角度等价匹配。
+Start／Stop 按方向夹角选最接近的候选。TurnToMove Start 在方向同分时优先 Motor 当前转向侧，前向填写 0；角度不是 Root Motion 曲线的最终累计角，不要把姿势自带的侧身角度加进去。Inspector 按 Facing Mode 只显示当前模式使用的方向字段。旧 Start 缺少 Facing Mode 时仍为 Directional。
+
+Katana Normal 的五条 Start 已配置为 TurnToMove：0、-90、+90、-180、+180。它们在同一个时钟采样 Clip 和烘焙 yaw，在基础层混合前修正姿态；不要开启 Animator Apply Root Motion，也不要给模型额外设置固定旋转。转为侧移、起步中输入改变超过 45°或旋转被接管时退出该 Start；暂停不补帧。资源烘焙过期时该条目警告并跳过，请重烘焙后重新创建 Runtime。详情与验证边界见[起步方向对齐](Locomotion_Start_Alignment.md)。
+
+Pivot 只接受非零且在 [-180, 180] 内的有限转角，-180 与 +180 是不同动作，不做环绕角度等价匹配。
 
 Pivot 要求速度达到最低速度，且移动反向夹角与角色当前朝向到 FacingDirection 的身体转角都达到同一个 `PivotMinimumAngleDegrees`（默认 120°，含边界）；不增加第二套角度参数。左右跟随本 Tick Motor 已请求的实际 yaw 增量，同侧再按身体转角大小匹配，完全同分保留列表顺序。没有身体转向、仅有小幅锁定跟随修正、没有有效 FacingDirection 或没有同侧 Clip 时返回 Move，不用反侧动画凑数。例如移动反向 175°、身体只需修正 5°，即使 Motor 正在转，也不播放 180° Pivot。进入 Pivot 后固定所选 Clip，直到完成或被原有打断规则中断。
 

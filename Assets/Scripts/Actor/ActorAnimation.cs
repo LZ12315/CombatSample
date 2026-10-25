@@ -232,11 +232,13 @@ public sealed class ActorAnimation : MonoBehaviour
 
     private static AnimancerState CreatePoseSnapshot(AnimancerNode source)
     {
+        if (source is LocomotionStartPoseState alignedStart)
+            return alignedStart.CapturePose();
         if (source is AnimancerState state && LocomotionAnimationUtility.IsUsableClip(state.Clip))
             return new ClipState(state.Clip) { TimeD = LocomotionAnimationUtility.EvaluatedTime(state), Speed = 0f };
         if (source.ChildCount == 0)
             return null;
-        var snapshot = new ManualMixerState { Speed = 0f };
+        var snapshot = new FrozenPoseMixerState { Speed = 0f };
         for (int i = 0; i < source.ChildCount; i++)
         {
             AnimancerState sourceChild = source.GetChild(i);
@@ -259,6 +261,13 @@ public sealed class ActorAnimation : MonoBehaviour
             return null;
         }
         return snapshot;
+    }
+
+    // Animancer applies a new state's initial Time (zero) while attaching its playable.
+    // A normal mixer propagates that seek to every child, destroying the captured per-leaf times.
+    private sealed class FrozenPoseMixerState : ManualMixerState
+    {
+        public override double RawTime { get => base.RawTime; set { } }
     }
 
     private static void FreezePose(AnimancerState state)
@@ -357,6 +366,18 @@ public sealed class ActorAnimation : MonoBehaviour
             ClearActionLayer();
 
         animancer.Evaluate(Mathf.Max(0f, deltaSeconds));
+        RecordEvaluatedStartPoses(_baseLayer);
+    }
+
+    private static void RecordEvaluatedStartPoses(AnimancerNode node)
+    {
+        if (node == null || !node.Playable.IsValid() || node.Weight <= LocomotionAnimationUtility.WeightEpsilon) return;
+        if (node is LocomotionStartPoseState start)
+        {
+            start.RecordEvaluatedPose();
+            return;
+        }
+        for (int i = 0; i < node.ChildCount; i++) RecordEvaluatedStartPoses(node.GetChild(i));
     }
 
 #if UNITY_EDITOR

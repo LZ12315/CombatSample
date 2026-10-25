@@ -9,7 +9,7 @@ public readonly struct LocomotionRuntimeAnimationContext
     public LocomotionRuntimeAnimationContext(LocomotionIntent intent, bool hasIntent,
         Vector3 velocityBeforeMotion, Vector3 modelVelocity, LocomotionMotionContext motor,
         float verticalSpeed, int actionOwnerId, float deltaTime, LocomotionFootPhaseReference sourceFootPhase = default,
-        float facingYawDelta = 0f)
+        float facingYawDelta = 0f, Quaternion? poseWorldRotation = null)
     {
         Intent = intent;
         HasIntent = hasIntent;
@@ -21,7 +21,12 @@ public readonly struct LocomotionRuntimeAnimationContext
         DeltaTime = deltaTime;
         SourceFootPhase = sourceFootPhase;
         FacingYawDelta = facingYawDelta;
+        PoseWorldRotation = poseWorldRotation
+            ?? Quaternion.AngleAxis(facingYawDelta, motor.CharacterUp) * motor.CurrentWorldRotation;
     }
+
+    /// <summary>Composed Motor rotation under which this tick's pose will be displayed, not the pre-motion frame.</summary>
+    public Quaternion PoseWorldRotation { get; }
 
     /// <summary>Motor-requested yaw change for this tick: negative left, positive right; zero means no turn.</summary>
     public float FacingYawDelta { get; }

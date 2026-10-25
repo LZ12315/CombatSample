@@ -25,7 +25,7 @@ KCC solved result → Motor publishes world facts
 Player / AI → ActorLocomotion → LocomotionMotionRequest → ActorMotor → KCC
 ```
 
-Locomotion 动画的 Root Motion 轨迹用于 Move 速度匹配和 Stop 距离匹配，不直接推动 Capsule。Action 的 `RootMotionItem` 仍是独立 Motion Source，并按现有优先级真正驱动 Motor。
+Locomotion 动画的 Root Motion 轨迹用于 Move 速度匹配、Stop 距离匹配和 TurnToMove Start 姿态朝向重建，不直接推动 Capsule。Action 的 `RootMotionItem` 仍是独立 Motion Source，并按现有优先级真正驱动 Motor。
 
 ## 2. 固定 Tick 的执行顺序
 
@@ -224,7 +224,9 @@ MoveDefinition
 ```text
 StartEntry
 ├─ AnimationAsset
-└─ TargetLocalDirection
+├─ FacingMode (Directional / TurnToMove)
+├─ TargetLocalDirection (Directional)
+└─ SignedTurnAngleDegrees (TurnToMove)
 
 StopEntry
 ├─ AnimationAsset
@@ -235,11 +237,15 @@ PivotEntry
 └─ SignedTurnAngleDegrees
 ```
 
-Start／Stop 的方向是在进入状态时，相对于角色 Facing 的二维局部运动方向：`x` 为右，`y` 为前。Start 使用目标 Intent；Stop 使用积分前的模型速度。
+Directional Start／Stop 的方向是在进入状态时，相对于角色 Facing 的二维局部运动方向：`x` 为右，`y` 为前。Start 使用目标 Intent；Stop 使用积分前的模型速度。旧 Start 默认保持 Directional，不迁移资产。
+
+TurnToMove Start 用显式有符号角度描述素材的结束行进／朝向基准（不是提取根旋转的总量）。仅用于 FacingDirection 与移动方向一致、旋转未被锁定或 owner 接管的输入。先按目标方向择近；方向同分时跟随 Motor 的转向侧，区分 -180／+180。烘焙 yaw 展开并复制为不可变曲线；每 Clip 的动画 Job 在基础层混合前恢复提取的旋转，从入场世界坐标基准平滑转换到 Motor-forward 基准。取样时间与 yaw 使用同一显式时钟，已完成的 Start 保持末帧；淡出中的 Start 继续自己的对齐。真实位移／旋转仍由 Motor 控制，不开启 Animator Root Motion，不写模型 Transform。
+
+ActorLocomotion 传递 Motion 合成后的 `PoseWorldRotation`，避免以积分前朝向抵消本 Tick 旋转。起步后输入相对入场方向偏移超过 45°、转为 Strafe 或旋转被接管时返回 Move；强反向／松键／Action 仍先执行原状态机规则。姿态保护复制实际已求值的 Clip 时间和 Job 修正，不保留 Runtime 引用，快照 Mixer 附图时不得将子节点时间归零。详见[起步方向对齐](Locomotion_Start_Alignment.md)。
 
 Pivot 显式配置有符号转角：负数左转、正数右转，-180 与 +180 是不同动画。起终方向不能表达 180° 的左右路径，因此 Pivot 不再保存 Source／Target 两向量。角度只参与选片，不控制 Motor。ActorLocomotion 在 Motion 已组合、动画尚未求值时，从 tick 起始朝向与 Motor.RequestedRotation 计算本 Tick 的有符号 yaw 增量并传入动画上下文；不从反向输入重新决定左右。Pivot 先限制为 Motor 正在转的同侧，再用当前角色朝向到 Intent.FacingDirection 的夹角匹配转角大小，不使用环绕角差。完全同分按作者顺序；进入后不逐帧重新选片。
 
-Start/Stop/Pivot 可独立留空。绑定时跳过缺 Clip、无有效时长或含非有限方向值的条目；Pivot 还跳过零度、非有限和超出 [-180, 180] 的转角。Start／Stop 零方向没有额外覆盖检查。移动反向但 Motor 没有身体转向、所需身体转角不足 `PivotMinimumAngleDegrees`、FacingDirection 无效或没有同侧 Pivot 时继续 Move，不播放反侧素材。基础过渡不要求 Root Motion 轨迹。当前 Katana 两条 Pivot 已由旧两向量配置迁移为 -180／+180；外部旧配置需显式重填，不保留猜测路径的旧接口。
+Start/Stop/Pivot 可独立留空。绑定时跳过缺 Clip、无有效时长或含非有限方向值的条目；Pivot 还跳过零度、非有限和超出 [-180, 180] 的转角。Start／Stop 零方向没有额外覆盖检查。移动反向但 Motor 没有身体转向、所需身体转角不足 `PivotMinimumAngleDegrees`、FacingDirection 无效或没有同侧 Pivot 时继续 Move，不播放反侧素材。Directional Start／Stop／Pivot 不要求 Root Motion 轨迹；TurnToMove Start 必须使用有当前有效烘焙轨迹的非循环 Humanoid Clip，缺失或过期时警告并跳过，不播放未经对齐的替代姿态。当前 Katana 两条 Pivot 已由旧两向量配置迁移为 -180／+180；外部旧配置需显式重填，不保留猜测路径的旧接口。
 
 `TransitionBlendDuration` 是 Set 级的统一基础淡入淡出时间。第一版不为每条动画暴露 Fade、SpeedRange、Foot、ExitTime、PlaybackSpeed、Priority 或任意 Condition；实际制作证明需要后再扩展。
 
@@ -353,7 +359,7 @@ AnimationAsset
     描述动画自身实际发生了什么
 ```
 
-LocomotionAsset 保存 Move threshold/sync、Start／Stop 的局部方向，以及 Pivot 的显式有符号转角。AnimationAsset 保存 Clip 与累计 Root Motion 轨迹。相同 AnimationAsset 被多个 LocomotionAsset 引用时不重复录入轨迹。
+LocomotionAsset 保存 Move threshold/sync、Directional Start／Stop 的局部方向，以及 TurnToMove Start／Pivot 的显式有符号转角。AnimationAsset 保存 Clip 与累计 Root Motion 轨迹。相同 AnimationAsset 被多个 LocomotionAsset 引用时不重复录入轨迹。
 
 ### 7.1 Move velocity matching
 
@@ -387,7 +393,7 @@ HorizontalSpeed 直接使用政策缩放后的水平模型速度，不额外截�
 - Stop Distance Matching 与 Stop 脚相择优；
 - AnimationAsset 根轨迹、自动停止点、脚标记、独立 Override 与原生 Clip 预览。
 
-当前没有实现 Move 的脚标记同步、Start Distance Matching、Stride/Orientation Warping、Foot IK/Foot Lock、Motion Matching/Pose Search、复杂 Trajectory Matching，以及任意可视化 Locomotion 状态图编辑器。
+当前没有实现 Move 的脚标记同步、Start Distance Matching、通用 Stride/Orientation Warping、Foot IK/Foot Lock、Motion Matching/Pose Search、复杂 Trajectory Matching，以及任意可视化 Locomotion 状态图编辑器。TurnToMove Start 的朝向对齐是受限的过渡表现功能，不属于通用 Move/Pivot 扭曲系统。
 
 ## 9. 当前实现状态
 

@@ -218,7 +218,7 @@ public sealed partial class ActorLocomotion : MonoBehaviour
         var context = new LocomotionRuntimeAnimationContext(snapshot.Intent, snapshot.HasIntent,
             snapshot.VelocityBeforeMotion, snapshot.ModelVelocity, snapshot.Motor,
             verticalSpeed, animation.ActiveActionOwnerId, deltaTime,
-            animation.GetLocomotionFootPhaseReference(_animationOwner), facingYawDelta);
+            animation.GetLocomotionFootPhaseReference(_animationOwner), facingYawDelta, requestedRotation);
         LocomotionAnimationRequest request = _currentRuntime.UpdateAnimation(context);
         bool accepted = animation.SubmitLocomotion(_animationOwner, request);
 #if UNITY_EDITOR

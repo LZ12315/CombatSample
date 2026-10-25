@@ -59,7 +59,25 @@ MonoBehaviour:
     PivotMinimumAngleDegrees: 120
   start:
   - animation: {fileID: 11400000, guid: 5f7e1fc5566ac484bbc2b9bb7c61ac25, type: 2}
+    facingMode: 1
     targetLocalDirection: {x: 0, y: 1}
+    signedTurnAngleDegrees: 0
+  - animation: {fileID: 11400000, guid: bd0d5f5da6ff6514a803d364d35e8fee, type: 2}
+    facingMode: 1
+    targetLocalDirection: {x: -1, y: 0}
+    signedTurnAngleDegrees: -90
+  - animation: {fileID: 11400000, guid: 54a264bb15380684d9d5d151eabe0362, type: 2}
+    facingMode: 1
+    targetLocalDirection: {x: 1, y: 0}
+    signedTurnAngleDegrees: 90
+  - animation: {fileID: 11400000, guid: e2ac3907847228f448e27abae3682567, type: 2}
+    facingMode: 1
+    targetLocalDirection: {x: 0, y: -1}
+    signedTurnAngleDegrees: -180
+  - animation: {fileID: 11400000, guid: fea2d0e01639cc64ab1cfff4d2ed622f, type: 2}
+    facingMode: 1
+    targetLocalDirection: {x: 0, y: -1}
+    signedTurnAngleDegrees: 180
   stop:
   - animation: {fileID: 11400000, guid: ec9061a543555e5479e037dc11f26286, type: 2}
     sourceLocalDirection: {x: 0, y: 1}

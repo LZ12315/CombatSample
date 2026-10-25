@@ -182,8 +182,19 @@ internal sealed class LocomotionBoundSet
         for (int i = 0; i < start.Length; i++)
         {
             LocomotionStartEntry entry = asset.Start[i];
-            start[i] = new LocomotionBoundTransition(builder.BindAnimation(entry?.Animation), Vector2.up,
-                entry?.TargetLocalDirection ?? Vector2.zero);
+            var animation = builder.BindAnimation(entry?.Animation);
+            bool turnToMove = entry?.FacingMode == LocomotionStartFacingMode.TurnToMove;
+            float turn = entry?.SignedTurnAngleDegrees ?? 0f;
+            if (entry == null || !Enum.IsDefined(typeof(LocomotionStartFacingMode), entry.FacingMode)) continue;
+            if (turnToMove && (animation.StartYaw == null
+                || !LocomotionDataValidation.IsFinite(turn) || Mathf.Abs(turn) > 180f))
+            {
+                Debug.LogWarning($"[Locomotion] Asset '{asset.name}', Start {i}: TurnToMove needs a source-current baked, non-looping Humanoid clip and a signed turn in [-180, 180]. Entry skipped; rebuild its AnimationAsset if needed.", asset);
+                continue;
+            }
+            start[i] = new LocomotionBoundTransition(animation, Vector2.up,
+                turnToMove ? LocomotionStartAlignment.TargetDirection(turn) : entry.TargetLocalDirection,
+                turnToMove ? turn : 0f, turnToMove);
         }
         for (int i = 0; i < stop.Length; i++)
         {
@@ -215,9 +226,10 @@ internal sealed class LocomotionBoundSet
 internal readonly struct LocomotionBoundTransition
 {
     internal LocomotionBoundTransition(LocomotionBoundAnimation animation, Vector2 source, Vector2 target,
-        float signedTurnAngleDegrees = 0f)
+        float signedTurnAngleDegrees = 0f, bool turnToMove = false)
     {
         Clip = animation.Clip;
+        StartYaw = turnToMove ? animation.StartYaw : null;
         StopCurve = animation.StopCurve;
         FootPhase = animation.FootPhase;
         Source = source;
@@ -225,6 +237,7 @@ internal readonly struct LocomotionBoundTransition
         SignedTurnAngleDegrees = signedTurnAngleDegrees;
     }
 
+    internal LocomotionStartYawCurve StartYaw { get; }
     internal float SignedTurnAngleDegrees { get; }
     internal AnimationStopDistanceCurve StopCurve { get; }
     internal AnimationFootPhaseTrack FootPhase { get; }
