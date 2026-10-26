@@ -86,6 +86,19 @@ public sealed class LocomotionStartAlignmentTests
     }
 
     [Test]
+    public void TurnToMove_IsExcludedByAnExplicitMotorRotationLock()
+    {
+        var free = LocomotionSetDecisionTests.Context(Vector3.right, Vector3.zero);
+        var policy = new MotionStateSnapshot(1, 1, 1, 1, false, false, false, false,
+            lockLocomotionRotation: true);
+        var motor = new LocomotionMotionContext(0.02f, true, Vector3.up, Quaternion.identity, default, policy);
+        var locked = new LocomotionRuntimeAnimationContext(free.Intent, true, Vector3.zero, Vector3.zero,
+            motor, 0, 0, 0.02f);
+        Assert.That(LocomotionStartAlignment.IsTurnToMove(free), Is.True);
+        Assert.That(LocomotionStartAlignment.IsTurnToMove(locked), Is.False);
+    }
+
+    [Test]
     public void OldStartEntries_RemainDirectionalWithoutADataMigration()
     {
         var entry = JsonUtility.FromJson<LocomotionStartEntry>("{\"targetLocalDirection\":{\"x\":1,\"y\":0}}");

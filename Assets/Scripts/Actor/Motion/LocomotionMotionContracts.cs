@@ -11,11 +11,7 @@ public enum HorizontalMotionSource
 /// <summary>Facts available after Action, without opening or consuming a Motion tick.</summary>
 public readonly struct MotionStateSnapshot
 {
-    // default(snapshot) represents no observed Motor policy, not an intentional zero-valued policy.
-    public readonly bool IsValid;
-    public readonly bool BrakeLocomotion;
     public readonly bool LockLocomotionRotation;
-    public readonly float LocomotionTurnSpeedLimit;
     public readonly float LocomotionScale;
     public readonly float AirLocomotionScale;
     public readonly float GravityScale;
@@ -27,13 +23,9 @@ public readonly struct MotionStateSnapshot
 
     public MotionStateSnapshot(float locomotionScale, float airLocomotionScale, float gravityScale,
         float movementTimeScale, bool hasHorizontalVelocityOwner, bool hasTrajectoryRootMotionOwner,
-        bool hasRootRotationOwner, bool hasScriptedRotationOwner, bool brakeLocomotion = false,
-        bool lockLocomotionRotation = false, float locomotionTurnSpeedLimit = 0f)
+        bool hasRootRotationOwner, bool hasScriptedRotationOwner, bool lockLocomotionRotation = false)
     {
-        IsValid = true;
-        BrakeLocomotion = brakeLocomotion;
         LockLocomotionRotation = lockLocomotionRotation;
-        LocomotionTurnSpeedLimit = locomotionTurnSpeedLimit;
         LocomotionScale = locomotionScale;
         AirLocomotionScale = airLocomotionScale;
         GravityScale = gravityScale;

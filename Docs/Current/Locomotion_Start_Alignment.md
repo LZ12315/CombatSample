@@ -41,7 +41,7 @@
 
 `Assets/Data/Locomotion/Katana/Locomotion_Katana_Normal.asset` 的 Start 配置为五个 TurnToMove 条目：前向 0、左 -90、右 +90、后左 -180、后右 +180。
 
-任务开始时磁盘列表仍只有前向；本次将已经存在的四份 AnimationAsset 接入。没有改源 AnimationClip、烘焙数据、模型、场景、Move 参数或运动响应参数。已有未提交资源修改保留。
+任务开始时磁盘列表仍只有前向；本次将已经存在的四份 AnimationAsset 接入。运行时修复本身没有重写源动画；提交独立性复核发现，这四份资源依赖工作区已有的 `Run_Start_Fast_L/R/B_L/B_R.anim` 修改（包括关闭循环），因此后续补交这四个源 Clip 的现有内容。不修改模型、场景、Move 参数或运动响应参数。其他未提交资源修改保留；Stop 开关和 Turn 重烘焙不属于本次修复。
 
 ## 验证（2026-10-25）
 
@@ -67,6 +67,35 @@
 这些失败没有全部完成与任务开始前版本的对照归因，不宣称都是既有问题，也没有为使本任务测试全绿扩大修改范围。首次回归有 13 项失败；修复本次所需的快照子节点时间保留后，已有两项 PoseProtection 测试恢复通过。
 
 临时测量脚本／测试驱动在交付前移除，不加入默认套件。原始本机结果位于 `%TEMP%/CombatSample-StartRuntime-v3.txt`、`CombatSample-StartTests-v2.xml`；本地临时文件不是仓库的持久验证依赖。
+
+## 提交独立性复核（2026-10-27）
+
+### 提交范围修正
+
+`b0a516b1` 包含 Start 运行时实现，但遗漏了四个方向性 Start 的源 Clip 修改：提交前版本仍为循环动画，无法满足 TurnToMove 的绑定条件。后续补交这四个 `.anim` 的现有工作区内容，保留原 `.meta`／GUID，不把 Combat Start、大剑、攻击或 Air 资源顺带提交。左右源 Clip 还包含 Unity 序列化的展开曲线，不能只提交 `loopTime` 开关而让源 Clip 与既有烘焙哈希失配。
+
+同时将以下不相关内容从提交结果中剥离，**只改 Git 暂存版本，不覆盖工作区文件**：
+
+- Stop 的 `_overrideStopTime` 和 Turn_L／Turn_R 烘焙内容恢复为搬迁前版本；`Normal/` 目录和原 GUID 保留。
+- `MotionStateSnapshot` 只保留 Start 使用的 `LockLocomotionRotation` 扩展；`IsValid`、`BrakeLocomotion`、`LocomotionTurnSpeedLimit` 及完整 Action 策略实现留作独立的本地修改。
+- 当前已提交 Motor 没有 Action 锁转向策略的生产者，此字段默认 false；已有 Root／Scripted rotation owner 排除仍有效。保留锁标记是上下文输入合同，不代表本次交付了 Action 锁转向功能。
+
+未根据文件日期或旧归档删除所谓“第一次失败尝试”；现有证据不足以给每份未提交修改作历史归因。
+
+### 隔离验证与限制
+
+在仓库 `.git/start-audit/project` 中导出已提交源码、准备补交的暂存内容、第三方依赖和 Katana 引用闭包；不带入本地 Action 策略、AI、场景等未提交修改。
+
+- 使用 Unity 2022.3.62f3 Roslyn 和现有第三方引用，Runtime／Editor 源码快照分别编译通过；隔离 Unity 原生导入也没有 C# 编译错误。
+- 隔离 EditMode：`LocomotionStartAlignmentTests` **14/14**、`LocomotionSetDecisionTests` **16/16**，合计 **30/30**。新增一项显式 Motor 锁转向排除合同测试。
+- 原工作区诊断中，五个 Start 的源依赖哈希均与提交的烘焙数据匹配；隔离项目中，四个补交 Clip 的导入依赖哈希也与原工作区一致。
+- **精简隔离项目的新导入 Rig 依赖哈希不同**（原工作区 `7ba6d576607b6e24cf89308c4359746a`，隔离项目 `61df4bf19a63b6fca09b5e50742fddd8`）。Rig 还依赖 URP Lit shader；具体差异未完成归因。严格 freshness 检查会拒绝包括前向 Start 在内的这些旧烘焙数据。因此不能宣称“全量干净克隆、无需 Rebuild 即验证通过”。
+- 只在可丢弃隔离项目执行正常 Rebuild：五个 Start 的每个累计位移／旋转采样与待提交数据比较，最大位置误差 **0**、最大旋转误差 **0°**。这些环境专用重烘焙结果没有复制回工作区或提交。
+- 在该环境重烘焙后，用不含 Action 策略改动的 Runner／SetRuntime／ActorAnimation 复跑 **19 个真实 Katana 图场景**：初始 0／137°，输入 0、±90、±135、±179、180、45°及低转速；全部取样至 Start 末帧并返回 Move，末帧髋部旋转相对前向参考差为输出精度下的 **0°**。
+
+由此确认了独立代码编译、必要源 Clip 和烘焙采样正确性，尚未关闭跨导入环境的烘焙 freshness 风险。新环境若出现 `Root Motion dependencies changed`／TurnToMove 条目跳过警告，应先在对应 AnimationAsset 正常 Rebuild，再退出／重新进入绑定会话；不要关闭验证或将此视为方向修复自动失效。此次没有扩大修改共享烘焙哈希算法，也没有重新运行前述全部 196 项回归。
+
+临时审计脚本不加入默认测试套件，原始编译日志、`isolated-tests.xml` 和原生图报告保存在本机 `.git/start-audit/`；上述结果摘要随文档提交。
 
 ## 剩余人工检查与边界
 
