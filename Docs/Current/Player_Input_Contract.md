@@ -49,7 +49,7 @@ Kiana 普攻进入条件（全部满足）
 
 单 Clip 合法，跨度为零，不必保留另一种单事件 Condition。按住不会产生新 Pressed；持续推前也不能凭一个事件完成两次“进入前”。需要回中时显式添加 Neutral Clip。
 
-Sequence 只用于进入条件；放入退出条件会拒绝并提示位置，不把一次性命令当成持续退出状态。
+Sequence 可用于 Action Requirements、ActionList 的 Neutral 入口条件或 CancelRule 的条件。这些位置复用完整 ActionCondition 类型集，不新增平行条件体系；独立 ExitConditions 已移除。
 
 ### 当前状态：InputStateCondition
 
@@ -58,7 +58,7 @@ Sequence 只用于进入条件；放入退出条件会拒绝并提示位置，�
 - **Button**：`button`、`held`、`minimumHoldSeconds`。检查现在按住/未按住及当前真实按住时长；Not Held 不使用最低时长，编辑器隐藏无关字段。
 - **Direction**：`direction`。检查当前相对锁定目标的四主方向或 Neutral；无有效方向参考时，包括 Neutral 在内均拒绝，不把“没有目标”冒充一个有效目标相对状态。
 
-State 不消费输入，可以连续多个 Tick 成立，可用于进入或退出条件。输入不可用时，连 Not Held 也拒绝，不能把禁输入解释成主动松手。技能中断仍走动作生命周期。
+State 不消费输入，可以连续多个 Tick 成立，可用于 Requirements、Neutral 入口或取消规则条件。输入不可用时，连 Not Held 也拒绝，不能把禁输入解释成主动松手。技能中断仍走动作生命周期。
 
 ```text
 一直推着前也能发动：
@@ -73,10 +73,11 @@ State 只检查判定时的当前状态，不回溯历史攻击时刻。外层�
 
 ### 组合规则
 
-- Entry、Exit 统一 **All：全部满足**。普通状态保留 invertResult；输入使用明确选择，不支持反转，非法序列化反转值拒绝。
+- Requirements、ActionList Neutral 入口条件与 CancelRule 条件统一 **All：全部满足**，复用同一求值机制。普通状态保留 invertResult；输入使用明确选择，不支持反转，非法序列化反转值拒绝。
 - 未选按钮、组合按钮掩码、未知枚举、空 Clip 列表、非法窗口/时长和 null 条件拒绝对应条件集，不能靠反转通过。
-- Poll 的空进入列表拒绝；Event 的空进入列表通过；空退出列表不主动退出。
-- Event 来源按 RequiresPlayerInput 类别跳过玩家条件，其他条件和 null 项不跳过；External 请求保留原有准入规则，不伪造设备输入。
+- 三处空条件列表均表示没有额外限制。ActionList 的 Allow From Neutral 决定是否提供 Poll 起手入口；取消规则仍需匹配窗口和目标。独立主动退出条件不再参与仲裁。
+- Event 来源按 RequiresPlayerInput 类别跳过 Requirements 中的玩家条件，其他条件和 null 项不跳过；External 不伪造设备输入，取消请求同时检查匹配 CancelRule 的条件与目标 Requirements，Neutral 请求不检查 ActionList 的 Poll 入口条件。
+- 每条候选携带本次路线条件与目标 Requirements 的合并输入凭据；被拒绝、落选或 Begin 失败不消费，实际开始后统一原子消费。同一事件被多层条件匹配时只消费一次。
 - 已移除 overrideAll；前轮迁移前确认没有启用配置。旧 YAML 值为 0 的无效字段不为清理而批量重存。
 
 ## 方向参考、识别与会话

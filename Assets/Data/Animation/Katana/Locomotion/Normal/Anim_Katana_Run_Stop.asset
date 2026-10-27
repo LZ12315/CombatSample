@@ -226,7 +226,7 @@ MonoBehaviour:
       foot: 1
   _locomotionOverrideClip: {fileID: 7400000, guid: f9deff493e7dab346ac483e7df7279f5,
     type: 2}
-  _overrideStopTime: 1
+  _overrideStopTime: 0
   _stopTimeOverride: 0.43333334
   _overrideFootMarkers: 0
   _footMarkerOverrides: []

@@ -1,0 +1,76 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 36138833d0694e709fdfe0fd2fb6b3d6, type: 3}
+  m_Name: Locomotion_GreatSword_Normal
+  m_EditorClassIdentifier: 
+  priority: 0
+  entryConditions: []
+  selfTags: []
+  movementConfig:
+    MaxSpeed: 5
+    Acceleration: 20
+    Deceleration: 32
+    DirectionResponse: 12
+    RotateSpeed: 600
+    TurnResponseTime: 0.08
+  move:
+    blendType: 1
+    oneDimensional:
+      parameter: 0
+      samples: []
+    twoDimensional:
+      parameter: 0
+      axesConfigured: 1
+      xParameter: 7
+      yParameter: 4
+      algorithm: 1
+      samples:
+      - animation: {fileID: 11400000, guid: dd8db37f393e9ad4cb21d2ae23a26ae8, type: 2}
+        threshold: {x: 0, y: 0}
+        sync: 0
+      - animation: {fileID: 11400000, guid: 7b233d72170a5b0468c903049f77acde, type: 2}
+        threshold: {x: 0, y: 1}
+        sync: 1
+      - animation: {fileID: 11400000, guid: 49b4e373450be4a46b36d4912e2cf5d8, type: 2}
+        threshold: {x: 1, y: 1}
+        sync: 1
+      - animation: {fileID: 11400000, guid: 5f1637b95002c5346bc37bccd1b41d42, type: 2}
+        threshold: {x: -1, y: 1}
+        sync: 1
+    turnLean:
+      FullLeanAcceleration: 20
+      MinimumSpeed: 0.5
+      SmoothSeconds: 0.1
+  transitionBlendDuration: 0.1
+  stopPlaybackMode: 0
+  transitionDecisionConfig:
+    StationarySpeed: 0.1
+    PivotMinimumSpeed: 0.5
+    PivotMinimumAngleDegrees: 120
+  start:
+  - animation: {fileID: 11400000, guid: 158eb7d9e60c55f4da5779d0a0b6fd81, type: 2}
+    targetLocalDirection: {x: 0, y: 1}
+  - animation: {fileID: 11400000, guid: e2ac3907847228f448e27abae3682567, type: 2}
+    targetLocalDirection: {x: -1, y: -1}
+  - animation: {fileID: 11400000, guid: fea2d0e01639cc64ab1cfff4d2ed622f, type: 2}
+    targetLocalDirection: {x: 1, y: -1}
+  - animation: {fileID: 11400000, guid: 54a264bb15380684d9d5d151eabe0362, type: 2}
+    targetLocalDirection: {x: 1, y: 0}
+  - animation: {fileID: 11400000, guid: bd0d5f5da6ff6514a803d364d35e8fee, type: 2}
+    targetLocalDirection: {x: -1, y: 0}
+  stop:
+  - animation: {fileID: 11400000, guid: 5ca041aeaa7e27f4283f6be110e8adf7, type: 2}
+    sourceLocalDirection: {x: 0, y: 1}
+  pivot: []
+  references:
+    version: 2
+    RefIds: []

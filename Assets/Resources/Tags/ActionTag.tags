@@ -19,3 +19,5 @@ Hit.Down
 Hit.Air.Relaunch
 State.Combat.SuperArmor
 State.Combat.Invincibility
+State.Combat.Parry
+Hit.Parried

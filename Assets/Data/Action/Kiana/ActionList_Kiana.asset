@@ -12,8 +12,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4e484c16208db8333b7c6578a14e5a8e, type: 3}
   m_Name: ActionList_Kiana
   m_EditorClassIdentifier: 
-  _globalActions:
-  - {fileID: 11400000, guid: 5eed624a8cb1a2f47ab4fa9aaa35949a, type: 2}
-  - {fileID: 11400000, guid: 2c22f0f6451db1e468a098a18836309f, type: 2}
-  - {fileID: 11400000, guid: e7b63af08e9c8b144b5398432f95c2c8, type: 2}
-  - {fileID: 11400000, guid: dc3b33bc64786344eb8652882ea11fb2, type: 2}
+  _entries:
+  - action: {fileID: 11400000, guid: 5eed624a8cb1a2f47ab4fa9aaa35949a, type: 2}
+    allowFromNeutral: 0
+    conditions: []
+  - action: {fileID: 11400000, guid: 2c22f0f6451db1e468a098a18836309f, type: 2}
+    allowFromNeutral: 1
+    conditions: []
+  - action: {fileID: 11400000, guid: e7b63af08e9c8b144b5398432f95c2c8, type: 2}
+    allowFromNeutral: 1
+    conditions: []
+  - action: {fileID: 11400000, guid: dc3b33bc64786344eb8652882ea11fb2, type: 2}
+    allowFromNeutral: 1
+    conditions: []

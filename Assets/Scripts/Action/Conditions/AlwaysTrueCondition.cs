@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 
 /// <summary>
-/// 永远通过的条件。用于 Idle 等兜底 ActionAsset，确保 CheckEntry 不会因条件列表为空而返回 false。
+/// 永远通过的条件。可配合 invertResult 显式关闭某个条件集。
 /// </summary>
 [Serializable]
 public class AlwaysTrueCondition : ActionCondition

@@ -6,12 +6,13 @@ using HeaderAttribute = ParadoxNotion.Design.HeaderAttribute;
 namespace NodeCanvas.Tasks.Actions
 {
     /// <summary>
-    /// 向战斗目标写入 <see cref="LocomotionIntent"/>。
+    /// 向显式配置的 Actor 目标写入 <see cref="LocomotionIntent"/>，不读取 CombatTarget。
     /// PushOnce：执行一次即成功；MoveUntilDistance：每帧推进直到进入停止距离。
     /// </summary>
-    [Name("Move Toward Combat Target")]
+    [Name("Move Toward Target")]
     [Category("Custom/Combat")]
-    public class MoveTowardCombatTargetTask : ActionTask
+    [Description("朝显式配置的 Actor 目标输出移动意图，不读取 CombatTarget。")]
+    public class MoveTowardCombatTargetTask : ActionTask<Actor>
     {
         public enum MoveMode
         {
@@ -19,15 +20,29 @@ namespace NodeCanvas.Tasks.Actions
             MoveUntilDistance,
         }
 
-        [Header("Settings")]
-        public BBParameter<Actor> actor;
-        public BBParameter<Transform> targetOverride;
+        [Tooltip("移动目标 Actor。为空时节点失败，不会回退到 CombatTarget。")]
+        public BBParameter<Actor> target;
+
+        [Tooltip("Push Once：执行一次即成功；Move Until Distance：持续推进直到进入停止距离。")]
         public MoveMode moveMode = MoveMode.PushOnce;
+        [ShowIf("moveMode", 1), MinValue(0f)]
+        [Tooltip("仅 Move Until Distance：水平距离进入该值后停下并成功。")]
         public float stopDistance = 2.5f;
-        [Range(0f, 1f)] public float moveStrength = 1f;
+        [SliderField(0f, 1f), Tooltip("移动输入强度，不是世界单位速度。")]
+        public float moveStrength = 1f;
+        [Tooltip("移动时朝向目标；关闭后只输出移动方向。")]
         public bool faceTarget = true;
+
+        [Header("Timeout")]
+        [ShowIf("moveMode", 1)]
+        [Tooltip("仅 Move Until Distance：启用未到达时的超时失败。")]
         public bool useTimeout;
+        [ShowIf("timeoutApplies", 1), MinValue(0f)]
+        [Tooltip("超出该时间仍未到达则失败，使用受 Time Scale 影响的时间。")]
         public float timeout = 2f;
+
+        // Combined condition for ShowIf; keeps Timeout fields hidden when they cannot apply.
+        private bool timeoutApplies => useTimeout && moveMode == MoveMode.MoveUntilDistance;
 
         private float _startTime;
         private ActorLocomotion _continuousLocomotion;
@@ -59,40 +74,42 @@ namespace NodeCanvas.Tasks.Actions
 
         private void TickMove()
         {
-            var actorValue = actor?.value;
+            var actorValue = agent;
             if (actorValue?.actorLocomotion == null)
             {
                 EndAction(false);
                 return;
             }
 
-            if (!NodeCanvasCombatTargetUtility.TryResolveTarget(actorValue, targetOverride, out Transform target))
+            var targetValue = target?.value;
+            if (targetValue == null)
             {
                 EndAction(false);
                 return;
             }
 
+            Transform targetTransform = targetValue.transform;
             if (useTimeout && Time.time - _startTime >= timeout)
             {
-                PushIdle(actorValue, target);
+                PushIdle(actorValue, targetTransform);
                 EndAction(false);
                 return;
             }
 
-            Vector3 toTarget = target.position - actorValue.transform.position;
+            Vector3 toTarget = targetTransform.position - actorValue.transform.position;
             toTarget.y = 0f;
             float distance = toTarget.magnitude;
 
             if (moveMode == MoveMode.MoveUntilDistance && distance <= stopDistance)
             {
-                PushIdle(actorValue, target);
+                PushIdle(actorValue, targetTransform);
                 EndAction(true);
                 return;
             }
 
             if (toTarget.sqrMagnitude < 0.0001f)
             {
-                PushIdle(actorValue, target);
+                PushIdle(actorValue, targetTransform);
                 if (moveMode == MoveMode.PushOnce)
                     EndAction(true);
                 return;

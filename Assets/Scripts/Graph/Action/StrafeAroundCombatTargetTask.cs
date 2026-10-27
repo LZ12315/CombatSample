@@ -1,14 +1,14 @@
 using NodeCanvas.Framework;
 using ParadoxNotion.Design;
 using UnityEngine;
-using HeaderAttribute = ParadoxNotion.Design.HeaderAttribute;
 
 namespace NodeCanvas.Tasks.Actions
 {
-    /// <summary>Faces the combat target while orbiting within a preferred distance band.</summary>
-    [Name("Strafe Around Combat Target")]
+    /// <summary>Faces the explicitly configured Actor target while orbiting within a preferred distance band.</summary>
+    [Name("Strafe Around Target")]
     [Category("Custom/Combat")]
-    public class StrafeAroundCombatTargetTask : ActionTask
+    [Description("围绕显式配置的 Actor 目标侧向移动，并在距离带外逐步修正距离。")]
+    public class StrafeAroundCombatTargetTask : ActionTask<Actor>
     {
         public enum StrafeSide
         {
@@ -17,20 +17,18 @@ namespace NodeCanvas.Tasks.Actions
             Random,
         }
 
-        [Header("References")]
-        public BBParameter<Actor> actor;
-        public BBParameter<Transform> targetOverride;
+        [Tooltip("绕行的目标 Actor。为空时节点失败，不会回退到 CombatTarget。")]
+        public BBParameter<Actor> target;
 
-        [Header("Strafe")]
-        [Tooltip("Side is selected once per execution. Random does not change direction while running.")]
+        [Tooltip("侧向在一次执行开始时选定；Random 运行中不会改变方向。")]
         public StrafeSide side = StrafeSide.Random;
-        [Min(0.01f), Tooltip("Preferred horizontal distance from the target, in world units.")]
+        [MinValue(0.01f), Tooltip("期望的与目标水平距离，单位为世界单位。")]
         public float preferredDistance = 3f;
-        [Min(0f), Tooltip("Allowed distance deviation before gradual inward or outward correction begins.")]
+        [MinValue(0f), Tooltip("允许的距离偏差；超出后才开始渐进修正。")]
         public float distanceTolerance = 0.5f;
-        [Range(0f, 1f), Tooltip("Locomotion input strength, not a speed in world units per second.")]
+        [SliderField(0f, 1f), Tooltip("移动输入强度，不是世界单位速度。")]
         public float moveStrength = 0.4f;
-        [Min(0f), Tooltip("Scaled game-time duration. Completion reports success; pause does not extend the deadline.")]
+        [MinValue(0f), Tooltip("持续时长（秒）；到时成功结束，暂停不会延长截止时间。")]
         public float duration = 1.5f;
 
         private bool _moveRight;
@@ -67,14 +65,14 @@ namespace NodeCanvas.Tasks.Actions
 
         private void TickMove()
         {
-            var actorValue = actor?.value;
+            var actorValue = agent;
+            var targetValue = target?.value;
             var locomotion = actorValue != null ? actorValue.actorLocomotion : null;
             if (actorValue == null || !actorValue.isActiveAndEnabled
                 || locomotion == null || !locomotion.isActiveAndEnabled
                 || !LocomotionDataValidation.IsFinite(duration) || duration < 0f
-                || !NodeCanvasCombatTargetUtility.TryResolveTarget(actorValue, targetOverride, out Transform target)
-                || !target.gameObject.activeInHierarchy
-                || !CombatStrafeMovement.TryBuildIntent(actorValue.transform.position, target.position,
+                || targetValue == null || !targetValue.gameObject.activeInHierarchy
+                || !CombatStrafeMovement.TryBuildIntent(actorValue.transform.position, targetValue.transform.position,
                     _moveRight, preferredDistance, distanceTolerance, moveStrength, out LocomotionIntent intent))
             {
                 EndAction(false);

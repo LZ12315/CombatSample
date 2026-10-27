@@ -20,6 +20,8 @@ public class ActorCombater : MonoBehaviour, IDamageable
 {
     private const string DefaultSuperArmorTagName = "State.Combat.SuperArmor";
     private const string DefaultInvincibilityTagName = "State.Combat.Invincibility";
+    private const string DefaultParryWindowTagName = "State.Combat.ParryWindow";
+    private const string DefaultParriedEventTagName = "Event.Combat.Parried";
 
     #region === Inspector ===
 
@@ -40,6 +42,16 @@ public class ActorCombater : MonoBehaviour, IDamageable
 
     [SerializeField, Tooltip("When this actor has this tag, incoming hits apply no damage and trigger no hit-event reaction. Falls back to State.Combat.Invincibility when unassigned.")]
     private TagReference invincibilityTag;
+
+    [Header("Parry")]
+    [SerializeField, Tooltip("Active only during the parry window. Author with a Transient TagItem, not Action SelfTags. Falls back to State.Combat.ParryWindow when unassigned.")]
+    private TagReference parryWindowTag;
+
+    [SerializeField, Range(0f, 90f), Tooltip("Half of the horizontal parry cone in degrees. 60 means a 120-degree frontal cone.")]
+    private float parryHalfAngle = 60f;
+
+    [SerializeField, Tooltip("Event sent to the incoming attacker on a successful parry. Falls back to Event.Combat.Parried when unassigned.")]
+    private TagReference parriedEventTag;
 
     [Header("Targeting")]
     [SerializeField, Min(0f), Tooltip("Radius used to find a soft auto target while not locked.")]
@@ -78,6 +90,9 @@ public class ActorCombater : MonoBehaviour, IDamageable
     public bool IsDead => _currentHealth <= 0f;
 
     public event Action<ActorCombater, float, float> HealthChanged;
+
+    /// <summary>Raised on the defender after accepting a parry. Hit data retains the original incoming attack; no ordinary hit feedback is played.</summary>
+    public event Action<ActorCombater, AttackHitData> ParrySucceeded;
 
     private float _currentHealth;
 
@@ -305,6 +320,12 @@ public class ActorCombater : MonoBehaviour, IDamageable
             return HitResolveResult.Invincible();
         }
 
+        if (CanParry(attackData))
+        {
+            ApplyParry(attackData);
+            return HitResolveResult.Parried();
+        }
+
         float previousHealth = _currentHealth;
         _currentHealth = Mathf.Clamp(_currentHealth - attackData.Damage, 0f, _maxHealth);
         if (!Mathf.Approximately(previousHealth, _currentHealth))
@@ -329,6 +350,49 @@ public class ActorCombater : MonoBehaviour, IDamageable
         return HasSuperArmor()
             ? HitResolveResult.SuperArmor(targetKilled)
             : HitResolveResult.Normal(hitReactionApplied, targetKilled);
+    }
+
+    private bool CanParry(AttackHitData attackData)
+    {
+        ActorCombater attacker = attackData.Attacker;
+        if (attacker == null || attacker == this || !attackData.CanBeParried)
+            return false;
+
+        Tag windowTag = parryWindowTag != null ? parryWindowTag.GetTag() : null;
+        windowTag = windowTag ?? Tag.GetTagFromFullName(DefaultParryWindowTagName);
+        return CombatParryRules.CanParry(
+            attackData.CanBeParried,
+            HasActorTag(windowTag),
+            transform.forward,
+            attacker.transform.position - transform.position,
+            parryHalfAngle);
+    }
+
+    private void ApplyParry(AttackHitData attackData)
+    {
+        ActorCombater attacker = attackData.Attacker;
+        Tag eventTag = parriedEventTag != null ? parriedEventTag.GetTag() : null;
+        eventTag = eventTag ?? Tag.GetTagFromFullName(DefaultParriedEventTagName);
+        ActionStateManager attackerAsm = attacker._asm != null
+            ? attacker._asm
+            : attacker.GetComponent<ActionStateManager>();
+
+        if (attackerAsm != null && eventTag != null)
+        {
+            var context = ActionContext.ForParticipants(gameObject, attacker.gameObject)
+                .WithPoint(attackData.HitPoint);
+            Vector3 direction = attacker.transform.position - transform.position;
+            if (direction.sqrMagnitude > 0.0001f)
+                context = context.WithDirection(direction);
+
+            // Queue the reaction for the next Action phase; never switch Actions during Hit resolution.
+            attackerAsm.SendEvent(eventTag, context);
+        }
+
+        if (_debugLog)
+            Debug.Log($"[Parry] {name} parried {attacker.name}.", this);
+
+        ParrySucceeded?.Invoke(this, attackData);
     }
 
     private void Die(AttackHitData attackData)

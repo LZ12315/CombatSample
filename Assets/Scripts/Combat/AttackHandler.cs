@@ -11,6 +11,7 @@ public class AttackHandler : MonoBehaviour
     public AttackDataConfig config;
 
     private List<Collider> attackedObjects = new List<Collider>();
+    private readonly HashSet<Collider> attemptedObjects = new HashSet<Collider>();
 
     public void Init(ActorCombater combating, AttackDataConfig config)
     {
@@ -29,7 +30,7 @@ public class AttackHandler : MonoBehaviour
         if (combating == null || config == null) return;
         if (((1 << other.gameObject.layer) & config.targetLayers) != 0)
         {
-            if(attackedObjects.Contains(other)) return;
+            if (attemptedObjects.Contains(other)) return;
 
             if (other.TryGetComponent<IDamageable>(out var damageable))
             {
@@ -39,10 +40,15 @@ public class AttackHandler : MonoBehaviour
                     target: other.gameObject,
                     targetCollider: other,
                     hitPoint: other.ClosestPoint(gameObject.transform.position),
-                    hitEventTag: ResolveHitEventTag()
+                    hitEventTag: ResolveHitEventTag(),
+                    canBeParried: config.canBeParried
                 );
 
                 HitResolveResult hitResult = damageable.TakeDamage(hitData);
+                // A parried contact must not hit again when the weapon swings back after the window closes.
+                // Preserve the legacy invincibility retry behavior; Action HitBoxes already consume every attempt.
+                if (hitResult.ImpactAllowed || hitResult.Outcome == HitResolveOutcome.Parried)
+                    attemptedObjects.Add(other);
 
                 if (hitResult.ImpactAllowed)
                 {
@@ -56,6 +62,7 @@ public class AttackHandler : MonoBehaviour
 
     private void OnTriggerExit(Collider other)
     {
+        if (combating == null || config == null) return;
         if (((1 << other.gameObject.layer) & config.targetLayers) != 0)
         {
             if (!attackedObjects.Contains(other)) return;
@@ -68,7 +75,8 @@ public class AttackHandler : MonoBehaviour
                     target: other.gameObject,
                     targetCollider: other,
                     hitPoint: other.ClosestPoint(gameObject.transform.position),
-                    hitEventTag: ResolveHitEventTag()
+                    hitEventTag: ResolveHitEventTag(),
+                    canBeParried: config.canBeParried
                 );
 
                 InvokeHitOverEvent(hitData);

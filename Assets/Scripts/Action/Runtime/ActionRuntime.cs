@@ -90,6 +90,7 @@ public readonly struct ActionRuntimeAnimationRecord
 public sealed class ActionRuntimeScheduler
 {
     private readonly ActionRuntimeContext _context;
+    private readonly Action<int> _beforeFrame;
     private readonly Dictionary<int, List<PointGameplayItem>> _pointsByFrame = new Dictionary<int, List<PointGameplayItem>>();
     private readonly Dictionary<int, List<RangeRecord>> _rangesByStartFrame = new Dictionary<int, List<RangeRecord>>();
     private readonly List<ActiveRange> _activeRanges = new List<ActiveRange>();
@@ -102,9 +103,10 @@ public sealed class ActionRuntimeScheduler
     private int _currentFrame = -1;
     private double _continuousPosition;
 
-    internal ActionRuntimeScheduler(ActionTimelineData timeline, ActionRuntimeContext context)
+    internal ActionRuntimeScheduler(ActionTimelineData timeline, ActionRuntimeContext context, Action<int> beforeFrame = null)
     {
         _context = context;
+        _beforeFrame = beforeFrame;
         DurationFrames = timeline != null ? timeline.DurationFrames : 1;
         CaptureSnapshot(timeline);
     }
@@ -298,6 +300,7 @@ public sealed class ActionRuntimeScheduler
 
         _currentFrame = frame;
         _hasOpenFrame = true;
+        _beforeFrame?.Invoke(frame);
 
         if (_pointsByFrame.TryGetValue(frame, out List<PointGameplayItem> points))
         {
@@ -414,6 +417,7 @@ public sealed class ActionRuntime
     private readonly ActionContext _actionContext;
     private ActorAnimation _actorAnimation;
     private ActorAnimationActionOwner _animationOwner;
+    private ActionMotionPolicySession _motionPolicy;
     private bool _paused;
     private float _speed = 1f;
 
@@ -450,7 +454,8 @@ public sealed class ActionRuntime
         try
         {
             var context = new ActionRuntimeContext(_actor, _actionContext);
-            Scheduler = new ActionRuntimeScheduler(ActionAsset.Timeline, context);
+            _motionPolicy = new ActionMotionPolicySession(ActionAsset, context.Motor);
+            Scheduler = new ActionRuntimeScheduler(ActionAsset.Timeline, context, _motionPolicy.ApplyFrame);
             Scheduler.ValidateAnimationSnapshot();
             AcquireSelfTags();
             AcquireAnimationOwner();
@@ -514,6 +519,7 @@ public sealed class ActionRuntime
 
             State = ActionRuntimeState.Interrupted;
             TerminationResult = ActionRuntimeTerminationResult.Interrupted;
+            _motionPolicy?.Dispose();
             ReleaseSelfTags();
             ReleaseAnimationOwner();
             return true;
@@ -540,6 +546,7 @@ public sealed class ActionRuntime
         {
             State = ActionRuntimeState.Aborted;
             TerminationResult = ActionRuntimeTerminationResult.Aborted;
+            _motionPolicy?.Dispose();
             ReleaseSelfTags();
             ReleaseAnimationOwner();
         }
@@ -584,6 +591,7 @@ public sealed class ActionRuntime
     {
         State = ActionRuntimeState.Completed;
         TerminationResult = ActionRuntimeTerminationResult.Completed;
+        _motionPolicy?.Dispose();
         ReleaseSelfTags();
         ReleaseAnimationOwner();
     }

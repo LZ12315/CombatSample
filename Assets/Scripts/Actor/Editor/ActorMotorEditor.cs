@@ -37,6 +37,12 @@ public class ActorMotorEditor : Editor
         EditorGUILayout.LabelField("Vertical Velocity", motor.CurrentVerticalSpeed.ToString("F2"));
         EditorGUILayout.LabelField("Ballistic Vertical", motor.Translation.BallisticVerticalVelocity.ToString("F2"));
         EditorGUILayout.LabelField("Vertical Owner", motor.Translation.DebugOwnerVerticalVelocity.ToString("F2"));
+        var actionPolicy = motor.MotionPolicy.ActionValues;
+        EditorGUILayout.LabelField("Action Move Scale", actionPolicy.LocomotionScale.ToString("P0"));
+        EditorGUILayout.LabelField("Effective Movement", motor.MotionPolicy.LocomotionScale <= 0f ? "Locked"
+            : motor.MotionPolicy.BrakeLocomotion ? "Brake" : "Allow");
+        EditorGUILayout.LabelField("Effective Turning", motor.MotionPolicy.LockLocomotionRotation ? "Locked"
+            : motor.MotionPolicy.LocomotionTurnSpeedLimit > 0f ? $"Limited {motor.MotionPolicy.LocomotionTurnSpeedLimit:F1} °/s" : "Normal");
         EditorGUILayout.LabelField("Move Scale", motor.MotionPolicy.LocomotionScale.ToString("F2"));
         EditorGUILayout.LabelField("Air Move Scale", motor.MotionPolicy.AirLocomotionScale.ToString("F2"));
         EditorGUILayout.LabelField("Gravity Scale", motor.MotionPolicy.GravityScale.ToString("F2"));

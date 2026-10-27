@@ -10,7 +10,8 @@ namespace NodeCanvas.Tasks.Actions
     /// </summary>
     [Name("Set Locomotion Intent")]
     [Category("Custom/Combat")]
-    public class SetLocomotionIntentTask : ActionTask
+    [Description("按世界方向或世界点向自身写入 LocomotionIntent，不读取 CombatTarget。")]
+    public class SetLocomotionIntentTask : ActionTask<Actor>
     {
         public enum IntentSource
         {
@@ -24,17 +25,32 @@ namespace NodeCanvas.Tasks.Actions
             RunUntilPointReached,
         }
 
-        [Header("Settings")]
-        public BBParameter<Actor> actor;
+        [Header("Source")]
+        [Tooltip("World Direction：按世界方向移动；World Point：朝世界点移动。")]
         public IntentSource source = IntentSource.WorldDirection;
+        [ShowIf("source", 0), Tooltip("仅 World Direction：期望的世界移动方向。")]
         public BBParameter<Vector3> worldDirection;
+        [ShowIf("source", 1), Tooltip("仅 World Point：期望到达的世界位置。")]
         public BBParameter<Vector3> worldPoint;
+
+        [Tooltip("Push Once：输出一次意图即成功；Run Until Point Reached：每帧推进直到到达或超时。")]
         public RunMode runMode = RunMode.PushOnce;
+        [ShowIf("stopDistanceApplies", 1), Tooltip("仅 Run Until Point Reached + World Point：水平距离进入该值即完成。")]
         public BBParameter<float> stopDistance = 0.5f;
+        [Tooltip("移动输入强度，不是世界单位速度。")]
         public BBParameter<float> moveStrength = 1f;
+        [Tooltip("移动时朝移动方向；关闭后不写入朝向。")]
         public BBParameter<bool> faceMoveDirection = true;
+
+        [Header("Timeout")]
+        [ShowIf("runMode", 1), Tooltip("仅 Run Until Point Reached：启用超时失败。")]
         public BBParameter<bool> useTimeout = false;
+        [ShowIf("timeoutApplies", 1), Tooltip("超出该时间仍未完成则失败，使用受 Time Scale 影响的时间。")]
         public BBParameter<float> timeout = 2f;
+
+        // Combined conditions for ShowIf; keep completion-only fields hidden when they cannot apply.
+        private bool stopDistanceApplies => runMode == RunMode.RunUntilPointReached && source == IntentSource.WorldPoint;
+        private bool timeoutApplies => runMode == RunMode.RunUntilPointReached && useTimeout != null && useTimeout.value;
 
         private float _startTime;
         private ActorLocomotion _continuousLocomotion;
@@ -66,7 +82,7 @@ namespace NodeCanvas.Tasks.Actions
 
         private void Tick()
         {
-            var actorValue = actor?.value;
+            var actorValue = agent;
             if (actorValue?.actorLocomotion == null)
             {
                 EndAction(false);

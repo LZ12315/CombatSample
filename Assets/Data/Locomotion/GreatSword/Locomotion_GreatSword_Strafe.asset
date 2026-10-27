@@ -1,0 +1,83 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 36138833d0694e709fdfe0fd2fb6b3d6, type: 3}
+  m_Name: Locomotion_GreatSword_Strafe
+  m_EditorClassIdentifier: 
+  priority: 0
+  entryConditions: []
+  selfTags: []
+  movementConfig:
+    MaxSpeed: 5
+    Acceleration: 20
+    Deceleration: 32
+    DirectionResponse: 12
+    RotateSpeed: 600
+    TurnResponseTime: 0.08
+  move:
+    blendType: 1
+    oneDimensional:
+      parameter: 0
+      samples: []
+    twoDimensional:
+      parameter: 0
+      axesConfigured: 1
+      xParameter: 3
+      yParameter: 4
+      algorithm: 0
+      samples:
+      - animation: {fileID: 11400000, guid: dd8db37f393e9ad4cb21d2ae23a26ae8, type: 2}
+        threshold: {x: 0, y: 0}
+        sync: 0
+      - animation: {fileID: 11400000, guid: 2ee61fd441e6a4143a56d567688d6e42, type: 2}
+        threshold: {x: 0, y: 1}
+        sync: 0
+      - animation: {fileID: 11400000, guid: e3e1923537b142d42bf54adc48b19f76, type: 2}
+        threshold: {x: 0, y: -1}
+        sync: 0
+      - animation: {fileID: 11400000, guid: 8fa7ecaead34d4e4894c4dd4fc5aa14a, type: 2}
+        threshold: {x: 1, y: 0}
+        sync: 0
+      - animation: {fileID: 11400000, guid: 3cdbe65a7938b494fa7d72d4938f6581, type: 2}
+        threshold: {x: -1, y: 0}
+        sync: 0
+    turnLean:
+      FullLeanAcceleration: 20
+      MinimumSpeed: 0.5
+      SmoothSeconds: 0.1
+  transitionBlendDuration: 0.1
+  stopPlaybackMode: 1
+  transitionDecisionConfig:
+    StationarySpeed: 0.1
+    PivotMinimumSpeed: 0.5
+    PivotMinimumAngleDegrees: 120
+  start:
+  - animation: {fileID: 11400000, guid: 2459a5d73584cca4fbb94d7faaedd93b, type: 2}
+    targetLocalDirection: {x: 0, y: 1}
+  - animation: {fileID: 11400000, guid: 0745695d844828145a8fd8d49d390856, type: 2}
+    targetLocalDirection: {x: 0, y: -1}
+  - animation: {fileID: 11400000, guid: cd245109b4d89ff46be141df42010107, type: 2}
+    targetLocalDirection: {x: 1, y: 0}
+  - animation: {fileID: 11400000, guid: 34e67b5a83067b44aadb2c92f38155ff, type: 2}
+    targetLocalDirection: {x: -1, y: 0}
+  stop:
+  - animation: {fileID: 11400000, guid: a6e5f09a333ccbc488d8f14149110697, type: 2}
+    sourceLocalDirection: {x: 0, y: 1}
+  - animation: {fileID: 11400000, guid: b2010ff7216ad9c4f8d52591acaa7302, type: 2}
+    sourceLocalDirection: {x: 0, y: -1}
+  - animation: {fileID: 11400000, guid: 94266c3c3aad12941a2c0ec4a8d67909, type: 2}
+    sourceLocalDirection: {x: 1, y: 0}
+  - animation: {fileID: 11400000, guid: 92e4ef87565cb414ca36ebeb959984f1, type: 2}
+    sourceLocalDirection: {x: -1, y: 0}
+  pivot: []
+  references:
+    version: 2
+    RefIds: []

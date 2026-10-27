@@ -1,0 +1,52 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c3b90b7f78684ae4a74f50858f9e6e31, type: 3}
+  m_Name: Locomotion_GreatSword_Air_Hit
+  m_EditorClassIdentifier: 
+  priority: 0
+  entryConditions:
+  - rid: 6940827153219190830
+  selfTags: []
+  movementConfig:
+    MaxSpeed: 0
+    Acceleration: 0
+    Deceleration: 0
+    DirectionResponse: 0
+    RotateSpeed: 0
+    TurnResponseTime: 0
+  move:
+    blendType: 0
+    oneDimensional:
+      parameter: 0
+      samples:
+      - animation: {fileID: 11400000, guid: 79168f75b56f5bd4690a54fe89e2fb46, type: 2}
+        threshold: 0
+        sync: 0
+    twoDimensional:
+      parameter: 0
+      axesConfigured: 0
+      xParameter: 5
+      yParameter: 6
+      algorithm: 0
+      samples: []
+    turnLean:
+      FullLeanAcceleration: 20
+      MinimumSpeed: 0.5
+      SmoothSeconds: 0.1
+  references:
+    version: 2
+    RefIds:
+    - rid: 6940827153219190830
+      type: {class: LocomotionGroundStateCondition, ns: , asm: Assembly-CSharp}
+      data:
+        invertResult: 0
+        acceptedStates: 4

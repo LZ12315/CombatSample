@@ -1,41 +1,30 @@
 using NodeCanvas.Framework;
 using ParadoxNotion.Design;
 using UnityEngine;
-using HeaderAttribute = ParadoxNotion.Design.HeaderAttribute;
 
 namespace NodeCanvas.Tasks.Actions
 {
     /// <summary>
     /// 通过可撤销请求交给 ASM，在下一次固定步骤仲裁后报告是否开始动作。
+    /// 勾选 Until Started 时持续重试提交，直到动作开始或超时。
     /// 任务结束或暂停只撤销待决请求，不强停已开始的动作；旧执行轮次的回调无效。
     /// </summary>
     [Name("Play Action Via ASM")]
     [Category("Custom/Combat")]
-    public class PlayActionTask : ActionTask
+    [Description("向自身 ActionStateManager 提交 Action 播放请求，并按动作是否真正开始返回成功或失败。")]
+    public class PlayActionTask : ActionTask<Actor>
     {
-        public enum RequestMode
-        {
-            EnterOnce,
-            UntilStarted,
-        }
-
-        public enum ResultMode
-        {
-            ByActionStarted,
-            AlwaysTrue,
-            AlwaysFalse,
-        }
-
-        [Header("Settings")]
-        public BBParameter<Actor> actor;
+        [Tooltip("要交由 ASM 仲裁播放的 Action 配置。")]
         public BBParameter<ActionAsset> actionToPlay;
-        public RequestMode requestMode = RequestMode.EnterOnce;
-        public ResultMode resultMode = ResultMode.ByActionStarted;
-        [Tooltip("UntilStarted only: fail if the action has not started within this many scaled-time seconds.")]
+        [Tooltip("不勾选：只提交一次请求，在下一次 ASM 仲裁后按是否真正开始返回结果。勾选：持续重试提交，直到动作开始或超时。")]
+        public bool untilStarted;
+        [ShowIf("untilStarted", 1), MinValue(0f)]
+        [Tooltip("仅 Until Started：等待动作开始的最长时间（秒，受 Time Scale 影响）。0 表示只等待下一次仲裁，不重试。")]
         public float timeout = 0.3f;
 
         private bool _active;
         private bool _waitingForResult;
+        private bool _resolvedOnce;
         private float _startTime;
         private uint _executionId;
         private ActionStateManager.ExternalActionRequest _request;
@@ -53,13 +42,13 @@ namespace NodeCanvas.Tasks.Actions
             if (!_active)
                 return;
 
-            if (requestMode != RequestMode.EnterOnce && Time.time - _startTime >= timeout)
+            if (untilStarted && HasExceededDeadline())
             {
-                EndWithResult(false);
+                EndAction(false);
                 return;
             }
 
-            // Also submits a fresh EnterOnce request after resuming from a pause.
+            // Also submits a fresh request after resuming from a pause.
             if (!_waitingForResult)
                 SubmitRequest();
         }
@@ -79,6 +68,8 @@ namespace NodeCanvas.Tasks.Actions
             // Invalidate callbacks before Cancel, which may report false synchronously.
             _active = false;
             _waitingForResult = false;
+            // A withdrawn request was never judged, so it must not consume the single-attempt allowance.
+            _resolvedOnce = false;
             unchecked { _executionId++; }
             var request = _request;
             _request = null;
@@ -87,11 +78,11 @@ namespace NodeCanvas.Tasks.Actions
 
         private void SubmitRequest()
         {
-            var actorValue = actor.value;
+            var actorValue = agent;
             var actionValue = actionToPlay.value;
             if (actorValue == null || actorValue.actionManager == null || actionValue == null)
             {
-                EndWithResult(false);
+                EndAction(false);
                 return;
             }
 
@@ -116,31 +107,26 @@ namespace NodeCanvas.Tasks.Actions
 
             _request = null;
             _waitingForResult = false;
+            _resolvedOnce = true;
 
             if (started)
             {
-                EndWithResult(true);
+                EndAction(true);
                 return;
             }
 
-            if (requestMode == RequestMode.EnterOnce)
-                EndWithResult(false);
+            if (!untilStarted)
+                EndAction(false);
         }
 
-        private void EndWithResult(bool actionStarted)
+        // Timeout 0 means one arbitration chance: the deadline is judged only after a judged request.
+        private bool HasExceededDeadline()
         {
-            switch (resultMode)
-            {
-                case ResultMode.AlwaysTrue:
-                    EndAction(true);
-                    break;
-                case ResultMode.AlwaysFalse:
-                    EndAction(false);
-                    break;
-                default:
-                    EndAction(actionStarted);
-                    break;
-            }
+            float wait = float.IsNaN(timeout) || timeout < 0f ? 0f : timeout;
+            if (wait > 0f)
+                return Time.time - _startTime >= wait;
+
+            return _resolvedOnce;
         }
     }
 }

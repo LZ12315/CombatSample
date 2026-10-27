@@ -127,19 +127,22 @@ public class ActionStateManager : MonoBehaviour
         public readonly ActionDecisionKind Kind;
         public readonly ActionCandidate Candidate;
         public readonly ActionInstance SourceAction;
+        public readonly ActionEntryMatch ReturnMatch;
 
-        private ActionDecision(ActionDecisionKind kind, ActionCandidate candidate, ActionInstance sourceAction)
+        private ActionDecision(ActionDecisionKind kind, ActionCandidate candidate, ActionInstance sourceAction,
+            ActionEntryMatch returnMatch = default)
         {
             Kind = kind;
             Candidate = candidate;
             SourceAction = sourceAction;
+            ReturnMatch = returnMatch;
         }
 
         public static ActionDecision Play(ActionCandidate candidate) =>
             new ActionDecision(ActionDecisionKind.PlayAction, candidate, null);
 
-        public static ActionDecision Return(ActionInstance sourceAction) =>
-            new ActionDecision(ActionDecisionKind.ReturnToLocomotion, default, sourceAction);
+        public static ActionDecision Return(ActionInstance sourceAction, ActionEntryMatch match) =>
+            new ActionDecision(ActionDecisionKind.ReturnToLocomotion, default, sourceAction, match);
     }
 
     [Header("References")]
@@ -226,14 +229,9 @@ public class ActionStateManager : MonoBehaviour
 
         try
         {
-            if (currentInst != null && currentInst.Config.CheckExit(_actor, currentInst.Context))
-                _actionPlayer.StopAction();
-
-            currentInst = _actionPlayer.CurrentAction;
-
             _validCandidatesCache.Clear();
 
-            ActionInstance returnCandidate = CollectNormalCandidates(currentInst);
+            ActionDecision returnCandidate = CollectNormalCandidates(currentInst);
             CollectEventCandidatesIntoPool();
 
             startedCandidate = ExecuteDecision(SelectDecision(returnCandidate));
@@ -248,12 +246,12 @@ public class ActionStateManager : MonoBehaviour
         ClearDecidingSnapshot();
     }
 
-    private ActionInstance CollectNormalCandidates(ActionInstance currentInst)
+    private ActionDecision CollectNormalCandidates(ActionInstance currentInst)
     {
         if (currentInst == null)
         {
             CollectNeutralCandidates();
-            return null;
+            return default;
         }
 
         return CollectCancelCandidates(currentInst);
@@ -269,13 +267,14 @@ public class ActionStateManager : MonoBehaviour
     {
         if (_actionList == null) return;
 
-        var allActions = _actionList.GetAllAvailableActions();
-        for (int i = 0; i < allActions.Count; i++)
+        IReadOnlyList<ActionListEntry> entries = _actionList.Entries;
+        for (int i = 0; i < entries.Count; i++)
         {
-            var action = allActions[i];
-            if (action != null && action.TriggerMode == ActionTriggerMode.Event)
+            ActionListEntry entry = entries[i];
+            if (entry == null || !entry.allowFromNeutral || entry.action == null ||
+                entry.action.TriggerMode == ActionTriggerMode.Event)
                 continue;
-            TryAddPollCandidate(action);
+            TryAddPollCandidate(entry.action, entry.conditions);
         }
     }
 
@@ -297,21 +296,21 @@ public class ActionStateManager : MonoBehaviour
         }
     }
 
-    private ActionInstance CollectCancelCandidates(ActionInstance currentInst)
+    private ActionDecision CollectCancelCandidates(ActionInstance currentInst)
     {
-        ActionInstance returnCandidate = CollectCancelRuleCandidates(currentInst);
+        ActionDecision returnCandidate = CollectCancelRuleCandidates(currentInst);
         CollectExternalCancelCandidates(currentInst);
         return returnCandidate;
     }
 
-    private ActionInstance CollectCancelRuleCandidates(ActionInstance currentInstance)
+    private ActionDecision CollectCancelRuleCandidates(ActionInstance currentInstance)
     {
         var rules = currentInstance.Config.CancelRules;
-        if (rules == null || rules.Count == 0) return null;
+        if (rules == null || rules.Count == 0) return default;
 
         int currentFrame = _actionPlayer.CurrentFrame;
         int totalFrames = _actionPlayer.TotalFrames;
-        ActionInstance returnCandidate = null;
+        ActionDecision returnCandidate = default;
 
         for (int i = 0; i < rules.Count; i++)
         {
@@ -322,13 +321,15 @@ public class ActionStateManager : MonoBehaviour
             switch (rule.targetKind)
             {
                 case CancelTargetKind.Locomotion:
-                    if (CanReturnToLocomotion(rule))
-                        returnCandidate = currentInstance;
+                    if (returnCandidate.Kind == ActionDecisionKind.None && CanReturnToLocomotion(rule) &&
+                        ActionCondition.TryMatchAll(rule.conditions, _actor, currentInstance.Context, false,
+                            out ActionEntryMatch returnMatch))
+                        returnCandidate = ActionDecision.Return(currentInstance, returnMatch);
                     break;
 
                 case CancelTargetKind.SpecificAction:
                     if (rule.MatchesTarget(rule.specificTarget))
-                        TryAddPollCandidate(rule.specificTarget);
+                        TryAddPollCandidate(rule.specificTarget, rule.conditions);
                     break;
 
                 case CancelTargetKind.AnyWithTag:
@@ -341,7 +342,7 @@ public class ActionStateManager : MonoBehaviour
                             if (candidate == null || candidate.TriggerMode == ActionTriggerMode.Event)
                                 continue;
                             if (rule.MatchesTarget(candidate))
-                                TryAddPollCandidate(candidate);
+                                TryAddPollCandidate(candidate, rule.conditions);
                         }
                     }
                     break;
@@ -353,7 +354,7 @@ public class ActionStateManager : MonoBehaviour
                         for (int j = 0; j < allActions.Count; j++)
                         {
                             if (rule.MatchesTarget(allActions[j]))
-                                TryAddPollCandidate(allActions[j]);
+                                TryAddPollCandidate(allActions[j], rule.conditions);
                         }
                     }
                     break;
@@ -386,7 +387,7 @@ public class ActionStateManager : MonoBehaviour
             if (!IsValidExternalAction(action))
                 continue;
 
-            if (!CanCancelTo(currentInst, action))
+            if (!TryMatchCancel(currentInst, action, request.Context, out ActionEntryMatch routeMatch))
                 continue;
 
             TryAddCandidate(new ActionCandidate(
@@ -394,7 +395,8 @@ public class ActionStateManager : MonoBehaviour
                 request.Context,
                 ActionCandidateOrigin.External,
                 request.Order,
-                request));
+                request,
+                routeMatch));
         }
     }
 
@@ -403,8 +405,10 @@ public class ActionStateManager : MonoBehaviour
         return action != null && action.TriggerMode != ActionTriggerMode.Event;
     }
 
-    private bool CanCancelTo(ActionInstance currentInst, ActionAsset requestedAction)
+    private bool TryMatchCancel(ActionInstance currentInst, ActionAsset requestedAction,
+        ActionContext context, out ActionEntryMatch match)
     {
+        match = default;
         if (currentInst == null || requestedAction == null)
             return false;
 
@@ -421,7 +425,8 @@ public class ActionStateManager : MonoBehaviour
             if (rule == null || !rule.window.ContainsFrame(currentFrame, totalFrames))
                 continue;
 
-            if (rule.MatchesTarget(requestedAction))
+            if (rule.MatchesTarget(requestedAction) &&
+                ActionCondition.TryMatchAll(rule.conditions, _actor, context, false, out match))
                 return true;
         }
 
@@ -434,7 +439,7 @@ public class ActionStateManager : MonoBehaviour
             TryAddCandidate(_decidingEventCandidates[i]);
     }
 
-    private ActionDecision SelectDecision(ActionInstance returnCandidate)
+    private ActionDecision SelectDecision(ActionDecision returnCandidate)
     {
         // Later entry checks may withdraw an external candidate collected earlier in this snapshot.
         for (int i = _validCandidatesCache.Count - 1; i >= 0; i--)
@@ -447,7 +452,7 @@ public class ActionStateManager : MonoBehaviour
         if (_validCandidatesCache.Count > 0)
             return ActionDecision.Play(SelectHighestPriorityAction(_validCandidatesCache));
 
-        return returnCandidate != null ? ActionDecision.Return(returnCandidate) : default;
+        return returnCandidate;
     }
 
     private ActionCandidate? ExecuteDecision(ActionDecision decision)
@@ -458,8 +463,12 @@ public class ActionStateManager : MonoBehaviour
                 return TryPlayChosenAction(decision.Candidate);
             case ActionDecisionKind.ReturnToLocomotion:
                 // Never stop a replacement Action or collect Neutral candidates again in this tick.
-                if (ReferenceEquals(_actionPlayer.CurrentAction, decision.SourceAction))
+                if (ReferenceEquals(_actionPlayer.CurrentAction, decision.SourceAction) &&
+                    decision.ReturnMatch.IsCurrentFor(_actor.PlayerInput))
+                {
                     _actionPlayer.StopAction();
+                    decision.ReturnMatch.TryConsume(_actor.PlayerInput);
+                }
                 break;
         }
 
@@ -623,17 +632,19 @@ public class ActionStateManager : MonoBehaviour
         _validCandidatesCache.Clear();
     }
 
-    private void TryAddPollCandidate(ActionAsset action)
+    private void TryAddPollCandidate(ActionAsset action, IReadOnlyList<ActionCondition> conditions)
     {
         if (action == null || _actor == null) return;
-        if (!TryBuildPollContext(action, out ActionContext context))
+        if (!TryBuildPollContext(action, out ActionContext context) ||
+            !ActionCondition.TryMatchAll(conditions, _actor, context, false, out ActionEntryMatch routeMatch))
             return;
 
         TryAddCandidate(new ActionCandidate(
             action,
             context,
             ActionCandidateOrigin.Poll,
-            AllocateCandidateOrder()));
+            AllocateCandidateOrder(),
+            entryMatch: routeMatch));
     }
 
     private void TryAddCandidate(ActionCandidate candidate)
@@ -646,7 +657,7 @@ public class ActionStateManager : MonoBehaviour
                 candidate.Origin == ActionCandidateOrigin.Event, out ActionEntryMatch match)) return;
         if (candidate.ExternalRequest != null && !candidate.ExternalRequest.IsPending) return;
         _validCandidatesCache.Add(new ActionCandidate(candidate.Action, candidate.Context,
-            candidate.Origin, candidate.Order, candidate.ExternalRequest, match));
+            candidate.Origin, candidate.Order, candidate.ExternalRequest, candidate.EntryMatch.Combine(match)));
     }
 
     private bool ContainsEquivalentCandidate(ActionCandidate candidate)

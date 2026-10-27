@@ -10,6 +10,16 @@ internal readonly struct ActionEntryMatch
         _inputs = inputs != null && inputs.Count > 0 ? inputs.ToArray() : null;
     }
 
+    internal ActionEntryMatch Combine(ActionEntryMatch other)
+    {
+        if (_inputs == null) return other;
+        if (other._inputs == null) return this;
+        var inputs = new List<PlayerInputMatch>(_inputs.Length + other._inputs.Length);
+        inputs.AddRange(_inputs);
+        inputs.AddRange(other._inputs);
+        return new ActionEntryMatch(inputs);
+    }
+
     public bool IsCurrentFor(PlayerInputBuffer owner)
     {
         if (_inputs == null) return true;

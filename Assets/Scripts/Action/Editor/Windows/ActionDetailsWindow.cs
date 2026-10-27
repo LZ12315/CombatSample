@@ -77,15 +77,10 @@ public sealed class ActionDetailsWindow : EditorWindow
         OpenShared();
     }
 
-    internal static void OpenShared() => GetWindow<ActionDetailsWindow>("Action Details").Show();
-
-    private static void SelectCurrentActionAsset()
+    internal static void OpenShared()
     {
-        ActionAsset action = ActionEditorContext.Shared.CurrentAction;
-        if (action == null)
-            return;
-        Selection.activeObject = action;
-        EditorGUIUtility.PingObject(action);
+        ActionEditorContext.Shared.EnsureDefaultAnimationSelection();
+        GetWindow<ActionDetailsWindow>("Action Details").Show();
     }
 
     private void OnEnable()
@@ -96,6 +91,7 @@ public sealed class ActionDetailsWindow : EditorWindow
         if (float.IsNaN(_splitRatio) || float.IsInfinity(_splitRatio) || _splitRatio <= 0f || _splitRatio >= 1f)
             _splitRatio = 0.4f;
         if (_previewPanel == null) _previewPanel = new ActionPreviewPanel();
+        ActionEditorContext.Shared.EnsureDefaultAnimationSelection();
         ActionEditorContext.Changed += OnContextChanged;
         ActionEditorInteractionGate.Changed += OnInteractionGateChanged;
         EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
@@ -122,9 +118,7 @@ public sealed class ActionDetailsWindow : EditorWindow
         ActionEditorTheme.Apply(rootVisualElement, "action-editor-details-window");
         rootVisualElement.Add(ActionEditorChrome.ContextBar(
             ActionEditorContext.Shared.CurrentAction,
-            null,
-            ("Select Asset", SelectCurrentActionAsset),
-            ("Timeline", ActionTimelineWindow.OpenShared)));
+            null));
 
         _splitView = new ActionDetailsSplitView(_splitRatio, SaveSplitRatio);
         _detailsPane = new VisualElement();
@@ -288,12 +282,11 @@ public sealed class ActionDetailsWindow : EditorWindow
             sourceStart.SetValueWithoutNotify(0f);
             sourceEnd.SetValueWithoutNotify(clip.length);
             RefreshDraftFeedback();
+            ApplyDraft();
         }) { text = "Use Full Clip" };
-        fullClip.SetEnabled(editable);
-        source.Add(fullClip);
+        AddDraftFooter(source, fullClip, derived, end, editable);
         editor.Add(source);
 
-        AddDraftFooter(editor, derived, end, editable);
         RegisterDraftKeys(editor);
         _content.Add(editor);
     }
@@ -409,8 +402,8 @@ public sealed class ActionDetailsWindow : EditorWindow
             case VelocityOverrideItem velocity:
                 DrawVelocity(parent, velocity, config, editable);
                 break;
-            case MotionPolicyItem:
-                DrawMotionPolicy(parent, config, editable);
+            case MotionPolicyItem policy:
+                DrawMotionPolicy(parent, config, policy, editable);
                 break;
             case TagItem:
                 AddImGuiProperty(parent, config.FindPropertyRelative("tag"), "Tag", editable);
@@ -604,20 +597,13 @@ public sealed class ActionDetailsWindow : EditorWindow
         }
     }
 
-    private void DrawMotionPolicy(VisualElement parent, SerializedProperty config, bool editable)
+    private void DrawMotionPolicy(VisualElement parent, SerializedProperty config, MotionPolicyItem item, bool editable)
     {
-        DrawPolicy(parent, config, "useLocomotionScale", "locomotionScale", "Locomotion", editable);
-        DrawPolicy(parent, config, "useAirLocomotionScale", "airLocomotionScale", "Air Locomotion", editable);
-        DrawPolicy(parent, config, "useGravityScale", "gravityScale", "Gravity", editable);
-    }
-
-    private void DrawPolicy(VisualElement parent, SerializedProperty config, string toggleName, string scaleName,
-        string label, bool editable)
-    {
-        SerializedProperty toggle = config.FindPropertyRelative(toggleName);
-        AddBoundProperty(parent, toggle, label, editable, true);
-        if (toggle != null && toggle.boolValue)
-            AddBoundProperty(parent, config.FindPropertyRelative(scaleName), $"{label} Scale", editable);
+        var watch = CreateWatch(config, false, false, false);
+        var container = new IMGUIContainer(() => DrawImGuiProperty(watch, string.Empty, editable,
+            property => ActionMotionPolicyGUI.DrawWindow(property, _document.Asset, item)));
+        container.AddToClassList("action-editor-imgui-property");
+        parent.Add(container);
     }
 
     private TimingDraft CreateAnimationDraft(AnimationSegment animation, ActionDocumentEntry entry)
@@ -642,15 +628,19 @@ public sealed class ActionDetailsWindow : EditorWindow
         return draft;
     }
 
-    private void AddDraftFooter(VisualElement parent, Label derived, Label end, bool editable)
+    private void AddDraftFooter(VisualElement parent, Button fullClip, Label derived, Label end, bool editable)
     {
         VisualElement buttons = MiniButtons();
-        Button apply = new Button(ApplyDraft) { text = "Apply" };
+        fullClip.SetEnabled(editable && !ActionEditorInteractionGate.IsActive);
+        fullClip.style.flexGrow = 1f;
+        fullClip.style.marginLeft = 0f;
         Button revert = new Button(() => RevertDraft()) { text = "Revert" };
-        apply.SetEnabled(editable && !ActionEditorInteractionGate.IsActive);
         revert.SetEnabled(editable);
+        revert.style.width = 64f;
+        revert.style.flexGrow = 0f;
+        revert.style.flexShrink = 0f;
+        buttons.Add(fullClip);
         buttons.Add(revert);
-        buttons.Add(apply);
         parent.Add(buttons);
         _draftDerived = derived;
         _draftEnd = end;
@@ -880,9 +870,8 @@ public sealed class ActionDetailsWindow : EditorWindow
             drawProperty(property);
         bool changed = EditorGUI.EndChangeCheck();
         EditorGUI.EndDisabledGroup();
-        if (changed)
-            _serializedAction.ApplyModifiedProperties();
-        if (changed)
+        // Foldout/view changes are not content edits and must not dirty the Action.
+        if (changed && _serializedAction.ApplyModifiedProperties())
             OnLeafChanged(watch);
     }
 

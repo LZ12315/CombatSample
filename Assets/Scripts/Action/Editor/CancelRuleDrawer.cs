@@ -6,6 +6,8 @@ using UnityEngine;
 [CustomPropertyDrawer(typeof(CancelRule))]
 public sealed class CancelRuleDrawer : PropertyDrawer
 {
+    private const float ContentInset = 8f;
+    private readonly ActionConditionListDrawers _conditionLists = new ActionConditionListDrawers();
     public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
     {
         float height = EditorGUIUtility.singleLineHeight;
@@ -15,6 +17,8 @@ public sealed class CancelRuleDrawer : PropertyDrawer
         height += ChildHeight(property.FindPropertyRelative(nameof(CancelRule.targetKind)));
         height += ChildHeight(TargetProperty(property));
         height += ChildHeight(property.FindPropertyRelative(nameof(CancelRule.window)));
+        SerializedProperty conditions = property.FindPropertyRelative(nameof(CancelRule.conditions));
+        height += EditorGUIUtility.standardVerticalSpacing + _conditionLists.For(conditions).GetHeight(conditions);
         return height;
     }
 
@@ -35,14 +39,22 @@ public sealed class CancelRuleDrawer : PropertyDrawer
                 return;
 
             // One fixed inset, independent of Unity's array depth and hierarchy mode.
-            row.xMin += 20f;
-            EditorGUIUtility.labelWidth = Mathf.Min(labelWidth, row.width * 0.45f);
+            row.xMin += ContentInset;
+            // Compensate for the content inset instead of recalculating a new label column.
+            EditorGUIUtility.labelWidth = Mathf.Max(1f, labelWidth - ContentInset);
             DrawChild(ref row, property.FindPropertyRelative(nameof(CancelRule.targetKind)), "Target Kind");
             // Only draw the active target; switching kinds does not erase hidden configuration.
             SerializedProperty target = TargetProperty(property);
             if (target != null)
                 DrawChild(ref row, target, target.displayName);
             DrawChild(ref row, property.FindPropertyRelative(nameof(CancelRule.window)), "Window");
+            SerializedProperty conditions = property.FindPropertyRelative(nameof(CancelRule.conditions));
+            ActionAuthoringListGUI list = _conditionLists.For(conditions);
+            row.y += row.height + EditorGUIUtility.standardVerticalSpacing;
+            // Indent the whole child list, not just its header; keep the right edge unchanged.
+            row.xMin = position.x + ContentInset;
+            row.height = list.GetHeight(conditions);
+            list.Draw(row, conditions, "Conditions");
         }
         finally
         {

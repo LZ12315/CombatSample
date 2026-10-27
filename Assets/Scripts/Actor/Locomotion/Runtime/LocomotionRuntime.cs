@@ -60,8 +60,7 @@ public abstract class LocomotionRuntime : IDisposable
         if (context.Motion == null || context.Motor.EffectiveDeltaTime <= 0f)
             return default;
 
-        context.Motion.Prepare(context.Intent, context.HasIntent, context.Motor.EffectiveDeltaTime,
-            MovementConfig);
+        context.Motion.Prepare(context.Intent, context.HasIntent, context.Motor, MovementConfig);
         return new LocomotionMotionRequest(
             context.Motion.CachedVelocity,
             context.Motion.PendingRotation,

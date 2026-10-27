@@ -38,7 +38,10 @@ public sealed class LocomotionVelocityFeedback
         && !result.HasUnknownExternalDisplacement && result.MotionState.MovementTimeScale > 0f;
 
     public static bool SamePolicy(in MotionStateSnapshot a, in MotionStateSnapshot b) =>
-        a.LocomotionScale == b.LocomotionScale && a.AirLocomotionScale == b.AirLocomotionScale
+        a.IsValid == b.IsValid && a.BrakeLocomotion == b.BrakeLocomotion
+        && a.LockLocomotionRotation == b.LockLocomotionRotation
+        && a.LocomotionTurnSpeedLimit == b.LocomotionTurnSpeedLimit
+        && a.LocomotionScale == b.LocomotionScale && a.AirLocomotionScale == b.AirLocomotionScale
         && a.GravityScale == b.GravityScale && a.MovementTimeScale == b.MovementTimeScale
         && a.HasHorizontalVelocityOwner == b.HasHorizontalVelocityOwner
         && a.HasTrajectoryRootMotionOwner == b.HasTrajectoryRootMotionOwner

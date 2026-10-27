@@ -7,6 +7,67 @@ using UnityEngine;
 public sealed class ActionPreviewArchitectureTests
 {
     [Test]
+    public void EditorContext_OpeningActionSelectsEarliestAnimationWithoutChangingAssetOrExistingSelection()
+    {
+        ActionAsset action = CreateActionAsset();
+        var later = new AnimationSegment(); later.EditorSetData(20, null, 0f, 0.1f, 1f);
+        var first = new AnimationSegment(); first.EditorSetData(5, null, 0f, 0.1f, 1f);
+        action.Timeline.EditorAnimationSegments.Add(later);
+        action.Timeline.EditorAnimationSegments.Add(first);
+        ActionAuthoringIdentity.RepairInvalidIds(action);
+        string before = JsonUtility.ToJson(action);
+        ActionEditorContext context = ActionEditorContext.Shared;
+        ActionAsset previousAction = context.CurrentAction;
+        try
+        {
+            context.SetAction(action);
+            Assert.AreEqual(ActionSelectionKind.AnimationSegment, context.PrimarySelection.Kind);
+            Assert.AreEqual(first.EditorId, context.PrimarySelection.EditorId);
+            CollectionAssert.AreEqual(new[] { first.EditorId }, context.SelectedIds);
+            Assert.AreEqual(0d, context.PreviewPosition, "Default selection must not move the playback head.");
+
+            context.Select(ActionSelectionKind.AnimationSegment, later.EditorId, false, false);
+            context.SetAction(action);
+            context.EnsureDefaultAnimationSelection();
+            Assert.AreEqual(later.EditorId, context.PrimarySelection.EditorId,
+                "Reopening must preserve an explicit item selection.");
+
+            context.SelectAction();
+            context.EnsureDefaultAnimationSelection();
+            Assert.AreEqual(first.EditorId, context.PrimarySelection.EditorId);
+            context.Select(ActionSelectionKind.AnimationSegment, System.Guid.NewGuid().ToString("N"), false, false);
+            context.EnsureDefaultAnimationSelection();
+            Assert.AreEqual(first.EditorId, context.PrimarySelection.EditorId, "Stale selections must not leave Details empty.");
+            Assert.AreEqual(before, JsonUtility.ToJson(action), "Default selection is view state, not an asset edit.");
+        }
+        finally
+        {
+            context.SetAction(previousAction);
+            Object.DestroyImmediate(action);
+        }
+    }
+
+    [Test]
+    public void EditorContext_OpeningActionWithoutAnimationsKeepsAnEmptyItemSelection()
+    {
+        ActionAsset action = CreateActionAsset();
+        ActionEditorContext context = ActionEditorContext.Shared;
+        ActionAsset previousAction = context.CurrentAction;
+        try
+        {
+            context.SetAction(action);
+            context.EnsureDefaultAnimationSelection();
+            Assert.AreEqual(ActionSelectionKind.Action, context.PrimarySelection.Kind);
+            Assert.IsEmpty(context.SelectedIds);
+        }
+        finally
+        {
+            context.SetAction(previousAction);
+            Object.DestroyImmediate(action);
+        }
+    }
+
+    [Test]
     public void EditorContext_CoalescesBindingChangesAndDropsCallbacksFromOldSession()
     {
         ActionAsset action = CreateActionAsset();
@@ -665,14 +726,16 @@ public sealed class ActionPreviewArchitectureTests
         }
     }
 
-    [Test]
-    public void PreviewInitialFraming_FitsBoundsForCameraAspectAndRotation()
+    [TestCase(0.5f)]
+    [TestCase(1f)]
+    [TestCase(16f / 9f)]
+    public void PreviewInitialFraming_FitsBoundsForDefaultCameraAcrossViewportAspects(float aspect)
     {
         var bounds = new Bounds(new Vector3(3f, 2f, -4f), new Vector3(6f, 3f, 2f));
-        Quaternion rotation = Quaternion.Euler(18f, 37f, 0f);
+        Vector2 orbit = ActionPreviewCameraUtility.DefaultOrbit;
+        Quaternion rotation = Quaternion.Euler(orbit.y, orbit.x, 0f);
         const float fieldOfView = 30f;
-        const float aspect = 16f / 9f;
-        const float fill = 0.42f;
+        const float fill = ActionPreviewCameraUtility.DefaultViewportFill;
 
         Assert.IsTrue(ActionPreviewCameraUtility.TryCalculateInitialFraming(
             bounds, rotation, fieldOfView, aspect, fill, out Vector3 target, out float distance));

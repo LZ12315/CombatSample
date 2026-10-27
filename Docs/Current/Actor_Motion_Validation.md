@@ -30,6 +30,7 @@ Finish → 发布请求、实际运动与来源事实，供后续 Tick 反馈
 | 旋转 | Scripted ＞ Root ＞ Locomotion；Root／Scripted owner 按已有栈规则恢复，失效 token 不影响当前 owner，被覆盖的旋转不补播。 |
 | Root Motion | Action 使用 actor-local 轨迹区间位移；普通 Locomotion 的根轨迹用于动画匹配，不直接驱动 Capsule，不读取 Animator delta 作为 Gameplay authority。 |
 | 世界反馈 | Requested 与 ActualSolved 分开；碰撞阻挡的位移不偿还。反馈必须保留对应求解区间的来源与时间倍率。 |
+| Action Policy | 动作默认＋按字段窗口覆盖先解析为本动作有效值，再与外部限制合成；窗口可解除自身默认限制，但不能解除外部限制。Brake 连续减速，Locked 清理自主缓存；转向从身体朝向恢复。Root／Scripted／Velocity 来源优先级保持不变。慢放分数帧和暂停保留有效策略，跨动作帧边界才切换；原始输入不被删除。 |
 | 时间 | MovementTimeScale 为零时运动与相关动画时钟冻结，恢复不补帧、不重复执行 Action gameplay 副作用。 |
 | 清理 | Cancel、Disable、Dispose、Action 中断与 Driver abort 配对释放 owner、policy、标签和其他临时状态；旧 owner 请求不进入新会话。 |
 
@@ -50,6 +51,7 @@ Finish → 发布请求、实际运动与来源事实，供后续 Tick 反馈
 
 | 套件 | 主要范围 |
 | --- | --- |
+| ActionMotionPolicyTests | 默认／旧数据、按字段覆盖、半开区间、重叠与外部合成、配置快照、慢放暂停、生命周期清理、刹停／锁定恢复与 Motor 来源优先级。 |
 | LocomotionContractTests | 输入、运动积分、选择、冻结、重复 Build 与生命周期。 |
 | LocomotionSetDecisionTests | Start／Stop／Pivot 决策、阈值、输入边沿和 Action 中断。 |
 | LocomotionAnimationContractTests | 真实 Animancer 图、脚相参考、交接保护、owner、重建与绑定。 |

@@ -1,0 +1,131 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2fb589b8fd064b95b2feff521d1c2c92, type: 3}
+  m_Name: Anim_GreaySword_Run_Turn_L
+  m_EditorClassIdentifier: 
+  _clip: {fileID: 7400000, guid: 7ae0164237c20d84b8ad79cc7f3fabe9, type: 2}
+  _hasRootMotionData: 1
+  _rootMotionData:
+    sourceClip: {fileID: 7400000, guid: 7ae0164237c20d84b8ad79cc7f3fabe9, type: 2}
+    sampleRate: 60
+    duration: 0.46666676
+    bakerVersion: 1
+    dependencyHash: ea00797a23a04464f8d2a4b88a7b9c3b
+    sampleTimes:
+    - 0
+    - 0.016666668
+    - 0.033333335
+    - 0.05
+    - 0.06666667
+    - 0.083333336
+    - 0.1
+    - 0.11666667
+    - 0.13333334
+    - 0.15
+    - 0.16666667
+    - 0.18333334
+    - 0.2
+    - 0.21666667
+    - 0.23333333
+    - 0.25
+    - 0.26666668
+    - 0.28333333
+    - 0.3
+    - 0.31666666
+    - 0.33333334
+    - 0.35
+    - 0.36666667
+    - 0.38333333
+    - 0.4
+    - 0.41666666
+    - 0.43333334
+    - 0.45
+    - 0.46666667
+    - 0.46666676
+    cumulativePositions:
+    - {x: 0, y: 0, z: 0}
+    - {x: 0.0005478665, y: 0, z: 0.13738891}
+    - {x: 0.0015456018, y: 0, z: 0.27669036}
+    - {x: 0.0018384136, y: 0, z: 0.41152084}
+    - {x: 0.001846682, y: 0, z: 0.5420299}
+    - {x: 0.0027673175, y: 0, z: 0.6683631}
+    - {x: 0.0037582745, y: 0, z: 0.78673935}
+    - {x: 0.0040555294, y: 0, z: 0.9035995}
+    - {x: 0.003380201, y: 0, z: 1.020551}
+    - {x: 0.002088794, y: 0, z: 1.1410373}
+    - {x: 0.00047324353, y: 0, z: 1.2648208}
+    - {x: -0.00037315645, y: 0, z: 1.3930516}
+    - {x: -0.0010809316, y: 0, z: 1.5243667}
+    - {x: -0.0011511358, y: 0, z: 1.664508}
+    - {x: -0.00043857063, y: 0, z: 1.8086363}
+    - {x: -0.000013254437, y: 0, z: 1.9556451}
+    - {x: -0.00005999804, y: 0, z: 2.0962794}
+    - {x: -0.00030479813, y: 0, z: 2.2251828}
+    - {x: 0.0011597531, y: 0, z: 2.3585157}
+    - {x: 0.00093766, y: 0, z: 2.4878392}
+    - {x: -0.00016213348, y: 0, z: 2.610894}
+    - {x: -0.0015514205, y: 0, z: 2.7348442}
+    - {x: -0.0018565215, y: 0, z: 2.8623478}
+    - {x: -0.0006860555, y: 0, z: 2.9908226}
+    - {x: 0.000803177, y: 0, z: 3.1196952}
+    - {x: 0.001366874, y: 0, z: 3.25168}
+    - {x: 0.0011525922, y: 0, z: 3.3867426}
+    - {x: 0.00027584797, y: 0, z: 3.5277362}
+    - {x: -0.000000049214577, y: 0, z: 3.6630292}
+    - {x: -0.000000049713098, y: 0, z: 3.6630294}
+    cumulativeRotations:
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+  _locomotionData:
+    sourceClip: {fileID: 7400000, guid: 7ae0164237c20d84b8ad79cc7f3fabe9, type: 2}
+    trajectoryHash: ea00797a23a04464f8d2a4b88a7b9c3b
+    footSetup: '|'
+    stopTime: 0.46666667
+    footMarkers:
+    - time: 0.18333334
+      foot: 0
+    - time: 0.4
+      foot: 1
+  _locomotionOverrideClip: {fileID: 0}
+  _overrideStopTime: 0
+  _stopTimeOverride: 0
+  _overrideFootMarkers: 0
+  _footMarkerOverrides: []
+  _animationRigAsset: {fileID: 11400000, guid: 094e26a819508f44884acc06c510730f, type: 2}

@@ -382,7 +382,8 @@ public class ActorMotor : MonoBehaviour, ICharacterController
         _policy.LocomotionScale, _policy.AirLocomotionScale, _policy.GravityScale,
         MovementTimeScale, _translation.HasHorizontalVelocityOwner,
         _translation.HasTrajectoryRootMotionOwner,
-        _rotation.DebugRootRotationOwnerCount > 0, _rotation.DebugScriptedRotationOwnerCount > 0);
+        _rotation.DebugRootRotationOwnerCount > 0, _rotation.DebugScriptedRotationOwnerCount > 0,
+        _policy.BrakeLocomotion, _policy.LockLocomotionRotation, _policy.LocomotionTurnSpeedLimit);
 
     public LocomotionMotionContext BeginMotion(float simulationDeltaTime)
     {
@@ -446,8 +447,13 @@ public class ActorMotor : MonoBehaviour, ICharacterController
                 _policy.GravityScale, _verticalImpulseAirDrag);
             _pendingCeilingHit = false;
 
-            _rotation.Prepare(_motorFrameStartWorldRotation,
-                request.HasRotation ? request.TargetWorldRotation : _motorFrameStartWorldRotation);
+            Quaternion locomotionRotation = request.HasRotation ? request.TargetWorldRotation : _motorFrameStartWorldRotation;
+            if (_policy.LockLocomotionRotation) locomotionRotation = _motorFrameStartWorldRotation;
+            else if (_policy.LocomotionTurnSpeedLimit > 0f)
+                locomotionRotation = Quaternion.RotateTowards(_motorFrameStartWorldRotation, locomotionRotation,
+                    _policy.LocomotionTurnSpeedLimit * motionDeltaTime);
+            // Only constrain the fallback proposal. Scripted/Root rotation keeps its existing authority.
+            _rotation.Prepare(_motorFrameStartWorldRotation, locomotionRotation);
             _requestedRotation = _rotation.RequestedRotation;
 
             Vector3 locomotionVelocity = request.HasVelocity ? request.WorldPlanarVelocity : Vector3.zero;

@@ -178,6 +178,7 @@ public sealed class ActionTimelineWindow : EditorWindow
         ActionTimelineWindow window = GetWindow<ActionTimelineWindow>("Action Timeline");
         if (ActionEditorContext.Shared.CurrentAction == null && Selection.activeObject is ActionAsset action)
             ActionEditorContext.Shared.SetAction(action);
+        ActionEditorContext.Shared.EnsureDefaultAnimationSelection();
         window.Show();
     }
 
@@ -188,12 +189,18 @@ public sealed class ActionTimelineWindow : EditorWindow
         window.Show();
     }
 
-    internal static void OpenShared() => GetWindow<ActionTimelineWindow>("Action Timeline").Show();
+    internal static void OpenShared()
+    {
+        ActionEditorContext.Shared.EnsureDefaultAnimationSelection();
+        GetWindow<ActionTimelineWindow>("Action Timeline").Show();
+    }
 
     private void OnEnable()
     {
         _uiReady = false;
         _pendingContextChanges = ActionEditorChangeFlags.None;
+        _snapEnabled = true; // Do not restore a disabled default from an older saved window layout.
+        ActionEditorContext.Shared.EnsureDefaultAnimationSelection();
         ActionEditorContext.Changed += OnContextChanged;
         EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
     }

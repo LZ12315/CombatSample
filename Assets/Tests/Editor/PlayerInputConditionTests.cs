@@ -94,11 +94,35 @@ public sealed class PlayerInputConditionTests
         Assert.IsFalse(ActionCondition.TryValidateAll(new ActionCondition[] { incomplete, null }, true, out _));
     }
 
+    [TestCase(false)]
+    [TestCase(true)]
+    public void CombinedCandidateReceipts_CommitAtomicallyAndDeduplicateSharedEvents(bool invalidateOneGroup)
+    {
+        PlayerInputBuffer input = Pressed();
+        input.QueueButton(Enums.InputButton.HeavyAttack, true, 1d);
+        input.BeginFixedTick(1d);
+        Assert.IsTrue(Press().TryMatchInput(input, out PlayerInputMatch light));
+        var heavyCondition = new InputSequenceCondition
+        {
+            clips = new[] { new InputEventClip { button = Enums.InputButton.HeavyAttack } },
+        };
+        Assert.IsTrue(heavyCondition.TryMatchInput(input, out PlayerInputMatch heavy));
+        var route = new ActionEntryMatch(new List<PlayerInputMatch> { light, heavy });
+        var requirements = new ActionEntryMatch(new List<PlayerInputMatch> { light });
+        ActionEntryMatch combined = route.Combine(requirements);
+        if (invalidateOneGroup) Assert.IsTrue(input.TryConsumePress(Enums.InputButton.HeavyAttack));
+
+        Assert.AreEqual(!invalidateOneGroup, combined.TryConsume(input));
+        Assert.AreEqual(invalidateOneGroup, input.TryFindEvent(Attack, InputButtonEventKind.Pressed, out _));
+        Assert.IsFalse(input.TryFindEvent(Enums.InputButton.HeavyAttack, InputButtonEventKind.Pressed, out _));
+    }
+
     [Test]
-    public void ExitConditions_AcceptStateButRejectConsumableSequence()
+    public void SharedConditionSets_AcceptBothStateAndConsumableInputConditions()
     {
         Assert.IsTrue(ActionCondition.TryValidateAll(new[] { new InputStateCondition { button = Attack, held = false } },
-            false, out _, exit: true));
-        Assert.IsFalse(ActionCondition.TryValidateAll(new[] { Press() }, false, out _, exit: true));
+            false, out _));
+        Assert.IsTrue(ActionCondition.TryValidateAll(new[] { Press() }, false, out _));
+        Assert.IsTrue(ActionCondition.TryValidateAll(new ActionCondition[0], false, out _));
     }
 }

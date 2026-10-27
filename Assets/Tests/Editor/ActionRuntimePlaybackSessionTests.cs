@@ -264,6 +264,8 @@ public sealed class ActionRuntimePlaybackSessionTests
     private ActionAsset CreateActionRuntimeAsset()
     {
         ActionAsset asset = ScriptableObject.CreateInstance<ActionAsset>();
+        asset.MotionPolicy.movement = ActionMovementControl.Allow;
+        asset.MotionPolicy.turning = ActionTurnControl.Normal; // Playback tests use neutral motion unless explicitly overridden.
         _objects.Add(asset);
         return asset;
     }

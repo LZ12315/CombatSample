@@ -559,17 +559,60 @@ public sealed class ActionStateManagerContextTests
     }
 
     [Test]
-    public void PlayActionTask_ZeroTimeoutWithdrawsPendingRequest()
+    public void PlayActionTask_WithoutUntilStartedFailsAfterSingleArbitration()
     {
         TestRig rig = CreateRig();
-        PlayActionTask task = CreatePlayActionTask(rig, CreateAction("Expired Task", ActionTriggerMode.Poll));
-        task.requestMode = PlayActionTask.RequestMode.UntilStarted;
-        task.timeout = 0f;
+        ActionAsset winner = CreateAction("Prioritized Winner", ActionTriggerMode.Poll, priorityValue: 10);
+        PlayActionTask task = CreatePlayActionTask(rig, CreateAction("Losing Request", ActionTriggerMode.Poll));
 
-        Assert.AreEqual(Status.Failure, task.Execute(rig.Actor, null));
+        Assert.AreEqual(Status.Running, task.Execute(rig.Actor, null));
         rig.RunActionStateManager();
 
-        Assert.IsNull(rig.Player.CurrentAction);
+        Assert.AreSame(winner, rig.Player.CurrentAction.Config);
+        Assert.AreEqual(Status.Failure, task.Execute(rig.Actor, null));
+    }
+
+    [Test]
+    public void PlayActionTask_UntilStartedRetriesUntilActionBecomesAvailable()
+    {
+        TestRig rig = CreateRig();
+        var winnerCondition = new MutableEntryCondition(true);
+        ActionAsset winner = CreateAction("Prioritized Winner", ActionTriggerMode.Poll, priorityValue: 10);
+        SetPrivateField(winner, "_entryConditions", new List<ActionCondition> { winnerCondition });
+        ActionAsset requested = CreateAction("Retried Request", ActionTriggerMode.Poll);
+        PlayActionTask task = CreatePlayActionTask(rig, requested);
+        task.untilStarted = true;
+        task.timeout = 10f;
+
+        Assert.AreEqual(Status.Running, task.Execute(rig.Actor, null));
+        rig.RunActionStateManager();
+        Assert.AreSame(winner, rig.Player.CurrentAction.Config);
+        Assert.IsTrue(task.isRunning, "A rejected request must not end Until Started execution.");
+
+        // Free the slot and stop the winner from competing in the next arbitration.
+        winnerCondition.Result = false;
+        rig.Player.StopAction();
+        Assert.AreEqual(Status.Running, task.Execute(rig.Actor, null));
+        rig.RunActionStateManager();
+
+        Assert.AreSame(requested, rig.Player.CurrentAction.Config);
+        Assert.AreEqual(Status.Success, task.Execute(rig.Actor, null));
+    }
+
+    [Test]
+    public void PlayActionTask_ZeroTimeoutStillGetsOneArbitrationChance()
+    {
+        TestRig rig = CreateRig();
+        ActionAsset action = CreateAction("Single Chance", ActionTriggerMode.Poll);
+        PlayActionTask task = CreatePlayActionTask(rig, action);
+        task.untilStarted = true;
+        task.timeout = 0f;
+
+        Assert.AreEqual(Status.Running, task.Execute(rig.Actor, null));
+        rig.RunActionStateManager();
+
+        Assert.AreSame(action, rig.Player.CurrentAction.Config);
+        Assert.AreEqual(Status.Success, task.Execute(rig.Actor, null));
     }
 
     [Test]
@@ -826,6 +869,161 @@ public sealed class ActionStateManagerContextTests
         Assert.AreEqual(1, callbacks);
     }
 
+    [Test]
+    public void NeutralEntries_UseTheirOwnConditionsAndAllowAnAlternativeRouteToTheSameAction()
+    {
+        TestRig rig = CreateRig();
+        ActionAsset action = CreateAction("Neutral requirements", ActionTriggerMode.Poll);
+        action.EditorRequirements.Clear();
+        ActionAssetList list = rig.SetActionList(action);
+        list.EditorEntries[0].conditions.Add(new AlwaysTrueCondition { invertResult = true });
+
+        rig.RunActionStateManager();
+        Assert.IsNull(rig.Player.CurrentAction);
+
+        list.EditorEntries.Add(new ActionListEntry { action = action });
+        rig.RunActionStateManager();
+        Assert.AreSame(action, rig.Player.CurrentAction.Config, "An explicit empty route and empty requirements are unconditional.");
+    }
+
+    [TestCase(true)]
+    [TestCase(false)]
+    public void NeutralEntryRestrictions_DoNotBlockCancellationDiscoveryOrExternalRequests(bool external)
+    {
+        TestRig rig = CreateRig();
+        ActionAsset current = CreateLongAction("Current");
+        ActionAsset next = CreateAction("Combo-only", ActionTriggerMode.Poll);
+        ActionAssetList list = rig.SetActionList(next);
+        list.EditorEntries[0].conditions.Add(new AlwaysTrueCondition { invertResult = true });
+        list.EditorEntries[0].allowFromNeutral = false;
+        rig.RunActionStateManager();
+        Assert.IsNull(rig.Player.CurrentAction);
+
+        current.EditorCancelRules.Add(new CancelRule { targetKind = CancelTargetKind.Any });
+        bool? started = null;
+        if (external)
+            rig.Asm.RequestExternalAction(next, ActionContext.ForSelf(rig.Actor), value => started = value);
+        else
+            rig.Player.BeginAction(current, ActionContext.ForSelf(rig.Actor));
+        rig.RunActionStateManager();
+
+        Assert.AreSame(next, rig.Player.CurrentAction.Config);
+        if (external) Assert.AreEqual(true, started);
+    }
+
+    [TestCase(true)]
+    [TestCase(false)]
+    public void CancelRouteConditions_GatePollAndExternalWithoutConsumingRejectedInput(bool external)
+    {
+        TestRig rig = CreateRig();
+        ActionAsset current = CreateLongAction("Current");
+        ActionAsset next = CreateAction("Next", ActionTriggerMode.Poll);
+        PlayerInputBuffer input = BindPressedInput(rig, next);
+        var routeState = new AlwaysTrueCondition { invertResult = true };
+        current.EditorCancelRules.Add(new CancelRule
+        {
+            targetKind = external ? CancelTargetKind.Any : CancelTargetKind.SpecificAction,
+            specificTarget = next,
+            conditions = new List<ActionCondition> { routeState },
+        });
+        rig.Player.BeginAction(current, ActionContext.ForSelf(rig.Actor));
+        bool? started = null;
+        if (external)
+            rig.Asm.RequestExternalAction(next, ActionContext.ForSelf(rig.Actor), value => started = value);
+        rig.RunActionStateManager();
+        Assert.AreSame(current, rig.Player.CurrentAction.Config);
+        Assert.IsTrue(input.TryFindEvent(Enums.InputButton.LightAttack, InputButtonEventKind.Pressed, out _));
+        if (external) Assert.AreEqual(false, started);
+
+        routeState.invertResult = false;
+        if (external)
+            rig.Asm.RequestExternalAction(next, ActionContext.ForSelf(rig.Actor), value => started = value);
+        rig.RunActionStateManager();
+        Assert.AreSame(next, rig.Player.CurrentAction.Config);
+        Assert.IsFalse(input.TryFindEvent(Enums.InputButton.LightAttack, InputButtonEventKind.Pressed, out _));
+        if (external) Assert.AreEqual(true, started);
+    }
+
+    [TestCase(true)]
+    [TestCase(false)]
+    public void RouteAndRequirementInputReceipts_AreCommittedTogetherAndSharedEdgesConsumeOnce(bool neutral)
+    {
+        TestRig rig = CreateRig();
+        ActionAsset next = CreateAction("Combined input", ActionTriggerMode.Poll);
+        PlayerInputBuffer input = BindPressedInput(rig, next);
+        input.QueueButton(Enums.InputButton.HeavyAttack, true, 1d);
+        input.BeginFixedTick(1d);
+        var routeConditions = new List<ActionCondition>
+        {
+            new InputSequenceCondition { clips = new[] { new InputEventClip { button = Enums.InputButton.LightAttack } } },
+            new InputSequenceCondition { clips = new[] { new InputEventClip { button = Enums.InputButton.HeavyAttack } } },
+        };
+        if (neutral)
+            rig.SetActionList(next).EditorEntries[0].conditions = routeConditions;
+        else
+        {
+            ActionAsset current = CreateLongAction("Current");
+            current.EditorCancelRules.Add(new CancelRule { specificTarget = next, conditions = routeConditions });
+            rig.Player.BeginAction(current, ActionContext.ForSelf(rig.Actor));
+        }
+
+        rig.RunActionStateManager();
+
+        Assert.AreSame(next, rig.Player.CurrentAction.Config);
+        Assert.IsFalse(input.TryFindEvent(Enums.InputButton.LightAttack, InputButtonEventKind.Pressed, out _));
+        Assert.IsFalse(input.TryFindEvent(Enums.InputButton.HeavyAttack, InputButtonEventKind.Pressed, out _));
+    }
+
+    [TestCase(true)]
+    [TestCase(false)]
+    public void LocomotionReturn_ConsumesRouteInputOnlyWhenTheReturnWins(bool competingAction)
+    {
+        TestRig rig = CreateRig();
+        ActionAsset current = CreateLongAction("Return source");
+        PlayerInputBuffer input = BindPressedInput(rig, current);
+        CancelRule rule = ReturnRule();
+        rule.conditions.Add(new InputSequenceCondition
+        {
+            clips = new[] { new InputEventClip { button = Enums.InputButton.LightAttack } },
+        });
+        current.EditorCancelRules.Add(rule);
+        ActionAsset next = CreateAction("Competing action", ActionTriggerMode.Poll);
+        if (competingAction)
+            current.EditorCancelRules.Add(new CancelRule { specificTarget = next });
+        rig.Player.BeginAction(current, ActionContext.ForSelf(rig.Actor));
+        rig.Locomotion.SetLocomotionIntent(new LocomotionIntent { WorldMoveDirection = Vector3.right, MoveStrength = 1f });
+        rig.Locomotion.BeginControlTick();
+
+        rig.RunActionStateManager();
+
+        if (competingAction) Assert.AreSame(next, rig.Player.CurrentAction.Config);
+        else Assert.IsNull(rig.Player.CurrentAction);
+        Assert.AreEqual(competingAction, input.TryFindEvent(Enums.InputButton.LightAttack, InputButtonEventKind.Pressed, out _));
+    }
+
+    [Test]
+    public void EventRegistration_IgnoresNeutralConditionsButStillChecksTargetRequirements()
+    {
+        TestRig rig = CreateRig();
+        Tag tag = CreateTag("Tests.ActionEntry.Event");
+        ActionAsset action = CreateAction("Event", ActionTriggerMode.Event);
+        SetPrivateField(action, "_eventTriggerTag", CreateTagReference(tag));
+        ActionAssetList list = rig.SetActionList(action);
+        list.EditorEntries[0].allowFromNeutral = false;
+        list.EditorEntries[0].conditions.Add(null);
+        action.EditorRequirements.Clear();
+        var requirement = new AlwaysTrueCondition { invertResult = true };
+        action.EditorRequirements.Add(requirement);
+        rig.Asm.SendEvent(tag, ActionContext.ForSelf(rig.Actor));
+        rig.RunActionStateManager();
+        Assert.IsNull(rig.Player.CurrentAction);
+
+        requirement.invertResult = false;
+        rig.Asm.SendEvent(tag, ActionContext.ForSelf(rig.Actor));
+        rig.RunActionStateManager();
+        Assert.AreSame(action, rig.Player.CurrentAction.Config);
+    }
+
     private static PlayerInputBuffer BindPressedInput(TestRig rig, ActionAsset action)
     {
         var input = new PlayerInputBuffer();
@@ -891,6 +1089,8 @@ public sealed class ActionStateManagerContextTests
         int priorityValue = 0)
     {
         ActionAsset action = ScriptableObject.CreateInstance<ActionAsset>();
+        action.MotionPolicy.movement = ActionMovementControl.Allow;
+        action.MotionPolicy.turning = ActionTurnControl.Normal;
         action.name = name;
         _objects.Add(action);
 
@@ -912,6 +1112,8 @@ public sealed class ActionStateManagerContextTests
     private ActionAsset CreateValidActionRuntimeAction(string name)
     {
         ActionAsset action = ScriptableObject.CreateInstance<ActionAsset>();
+        action.MotionPolicy.movement = ActionMovementControl.Allow;
+        action.MotionPolicy.turning = ActionTurnControl.Normal;
         action.name = name;
         _objects.Add(action);
         SetPrivateField(action, "_triggerMode", ActionTriggerMode.Poll);
@@ -975,14 +1177,15 @@ public sealed class ActionStateManagerContextTests
         public ActionPlayer Player { get; }
         public ActionStateManager Asm { get; }
 
-        public void SetActionList(params ActionAsset[] actions)
+        public ActionAssetList SetActionList(params ActionAsset[] actions)
         {
             ActionAssetList list = ScriptableObject.CreateInstance<ActionAssetList>();
             _owner._objects.Add(list);
-            SetPrivateField(list, "_globalActions", new List<ActionAsset>(actions));
-            SetPrivateField(list, "_allActionsCache", null);
+            foreach (ActionAsset action in actions)
+                list.EditorEntries.Add(new ActionListEntry { action = action });
             SetPrivateField(Asm, "_actionList", list);
             RebuildEventMap();
+            return list;
         }
 
         public void RebuildEventMap()
@@ -1005,7 +1208,6 @@ public sealed class ActionStateManagerContextTests
     {
         var task = new PlayActionTask
         {
-            actor = new BBParameter<Actor> { value = rig.Actor },
             actionToPlay = new BBParameter<ActionAsset> { value = action },
         };
         task.SetOwnerSystem(new TestTaskSystem(rig.Actor));
@@ -1023,6 +1225,13 @@ public sealed class ActionStateManagerContextTests
         public void UpdateTasksOwner() { }
         public void SendEvent(string name, object value, object sender) { }
         public void SendEvent<T>(string name, T value, object sender) { }
+    }
+
+    private sealed class MutableEntryCondition : ActionCondition
+    {
+        public bool Result;
+        public MutableEntryCondition(bool result) { Result = result; }
+        protected override bool OnCheck(Actor actor) { return Result; }
     }
 
     private sealed class EntryCallbackCondition : ActionCondition

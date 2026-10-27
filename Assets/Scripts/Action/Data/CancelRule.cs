@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using DeiveEx.TagTree;
 using UnityEngine;
 
@@ -26,7 +27,7 @@ public enum CancelTargetKind
 /// 或全表所有 Action（Any）；Locomotion 则结束当前 Action，交回基础移动。
 ///
 /// <para><b>职责边界</b>：CancelRule 描述取消窗口并提供目标匹配，ActionStateManager 负责展开候选与仲裁。
-/// 目标 Action 是否真能进入仍由其自身的 <c>CheckEntry</c>（EntryConditions）决定，目标匹配不代替准入。</para>
+/// 规则 Conditions 与目标 Action 的 Requirements 都必须满足；目标匹配不代替准入。</para>
 ///
 /// <para><b>与 SelfTags 的配合（AnyWithTag）</b>：<see cref="ActionStateManager"/> 在仲裁阶段扫描
 /// <c>ActionList</c> 中非 Event 的 Action，对每个候选检查 SelfTags 是否与 <see cref="targetTag"/> 匹配
@@ -49,6 +50,9 @@ public class CancelRule
 
     [Tooltip("允许取消的帧窗口。可通过 FrameAnchor 锚点选择从头开始/到结尾，无需手动查帧数。")]
     public CancelWindow window = CancelWindow.FullRange;
+
+    [SerializeReference, SubclassSelector, Tooltip("Additional conditions for this cancellation route. All must pass; empty means window and target matching are sufficient.")]
+    public List<ActionCondition> conditions = new List<ActionCondition>();
 
     /// <summary>
     /// Shared target matching for Poll expansion and External validation.

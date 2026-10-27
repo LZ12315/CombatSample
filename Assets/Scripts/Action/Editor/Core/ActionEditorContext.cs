@@ -177,8 +177,7 @@ internal readonly struct ActionEditorObservedState
             Add(ref content, (int)action.StartContextMode);
             AddJsonList(ref content, action.CancelRules);
             AddJsonList(ref content, action.SelfTags);
-            AddJsonList(ref content, action.EntryConditions);
-            AddJsonList(ref content, action.ExitConditions);
+            AddJsonList(ref content, action.Requirements);
         }
 
         var animationAssets = new List<AnimationAsset>();
@@ -464,7 +463,10 @@ internal sealed class ActionEditorContext : ScriptableSingleton<ActionEditorCont
     {
         if (action == null) action = null; // Normalize destroyed Unity objects to a real null.
         if (ReferenceEquals(_currentAction, action))
+        {
+            EnsureDefaultAnimationSelection();
             return true;
+        }
 
         CancelQueuedBindingChange();
         _currentAction = action;
@@ -477,11 +479,37 @@ internal sealed class ActionEditorContext : ScriptableSingleton<ActionEditorCont
         SelectionEntries.Clear();
         _sessionVersion++;
         RebuildDocument();
+        TrySelectDefaultAnimation();
         Publish(ActionEditorChangeFlags.Context | ActionEditorChangeFlags.Selection |
               ActionEditorChangeFlags.Frame |
                ActionEditorChangeFlags.Preview | ActionEditorChangeFlags.PreviewPosition |
                ActionEditorChangeFlags.PreviewResources | ActionEditorChangeFlags.Playback,
             ActionEditorChangeOrigin.Session);
+        return true;
+    }
+
+    internal void EnsureDefaultAnimationSelection()
+    {
+        if (TrySelectDefaultAnimation())
+            Publish(ActionEditorChangeFlags.Selection, ActionEditorChangeOrigin.Session);
+    }
+
+    private bool TrySelectDefaultAnimation()
+    {
+        // Only fill an empty Details selection; reopening must not replace a user's selected item.
+        ActionEditorDocument document = Document;
+        if (!string.IsNullOrEmpty(_primarySelection.EditorId) &&
+            document.ById.TryGetValue(_primarySelection.EditorId, out ActionDocumentEntry selected) &&
+            selected.SelectionKind == _primarySelection.Kind)
+            return false;
+        ActionDocumentEntry first = document.AnimationSegments
+            .Where(entry => entry.HasStableSelection)
+            .OrderBy(entry => entry.StartFrame).ThenBy(entry => entry.ItemIndex).FirstOrDefault();
+        if (first == null)
+            return false;
+        _primarySelection = new ActionSelectionValue(first.SelectionKind, first.EditorId);
+        SelectionEntries.Clear();
+        SelectionEntries.Add(_primarySelection);
         return true;
     }
 

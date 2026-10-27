@@ -30,49 +30,6 @@ internal sealed class ActionTagItemRuntime : IActionRangeRuntime
     }
 }
 
-internal sealed class ActionMotionPolicyItemRuntime : IActionRangeRuntime
-{
-    private readonly MotionPolicyItemConfig _config;
-    private ActorMotor _motor;
-    private MotionOwner _locomotionOwner;
-    private MotionOwner _airLocomotionOwner;
-    private MotionOwner _gravityOwner;
-
-    public ActionMotionPolicyItemRuntime(MotionPolicyItemConfig config) => _config = config;
-
-    public void Enter(ActionRuntimeContext context)
-    {
-        _motor = context.Motor ?? throw new InvalidOperationException("MotionPolicyItem requires ActorMotor.");
-        if (_config == null || (!_config.useLocomotionScale && !_config.useAirLocomotionScale && !_config.useGravityScale))
-            throw new InvalidOperationException("MotionPolicyItem requires at least one policy.");
-
-        if (_config.useLocomotionScale)
-            _locomotionOwner = _motor.BeginLocomotionScale(_config.locomotionScale);
-        if (_config.useAirLocomotionScale)
-            _airLocomotionOwner = _motor.BeginAirLocomotionScale(_config.airLocomotionScale);
-        if (_config.useGravityScale)
-            _gravityOwner = _motor.BeginGravityScale(_config.gravityScale);
-    }
-
-    public void Tick(ActionRuntimeContext context, int localFrame) { }
-    public void Exit(ActionRuntimeContext context, ActionRangeExitReason reason) => Release();
-    public void Abort(ActionRuntimeContext context) => Release();
-
-    private void Release()
-    {
-        if (_motor != null)
-        {
-            if (_locomotionOwner.IsValid) _motor.EndLocomotionScale(_locomotionOwner);
-            if (_airLocomotionOwner.IsValid) _motor.EndAirLocomotionScale(_airLocomotionOwner);
-            if (_gravityOwner.IsValid) _motor.EndGravityScale(_gravityOwner);
-        }
-        _locomotionOwner = default;
-        _airLocomotionOwner = default;
-        _gravityOwner = default;
-        _motor = null;
-    }
-}
-
 internal sealed class ActionHitBoxItemRuntime : IActionRangeRuntime
 {
     private readonly HitBoxItemConfig _config;

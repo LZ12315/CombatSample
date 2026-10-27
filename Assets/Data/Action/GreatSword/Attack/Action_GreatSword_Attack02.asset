@@ -1,0 +1,82 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d4a14c808be2c4f4a8f1b6d45ebd172f, type: 3}
+  m_Name: Action_GreatSword_Attack02
+  m_EditorClassIdentifier: 
+  _actionTimeline:
+    _animationSegments:
+    - _editorId: 7020015fa71249a1965554fcf175e61d
+      _startFrame: 0
+      _animationAsset: {fileID: 11400000, guid: d98661d275ce0914aba07d9390daadaa,
+        type: 2}
+      _sourceStartTime: 0
+      _sourceEndTime: 0.9000002
+      _playRate: 1
+    - _editorId: 4465937e4850400786e75b09453e1e65
+      _startFrame: 55
+      _animationAsset: {fileID: 11400000, guid: 15c91675cb8c5bb41aee976e0a2c455f,
+        type: 2}
+      _sourceStartTime: 0
+      _sourceEndTime: 2.0833335
+      _playRate: 1
+    _gameplayLanes:
+    - _editorId: 5dd2bd7cf750401f93c0e766f0d5cb17
+      _name: Gameplay
+      _muted: 0
+      _items:
+      - rid: 6940827153219190784
+      - rid: 6940827153219190786
+  _priorityLayer: 1
+  _priorityValue: 0
+  _cancelRules: []
+  _selfTags: []
+  _triggerMode: 0
+  _eventTriggerTag:
+    TagId: 0
+  _startContextMode: 0
+  _motionPolicy:
+    movement: 2
+    locomotionScale: 1
+    turning: 2
+    maxTurnSpeed: 180
+    airLocomotionScale: 1
+    gravityScale: 1
+  isLoop: 0
+  _allowReenterWhilePlaying: 0
+  _entryConditions: []
+  references:
+    version: 2
+    RefIds:
+    - rid: 6940827153219190784
+      type: {class: RootMotionItem, ns: , asm: Assembly-CSharp}
+      data:
+        _editorId: 136fd07b340d40ccb286fa626a4cc445
+        _muted: 0
+        _startFrame: 0
+        _durationFrames: 55
+        _config:
+          animationAsset: {fileID: 11400000, guid: d98661d275ce0914aba07d9390daadaa,
+            type: 2}
+          sourceStartTime: 0
+          playRate: 1
+    - rid: 6940827153219190786
+      type: {class: RootMotionItem, ns: , asm: Assembly-CSharp}
+      data:
+        _editorId: faff9d0c168c4ff99d230b67322f0999
+        _muted: 0
+        _startFrame: 55
+        _durationFrames: 126
+        _config:
+          animationAsset: {fileID: 11400000, guid: 15c91675cb8c5bb41aee976e0a2c455f,
+            type: 2}
+          sourceStartTime: 0
+          playRate: 1

@@ -13,9 +13,10 @@ internal sealed class ActionPreviewPanel : IDisposable
     [NonSerialized] private ActionPreviewRenderer _renderer;
     [NonSerialized] private IMGUIContainer _view;
     [NonSerialized] private int _cameraControlId;
-    [SerializeField] private Vector2 _orbit = new Vector2(135f, 15f);
+    [SerializeField] private Vector2 _orbit = ActionPreviewCameraUtility.DefaultOrbit;
     [SerializeField] private float _distance = 3f;
     [SerializeField] private Vector3 _cameraTarget = new Vector3(0f, 1f, 0f);
+    [SerializeField] private bool _automaticFraming = true;
     [SerializeField] private bool _showSettings;
     private Vector2 _lastMouse;
     private bool _orbiting;
@@ -27,7 +28,10 @@ internal sealed class ActionPreviewPanel : IDisposable
     internal IMGUIContainer CreateView()
     {
         CancelCameraInteraction();
-        var view = new IMGUIContainer(Draw);
+        var view = new IMGUIContainer(Draw)
+        {
+            focusable = true,
+        };
         view.AddToClassList("action-editor-preview-panel");
         view.RegisterCallback<DetachFromPanelEvent>(_ =>
         {
@@ -62,9 +66,10 @@ internal sealed class ActionPreviewPanel : IDisposable
             var input = new ActionPreviewInput(context.CurrentAction, context.PreviewPosition,
                 context.CurrentFrame, context.PreviewCharacter, context.SelectedEntries);
             _renderer.Evaluate(input, out bool instanceNeedsFraming);
-            _renderer.Draw(previewRect, _orbit, ref _distance, ref _cameraTarget,
-                _initialFramingRequested || instanceNeedsFraming);
-            _initialFramingRequested = false;
+            if (instanceNeedsFraming) RestoreDefaultCamera();
+            if (_renderer.Draw(previewRect, _orbit, ref _distance, ref _cameraTarget,
+                    _initialFramingRequested, _automaticFraming))
+                _initialFramingRequested = false;
         }
 
         if (!string.IsNullOrEmpty(_renderer.Diagnostic))
@@ -94,14 +99,24 @@ internal sealed class ActionPreviewPanel : IDisposable
         Event evt = Event.current;
         int controlId = GUIUtility.GetControlID(FocusType.Passive);
         if (!rect.Contains(evt.mousePosition) && !_orbiting && !_panning) return;
-        if (evt.type == EventType.ScrollWheel && rect.Contains(evt.mousePosition))
+        if (evt.type == EventType.KeyDown && evt.keyCode == KeyCode.F && evt.modifiers == EventModifiers.None &&
+            rect.Contains(evt.mousePosition))
         {
+            RestoreDefaultCamera();
+            evt.Use();
+            Repaint();
+        }
+        else if (evt.type == EventType.ScrollWheel && rect.Contains(evt.mousePosition))
+        {
+            _view?.Focus();
+            _automaticFraming = false;
             _distance = Mathf.Clamp(_distance * Mathf.Exp(evt.delta.y * 0.04f), 0.01f, 10000f);
             evt.Use();
             Repaint();
         }
         else if (evt.type == EventType.MouseDown && rect.Contains(evt.mousePosition) && (evt.button == 0 || evt.button == 2))
         {
+            _view?.Focus();
             _cameraControlId = controlId;
             GUIUtility.hotControl = controlId;
             _orbiting = evt.button == 0 && !evt.shift;
@@ -113,6 +128,7 @@ internal sealed class ActionPreviewPanel : IDisposable
         {
             Vector2 delta = evt.mousePosition - _lastMouse;
             _lastMouse = evt.mousePosition;
+            _automaticFraming = false;
             if (_orbiting)
             {
                 _orbit.x += delta.x * 0.35f;
@@ -143,6 +159,14 @@ internal sealed class ActionPreviewPanel : IDisposable
         _panning = false;
     }
 
+    private void RestoreDefaultCamera()
+    {
+        CancelCameraInteraction();
+        _orbit = ActionPreviewCameraUtility.DefaultOrbit;
+        _automaticFraming = true;
+        _initialFramingRequested = true;
+    }
+
     private void UpdateInitialFramingRequest()
     {
         ActionEditorContext context = ActionEditorContext.Shared;
@@ -150,7 +174,7 @@ internal sealed class ActionPreviewPanel : IDisposable
             return;
         _observedAction = context.CurrentAction;
         _observedPreviewCharacter = context.PreviewCharacter;
-        _initialFramingRequested = true;
+        RestoreDefaultCamera();
     }
 
     internal void OnContextChanged(ActionEditorChange change)
@@ -244,6 +268,9 @@ internal sealed class ActionPreviewRenderer : IDisposable
     private Vector3 _baselineRootPosition;
     private Quaternion _baselineRootRotation;
     private float _characterRadius = 1f;
+    private Bounds _framingBounds;
+    private Vector3 _framingRootPosition;
+    private bool _hasFramingBounds;
     private int _visiblePathBoundary;
     private bool _showInterpolatedPathEndpoint;
     private Vector3 _interpolatedPathEndpoint;
@@ -331,18 +358,22 @@ internal sealed class ActionPreviewRenderer : IDisposable
         return true;
     }
 
-    internal void Draw(Rect rect, Vector2 orbit, ref float distance,
-        ref Vector3 cameraTarget, bool initialFramingRequested)
+    internal bool Draw(Rect rect, Vector2 orbit, ref float distance,
+        ref Vector3 cameraTarget, bool initialFramingRequested, bool automaticFraming)
     {
         if (_preview == null || _instance == null || EditorApplication.isPlayingOrWillChangePlaymode)
         {
             EditorGUI.DrawRect(rect, new Color(0.12f, 0.12f, 0.12f));
-            return;
+            return false;
         }
 
-        if (initialFramingRequested &&
-            !TryApplyInitialFraming(rect, orbit, ref distance, ref cameraTarget, out string framingMessage))
-            Diagnostic = framingMessage;
+        bool framingReady = true;
+        if (initialFramingRequested || automaticFraming)
+        {
+            framingReady = TryApplyInitialFraming(rect, orbit, initialFramingRequested,
+                ref distance, ref cameraTarget, out string framingMessage);
+            if (!framingReady) Diagnostic = framingMessage;
+        }
         ConfigureCamera(orbit, distance, cameraTarget);
 
         float supersampleScale = ActionPreviewCameraUtility.CalculateSupersampleScale(
@@ -368,6 +399,7 @@ internal sealed class ActionPreviewRenderer : IDisposable
             previewTexture.filterMode = FilterMode.Bilinear;
             GUI.DrawTexture(rect, previewTexture, ScaleMode.StretchToFill, false);
         }
+        return framingReady;
     }
 
     private void DrawOverlays()
@@ -406,8 +438,8 @@ internal sealed class ActionPreviewRenderer : IDisposable
                 foreach (PreviewHitBox hitBox in _hitBoxes)
                 {
                     Handles.color = hitBox.Selected
-                        ? new Color(1f, 0.85f, 0.15f, 1f)
-                        : new Color(1f, 0.25f, 0.15f, 0.95f);
+                        ? new Color(0.2f, 0.55f, 1f, 1f)
+                        : new Color(1f, 0.85f, 0.15f, 0.95f);
                     DrawWireHitBox(hitBox.Shape);
                 }
             }
@@ -613,21 +645,35 @@ internal sealed class ActionPreviewRenderer : IDisposable
     private bool TryApplyInitialFraming(
         Rect previewRect,
         Vector2 orbit,
+        bool captureBounds,
         ref float distance,
         ref Vector3 cameraTarget,
         out string message)
     {
         message = string.Empty;
-        if (!TryCalculateCharacterBounds(out Bounds bounds))
-        {
-            message = "The preview character has no visible mesh for initial framing.";
+        if (previewRect.width <= 1f || previewRect.height <= 1f)
             return false;
+        if (captureBounds || !_hasFramingBounds)
+        {
+            if (!TryCalculateCharacterBounds(out Bounds characterBounds))
+            {
+                message = "The preview character has no visible mesh for initial framing.";
+                return false;
+            }
+            _framingBounds = characterBounds;
+            _framingRootPosition = _instance.transform.position;
+            _hasFramingBounds = true;
         }
 
+        // Keep the initial pose's scale: scrubbing should translate the camera with the root,
+        // not pump the zoom or chase individual bones. Only viewport changes affect the distance.
+        Bounds bounds = _framingBounds;
+        bounds.center += _instance.transform.position - _framingRootPosition;
         Quaternion rotation = Quaternion.Euler(orbit.y, orbit.x, 0f);
-        float aspect = previewRect.height > 0f ? previewRect.width / previewRect.height : 1f;
+        float aspect = previewRect.width / previewRect.height;
         if (!ActionPreviewCameraUtility.TryCalculateInitialFraming(
-                bounds, rotation, _preview.cameraFieldOfView, aspect, 0.42f, out cameraTarget, out distance))
+                bounds, rotation, _preview.cameraFieldOfView, aspect,
+                ActionPreviewCameraUtility.DefaultViewportFill, out cameraTarget, out distance))
         {
             message = "The preview character bounds are invalid.";
             return false;
@@ -805,6 +851,7 @@ internal sealed class ActionPreviewRenderer : IDisposable
         foreach (Mesh bakedMesh in _bakedPoseMeshes.Values)
             if (bakedMesh != null) UnityEngine.Object.DestroyImmediate(bakedMesh);
         _bakedPoseMeshes.Clear();
+        _hasFramingBounds = false;
         _preview = null;
         _instance = null;
         _groundObject = null;
@@ -845,6 +892,10 @@ internal sealed class ActionPreviewRenderer : IDisposable
 
 internal static class ActionPreviewCameraUtility
 {
+    internal static readonly Vector2 DefaultOrbit = new Vector2(145f, 12f);
+    // Leave room for weapon swings and hit boxes without making the character a thumbnail.
+    internal const float DefaultViewportFill = 0.35f;
+
     internal static bool TryCalculateInitialFraming(
         Bounds bounds,
         Quaternion cameraRotation,

@@ -11,6 +11,14 @@ public readonly struct LocomotionRuntimeAnimationContext
         float verticalSpeed, int actionOwnerId, float deltaTime, LocomotionFootPhaseReference sourceFootPhase = default,
         float facingYawDelta = 0f, Quaternion? poseWorldRotation = null)
     {
+        // Keep Control's raw intent available to Action selection; animation sees only allowed locomotion drive.
+        var policy = motor.MotionState;
+        if (policy.IsValid && (policy.BrakeLocomotion || policy.LocomotionScale <= 0f
+            || (!motor.IsGrounded && policy.AirLocomotionScale <= 0f)))
+        {
+            intent.WorldMoveDirection = Vector3.zero;
+            intent.MoveStrength = 0f;
+        }
         Intent = intent;
         HasIntent = hasIntent;
         VelocityBeforeMotion = velocityBeforeMotion;

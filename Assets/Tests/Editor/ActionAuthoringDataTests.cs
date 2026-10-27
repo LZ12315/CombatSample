@@ -117,6 +117,34 @@ public sealed class ActionAuthoringDataTests
     }
 
     [Test]
+    public void ActionList_RegistersUniqueActionsInAuthoredOrderRegardlessOfNeutralGatesAndTracksEdits()
+    {
+        ActionAssetList list = ScriptableObject.CreateInstance<ActionAssetList>();
+        ActionAsset first = ScriptableObject.CreateInstance<ActionAsset>();
+        ActionAsset second = ScriptableObject.CreateInstance<ActionAsset>();
+        try
+        {
+            list.EditorEntries.Add(new ActionListEntry { action = first, allowFromNeutral = false });
+            list.EditorEntries.Add(new ActionListEntry { action = first });
+            list.EditorEntries.Add(null);
+            list.EditorEntries.Add(new ActionListEntry { action = second });
+            list.EditorEntries[0].conditions.Add(null);
+            CollectionAssert.AreEqual(new[] { first, second }, list.GetAllAvailableActions());
+
+            list.EditorEntries[0].action = second;
+            CollectionAssert.AreEqual(new[] { second, first }, list.GetAllAvailableActions());
+            list.EditorEntries.Clear();
+            Assert.IsEmpty(list.GetAllAvailableActions());
+        }
+        finally
+        {
+            Object.DestroyImmediate(list);
+            Object.DestroyImmediate(first);
+            Object.DestroyImmediate(second);
+        }
+    }
+
+    [Test]
     public void DocumentKeepsCorruptTimingVisibleAndBlocksAmbiguousEditorIds()
     {
         ActionAsset asset = ScriptableObject.CreateInstance<ActionAsset>();

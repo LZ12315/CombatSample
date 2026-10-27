@@ -289,7 +289,8 @@ public sealed class MotionPolicyItem : RangeGameplayItem
 {
     [SerializeField] private MotionPolicyItemConfig _config = new MotionPolicyItemConfig();
     public MotionPolicyItemConfig Config => _config;
-    protected internal override IActionRangeRuntime CreateRuntime() => new ActionMotionPolicyItemRuntime(_config);
+    // Resolved from an immutable frame snapshot by the owning ActionRuntime, not an independent Motor owner.
+    protected internal override IActionRangeRuntime CreateRuntime() => null;
 #if UNITY_EDITOR
     internal void EditorEnsureConfig() => _config ??= new MotionPolicyItemConfig();
 #endif
@@ -389,6 +390,12 @@ public sealed class VelocityOverrideItemConfig
 [Serializable]
 public sealed class MotionPolicyItemConfig
 {
+    public bool useMovementControl;
+    public ActionMovementControl movement;
+    public bool useTurnControl;
+    public ActionTurnControl turning;
+    public float maxTurnSpeed = 180f;
+    // Preserve old serialized fields. The authoring UI interprets these without writing migrations on view.
     public bool useLocomotionScale;
     public float locomotionScale = 1f;
     public bool useAirLocomotionScale;

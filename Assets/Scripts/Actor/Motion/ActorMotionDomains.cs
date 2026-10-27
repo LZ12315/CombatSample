@@ -393,13 +393,60 @@ public sealed class MotionPolicyState
     private readonly List<PolicyOwnerState> _airLocomotionScaleOwners = new();
     private readonly List<PolicyOwnerState> _gravityScaleOwners = new();
 
-    public float LocomotionScale => ComposeMin(_baseLocomotionScale, _locomotionScaleOwners);
-    public float AirLocomotionScale => ComposeMin(_baseAirLocomotionScale, _airLocomotionScaleOwners);
-    public float GravityScale => ComposeMultiply(_baseGravityScale, _gravityScaleOwners);
+    private readonly List<ActionPolicyOwner> _actionPolicies = new();
 
-    public int DebugLocomotionScaleOwnerCount => _locomotionScaleOwners.Count;
-    public int DebugAirLocomotionScaleOwnerCount => _airLocomotionScaleOwners.Count;
-    public int DebugGravityScaleOwnerCount => _gravityScaleOwners.Count;
+    public float LocomotionScale => Mathf.Min(ComposeMin(_baseLocomotionScale, _locomotionScaleOwners), ActionValues.LocomotionScale);
+    public float AirLocomotionScale => Mathf.Min(ComposeMin(_baseAirLocomotionScale, _airLocomotionScaleOwners), ActionValues.AirLocomotionScale);
+    public float GravityScale => ComposeMultiply(_baseGravityScale, _gravityScaleOwners) * ActionValues.GravityScale;
+    public bool BrakeLocomotion => ActionValues.BrakeLocomotion;
+    public bool LockLocomotionRotation => ActionValues.LockLocomotionRotation;
+    public float LocomotionTurnSpeedLimit => ActionValues.TurnSpeedLimit;
+    internal MotionPolicyValues ActionValues
+    {
+        get
+        {
+            var values = MotionPolicyValues.Neutral;
+            foreach (var policy in _actionPolicies) values = MotionPolicyValues.Restrict(values, policy.Values);
+            return values;
+        }
+    }
+
+    public int DebugLocomotionScaleOwnerCount => _locomotionScaleOwners.Count + _actionPolicies.Count;
+    public int DebugAirLocomotionScaleOwnerCount => _airLocomotionScaleOwners.Count + _actionPolicies.Count;
+    public int DebugGravityScaleOwnerCount => _gravityScaleOwners.Count + _actionPolicies.Count;
+
+    // The Action resolves its defaults/windows before registering here. Independent sources still restrict it.
+    internal MotionOwner BeginActionPolicy(in MotionPolicyValues values)
+    {
+        var owner = NewOwner();
+        _actionPolicies.Add(new ActionPolicyOwner(owner, values));
+        return owner;
+    }
+
+    internal bool UpdateActionPolicy(MotionOwner owner, in MotionPolicyValues values)
+    {
+        for (int i = 0; i < _actionPolicies.Count; i++)
+        {
+            if (_actionPolicies[i].Owner.Id != owner.Id) continue;
+            _actionPolicies[i] = new ActionPolicyOwner(owner, values);
+            return true;
+        }
+        return false;
+    }
+
+    internal bool EndActionPolicy(MotionOwner owner)
+    {
+        for (int i = 0; i < _actionPolicies.Count; i++)
+            if (_actionPolicies[i].Owner.Id == owner.Id) { _actionPolicies.RemoveAt(i); return true; }
+        return false;
+    }
+
+    private readonly struct ActionPolicyOwner
+    {
+        internal readonly MotionOwner Owner;
+        internal readonly MotionPolicyValues Values;
+        internal ActionPolicyOwner(MotionOwner owner, MotionPolicyValues values) { Owner = owner; Values = values; }
+    }
 
     public void SetBaseLocomotionScale(float scale)
     {
