@@ -37,9 +37,25 @@ MonoBehaviour:
       _muted: 0
       _items:
       - rid: 6940827128231100417
+    - _editorId: 141934a2684e4ef2ae887f11acbc8f7d
+      _name: Gameplay 4
+      _muted: 0
+      _items:
+      - rid: 4877645814652993602
   _priorityLayer: 1
   _priorityValue: 0
   _cancelRules:
+  - targetKind: 0
+    specificTarget: {fileID: 11400000, guid: d5c2ef06465af1c4bb99ac11a32bc44e, type: 2}
+    targetTag:
+      TagId: -2107794142
+    locomotionIntentThreshold: 0.01
+    window:
+      startAnchor: 0
+      startFrame: 30
+      endAnchor: 2
+      endFrame: 0
+    conditions: []
   - targetKind: 3
     specificTarget: {fileID: 11400000, guid: fed94f8bdf28b794aa8c9ff1ced23170, type: 2}
     targetTag:
@@ -47,7 +63,7 @@ MonoBehaviour:
     locomotionIntentThreshold: 0.01
     window:
       startAnchor: 0
-      startFrame: 30
+      startFrame: 60
       endAnchor: 2
       endFrame: 50
     conditions: []
@@ -105,6 +121,17 @@ MonoBehaviour:
         - {fileID: 8300000, guid: a65d792d6907f744490c9b15bb70edfe, type: 3}
         volume: 1
         pitchVariation: 0.1
+    - rid: 4877645814652993602
+      type: {class: TagItem, ns: , asm: Assembly-CSharp}
+      data:
+        _editorId: a0278a9bc71a46d0b06c78a17b8ae8f8
+        _muted: 0
+        _startFrame: 5
+        _durationFrames: 15
+        _config:
+          tag:
+            TagId: -1070838861
+          targetContainer: 0
     - rid: 6940827094329589760
       type: {class: RootMotionItem, ns: , asm: Assembly-CSharp}
       data:
@@ -116,7 +143,11 @@ MonoBehaviour:
           animationAsset: {fileID: 11400000, guid: 529cc10ce91226845b798a1c277d592a,
             type: 2}
           sourceStartTime: 0
+          sourceEndTime: 0
           playRate: 1
+          distanceScale: 1
+          _hasDistanceScale: 1
+        _hasSourceRange: 0
     - rid: 6940827094329589762
       type: {class: SelfRotationItem, ns: , asm: Assembly-CSharp}
       data:
@@ -141,7 +172,7 @@ MonoBehaviour:
         maxSequenceTime: 0.5
         clips:
         - type: 0
-          button: 8
+          button: 16
           direction: 0
     - rid: 6940827116907528193
       type: {class: GroundStateCondition, ns: , asm: Assembly-CSharp}
@@ -170,7 +201,8 @@ MonoBehaviour:
               m_Bits: 64
             _baseDamage: 20
             hitEventTag:
-              TagId: -1300321786
+              TagId: 1889277012
+            canBeParried: 0
           effects:
           - rid: 1000
           - rid: 1001

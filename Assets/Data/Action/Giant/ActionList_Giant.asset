@@ -1,0 +1,39 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e484c16208db8333b7c6578a14e5a8e, type: 3}
+  m_Name: ActionList_Giant
+  m_EditorClassIdentifier: 
+  _entries:
+  - action: {fileID: 11400000, guid: 4a0468589e9c94943a8c1342ab4630ca, type: 2}
+    allowFromNeutral: 1
+    conditions: []
+  - action: {fileID: 11400000, guid: d31685d5007c75844a741eab349cb9e6, type: 2}
+    allowFromNeutral: 1
+    conditions: []
+  - action: {fileID: 11400000, guid: 0a22264ba70b05a4896c96b171edda52, type: 2}
+    allowFromNeutral: 1
+    conditions: []
+  - action: {fileID: 11400000, guid: 923f426c082c4b243b23ececed9a73f1, type: 2}
+    allowFromNeutral: 1
+    conditions: []
+  - action: {fileID: 11400000, guid: 2326a0869f2757d41b0a1ba7df67a875, type: 2}
+    allowFromNeutral: 1
+    conditions: []
+  - action: {fileID: 11400000, guid: abe2b8f92c0d44541a66cb7310ab9278, type: 2}
+    allowFromNeutral: 1
+    conditions: []
+  - action: {fileID: 11400000, guid: 0ae3a997cbd1481439d27a5ef15cd258, type: 2}
+    allowFromNeutral: 1
+    conditions: []
+  references:
+    version: 2
+    RefIds: []

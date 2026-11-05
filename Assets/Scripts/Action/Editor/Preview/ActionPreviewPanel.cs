@@ -63,7 +63,7 @@ internal sealed class ActionPreviewPanel : IDisposable
         if (Event.current.type == EventType.Repaint)
         {
             ActionEditorContext context = ActionEditorContext.Shared;
-            var input = new ActionPreviewInput(context.CurrentAction, context.PreviewPosition,
+            var input = new ActionPreviewInput(context.PreviewAction, context.PreviewPosition,
                 context.CurrentFrame, context.PreviewCharacter, context.SelectedEntries);
             _renderer.Evaluate(input, out bool instanceNeedsFraming);
             if (instanceNeedsFraming) RestoreDefaultCamera();
@@ -190,7 +190,7 @@ internal sealed class ActionPreviewPanel : IDisposable
 
     internal static bool RequiresDataInvalidation(ActionEditorChangeFlags flags) =>
         (flags & (ActionEditorChangeFlags.Context | ActionEditorChangeFlags.Structure |
-                  ActionEditorChangeFlags.Timing | ActionEditorChangeFlags.Content)) != 0;
+                  ActionEditorChangeFlags.Timing | ActionEditorChangeFlags.Content | ActionEditorChangeFlags.DraftPreview)) != 0;
 
     internal static bool RequiresRepaint(ActionEditorChangeFlags flags) =>
         (flags & (ActionEditorChangeFlags.Context | ActionEditorChangeFlags.Structure |
@@ -198,7 +198,7 @@ internal sealed class ActionPreviewPanel : IDisposable
                   ActionEditorChangeFlags.Selection | ActionEditorChangeFlags.Frame |
                   ActionEditorChangeFlags.Preview | ActionEditorChangeFlags.PreviewPosition |
                   ActionEditorChangeFlags.PreviewCharacter |
-                  ActionEditorChangeFlags.PreviewResources)) != 0;
+                  ActionEditorChangeFlags.PreviewResources | ActionEditorChangeFlags.DraftPreview)) != 0;
 
     internal void OnPlayModeStateChanged(PlayModeStateChange state)
     {
@@ -284,9 +284,12 @@ internal sealed class ActionPreviewRenderer : IDisposable
     private string _hitBoxDiagnostic = string.Empty;
 
     internal string Diagnostic { get; private set; }
+    private readonly ActionPresentationPreview _presentations = new ActionPresentationPreview();
+    private Quaternion _presentationCameraRotation;
 
     internal void InvalidateData()
     {
+        _presentations.Dispose();
         _snapshotAction = null;
         _spatial.Invalidate();
         _poseSampler?.Invalidate();
@@ -375,6 +378,18 @@ internal sealed class ActionPreviewRenderer : IDisposable
             if (!framingReady) Diagnostic = framingMessage;
         }
         ConfigureCamera(orbit, distance, cameraTarget);
+        // A changed preview view represents a new spawn-camera context for entry-only facing.
+        if (Quaternion.Angle(_presentationCameraRotation, _preview.camera.transform.rotation) > 0.01f)
+        {
+            _presentations.Dispose();
+            _presentationCameraRotation = _preview.camera.transform.rotation;
+        }
+        if (_evaluatedAction != null)
+        {
+            _presentations.Evaluate(_evaluatedAction, _evaluatedPosition, _instance.transform, _animator, _preview,
+                position => EvaluatePoseAndPosition(_evaluatedAction, position));
+            Diagnostic = CombineDiagnostics(Diagnostic, _presentations.Diagnostic);
+        }
 
         float supersampleScale = ActionPreviewCameraUtility.CalculateSupersampleScale(
             rect.size, EditorGUIUtility.pixelsPerPoint, SystemInfo.maxTextureSize, 16000000L, 2f);
@@ -420,6 +435,7 @@ internal sealed class ActionPreviewRenderer : IDisposable
             using (new Handles.DrawingScope(Matrix4x4.identity))
             {
                 DrawOriginMarker();
+                _presentations.DrawGuides(_evaluatedAction, _evaluatedPosition, _instance.transform, _preview.camera);
                 IReadOnlyList<Vector3> path = _spatial.Boundaries;
                 int boundaryCount = Mathf.Min(path.Count, _visiblePathBoundary + 1);
                 int pointCount = boundaryCount + (_showInterpolatedPathEndpoint ? 1 : 0);
@@ -842,6 +858,7 @@ internal sealed class ActionPreviewRenderer : IDisposable
 
     private void DisposePreviewObjects()
     {
+        _presentations.Dispose();
         _poseSampler?.Dispose();
         _poseSampler = null;
         if (_preview != null) _preview.Cleanup();

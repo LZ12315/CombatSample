@@ -42,6 +42,16 @@ MonoBehaviour:
       _muted: 0
       _items:
       - rid: 1006
+    - _editorId: deb6b4e0045a4de88622886acdabd685
+      _name: Gameplay 5
+      _muted: 0
+      _items:
+      - rid: 4877645814652993559
+    - _editorId: d6843bc6c6d1429a9359122584acbae4
+      _name: Gameplay 6
+      _muted: 0
+      _items:
+      - rid: 4877645870441168910
   _priorityLayer: 1
   _priorityValue: 0
   _cancelRules:
@@ -52,9 +62,9 @@ MonoBehaviour:
     locomotionIntentThreshold: 0.01
     window:
       startAnchor: 0
-      startFrame: 20
+      startFrame: 15
       endAnchor: 0
-      endFrame: 40
+      endFrame: 45
     conditions: []
   - targetKind: 3
     specificTarget: {fileID: 0}
@@ -63,7 +73,7 @@ MonoBehaviour:
     locomotionIntentThreshold: 0.01
     window:
       startAnchor: 0
-      startFrame: 30
+      startFrame: 45
       endAnchor: 2
       endFrame: 0
     conditions: []
@@ -178,6 +188,48 @@ MonoBehaviour:
               m_PostInfinity: 2
               m_RotationOrder: 4
             debugLog: 0
+    - rid: 4877645814652993559
+      type: {class: TagItem, ns: , asm: Assembly-CSharp}
+      data:
+        _editorId: 6aa3c89a5fbb409b855c228916c101c4
+        _muted: 0
+        _startFrame: 0
+        _durationFrames: 18
+        _config:
+          tag:
+            TagId: -1070838861
+          targetContainer: 0
+    - rid: 4877645870441168910
+      type: {class: EffectItem, ns: , asm: Assembly-CSharp}
+      data:
+        _editorId: 4c3153c665d4465995dc6047aade6df0
+        _muted: 0
+        _startFrame: 5
+        _durationFrames: 60
+        _frame: -2147483648
+        _config:
+          _hasPlaybackSettings: 1
+          prefab: {fileID: 6755296226137300596, guid: 1388ae682a0a6da30b15be1381373594,
+            type: 3}
+          anchor: 0
+          bone: 18
+          transformPath: 
+          localPosition: {x: 0, y: 0.5, z: 0}
+          localEulerAngles: {x: 90, y: 0, z: 0}
+          scale: 0.6
+          followAnchor: 0
+          orientation: 0
+          orientationUpdate: 0
+          worldDirection: 0
+          customWorldDirection: {x: 0, y: 0, z: 1}
+          screenAngleMode: 0
+          anglePresetDegrees: 0
+          angleRandomRange: 360
+          rollMode: 1
+          rollPresetDegrees: 0
+          rollRandomRange: 360
+          occlusionMode: 1
+          simulationSpeed: 1.5
     - rid: 6940827094329589760
       type: {class: RootMotionItem, ns: , asm: Assembly-CSharp}
       data:
@@ -189,7 +241,11 @@ MonoBehaviour:
           animationAsset: {fileID: 11400000, guid: 694ba817fe15ec4429006005d19c936e,
             type: 2}
           sourceStartTime: 0
+          sourceEndTime: 0
           playRate: 1
+          distanceScale: 1
+          _hasDistanceScale: 1
+        _hasSourceRange: 0
     - rid: 6940827094329589762
       type: {class: SelfRotationItem, ns: , asm: Assembly-CSharp}
       data:
@@ -214,7 +270,7 @@ MonoBehaviour:
         maxSequenceTime: 0.5
         clips:
         - type: 0
-          button: 8
+          button: 16
           direction: 0
     - rid: 6940827116907528193
       type: {class: GroundStateCondition, ns: , asm: Assembly-CSharp}
@@ -226,8 +282,8 @@ MonoBehaviour:
       data:
         _editorId: 0bbd5bd398e44ecfb28ab8e8cab8c05c
         _muted: 0
-        _startFrame: 12
-        _durationFrames: 1
+        _startFrame: 11
+        _durationFrames: 5
         _config:
           anchor: 0
           hitboxConfig:
@@ -243,7 +299,8 @@ MonoBehaviour:
               m_Bits: 64
             _baseDamage: 10
             hitEventTag:
-              TagId: 645108757
+              TagId: 1889277012
+            canBeParried: 0
           effects:
           - rid: 1004
           - rid: 1005

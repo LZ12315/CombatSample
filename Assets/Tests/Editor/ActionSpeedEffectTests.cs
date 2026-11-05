@@ -307,10 +307,11 @@ public sealed class ActionSpeedEffectTests
     }
 
     [Test]
-    public void ConfirmedHit_WithoutFeedbackDoesNotRequireAnImpactManager()
+    public void ResolvedHit_WithoutFeedbackDoesNotRequireAnImpactManager()
     {
         // No scene objects or clock are needed for a hit with no configured feedback.
-        ImpactSystem.HandleConfirmedHit(new AttackHitData(10f, null, null, null, Vector3.zero),
+        ImpactSystem.HandleResolvedHit(new AttackHitData(10f, null, null, null, Vector3.zero),
+            HitResolveResult.Normal(false),
             new ImpactEffectConfig[] { null, new SpeedEffectConfig { enabled = false } });
         UnityEngine.TestTools.LogAssert.NoUnexpectedReceived();
     }

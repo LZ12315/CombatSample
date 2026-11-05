@@ -152,6 +152,7 @@ MonoBehaviour:
             _baseDamage: 10
             hitEventTag:
               TagId: 645108757
+            canBeParried: 0
           effects:
           - rid: 1007
           - rid: 1008
@@ -213,6 +214,7 @@ MonoBehaviour:
             _baseDamage: 10
             hitEventTag:
               TagId: 645108757
+            canBeParried: 0
           effects:
           - rid: 1011
           - rid: 1012
@@ -274,6 +276,7 @@ MonoBehaviour:
             _baseDamage: 10
             hitEventTag:
               TagId: 645108757
+            canBeParried: 0
           effects:
           - rid: 1015
           - rid: 1016
@@ -335,6 +338,7 @@ MonoBehaviour:
             _baseDamage: 10
             hitEventTag:
               TagId: 645108757
+            canBeParried: 0
           effects:
           - rid: 1019
           - rid: 1020
@@ -396,6 +400,7 @@ MonoBehaviour:
             _baseDamage: 10
             hitEventTag:
               TagId: 645108757
+            canBeParried: 0
           effects:
           - rid: 1023
           - rid: 1024
@@ -472,7 +477,9 @@ MonoBehaviour:
           animationAsset: {fileID: 11400000, guid: bda334348aca3f34993460ba8016527d,
             type: 2}
           sourceStartTime: 0
+          sourceEndTime: 0
           playRate: 1
+        _hasSourceRange: 0
     - rid: 6940827094329589761
       type: {class: HitBoxItem, ns: , asm: Assembly-CSharp}
       data:
@@ -496,6 +503,7 @@ MonoBehaviour:
             _baseDamage: 10
             hitEventTag:
               TagId: 645108757
+            canBeParried: 0
           effects:
           - rid: 1000
           - rid: 1026
@@ -554,6 +562,7 @@ MonoBehaviour:
             _baseDamage: 10
             hitEventTag:
               TagId: 645108757
+            canBeParried: 0
           effects:
           - rid: 1003
           - rid: 1004

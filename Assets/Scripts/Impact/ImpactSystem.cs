@@ -4,7 +4,7 @@ using UnityEngine;
 
 /// <summary>
 /// 打击感系统管理器 - 场景单例。
-/// Clip 与 <see cref="HitFeedbackProfile"/> 共用同一套 <see cref="ImpactEffectConfig"/>，由本类按顺序调度。
+/// Attack 与 <see cref="HitFeedbackProfile"/> 提供命中反馈。Action 区间震屏独立拥有贡献，不在这里重复发送 Impulse。
 /// </summary>
 public class ImpactSystem : MonoBehaviour
 {
@@ -15,7 +15,7 @@ public class ImpactSystem : MonoBehaviour
     private bool _hasWarnedMissingImpulseSource;
     private bool _hasWarnedMissingHitVfxLayer;
 
-    [Tooltip("Camera shake: send Impulse to Cinemachine. Empty = add on this object.")]
+    [Tooltip("Camera-shake source for resolved hit feedback. Empty = use an existing source on this object; missing = skip shake. Channel, duration and attenuation are configured on the source/listener.")]
     [SerializeField] private CinemachineImpulseSource _impulseSource;
 
     void Awake()
@@ -69,14 +69,19 @@ public class ImpactSystem : MonoBehaviour
     private readonly List<ActionSpeedEffect> activeSpeedEffects = new List<ActionSpeedEffect>();
 
     /// <summary>
-    /// Handles feedback synchronously after Combat has resolved and accepted one hit.
+    /// Routes feedback after combat resolution. Parries use only the defender's parry Profile;
+    /// ordinary accepted hits retain attack effects plus the ordinary target Profile.
     /// Receiver lookup and spatial preparation belong here, not in the hit buffer.
     /// </summary>
-    internal static void HandleConfirmedHit(
+    internal static void HandleResolvedHit(
         in AttackHitData hit,
+        in HitResolveResult result,
         IReadOnlyList<ImpactEffectConfig> attackEffects)
     {
-        ImpactData impactData = ImpactData.FromAttackHit(hit);
+        if (!result.ImpactAllowed && result.Outcome != HitResolveOutcome.Parried)
+            return;
+
+        ImpactData impactData = ImpactData.FromAttackHit(hit, result.Outcome);
         if (!HasConfiguredImpactFeedback(impactData, attackEffects))
             return;
 
@@ -99,9 +104,12 @@ public class ImpactSystem : MonoBehaviour
         ImpactData impactData,
         IReadOnlyList<ImpactEffectConfig> attackEffects)
     {
-        for (int i = 0; attackEffects != null && i < attackEffects.Count; i++)
-            if (attackEffects[i] != null && attackEffects[i].enabled)
-                return true;
+        if (impactData == null || impactData.Outcome != HitResolveOutcome.Parried)
+        {
+            for (int i = 0; attackEffects != null && i < attackEffects.Count; i++)
+                if (attackEffects[i] != null && attackEffects[i].enabled)
+                    return true;
+        }
 
         return impactData?.TargetProfile != null
                && impactData.TargetProfile.HasConfiguredImpactEffects();
@@ -113,7 +121,7 @@ public class ImpactSystem : MonoBehaviour
 
         var gathered = new GatheredAttackerEffects();
 
-        if (clipEffects != null)
+        if (impactData.Outcome != HitResolveOutcome.Parried && clipEffects != null)
         {
             foreach (var effect in clipEffects)
                 HandleEffect(impactData, effect, ImpactEffectSource.Clip, ref gathered);
@@ -123,7 +131,7 @@ public class ImpactSystem : MonoBehaviour
         if (receiver == null && impactData.TargetObject != null)
             receiver = impactData.TargetObject.GetComponentInParent<HitFeedbackReceiver>();
 
-        var profile = impactData.TargetProfile ?? receiver?.Profile;
+        var profile = impactData.TargetProfile ?? receiver?.GetProfile(impactData.Outcome);
         if (receiver != null && profile != null && profile.HasConfiguredImpactEffects())
         {
             foreach (var effect in profile.effects)
@@ -134,7 +142,7 @@ public class ImpactSystem : MonoBehaviour
             TryStartSpeedEffect(impactData, gathered.SpeedEffect);
 
         if (gathered.ScreenShake != null)
-            TriggerScreenShake(impactData, gathered.ScreenShake);
+            TriggerScreenShake(impactData.VfxSpawnPoint, gathered.ScreenShake.intensity);
     }
 
     private void TryStartSpeedEffect(ImpactData impactData, SpeedEffectConfig config)
@@ -285,6 +293,10 @@ public class ImpactSystem : MonoBehaviour
     Vector3 ResolveAnchorPosition(ImpactData impactData, VfxAnchorMode anchorMode)
     {
         var sourceHit = impactData.SourceHit;
+        // Parry sparks use the original world-space hit point, even if this Profile is shared
+        // with ordinary feedback configured to use a collider-center anchor.
+        if (impactData.Outcome == HitResolveOutcome.Parried)
+            return sourceHit.HitPoint;
 
         return anchorMode switch
         {
@@ -306,8 +318,7 @@ public class ImpactSystem : MonoBehaviour
         float simulationSpeed)
     {
         var vfx = Instantiate(prefab, spawnPos, rotation);
-        if (occlusionMode == HitVfxOcclusionMode.EnvironmentOnly
-            && !HitConfirmVfxRenderUtility.TrySetHitConfirmLayer(vfx)
+        if (!VfxPlaybackUtility.Initialize(vfx, occlusionMode, simulationSpeed)
             && !_hasWarnedMissingHitVfxLayer)
         {
             _hasWarnedMissingHitVfxLayer = true;
@@ -315,15 +326,6 @@ public class ImpactSystem : MonoBehaviour
         }
 
         float speed = Mathf.Max(simulationSpeed, 0.01f);
-        foreach (var ps in vfx.GetComponentsInChildren<ParticleSystem>(true))
-        {
-            // Prefabs often use Scaling Mode = Local, which ignores parent scale.
-            // Clip "scale" is applied on the root; switch to Hierarchy so it takes effect.
-            var main = ps.main;
-            main.scalingMode = ParticleSystemScalingMode.Hierarchy;
-            main.simulationSpeed = speed;
-        }
-
         vfx.transform.localScale = Vector3.one * scale;
 
         Destroy(vfx, lifetime / speed);
@@ -340,18 +342,16 @@ public class ImpactSystem : MonoBehaviour
         }
     }
 
-    void TriggerScreenShake(ImpactData impactData, ScreenShakeEffectConfig config)
+    void TriggerScreenShake(Vector3 sourcePosition, float intensity)
     {
-        if (config == null) return;
+        if (intensity <= 0f || float.IsNaN(intensity) || float.IsInfinity(intensity)) return;
 
         EnsureImpulseSource();
-        if (_impulseSource == null) return;
+        if (_impulseSource == null || !_impulseSource.isActiveAndEnabled) return;
 
-        float force = config.intensity;
-        if (force <= 0f) return;
-
-        Vector3 velocity = Random.onUnitSphere * force;
-        _impulseSource.GenerateImpulseAtPositionWithVelocity(impactData.VfxSpawnPoint, velocity);
+        // Channel, spatial attenuation, signal duration and stacking belong to Cinemachine.
+        Vector3 velocity = Random.onUnitSphere * intensity;
+        _impulseSource.GenerateImpulseAtPositionWithVelocity(sourcePosition, velocity);
     }
 
     #endregion

@@ -50,6 +50,10 @@ public class AttackHandler : MonoBehaviour
                 if (hitResult.ImpactAllowed || hitResult.Outcome == HitResolveOutcome.Parried)
                     attemptedObjects.Add(other);
 
+                // Legacy Trigger hits have no clip-effect list, but use the same result routing
+                // for defender ordinary/parry Profiles as Action HitBoxes.
+                ImpactSystem.HandleResolvedHit(hitData, hitResult, null);
+
                 if (hitResult.ImpactAllowed)
                 {
                     InvokeHitStartEvent(hitData);

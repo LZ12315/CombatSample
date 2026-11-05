@@ -49,4 +49,4 @@ MonoBehaviour:
       type: {class: LocomotionGroundStateCondition, ns: , asm: Assembly-CSharp}
       data:
         invertResult: 0
-        acceptedStates: 4
+        acceptedStates: 12

@@ -227,17 +227,6 @@
                 },
                 {
                     "name": "",
-                    "id": "e5d4809a-4974-4500-976b-b012796ebf8d",
-                    "path": "<Keyboard>/j",
-                    "interactions": "",
-                    "processors": "",
-                    "groups": ";Keyboard&Mouse",
-                    "action": "LightAttack",
-                    "isComposite": false,
-                    "isPartOfComposite": false
-                },
-                {
-                    "name": "",
                     "id": "f5ab8f14-f844-4e9b-87e8-d34ed1ff780a",
                     "path": "<Mouse>/rightButton",
                     "interactions": "",

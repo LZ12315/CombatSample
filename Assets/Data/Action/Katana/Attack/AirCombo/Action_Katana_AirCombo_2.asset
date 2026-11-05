@@ -36,12 +36,17 @@ MonoBehaviour:
       _name: Gameplay 2
       _muted: 0
       _items:
-      - rid: 6940827094329589761
+      - rid: 4877645847360176144
+    - _editorId: 9f1d5d878b5847008f3d0b04d3c8fb14
+      _name: Gameplay 4
+      _muted: 0
+      _items:
+      - rid: 4877645847360176171
   _priorityLayer: 1
   _priorityValue: 0
   _cancelRules:
   - targetKind: 0
-    specificTarget: {fileID: 11400000, guid: fed94f8bdf28b794aa8c9ff1ced23170, type: 2}
+    specificTarget: {fileID: 11400000, guid: a65ce775dae70c74e867bfc28bb89056, type: 2}
     targetTag:
       TagId: 0
     locomotionIntentThreshold: 0.01
@@ -49,7 +54,7 @@ MonoBehaviour:
       startAnchor: 0
       startFrame: 20
       endAnchor: 0
-      endFrame: 50
+      endFrame: 40
     conditions: []
   _selfTags: []
   _triggerMode: 0
@@ -62,7 +67,7 @@ MonoBehaviour:
     turning: 2
     maxTurnSpeed: 180
     airLocomotionScale: 1
-    gravityScale: 1
+    gravityScale: 0
   isLoop: 0
   _allowReenterWhilePlaying: 0
   _entryConditions:
@@ -71,6 +76,132 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
+    - rid: 4877645847360176144
+      type: {class: HitBoxItem, ns: , asm: Assembly-CSharp}
+      data:
+        _editorId: cd08cb6d1aa44b72ba5dc395cfdafa02
+        _muted: 0
+        _startFrame: 4
+        _durationFrames: 3
+        _config:
+          anchor: 0
+          hitboxConfig:
+            shape: 1
+            center: {x: 0, y: 1, z: 0.75}
+            rotation: {x: 0, y: 0, z: 0, w: 1}
+            size: {x: 2, y: 1.5, z: 2}
+            height: 0.5
+            radius: 0.1
+          dataConfig:
+            targetLayers:
+              serializedVersion: 2
+              m_Bits: 64
+            _baseDamage: 10
+            hitEventTag:
+              TagId: 645108757
+            canBeParried: 0
+          effects:
+          - rid: 4877645847360176145
+          - rid: 4877645847360176146
+          - rid: 4877645847360176147
+    - rid: 4877645847360176145
+      type: {class: SpeedEffectConfig, ns: , asm: Assembly-CSharp}
+      data:
+        enabled: 1
+        duration: 0.15
+        speedScale: 0.05
+        affectBothParties: 1
+    - rid: 4877645847360176146
+      type: {class: HitVfxConfig, ns: , asm: Assembly-CSharp}
+      data:
+        enabled: 1
+        prefab: {fileID: 1107029698261400, guid: 6e09e616ba00652ce88f8183147587ed,
+          type: 3}
+        occlusionMode: 1
+        scale: 1
+        lifetime: 1
+        simulationSpeed: 1
+        anchorMode: 0
+        orientationMode: 0
+        screenAngleMode: 1
+        anglePresetDegrees: 0
+        angleRandomRange: 360
+        worldDirectionMode: 0
+        rollMode: 0
+        rollPresetDegrees: 0
+        rollRandomRange: 360
+    - rid: 4877645847360176147
+      type: {class: HitSoundEffectConfig, ns: , asm: Assembly-CSharp}
+      data:
+        enabled: 1
+        clips:
+        - {fileID: 8300000, guid: a65d792d6907f744490c9b15bb70edfe, type: 3}
+        volume: 1
+        pitchVariation: 0.1
+    - rid: 4877645847360176171
+      type: {class: VelocityOverrideItem, ns: , asm: Assembly-CSharp}
+      data:
+        _editorId: ada362591fa04036a7639d15ab5e30a4
+        _muted: 0
+        _startFrame: 0
+        _durationFrames: 51
+        _config:
+          velocity:
+            directionMode: 4
+            localHorizontalDirection: {x: 0, y: 0, z: 1}
+            useHorizontalVelocity: 0
+            horizontalSpeed: 0
+            useVerticalVelocity: 1
+            verticalSpeed: 0
+            horizontalCurve:
+              serializedVersion: 2
+              m_Curve:
+              - serializedVersion: 3
+                time: 0
+                value: 1
+                inSlope: 0
+                outSlope: 0
+                tangentMode: 0
+                weightedMode: 0
+                inWeight: 0
+                outWeight: 0
+              - serializedVersion: 3
+                time: 1
+                value: 1
+                inSlope: 0
+                outSlope: 0
+                tangentMode: 0
+                weightedMode: 0
+                inWeight: 0
+                outWeight: 0
+              m_PreInfinity: 2
+              m_PostInfinity: 2
+              m_RotationOrder: 4
+            verticalCurve:
+              serializedVersion: 2
+              m_Curve:
+              - serializedVersion: 3
+                time: 0
+                value: 1
+                inSlope: 0
+                outSlope: 0
+                tangentMode: 0
+                weightedMode: 0
+                inWeight: 0
+                outWeight: 0
+              - serializedVersion: 3
+                time: 1
+                value: 1
+                inSlope: 0
+                outSlope: 0
+                tangentMode: 0
+                weightedMode: 0
+                inWeight: 0
+                outWeight: 0
+              m_PreInfinity: 2
+              m_PostInfinity: 2
+              m_RotationOrder: 4
+            debugLog: 0
     - rid: 6940827094329589760
       type: {class: RootMotionItem, ns: , asm: Assembly-CSharp}
       data:
@@ -82,31 +213,11 @@ MonoBehaviour:
           animationAsset: {fileID: 11400000, guid: 1bbda2c4206077446a18b4a53b1e72f4,
             type: 2}
           sourceStartTime: 0
+          sourceEndTime: 0
           playRate: 1
-    - rid: 6940827094329589761
-      type: {class: HitBoxItem, ns: , asm: Assembly-CSharp}
-      data:
-        _editorId: 9364fddad7ba4135ac9dd4c704a67202
-        _muted: 0
-        _startFrame: 11
-        _durationFrames: 3
-        _config:
-          anchor: 0
-          hitboxConfig:
-            shape: 1
-            center: {x: 0, y: 1, z: 1.2}
-            rotation: {x: 0, y: 0, z: 0, w: 1}
-            size: {x: 1, y: 1, z: 1.4}
-            height: 0.5
-            radius: 0.1
-          dataConfig:
-            targetLayers:
-              serializedVersion: 2
-              m_Bits: 256
-            _baseDamage: 10
-            hitEventTag:
-              TagId: 0
-          effects: []
+          distanceScale: 1
+          _hasDistanceScale: 1
+        _hasSourceRange: 0
     - rid: 6940827094329589762
       type: {class: SelfRotationItem, ns: , asm: Assembly-CSharp}
       data:
@@ -137,4 +248,4 @@ MonoBehaviour:
       type: {class: GroundStateCondition, ns: , asm: Assembly-CSharp}
       data:
         invertResult: 0
-        acceptedStates: 3
+        acceptedStates: 4

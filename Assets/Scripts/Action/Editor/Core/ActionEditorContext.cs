@@ -25,6 +25,7 @@ internal enum ActionEditorChangeFlags
     PreviewCharacter = 1 << 10,
     PreviewResources = 1 << 11,
     Playback = 1 << 12,
+    DraftPreview = 1 << 13,
     All = ~0,
 }
 
@@ -233,8 +234,12 @@ internal readonly struct ActionEditorObservedState
                 }
                 object config = ConfigOf(item);
                 AddJson(ref content, config);
+                if (item is EffectItem effect) AddAssetDependency(ref previewResources, effect.Config?.prefab);
                 if (item is RootMotionItem root)
+                {
+                    Add(ref timing, root.SourceEndTime);
                     CollectAnimation(root.Config?.animationAsset, animationAssets, knownAnimationAssets);
+                }
             }
         }
 
@@ -273,11 +278,14 @@ internal readonly struct ActionEditorObservedState
 
     private static object ConfigOf(GameplayItem item)
     {
+        if (item is EffectItem effect) return effect.Config;
+        if (item is ScreenShakeItem shake) return shake.Config;
         if (item is ImpulseItem impulse) return impulse.Config;
         if (item is HitBoxItem hitBox) return hitBox.Config;
         if (item is RootMotionItem root) return root.Config;
         if (item is SelfRotationItem rotation) return rotation.Config;
         if (item is VelocityOverrideItem velocity) return velocity.Config;
+        if (item is MoveToTargetItem move) return move.Config;
         if (item is MotionPolicyItem policy) return policy.Config;
         if (item is TagItem tag) return tag.Config;
         return null;
@@ -426,6 +434,10 @@ internal sealed class ActionEditorContext : ScriptableSingleton<ActionEditorCont
     [NonSerialized] private ActionAsset _queuedBindingAction;
     [NonSerialized] private int _queuedBindingSessionVersion;
     [NonSerialized] private ActionEditorChangeFlags _queuedBindingFlags;
+    [NonSerialized] private ActionAsset _sourcePreviewAction;
+    [NonSerialized] private ActionEditorDocument _sourcePreviewDocument;
+    [NonSerialized] private object _sourcePreviewOwner;
+    [NonSerialized] private string _sourcePreviewEditorId;
 
     internal static event Action<ActionEditorChange> Changed;
 
@@ -437,6 +449,90 @@ internal sealed class ActionEditorContext : ScriptableSingleton<ActionEditorCont
         }
     }
     internal ActionAsset CurrentAction => _currentAction;
+    // Display-only data. Commands, selection and asset observation always use CurrentAction/Document.
+    internal ActionAsset PreviewAction => _sourcePreviewAction != null ? _sourcePreviewAction : _currentAction;
+    internal ActionEditorDocument PreviewDocument => _sourcePreviewDocument ?? Document;
+    internal string PreviewSourceEditorId => _sourcePreviewEditorId;
+    internal int PreviewDurationFrames => Mathf.Max(1, PreviewAction?.Timeline?.DurationFrames ?? 1);
+
+    internal bool SetSourcePreview(object owner, ActionTimelineOperationSnapshot snapshot, ActionTimelineOperationInput input)
+    {
+        if (EditorApplication.isPlayingOrWillChangePlaymode || owner == null || snapshot == null || snapshot.Asset != _currentAction ||
+            !snapshot.MatchesCurrentSource(out _))
+        {
+            ClearSourcePreview(owner);
+            return false;
+        }
+        ActionTimelineOperationResult result = snapshot.Evaluate(input);
+        if (result.State != ActionTimelineOperationState.Allowed || result.Candidates.Count != 1)
+        {
+            ClearSourcePreview(owner);
+            return false;
+        }
+        ActionTimelineOperationCandidate candidate = result.Candidates[0];
+        string editorId = candidate.Source is AnimationSegment animation ? animation.EditorId :
+            (candidate.Source as RootMotionItem)?.EditorId;
+        if (string.IsNullOrEmpty(editorId) || _primarySelection.EditorId != editorId)
+        {
+            ClearSourcePreview(owner);
+            return false;
+        }
+
+        ActionAsset copy = Object.Instantiate(_currentAction);
+        copy.hideFlags = HideFlags.HideAndDontSave;
+        copy.name = _currentAction.name;
+        ActionEditorDocument document = ActionEditorDocument.Build(copy);
+        object source = document.ById[editorId].Source;
+        if (source is AnimationSegment segment)
+            segment.EditorSetData(candidate.StartFrame, candidate.AnimationAsset, candidate.SourceStartTime,
+                candidate.SourceEndTime, candidate.PlayRate);
+        else if (source is RootMotionItem root)
+            root.EditorSetSource(candidate.StartFrame, candidate.AnimationAsset, candidate.SourceStartTime,
+                candidate.SourceEndTime, candidate.PlayRate);
+        else
+        {
+            Object.DestroyImmediate(copy);
+            return false;
+        }
+
+        if (_sourcePreviewAction != null) Object.DestroyImmediate(_sourcePreviewAction);
+        _sourcePreviewAction = copy;
+        _sourcePreviewDocument = ActionEditorDocument.Build(copy);
+        _sourcePreviewOwner = owner;
+        _sourcePreviewEditorId = editorId;
+        Publish(ActionEditorChangeFlags.DraftPreview | ActionEditorChangeFlags.Preview | ClampPreviewTime(),
+            ActionEditorChangeOrigin.Session);
+        return true;
+    }
+
+    internal void ClearSourcePreview(object owner = null, bool notify = true)
+    {
+        if (_sourcePreviewAction == null || owner != null && !ReferenceEquals(owner, _sourcePreviewOwner)) return;
+        Object.DestroyImmediate(_sourcePreviewAction);
+        _sourcePreviewAction = null;
+        _sourcePreviewDocument = null;
+        _sourcePreviewOwner = null;
+        _sourcePreviewEditorId = null;
+        ActionEditorChangeFlags timeFlags = ClampPreviewTime();
+        if (notify)
+            Publish(ActionEditorChangeFlags.DraftPreview | ActionEditorChangeFlags.Preview | timeFlags,
+                ActionEditorChangeOrigin.Session);
+    }
+
+    private ActionEditorChangeFlags ClampPreviewTime()
+    {
+        double position = Math.Max(0d, Math.Min(PreviewDurationFrames, _previewPosition));
+        int frame = Mathf.Clamp((int)Math.Floor(position), 0, PreviewDurationFrames - 1);
+        ActionEditorChangeFlags flags = ActionEditorChangeFlags.None;
+        if (_currentFrame != frame) flags |= ActionEditorChangeFlags.Frame;
+        if (Math.Abs(_previewPosition - position) > 1e-9d) flags |= ActionEditorChangeFlags.PreviewPosition;
+        _previewPosition = position;
+        _currentFrame = frame;
+        return flags;
+    }
+
+    private void OnDisable() => ClearSourcePreview(notify: false);
+
     internal ActionEditorDocument Document
     {
         get
@@ -469,6 +565,7 @@ internal sealed class ActionEditorContext : ScriptableSingleton<ActionEditorCont
         }
 
         CancelQueuedBindingChange();
+        ClearSourcePreview(notify: false);
         _currentAction = action;
         _currentFrame = 0;
         _previewPosition = 0d;
@@ -519,7 +616,7 @@ internal sealed class ActionEditorContext : ScriptableSingleton<ActionEditorCont
         // Stop the continuous clock even when the requested Frame is already selected.
         bool wasPlaying = ActionEditorPlayback.IsPlaying;
         ActionEditorPlayback.Stop(false);
-        int duration = _currentAction != null && _currentAction.Timeline != null ? _currentAction.Timeline.DurationFrames : 1;
+        int duration = PreviewDurationFrames;
         int last = Mathf.Max(0, duration - 1);
         int clamped = Mathf.Clamp(frame, 0, last);
         if (!wasPlaying && _currentFrame == clamped && Math.Abs(_previewPosition - clamped) <= 1e-9d)
@@ -534,9 +631,7 @@ internal sealed class ActionEditorContext : ScriptableSingleton<ActionEditorCont
 
     internal void SetPreviewPosition(double position)
     {
-        int duration = _currentAction != null && _currentAction.Timeline != null
-            ? _currentAction.Timeline.DurationFrames
-            : 1;
+        int duration = PreviewDurationFrames;
         double clamped = Math.Max(0d, Math.Min(duration, double.IsNaN(position) ? 0d : position));
         int frame = Mathf.Clamp((int)Math.Floor(clamped), 0, Mathf.Max(0, duration - 1));
         if (Math.Abs(_previewPosition - clamped) <= 1e-9d && _currentFrame == frame)
@@ -844,6 +939,15 @@ internal sealed class ActionEditorContext : ScriptableSingleton<ActionEditorCont
     private void Publish(ActionEditorChangeFlags flags, ActionEditorChangeOrigin origin)
     {
         if (flags == ActionEditorChangeFlags.None) return;
+        if (_sourcePreviewAction != null &&
+            ((flags & (ActionEditorChangeFlags.Context | ActionEditorChangeFlags.Structure |
+                       ActionEditorChangeFlags.Timing | ActionEditorChangeFlags.Content)) != 0 ||
+             !string.Equals(_sourcePreviewEditorId, _primarySelection.EditorId, StringComparison.Ordinal)))
+        {
+            ClearSourcePreview(notify: false);
+            flags |= ActionEditorChangeFlags.DraftPreview | ActionEditorChangeFlags.Preview |
+                     ActionEditorChangeFlags.Frame | ActionEditorChangeFlags.PreviewPosition;
+        }
         Changed?.Invoke(new ActionEditorChange(_currentAction, flags, _documentVersion, origin));
     }
 }

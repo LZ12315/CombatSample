@@ -37,9 +37,24 @@ MonoBehaviour:
       _muted: 0
       _items:
       - rid: 6940827094329589761
+    - _editorId: 345c81f1ae97431a972d9bd39dffd3a1
+      _name: Gameplay 4
+      _muted: 0
+      _items: []
   _priorityLayer: 1
   _priorityValue: 0
   _cancelRules:
+  - targetKind: 1
+    specificTarget: {fileID: 0}
+    targetTag:
+      TagId: -2107794142
+    locomotionIntentThreshold: 0.01
+    window:
+      startAnchor: 0
+      startFrame: 30
+      endAnchor: 2
+      endFrame: 0
+    conditions: []
   - targetKind: 3
     specificTarget: {fileID: 0}
     targetTag:
@@ -116,7 +131,11 @@ MonoBehaviour:
           animationAsset: {fileID: 11400000, guid: 61485c273998984459c6b53841b8b853,
             type: 2}
           sourceStartTime: 0
+          sourceEndTime: 0
           playRate: 1
+          distanceScale: 1
+          _hasDistanceScale: 1
+        _hasSourceRange: 0
     - rid: 6940827094329589761
       type: {class: HitBoxItem, ns: , asm: Assembly-CSharp}
       data:
@@ -137,9 +156,10 @@ MonoBehaviour:
             targetLayers:
               serializedVersion: 2
               m_Bits: 64
-            _baseDamage: 10
+            _baseDamage: 20
             hitEventTag:
-              TagId: 645108757
+              TagId: -1300321786
+            canBeParried: 0
           effects:
           - rid: 1000
           - rid: 1001

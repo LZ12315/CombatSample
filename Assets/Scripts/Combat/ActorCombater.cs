@@ -91,7 +91,10 @@ public class ActorCombater : MonoBehaviour, IDamageable
 
     public event Action<ActorCombater, float, float> HealthChanged;
 
-    /// <summary>Raised on the defender after accepting a parry. Hit data retains the original incoming attack; no ordinary hit feedback is played.</summary>
+    /// <summary>Raised once on the fatal hit, before the actor GameObject is disabled.</summary>
+    public event Action<ActorCombater, AttackHitData> Died;
+
+    /// <summary>Gameplay notification on the defender after accepting a parry. Hit data retains the incoming attack; feedback is routed separately from the resolved result.</summary>
     public event Action<ActorCombater, AttackHitData> ParrySucceeded;
 
     private float _currentHealth;
@@ -258,9 +261,10 @@ public class ActorCombater : MonoBehaviour, IDamageable
 
     #region === Lock Control API ===
 
+    /// <summary>Ensures a valid soft lock; repeated calls keep the same valid target. Never downgrades HardLock.</summary>
     public bool TryEnterSoftLock()
     {
-        if (lockMode != Enums.LockMode.None) return false;
+        if (lockMode == Enums.LockMode.HardLock) return false;
 
         GameObject target = IsValidTarget(combatTarget, lockRetainRadius)
             ? combatTarget
@@ -399,6 +403,7 @@ public class ActorCombater : MonoBehaviour, IDamageable
     {
         string attackerName = attackData.Attacker != null ? attackData.Attacker.name : "Unknown";
         if (_debugLog) Debug.Log($"[死亡] {name} 被 {attackerName} 击败");
+        Died?.Invoke(this, attackData);
         gameObject.SetActive(false);
     }
 

@@ -163,23 +163,29 @@ internal static class ActionEditorCommands
         if (document == null || !document.ById.TryGetValue(editorId, out ActionDocumentEntry entry) ||
             !(entry.Source is GameplayItem item))
             return false;
-        bool missing = item is ImpulseItem impulse && impulse.Config == null ||
+        bool missing = item is EffectItem effect && effect.Config == null ||
+                       item is ScreenShakeItem shake && (shake.Config == null || shake.Config.screenShake == null) ||
+                       item is ImpulseItem impulse && impulse.Config == null ||
                        item is HitBoxItem hitBox && (hitBox.Config == null || hitBox.Config.hitboxConfig == null ||
                                                      hitBox.Config.dataConfig == null || hitBox.Config.effects == null) ||
                        item is RootMotionItem root && root.Config == null ||
                        item is SelfRotationItem rotation && rotation.Config == null ||
                        item is VelocityOverrideItem velocity && velocity.Config == null ||
+                       item is MoveToTargetItem move && move.Config == null ||
                        item is MotionPolicyItem policy && policy.Config == null ||
                        item is TagItem tag && tag.Config == null;
         if (!missing) return false;
         Record(asset, "Create Action Item Configuration");
         switch (item)
         {
+            case EffectItem value: value.EditorEnsureConfig(); break;
+            case ScreenShakeItem value: value.EditorEnsureConfig(); break;
             case ImpulseItem value: value.EditorEnsureConfig(); break;
             case HitBoxItem value: value.EditorEnsureConfig(); break;
             case RootMotionItem value: value.EditorEnsureConfig(); break;
             case SelfRotationItem value: value.EditorEnsureConfig(); break;
             case VelocityOverrideItem value: value.EditorEnsureConfig(); break;
+            case MoveToTargetItem value: value.EditorEnsureConfig(); break;
             case MotionPolicyItem value: value.EditorEnsureConfig(); break;
             case TagItem value: value.EditorEnsureConfig(); break;
             default: return false;
@@ -318,54 +324,6 @@ internal static class ActionEditorCommands
         return true;
     }
 
-    internal static bool UseFullRootMotionClip(ActionAsset asset, string editorId)
-    {
-        ActionEditorContext context = ActionEditorContext.Shared;
-        if (asset == null || context.CurrentAction != asset || ActionEditorInteractionGate.IsActive ||
-            context.PrimarySelection.Kind != ActionSelectionKind.GameplayItem ||
-            !string.Equals(context.PrimarySelection.EditorId, editorId, StringComparison.Ordinal))
-            return false;
-
-        context.FlushQueuedBindingChange();
-        context.RefreshExternal(ActionEditorChangeOrigin.ObjectChange);
-        ActionEditorDocument document = context.Document;
-        if (context.CurrentAction != asset || document.Readiness != ActionEditorReadiness.Ready ||
-            !document.ById.TryGetValue(editorId, out ActionDocumentEntry entry) ||
-            !(entry.Source is RootMotionItem item) || item.Config == null)
-            return false;
-
-        RootMotionItemConfig config = item.Config;
-        AnimationClip clip = config.animationAsset != null ? config.animationAsset.Clip : null;
-        if (clip == null || !ActionAuthoringMath.IsFinite(clip.length) || clip.length <= 0f)
-            return false;
-        int duration = AnimationSegment.CalculateDerivedDurationFrames(0f, clip.length, config.playRate);
-        if (duration < 1)
-            return false;
-
-        ActionTimelineOperationSnapshot snapshot = ActionTimelineOperationSnapshot.Capture(
-            document, ActionTimelineOperationKind.SetRangeTiming, new[] { editorId });
-        if (snapshot == null || !snapshot.MatchesCurrentSource(out _))
-            return false;
-        ActionTimelineOperationResult result = snapshot.Evaluate(
-            ActionTimelineOperationInput.Absolute(item.StartFrame, duration));
-        if (result == null || result.State == ActionTimelineOperationState.Rejected)
-            return false;
-        if (result.State == ActionTimelineOperationState.NoChange && config.sourceStartTime == 0f)
-            return true;
-
-        // Validate the new length before recording either change, so an overlap cannot leave half an edit.
-        Undo.IncrementCurrentGroup();
-        try
-        {
-            Record(asset, "Use Full Root Motion Clip");
-            config.sourceStartTime = 0f;
-            item.EditorSetTiming(item.StartFrame, duration);
-            Commit(asset, ActionEditorChangeFlags.Content | ActionEditorChangeFlags.Timing);
-        }
-        finally { Undo.IncrementCurrentGroup(); }
-        return true;
-    }
-
     internal static bool CommitTimelineOperation(ActionTimelineOperationSnapshot snapshot,
         ActionTimelineOperationInput input, out string message)
     {
@@ -383,7 +341,8 @@ internal static class ActionEditorCommands
         if (result == null || result.State != ActionTimelineOperationState.Allowed)
             return false;
 
-        foreach (ActionTimelineOperationCandidate candidate in result.Candidates.Where(value => value.Source is AnimationSegment))
+        foreach (ActionTimelineOperationCandidate candidate in result.Candidates.Where(value =>
+                     value.Source is AnimationSegment || value.Source is RootMotionItem))
         {
             AnimationClip currentClip = candidate.AnimationAsset != null ? candidate.AnimationAsset.Clip : null;
             float currentLength = currentClip != null ? currentClip.length : 0f;
@@ -403,8 +362,8 @@ internal static class ActionEditorCommands
                 ? "Resize Action Gameplay Item"
                 : snapshot.Kind == ActionTimelineOperationKind.SetPointTiming || snapshot.Kind == ActionTimelineOperationKind.SetRangeTiming
                     ? "Edit Action Gameplay Timing"
-                    : snapshot.Kind == ActionTimelineOperationKind.SetAnimationTiming
-                        ? "Edit Action Animation Timing"
+                    : snapshot.Kind == ActionTimelineOperationKind.SetAnimationTiming || snapshot.Kind == ActionTimelineOperationKind.SetRootMotionTiming
+                        ? "Edit Action Source Timing"
                         : "Trim Action Animation Segment";
         Record(asset, undoLabel);
 
@@ -425,6 +384,12 @@ internal static class ActionEditorCommands
             if (candidate.Source is AnimationSegment animation)
                 animation.EditorSetData(candidate.StartFrame, candidate.AnimationAsset, candidate.SourceStartTime,
                     candidate.SourceEndTime, candidate.PlayRate);
+            else if (candidate.Source is RootMotionItem root &&
+                     (snapshot.Kind == ActionTimelineOperationKind.SetRootMotionTiming ||
+                      snapshot.Kind == ActionTimelineOperationKind.ResizeLeft || snapshot.Kind == ActionTimelineOperationKind.ResizeRight ||
+                      snapshot.Kind == ActionTimelineOperationKind.SetRangeTiming && candidate.DurationFrames != root.DurationFrames))
+                root.EditorSetSource(candidate.StartFrame, candidate.AnimationAsset, candidate.SourceStartTime,
+                    candidate.SourceEndTime, candidate.PlayRate);
             else if (candidate.Source is PointGameplayItem point)
                 point.EditorSetFrame(candidate.StartFrame);
             else if (candidate.Source is RangeGameplayItem range)
@@ -433,7 +398,8 @@ internal static class ActionEditorCommands
         ActionEditorChangeFlags flags = ActionEditorChangeFlags.Timing;
         if (changesLane) flags |= ActionEditorChangeFlags.Structure;
         if (snapshot.Kind == ActionTimelineOperationKind.TrimLeft || snapshot.Kind == ActionTimelineOperationKind.TrimRight ||
-            snapshot.Kind == ActionTimelineOperationKind.SetAnimationTiming)
+            snapshot.Kind == ActionTimelineOperationKind.SetAnimationTiming || snapshot.Kind == ActionTimelineOperationKind.SetRootMotionTiming ||
+            result.Candidates.Any(candidate => candidate.Source is RootMotionItem) && snapshot.Kind != ActionTimelineOperationKind.Move)
             flags |= ActionEditorChangeFlags.Content;
         Commit(asset, flags);
         message = string.Empty;

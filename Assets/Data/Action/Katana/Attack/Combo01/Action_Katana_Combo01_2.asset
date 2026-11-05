@@ -37,6 +37,11 @@ MonoBehaviour:
       _muted: 0
       _items:
       - rid: 6940827094329589761
+    - _editorId: 921ba9f2c1f9485c8af5efb0084a9154
+      _name: Gameplay 4
+      _muted: 0
+      _items:
+      - rid: 4877645814652993601
   _priorityLayer: 1
   _priorityValue: 0
   _cancelRules:
@@ -47,9 +52,9 @@ MonoBehaviour:
     locomotionIntentThreshold: 0.01
     window:
       startAnchor: 0
-      startFrame: 25
+      startFrame: 20
       endAnchor: 0
-      endFrame: 30
+      endFrame: 60
     conditions: []
   - targetKind: 0
     specificTarget: {fileID: 11400000, guid: af53f0e72972fbf4791c7f0f1c83b6db, type: 2}
@@ -60,7 +65,7 @@ MonoBehaviour:
       startAnchor: 0
       startFrame: 30
       endAnchor: 0
-      endFrame: 70
+      endFrame: 50
     conditions: []
   - targetKind: 3
     specificTarget: {fileID: 0}
@@ -69,7 +74,7 @@ MonoBehaviour:
     locomotionIntentThreshold: 0.01
     window:
       startAnchor: 0
-      startFrame: 30
+      startFrame: 50
       endAnchor: 2
       endFrame: 0
     conditions: []
@@ -127,6 +132,37 @@ MonoBehaviour:
         - {fileID: 8300000, guid: a65d792d6907f744490c9b15bb70edfe, type: 3}
         volume: 1
         pitchVariation: 0.1
+    - rid: 4877645814652993601
+      type: {class: EffectItem, ns: , asm: Assembly-CSharp}
+      data:
+        _editorId: 72eef999cb2e4ed292dd6d10a7e56d61
+        _muted: 0
+        _startFrame: 25
+        _durationFrames: 45
+        _frame: -2147483648
+        _config:
+          _hasPlaybackSettings: 1
+          prefab: {fileID: 1014011059874384, guid: b1517c2a423873f438dbe0dcec081e19,
+            type: 3}
+          anchor: 1
+          bone: 17
+          transformPath: 
+          localPosition: {x: 0, y: 0, z: 0}
+          localEulerAngles: {x: 0, y: 0, z: 0}
+          scale: 0.4
+          followAnchor: 1
+          orientation: 0
+          orientationUpdate: 0
+          worldDirection: 0
+          customWorldDirection: {x: 0, y: 0, z: 1}
+          screenAngleMode: 0
+          anglePresetDegrees: 0
+          angleRandomRange: 360
+          rollMode: 1
+          rollPresetDegrees: 0
+          rollRandomRange: 360
+          occlusionMode: 0
+          simulationSpeed: 1
     - rid: 6940827094329589760
       type: {class: RootMotionItem, ns: , asm: Assembly-CSharp}
       data:
@@ -138,7 +174,11 @@ MonoBehaviour:
           animationAsset: {fileID: 11400000, guid: 24faa6352ddbef546bdaba7a9d2e224c,
             type: 2}
           sourceStartTime: 0
+          sourceEndTime: 0
           playRate: 1
+          distanceScale: 1
+          _hasDistanceScale: 1
+        _hasSourceRange: 0
     - rid: 6940827094329589761
       type: {class: HitBoxItem, ns: , asm: Assembly-CSharp}
       data:
@@ -161,7 +201,8 @@ MonoBehaviour:
               m_Bits: 64
             _baseDamage: 10
             hitEventTag:
-              TagId: 645108757
+              TagId: 1889277012
+            canBeParried: 0
           effects:
           - rid: 1000
           - rid: 1001

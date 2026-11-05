@@ -245,6 +245,12 @@ public sealed class ActionRuntimePlaybackSessionTests
             session.Dispose();
             actorAnimation.BeginFixedAnimationTick();
             actorAnimation.Evaluate(0f);
+            Assert.That(actorAnimation.HasActiveActionOwner, Is.False,
+                "Playback ownership ends immediately; the exit pose is visual only.");
+            Assert.That(animancer.Layers[1].Weight, Is.EqualTo(1f));
+            actorAnimation.Evaluate(0.075f);
+            Assert.That(animancer.Layers[1].Weight, Is.GreaterThan(0f).And.LessThan(1f));
+            actorAnimation.Evaluate(0.1f);
             Assert.That(animancer.Layers[1].Weight, Is.Zero);
             Assert.That(probe.transform.localPosition.x, Is.EqualTo(-1f).Within(1e-4f));
         }

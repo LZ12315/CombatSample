@@ -278,7 +278,7 @@ public sealed partial class ActorLocomotion : MonoBehaviour
 
         _currentRuntime = GetOrCreateRuntime(CurrentAsset);
         CurrentMovementConfig = _currentRuntime.MovementConfig;
-        AcquireAssetTags(CurrentAsset);
+        RefreshSelfTags();
         _currentRuntime.Enter(this, actor);
     }
 
@@ -314,6 +314,23 @@ public sealed partial class ActorLocomotion : MonoBehaviour
         foreach (KeyValuePair<LocomotionAsset, LocomotionRuntime> pair in _runtimes)
             pair.Value?.Dispose();
         _runtimes.Clear();
+    }
+
+    /// <summary>SelfTags describe base locomotion, never the movement that continues underneath an Action.</summary>
+    internal void RefreshSelfTags()
+    {
+        ResolveActor();
+        ActionPlayer player = actor != null
+            ? (actor.actionPlayer != null ? actor.actionPlayer : actor.GetComponent<ActionPlayer>())
+            : null;
+        if (!isActiveAndEnabled || actor == null || !actor.isActiveAndEnabled
+            || CurrentAsset == null || (player != null && player.CurrentAction != null))
+        {
+            ReleaseAcquiredTags();
+            return;
+        }
+
+        AcquireAssetTags(CurrentAsset);
     }
 
     private void AcquireAssetTags(LocomotionAsset asset)

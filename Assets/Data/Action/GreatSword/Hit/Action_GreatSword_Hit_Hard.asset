@@ -27,6 +27,11 @@ MonoBehaviour:
       _muted: 0
       _items:
       - rid: 6940827153219190829
+    - _editorId: 9c0f025b1ae74c95928fae73561fba58
+      _name: Gameplay 2
+      _muted: 0
+      _items:
+      - rid: 4877645814652993558
   _priorityLayer: 1
   _priorityValue: 0
   _cancelRules: []
@@ -43,12 +48,29 @@ MonoBehaviour:
     airLocomotionScale: 1
     gravityScale: 1
   isLoop: 0
-  _allowReenterWhilePlaying: 0
+  _allowReenterWhilePlaying: 1
   _entryConditions:
   - rid: 6940827153219190828
   references:
     version: 2
     RefIds:
+    - rid: 4877645814652993558
+      type: {class: SelfRotationItem, ns: , asm: Assembly-CSharp}
+      data:
+        _editorId: 21dd130869e5416bac502cb9265f93c5
+        _muted: 0
+        _startFrame: 0
+        _durationFrames: 1
+        _config:
+          source: 1
+          mode: 0
+          targetSource: 0
+          directionSource: 0
+          presetLocalDirection: {x: 0, y: 0, z: 1}
+          angularSpeedDegrees: 720
+          animationAsset: {fileID: 0}
+          sourceStartTime: 0
+          playRate: 1
     - rid: 6940827153219190828
       type: {class: GroundStateCondition, ns: , asm: Assembly-CSharp}
       data:

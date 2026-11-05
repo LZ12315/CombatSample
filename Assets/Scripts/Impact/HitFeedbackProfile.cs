@@ -2,13 +2,13 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// 受击反馈配置 — 挂在不同类型目标上，决定被打时的表现。
+/// 命中反馈配置 — 由 Receiver 的普通受击或弹反成功入口选择。
 /// 在 <see cref="effects"/> 中配置与 Clip 相同的 <see cref="ImpactEffectConfig"/>（常用 Hit Sound / Hit VFX）。
 /// </summary>
 [CreateAssetMenu(fileName = "NewHitFeedbackProfile", menuName = "CombatSample/Feedback/Hit Feedback")]
 public class HitFeedbackProfile : ScriptableObject
 {
-    [Tooltip("On each hit, runs enabled items in order after clip effects. Leave Receiver empty to skip hit feedback.")]
+    [Tooltip("Runs enabled items in order. Ordinary hits run after attack effects; successful parries run only the parry Profile. Assign this asset on the defender's HitFeedbackReceiver.")]
     [SerializeReference, SubclassSelector]
     public List<ImpactEffectConfig> effects = new List<ImpactEffectConfig>();
 

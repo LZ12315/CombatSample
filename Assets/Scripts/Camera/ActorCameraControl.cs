@@ -1,18 +1,14 @@
-using System.Collections.Generic;
 using UnityEngine;
 using Cinemachine;
 
+/// <summary>
+/// Observes combat state, schedules camera rigs and handles Cinemachine transitions.
+/// Soft/hard rigs own composition and their independent runtime targets.
+/// Serialized tuning stays here to preserve existing scene and prefab references.
+/// </summary>
 [DefaultExecutionOrder(-20)]
-public partial class ActorCameraControl : MonoBehaviour
+public class ActorCameraControl : MonoBehaviour
 {
-    // ==================================================================
-    // Serialized Fields
-    // ==================================================================
-
-    /// <summary>
-    /// Semantic: focused/presentation actor. Does NOT imply Actor owns Camera.
-    /// CameraControl is an external observer that focuses on an Actor.
-    /// </summary>
     [Header("Actor And Camera Rigs")]
     [Tooltip("相机关注的 Actor，通常为玩家角色。软锁定/硬锁定的目标来源。")]
     public Actor actor;
@@ -62,310 +58,212 @@ public partial class ActorCameraControl : MonoBehaviour
     [Tooltip("每帧 LateUpdate 输出相机快照。日志量极大，仅在调试时开启。")]
     [SerializeField] private bool debugCameraEveryLateUpdate = false;
 
-    // ==================================================================
-    // Runtime State
-    // ==================================================================
-
     [SerializeField, HideInInspector] private Enums.PlayerCameraState currentState;
-    private Dictionary<Enums.PlayerCameraState, ICinemachineCamera> _stateToCameraMap;
-
-    private LockCameraRigRuntime _softRuntime;
-    private LockCameraRigRuntime _hardRuntime;
-
-    /// <summary>
-    /// Backward-compat passthrough: points to active lock runtime's target group.
-    /// Updated by SyncCompatReferences() on state change.
-    /// </summary>
-    private CinemachineTargetGroup _targetGroup;
-
-    // Internal helpers (non-Mono, created in Awake)
-    private CameraRigRouter _rigRouter;
-    private CombatLockComposer _composer;
+    private SoftLockCameraRig _softRig;
+    private HardLockCameraRig _hardRig;
     private CameraDiagnostics _diagnostics;
 
-    // ==================================================================
-    // Public API
-    // ==================================================================
-
-    public CinemachineTargetGroup TargetGroup => _targetGroup;
-
-    public Enums.PlayerCameraState CinemachineState
+    // Presentation is read-only. Request lock changes through ActorCombater.
+    public Enums.PlayerCameraState CinemachineState => currentState;
+    public CinemachineTargetGroup TargetGroup => currentState switch
     {
-        get => currentState;
-        set => SetCameraState(value);
-    }
-
-    /// <summary>
-    /// Legacy compatibility: SetCameraState calls ActorCombater.TryEnterSoftLock/ClearLock.
-    /// Future: input/gameplay layer should request lock; camera should only read Combat state.
-    /// </summary>
-    public void SetCameraState(Enums.PlayerCameraState newState, bool forceUpdate = false)
-    {
-        actor = actor != null ? actor : GetComponentInParent<Actor>();
-
-        _diagnostics.LogCameraEvent($"SetCameraState request={newState} force={forceUpdate} beforeLock={FormatLockMode()} beforeTarget={FormatObjectName(GetCombatTarget())}");
-
-        if (actor?.combater != null)
-        {
-            switch (newState)
-            {
-                case Enums.PlayerCameraState.Free:
-                    actor.combater.ClearLock();
-                    break;
-                case Enums.PlayerCameraState.SoftLock:
-                    actor.combater.TryEnterSoftLock();
-                    break;
-                case Enums.PlayerCameraState.HardLock:
-                    actor.combater.TryEnterHardLock();
-                    break;
-            }
-        }
-
-        _diagnostics.LogCameraEvent($"SetCameraState after authority lock={FormatLockMode()} target={FormatObjectName(GetCombatTarget())} resolved={ResolvePresentationState()}");
-        ApplyPresentationState(ResolvePresentationState(), forceUpdate);
-    }
-
-    public void UpdatePivotBehavior()
-    {
-        RefreshCameraRuntime();
-    }
-
-    // ==================================================================
-    // Unity Lifecycle
-    // ==================================================================
+        Enums.PlayerCameraState.SoftLock => _softRig?.TargetGroup,
+        Enums.PlayerCameraState.HardLock => _hardRig?.TargetGroup,
+        _ => null
+    };
 
     private void Awake()
     {
         actor = actor != null ? actor : GetComponentInParent<Actor>();
-
-        _rigRouter = new CameraRigRouter(this);
-        _composer = new CombatLockComposer(this);
+        // Lock entry is explicitly initialized, not inherited from the outgoing camera.
+        if (softLockCamera != null) softLockCamera.m_Transitions.m_InheritPosition = false;
+        if (hardLockCamera != null) hardLockCamera.m_Transitions.m_InheritPosition = false;
+        ActionScreenShakeListener.Install(normalFreeLookCamera);
+        ActionScreenShakeListener.Install(softLockCamera);
+        ActionScreenShakeListener.Install(hardLockCamera);
         _diagnostics = new CameraDiagnostics(this);
-
-        _rigRouter.InitializeCameraMap();
-
-        _softRuntime = new LockCameraRigRuntime();
-        _hardRuntime = new LockCameraRigRuntime();
-
-        // Keep runtime objects in world space so blended-out cameras can truly freeze.
-        _softRuntime.CreateAnchor(transform);
-        _softRuntime.CreateTargetGroup(transform);
-        _hardRuntime.CreateAnchor(transform);
-        _hardRuntime.CreateTargetGroup(transform);
-
-        _rigRouter.ConfigureLockCameraTransitions();
+        ConfigureDiagnostics();
+        _softRig = new SoftLockCameraRig(softLockCamera);
+        _hardRig = new HardLockCameraRig(hardLockCamera, transform.position);
     }
 
     private void Start()
     {
         actor = actor != null ? actor : GetComponentInParent<Actor>();
-
         transform.localRotation = Quaternion.identity;
-        UpdateFollowAnchor(_softRuntime);
-        UpdateFollowAnchor(_hardRuntime);
-        ApplyPresentationState(ResolvePresentationState(), true);
-
-        _rigRouter.ValidateImpulseListenersOnVirtualCameras();
+        _hardRig.InitializeAnchor(transform.position);
+        ApplyPresentationState(ResolvePresentationState(), forceUpdate: true);
+        CameraDiagnostics.ValidateImpulseListeners(normalFreeLookCamera, softLockCamera, hardLockCamera);
     }
 
     private void LateUpdate()
     {
+        ConfigureDiagnostics();
         RefreshCameraRuntime();
     }
 
     private void OnDestroy()
     {
-        _softRuntime?.DestroyRuntime();
-        _hardRuntime?.DestroyRuntime();
-        _softRuntime = null;
-        _hardRuntime = null;
-        _targetGroup = null;
+        _softRig?.DestroyRuntime();
+        _hardRig?.DestroyRuntime();
+        _softRig = null;
+        _hardRig = null;
     }
-
-    // ==================================================================
-    // High-Level Camera Flow
-    // ==================================================================
 
     private void RefreshCameraRuntime()
     {
-        Enums.PlayerCameraState presentationState = ResolvePresentationState();
+        var presentationState = ResolvePresentationState();
         Transform enemyTarget = GetCombatTarget();
+        if (currentState != presentationState)
+            ApplyPresentationState(presentationState);
 
-        bool stateChanged = currentState != presentationState;
-        if (stateChanged)
+        var brain = ResolveBrain();
+        if (enemyTarget != null)
         {
-            _diagnostics.StartCameraDebugWindow($"RefreshCameraRuntime resolved change {currentState}->{presentationState}");
-            _diagnostics.LogCameraSnapshot("LateUpdate.BeforeStateApply", enemyTarget);
-            ApplyPresentationState(presentationState, forceUpdate: true);
+            // Keep the original order: active rig first, then idle soft/hard rigs.
+            RefreshActiveRig(enemyTarget);
+
+            // IsLive includes blend participants. Do not refresh an outgoing rig's
+            // world-space targets until it has left the blend; preserve its snapshot.
+            if (currentState != Enums.PlayerCameraState.SoftLock
+                && (brain == null || !brain.IsLive(softLockCamera)))
+                RefreshSoftRig(enemyTarget);
+
+            if (currentState != Enums.PlayerCameraState.HardLock
+                && (brain == null || !brain.IsLive(hardLockCamera)))
+                RefreshHardRig(enemyTarget);
         }
 
-        _diagnostics.LogCameraSnapshot("LateUpdate.BeforeRuntimeRefresh", enemyTarget);
-
-        CinemachineBrain brain = _rigRouter.ResolveBrain();
-        bool hasEnemy = enemyTarget != null;
-
-        // --- Active lock camera (always update) ---
-        if (currentState != Enums.PlayerCameraState.Free && hasEnemy)
-        {
-            LockCameraRigRuntime activeRt = GetActiveRuntime();
-            if (activeRt != null)
-            {
-                activeRt.dbgIsActiveRuntime = true;
-                _composer.UpdateCombatFollowAnchor(activeRt, enemyTarget);
-                _composer.RefreshTargetGroup(activeRt, enemyTarget, currentState);
-                _rigRouter.ApplyCameraBindingForRuntime(activeRt);
-                activeRt.targetGroup?.DoUpdate();
-            }
-        }
-
-        // --- Background pre-warm: SoftLock runtime ---
-        if (currentState != Enums.PlayerCameraState.SoftLock && hasEnemy)
-        {
-            bool isLive = brain != null && brain.IsLive(softLockCamera);
-            if (!isLive)
-            {
-                _softRuntime.dbgIsActiveRuntime = false;
-                _composer.UpdateCombatFollowAnchor(_softRuntime, enemyTarget);
-                _composer.RefreshTargetGroup(_softRuntime, enemyTarget, currentState);
-                _rigRouter.ApplyCameraBindingForRuntime(_softRuntime);
-                _softRuntime.targetGroup?.DoUpdate();
-            }
-        }
-
-        // --- Background pre-warm: HardLock runtime ---
-        if (currentState != Enums.PlayerCameraState.HardLock && hasEnemy)
-        {
-            bool isLive = brain != null && brain.IsLive(hardLockCamera);
-            if (!isLive)
-            {
-                _hardRuntime.dbgIsActiveRuntime = false;
-                _composer.UpdateCombatFollowAnchor(_hardRuntime, enemyTarget);
-                _composer.RefreshTargetGroup(_hardRuntime, enemyTarget, currentState);
-                _rigRouter.ApplyCameraBindingForRuntime(_hardRuntime);
-                _hardRuntime.targetGroup?.DoUpdate();
-            }
-        }
-
-        // Refresh TargetGroup snapshot positions after DoUpdate for both runtimes.
-        if (_diagnostics.ShouldCaptureDiagnostics)
-        {
-            if (_softRuntime?.targetGroup != null)
-                _softRuntime.dbgTargetGroupPos = _softRuntime.targetGroup.transform.position;
-            if (_hardRuntime?.targetGroup != null)
-                _hardRuntime.dbgTargetGroupPos = _hardRuntime.targetGroup.transform.position;
-        }
-
-        _rigRouter.ApplyCameraPriorities(currentState);
-        _diagnostics.LogCameraSnapshot("LateUpdate.AfterRuntimeRefresh", enemyTarget);
+        ApplyPriorities();
+        LogSnapshot("LateUpdate.AfterRuntimeRefresh");
     }
 
     private Enums.PlayerCameraState ResolvePresentationState()
     {
-        if (actor == null || actor.combater == null)
-            return Enums.PlayerCameraState.Free;
-
-        if (actor.combater.CombatTarget == null)
+        if (GetCombatTarget() == null)
             return Enums.PlayerCameraState.Free;
 
         return actor.combater.LockMode switch
         {
             Enums.LockMode.SoftLock => Enums.PlayerCameraState.SoftLock,
             Enums.LockMode.HardLock => Enums.PlayerCameraState.HardLock,
-            _ => Enums.PlayerCameraState.Free,
+            _ => Enums.PlayerCameraState.Free
         };
     }
 
-    /// <summary>
-    /// Presentation state: only switches priority.
-    /// Runtime data is maintained separately in RefreshCameraRuntime.
-    /// </summary>
     private void ApplyPresentationState(Enums.PlayerCameraState newState, bool forceUpdate = false)
     {
-        if (_stateToCameraMap == null)
-            _rigRouter.InitializeCameraMap();
-
         Transform enemyTarget = GetCombatTarget();
         if (newState != Enums.PlayerCameraState.Free && enemyTarget == null)
             newState = Enums.PlayerCameraState.Free;
-
         if (currentState == newState && !forceUpdate) return;
 
-        Enums.PlayerCameraState previousState = currentState;
-        _diagnostics.StartCameraDebugWindow($"ApplyPresentationState {previousState}->{newState} force={forceUpdate}");
-        _diagnostics.LogCameraSnapshot("Apply.Before", enemyTarget);
-
+        var previousState = currentState;
+        _diagnostics.BeginTransition($"{previousState}->{newState} force={forceUpdate}");
+        LogSnapshot("Apply.Before");
         currentState = newState;
-        SyncCompatReferences();
 
-        bool enteringLock = previousState != newState
-                         && newState != Enums.PlayerCameraState.Free
-                         && enemyTarget != null;
-        if (enteringLock)
+        if (previousState != newState && newState != Enums.PlayerCameraState.Free && enemyTarget != null)
         {
-            LockCameraRigRuntime incoming = GetActiveRuntime();
-            if (incoming != null)
-            {
-                _composer.UpdateCombatFollowAnchor(incoming, enemyTarget, instant: true);
-                _composer.RefreshTargetGroup(incoming, enemyTarget, currentState);
-                _rigRouter.ApplyCameraBindingForRuntime(incoming);
-                incoming.targetGroup?.DoUpdate();
-                _rigRouter.PrepareIncomingLockCamera(newState);
-            }
+            RefreshActiveRig(enemyTarget, instant: true);
+            PrepareIncomingLockCamera(newState);
         }
+        if (previousState != Enums.PlayerCameraState.Free && newState == Enums.PlayerCameraState.Free)
+            PrepareIncomingFreeLookCamera();
 
-        bool exitingToFree = previousState != Enums.PlayerCameraState.Free
-                          && newState == Enums.PlayerCameraState.Free;
-        if (exitingToFree)
+        ApplyPriorities();
+        LogSnapshot("Apply.AfterPriorities");
+    }
+
+    // Cinemachine selection and transitions. Lock rigs bind their own targets.
+    private void ApplyPriorities()
+    {
+        if (normalFreeLookCamera != null)
+            normalFreeLookCamera.Priority = currentState == Enums.PlayerCameraState.Free ? 20 : 10;
+        if (softLockCamera != null)
+            softLockCamera.Priority = currentState == Enums.PlayerCameraState.SoftLock ? 20 : 10;
+        if (hardLockCamera != null)
+            hardLockCamera.Priority = currentState == Enums.PlayerCameraState.HardLock ? 20 : 10;
+    }
+
+    private static CinemachineBrain ResolveBrain()
+    {
+        Camera mainCamera = Camera.main;
+        return mainCamera != null ? mainCamera.GetComponent<CinemachineBrain>() : null;
+    }
+
+    private void PrepareIncomingLockCamera(Enums.PlayerCameraState state)
+    {
+        var incoming = state == Enums.PlayerCameraState.SoftLock ? softLockCamera
+            : state == Enums.PlayerCameraState.HardLock ? hardLockCamera : null;
+        if (incoming == null) return;
+        incoming.PreviousStateIsValid = false;
+        incoming.InternalUpdateCameraState(Vector3.up, -1f);
+    }
+
+    private void PrepareIncomingFreeLookCamera()
+    {
+        if (normalFreeLookCamera == null) return;
+        var brain = ResolveBrain();
+        if (brain != null && (brain.IsLive(normalFreeLookCamera) || brain.IsLiveInBlend(normalFreeLookCamera)))
+            return;
+
+        Camera mainCamera = Camera.main;
+        if (mainCamera != null)
+            normalFreeLookCamera.ForceCameraPosition(mainCamera.transform.position, mainCamera.transform.rotation);
+    }
+
+    private void RefreshActiveRig(Transform enemyTarget, bool instant = false)
+    {
+        switch (currentState)
         {
-            _rigRouter.PrepareIncomingFreeLookCamera();
+            case Enums.PlayerCameraState.SoftLock:
+                RefreshSoftRig(enemyTarget);
+                break;
+            case Enums.PlayerCameraState.HardLock:
+                RefreshHardRig(enemyTarget, instant);
+                break;
         }
-
-        _rigRouter.ApplyCameraPriorities(currentState);
-        _diagnostics.LogCameraSnapshot("Apply.AfterPriorities", enemyTarget);
     }
 
-    // ==================================================================
-    // Internal Helpers (orchestration glue)
-    // ==================================================================
-
-    private LockCameraRigRuntime GetActiveRuntime()
+    private void RefreshSoftRig(Transform enemyTarget)
     {
-        return currentState switch
+        _softRig.Refresh(actor, enemyTarget, new SoftLockCameraRig.Settings
         {
-            Enums.PlayerCameraState.SoftLock => _softRuntime,
-            Enums.PlayerCameraState.HardLock => _hardRuntime,
-            _ => null,
-        };
+            PlayerWeight = softLockPlayerWeight,
+            EnemyWeight = softLockEnemyWeight,
+            PlayerRadius = softLockPlayerRadius,
+            EnemyRadius = softLockEnemyRadius
+        });
     }
 
-    private void SyncCompatReferences()
+    private void RefreshHardRig(Transform enemyTarget, bool instant = false)
     {
-        LockCameraRigRuntime active = GetActiveRuntime();
-        _targetGroup = active?.targetGroup;
+        _hardRig.Refresh(transform, enemyTarget, new HardLockCameraRig.Settings
+        {
+            HeightOffset = heightOffset,
+            PositionSmoothTime = positionSmoothTime,
+            RotationSmoothTime = rotationSmoothTime,
+            FramingSize = lockFramingSize,
+            TargetPadding = lockTargetPadding,
+            CenterBias = lockCenterBias,
+            Fov = lockFov,
+            BaseFollowDistance = lockBaseFollowDistance,
+            DistancePerCombatMeter = lockDistancePerCombatMeter,
+            MaxFollowDistance = lockMaxFollowDistance,
+            PlayerWeight = lockPlayerWeight,
+            EnemyWeight = lockEnemyWeight
+        }, instant);
     }
 
-    private void UpdateFollowAnchor(LockCameraRigRuntime rt)
-    {
-        if (rt == null || rt.anchor == null) return;
-        rt.anchor.position = transform.position;
-        rt.anchor.rotation = Quaternion.identity;
-    }
+    private Transform GetCombatTarget() => actor != null && actor.combater != null
+        ? actor.combater.CombatTarget?.transform : null;
 
-    private Transform GetCombatTarget()
-    {
-        return actor != null && actor.combater != null
-            ? actor.combater.CombatTarget?.transform
-            : null;
-    }
+    private void ConfigureDiagnostics() => _diagnostics.Configure(
+        debugCameraTransitions, debugFramesAfterTransition, debugCameraEveryLateUpdate);
 
-    private string FormatLockMode()
-    {
-        return actor != null && actor.combater != null
-            ? actor.combater.LockMode.ToString()
-            : "null";
-    }
-
-    private static string FormatObjectName(Object obj) => obj != null ? obj.name : "null";
+    private void LogSnapshot(string phase) => _diagnostics.LogSnapshot(
+        phase, currentState, actor, normalFreeLookCamera, _softRig, _hardRig);
 
     public Vector3 ToWorldMoveDirection(Vector2 moveInput)
     {
@@ -391,11 +289,6 @@ public partial class ActorCameraControl : MonoBehaviour
 
         return (forward * moveInput.y) + (right * moveInput.x);
     }
-
-    public Vector3 CalculateWorldDirection(Vector2 rawMove)
-    {
-        return ToWorldMoveDirection(rawMove);
-    }
 }
 
 public partial class Enums
@@ -403,5 +296,44 @@ public partial class Enums
     public enum PlayerCameraState
     {
         Free, SoftLock, HardLock
+    }
+}
+
+/// <summary>
+/// Shared allocation details kept in this file; each lock rig owns and destroys
+/// its own objects. This helper has no state or scheduling responsibility.
+/// </summary>
+internal static class LockCameraRuntimeObjects
+{
+    public static Transform CreateTransform(string name, Vector3 position)
+    {
+        var target = new GameObject(name).transform;
+        // Deliberately unparented: a blending-out rig must not inherit actor motion.
+        target.SetPositionAndRotation(position, Quaternion.identity);
+        return target;
+    }
+
+    public static CinemachineTargetGroup CreateTargetGroup(
+        string name, CinemachineTargetGroup.PositionMode positionMode)
+    {
+        var target = CreateTransform(name, Vector3.zero);
+        var group = target.gameObject.AddComponent<CinemachineTargetGroup>();
+        group.m_PositionMode = positionMode;
+        group.m_RotationMode = CinemachineTargetGroup.RotationMode.Manual;
+        group.m_UpdateMethod = CinemachineTargetGroup.UpdateMethod.LateUpdate;
+        return group;
+    }
+
+    public static void DestroyTransform(ref Transform target)
+    {
+        if (target != null)
+            Destroy(target.gameObject);
+        target = null;
+    }
+
+    public static void Destroy(GameObject target)
+    {
+        if (Application.isPlaying) Object.Destroy(target);
+        else Object.DestroyImmediate(target);
     }
 }

@@ -24,14 +24,22 @@ public static class ScreenOrientedImpactRotationResolver
             return Quaternion.identity;
         }
 
-        Transform ct = cam.transform;
+        return Resolve(angleMode, anglePresetDegrees, angleRandomRangeDegrees, cam.transform.rotation);
+    }
+
+    /// <summary>Explicit camera orientation for isolated previews and context-owned placement.</summary>
+    public static Quaternion Resolve(ScreenAngleMode angleMode, float anglePresetDegrees,
+        float angleRandomRangeDegrees, Quaternion cameraRotation)
+    {
+        Vector3 cameraForward = cameraRotation * Vector3.forward;
+        Vector3 cameraRight = cameraRotation * Vector3.right;
         float angle = angleMode == ScreenAngleMode.Preset
             ? anglePresetDegrees
             : (angleRandomRangeDegrees > 0.001f ? Random.Range(0f, angleRandomRangeDegrees) : 0f);
 
         // This slash prefab is stretched-billboard based, so its visible angle follows
         // the emitter/velocity axis in screen space more than the root normal.
-        Vector3 screenDirection = Quaternion.AngleAxis(angle, ct.forward) * ct.right;
-        return Quaternion.LookRotation(screenDirection, -ct.forward);
+        Vector3 screenDirection = Quaternion.AngleAxis(angle, cameraForward) * cameraRight;
+        return Quaternion.LookRotation(screenDirection, -cameraForward);
     }
 }

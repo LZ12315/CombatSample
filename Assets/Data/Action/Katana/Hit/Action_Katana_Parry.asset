@@ -27,6 +27,21 @@ MonoBehaviour:
       _muted: 0
       _items:
       - rid: 6940827153219190831
+    - _editorId: e282199177ad4a4a8fa8683fb0a4ac74
+      _name: Gameplay 4
+      _muted: 0
+      _items:
+      - rid: 4877645814652993565
+    - _editorId: 9a0fa2994187496a90c5547aa5514d89
+      _name: Gameplay 2
+      _muted: 0
+      _items:
+      - rid: 4877645814652993563
+    - _editorId: ee865b5395d74053a0a92015c4e0916c
+      _name: Gameplay 3
+      _muted: 0
+      _items:
+      - rid: 4877645814652993564
   _priorityLayer: 1
   _priorityValue: 0
   _cancelRules:
@@ -56,11 +71,50 @@ MonoBehaviour:
   isLoop: 0
   _allowReenterWhilePlaying: 0
   _entryConditions:
-  - rid: 6940827116907528192
   - rid: 6940827116907528193
+  - rid: 6940827116907528192
   references:
     version: 2
     RefIds:
+    - rid: 4877645814652993563
+      type: {class: TagItem, ns: , asm: Assembly-CSharp}
+      data:
+        _editorId: 26cf498f21a04ac4aca4edb6aa604602
+        _muted: 0
+        _startFrame: 0
+        _durationFrames: 20
+        _config:
+          tag:
+            TagId: 383504589
+          targetContainer: 0
+    - rid: 4877645814652993564
+      type: {class: TagItem, ns: , asm: Assembly-CSharp}
+      data:
+        _editorId: 5ec8348e4ab14bc7b70f3a89716e17a0
+        _muted: 0
+        _startFrame: 0
+        _durationFrames: 20
+        _config:
+          tag:
+            TagId: -1070838861
+          targetContainer: 0
+    - rid: 4877645814652993565
+      type: {class: SelfRotationItem, ns: , asm: Assembly-CSharp}
+      data:
+        _editorId: b202b315bc9f4748b0365f5c8b616048
+        _muted: 0
+        _startFrame: 0
+        _durationFrames: 1
+        _config:
+          source: 1
+          mode: 0
+          targetSource: 0
+          directionSource: 0
+          presetLocalDirection: {x: 0, y: 0, z: 1}
+          angularSpeedDegrees: 720
+          animationAsset: {fileID: 0}
+          sourceStartTime: 0
+          playRate: 1
     - rid: 6940827116907528192
       type: {class: InputSequenceCondition, ns: , asm: Assembly-CSharp}
       data:
@@ -68,7 +122,7 @@ MonoBehaviour:
         maxSequenceTime: 0.5
         clips:
         - type: 0
-          button: 8
+          button: 16
           direction: 0
     - rid: 6940827116907528193
       type: {class: GroundStateCondition, ns: , asm: Assembly-CSharp}

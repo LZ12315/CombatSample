@@ -47,7 +47,12 @@ public interface IActionRangeRuntime
 public readonly struct ActionRuntimeContext
 {
     internal ActionRuntimeContext(Actor actor, ActionContext actionContext)
+        : this(actor, actionContext, actor != null ? actor.ActionEffects : null) { }
+
+    internal ActionRuntimeContext(Actor actor, ActionContext actionContext, ActionEffectBuffer effects, Func<double> actionPosition = null)
     {
+        _actionPosition = actionPosition;
+        Effects = effects;
         Actor = actor;
         ActionContext = actionContext;
         Motor = actor != null ? actor.actorMotor : null;
@@ -58,6 +63,9 @@ public readonly struct ActionRuntimeContext
     public ActionContext ActionContext { get; }
     public ActorMotor Motor { get; }
     internal ActorHitBoxRuntime HitBoxes { get; }
+    internal ActionEffectBuffer Effects { get; }
+    private readonly Func<double> _actionPosition;
+    internal double ActionPosition => _actionPosition?.Invoke() ?? 0d;
 }
 
 /// <summary>Immutable timing data retained by a scheduler for one execution.</summary>
@@ -453,7 +461,8 @@ public sealed class ActionRuntime
 
         try
         {
-            var context = new ActionRuntimeContext(_actor, _actionContext);
+            var context = new ActionRuntimeContext(_actor, _actionContext, _actor?.ActionEffects,
+                () => Scheduler?.ContinuousPosition ?? 0d);
             _motionPolicy = new ActionMotionPolicySession(ActionAsset, context.Motor);
             Scheduler = new ActionRuntimeScheduler(ActionAsset.Timeline, context, _motionPolicy.ApplyFrame);
             Scheduler.ValidateAnimationSnapshot();

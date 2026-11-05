@@ -86,7 +86,21 @@ Requirements、Cancel Rules、CancelRule / ActionListEntry 的 Conditions，以�
 
 ActionList 的 `_entries` 保存 `ActionListEntry`（Action 引用、Allow From Neutral、Conditions）。列表条件只用于没有当前 Action 时的 Poll 起手，空条件无额外限制；关闭 Allow From Neutral 仅禁止起手，不移除 Event 注册或 Any / AnyWithTag 的取消目标发现，External 也不检查该入口条件。注册动作按首次出现顺序去重；同一 Action 可以有多个 Neutral 入口，按原有仲裁顺序选择首个通过的候选。每条 CancelRule 的 Conditions 在普通取消展开与 External 取消校验中都求值，再与目标 Requirements 合并；输入凭据只在实际开始成功后统一原子消费，跨层重复引用同一事件只消费一次。Event 维持原先仅跳过 Requirements 中玩家输入条件的行为。Locomotion 返回规则维持移动意图门槛，附加 Conditions 通过后才作为低于合法 Action 的返回候选，只有返回被执行时才消费其输入。
 
-Animation Segment 的 `Use Full Clip` 与 `Revert` 位于同一行：前者占剩余宽度，后者固定为较窄的 64px。点击 `Use Full Clip` 将 Source 范围设为整个 Clip 并立即通过原有校验／Undo 命令提交，不再提供独立 Apply 按钮。其他手动字段仍使用 Enter 提交草稿，Esc 或 Revert 丢弃未提交草稿；已提交的 Full Clip 修改使用 Undo 撤销。
+Animation Segment 与 RootMotionItem 共用 Source Timing 草稿、校验和提交路径。Details 可编辑 Start、Animation Asset、Source Start / End（秒）和 Play Rate；Duration 与 End 为派生只读值。修改倍率保留源范围，按既有 60 Hz 向上取整规则改变片段长度，不联动其他动画或 GameplayItem。更换 Animation Asset 时，草稿范围重置为新 AnimationClip 全段，保留倍率；不携带旧 Clip 的裁剪范围。Use Full Clip 也仅将草稿源范围设为当前引用的原始 AnimationClip 全段，保留草稿倍率。Use Full Clip / Apply / Revert 同行，宽度约 1.4 : 1 : 1。合法草稿立即反映到 Timeline 长度、条目范围以及 Preview 姿态／位移；Apply 或 Enter 才将源配置与时间作为单次 Undo 原子提交；Revert 或 Esc 丢弃草稿并恢复已应用效果。Details 与 Timeline 标记未保存预览。同轨重叠、源范围非法或快照过期时不写入任何部分，保留输入、恢复已应用预览并说明具体字段／Clip 长度或冲突条目，Apply 不可用。
+
+即时预览由共享 Context 持有 HideAndDontSave 的临时 Action 副本，仍只有一份 TimingDraft，不将草稿写到真实资产再回滚。Preview 的动画、RootMotion、播放终点和拖动播放头使用同一副本。Timeline 仅替换目标条目的显示几何、文案和时长；命令、序列化绑定、选择及源快照仍指向真实资产／Document。DraftPreview 通知不增加真实 DocumentVersion，不重建 Details 控件，也不打断播放；存在草稿的条目拖动前需 Apply 或 Revert，以免已应用时序上的拖动覆盖草稿。修改其他内容、切换选择／Action、Revert、关闭 Details、脚本重载及进入 Play Mode 时释放临时副本；可保留的草稿在真实内容刷新后重新求值并建立新预览。
+
+RootMotionItem 显式保存源结束时间，Duration 由源范围与倍率推导。旧条目没有显式源范围时，保留其精确序列化 Duration，并以 Source Start + Duration / 60 × Play Rate 恢复有效 Source End；单纯打开、读取预览不会迁移或写脏资源；移动与复制保留旧源范围，不触发源模型迁移。真正应用 Source 编辑后才保存新范围。恢复范围超出 Clip 时 Details 显示错误，不自动裁剪或重置倍率；可手动修正或将 Full Clip 填入草稿后 Apply。移动保留源范围；既有 Gameplay 范围拖边仍保留源起点和倍率，通过调整源结束时间表达长度，不套用 Animation 左裁剪的不同语义，也不修改其他 GameplayItem 的时长规则。Runtime 与 Preview 共用源采样窗口，并将最后一个取整帧限制到选定 Source End，不提取额外位移。
+
+RootMotionItem 另有独立的 `Distance Scale`（默认 1，非负），只缩放水平位移，不改变源范围、Play Rate、Duration、旋转或 AnimationAsset 烘焙数据；0 明确表示零位移。该字段通过普通 SerializedProperty / Undo 即时提交，不属于 Source Timing 草稿；Runtime 与 Preview 使用相同的缩放规则。旧配置缺失字段时按 1 读取，不批量重写旧资产。
+
+`Motion/Move To Target` 新增 `MoveToTargetItem`：Target Source 支持 CombatTarget、ContextInstigator、ContextTarget，在进入 Item 时固定目标对象；每个 Motor 仿真步追踪其最新水平位置，以 Speed（m/s）× Speed Curve（Item 归一化时间）靠近。Stop Distance 是水平根节点间距，不是碰撞体表面间距。速度与曲线负值按 0 处理，剩余距离按本次实际 movement-scaled delta time 限制，防止慢放或移动倍率变化造成越过停止距离；是否到达只看已求解位置，不因提交一次位移就判定完成，被墙挡住仍会继续尝试。
+
+Move To Target 到达后本区间不再追踪；无目标、目标销毁或已到达时保持水平速度 owner 为零，直到区间退出或 Abort 才释放，避免剩余 RootMotion／自主移动突然恢复。它仅控制水平速度，不改 Transform、不绕过 Motor 碰撞、不接管高度／重力，也不自动转身；转身仍由 SelfRotationItem 表达。水平速度 owner 优先于 RootMotion，因此重叠时是覆盖而非叠加；与其他 Velocity Item 重叠仍沿用后进入 owner 优先，不引入新的独立优先级。目标位置在 Motor 合成时求值（包括没有新 Action 帧的仿真步），暂停 Action 本身仍不自动冻结 Motor。区间结束未到达也不补距离、不瞬移。
+
+Preview 不虚构运行时目标，不模拟 Move To Target 及其水平覆盖，显示明确提示；RootMotion 的 Distance Scale 则参与确定性预览。人工验收：Timeline 添加新 Item、Details 调参／Undo；切换战斗目标不改已进入 Item 的目标；移动目标、到位后移开、目标销毁、墙体阻挡、半速／HitStop、Action 中断与 RootMotion 交接。新增 `ActionMotionItemTests` 保护位移倍率、旧配置默认值、水平追踪、速度曲线、停止距离、运动时间缩放、到达锁存与 owner 收尾契约，不依赖项目角色／场景资源。
+
+本交互需在 Unity 手工验收：修改两类条目的倍率／范围后，未 Apply 时 Timeline、姿态、位移与播放终点立即更新且资产不写脏；更换更短 Clip 自动显示其全段并保留倍率；Full Clip 和其他草稿可被 Revert 丢弃并恢复显示；成功 Apply 后一次 Undo / Redo 还原／重做；减速导致重叠时点名条目、保留输入并说明当前显示已应用数据；切换选择／Action、关闭重开窗口、脚本重载和 Play Mode 切换不残留预览副本；播放、调整 Details 分隔条与窄窗按钮布局正常；旧条目打开不写脏资源，超 Clip 范围明确可见。默认测试只检查临时数据的派生时长、兼容读取、草稿与预览副本隔离、更换 Clip 的范围初始化、预览清理、原子拒绝、Undo 与采样边界，不添加 UI 几何或真实资产测试。
 
 Timeline 顶栏的播放位置读数固定宽度（普通布局 96px、紧凑布局 80px），数字位数变化不挤动后续控件；超长数值截断显示，完整值仍可由原有 tooltip 查看。每次打开 Timeline 默认开启 Snap，窗口内仍可手动关闭或用 Ctrl/Cmd 临时反转。切换 Action 或在无条目选择时打开编辑器，默认选择时间最早且身份可选的 Animation Segment；已有明确条目选择保留，不移动播放头、不写资产，无可选动画段时保留空条目选择。
 

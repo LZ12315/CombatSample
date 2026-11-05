@@ -616,6 +616,116 @@ public sealed class ActionStateManagerContextTests
     }
 
     [Test]
+    public void PlayActionTask_WaitForCompletionDelaysFollowingActionUntilNormalFinish()
+    {
+        TestRig rig = CreateRig();
+        ActionAsset action = CreateLongAction("Wait For Full Attack");
+        PlayActionTask task = CreatePlayActionTask(rig, action);
+        task.waitForCompletion = true;
+        task.untilStarted = true;
+        task.timeout = 0f; // The start deadline must not terminate the completion wait.
+        var count = new BBParameter<int>(0);
+        var increment = new SetInt
+        {
+            valueA = count,
+            Operation = ParadoxNotion.OperationMethod.Add,
+            valueB = new BBParameter<int>(1),
+        };
+        increment.SetOwnerSystem(new TestTaskSystem(rig.Actor));
+        var sequence = new ActionList { actions = new List<ActionTask> { task, increment } };
+        sequence.SetOwnerSystem(new TestTaskSystem(rig.Actor));
+
+        Assert.AreEqual(Status.Running, sequence.Execute(rig.Actor, null));
+        rig.RunActionStateManager();
+        Assert.IsNotNull(rig.Player.CurrentAction);
+        Assert.AreEqual(Status.Running, sequence.Execute(rig.Actor, null));
+        Assert.AreEqual(0, count.value);
+
+        for (int i = 0; i < action.Timeline.DurationFrames; i++)
+        {
+            Assert.IsTrue(rig.Player.PlayActionFrame(CombatSimulationTiming.FixedDeltaTime));
+            Assert.AreEqual(Status.Running, sequence.Execute(rig.Actor, null));
+            Assert.AreEqual(0, count.value, "An open final frame is not yet a completed attack.");
+            rig.Player.FinishActionFrame();
+        }
+
+        Assert.IsNull(rig.Player.CurrentAction);
+        Assert.AreEqual(Status.Success, sequence.Execute(rig.Actor, null));
+        Assert.AreEqual(1, count.value);
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void PlayActionTask_WaitForCompletionFailsOnStopOrSameAssetReplacement(bool replace)
+    {
+        TestRig rig = CreateRig();
+        ActionAsset action = CreateLongAction("Interrupted Attack");
+        PlayActionTask task = CreatePlayActionTask(rig, action);
+        task.waitForCompletion = true;
+        Assert.AreEqual(Status.Running, task.Execute(rig.Actor, null));
+        rig.RunActionStateManager();
+        ActionInstance original = rig.Player.CurrentAction;
+
+        if (replace)
+            rig.Player.BeginAction(action, ActionContext.ForSelf(rig.Actor));
+        else
+            rig.Player.StopAction();
+
+        Assert.AreNotSame(original, rig.Player.CurrentAction);
+        Assert.AreEqual(Status.Failure, task.Execute(rig.Actor, null));
+        if (replace)
+            Assert.IsNotNull(rig.Player.CurrentAction, "Ending the task must not stop the replacement.");
+    }
+
+    [Test]
+    public void PlayActionTask_WaitForCompletionPausePreservesNormalFinishWithoutReplaying()
+    {
+        TestRig rig = CreateRig();
+        ActionAsset action = CreateAction("Finish While Task Paused", ActionTriggerMode.Poll);
+        PlayActionTask task = CreatePlayActionTask(rig, action);
+        task.waitForCompletion = true;
+        Assert.AreEqual(Status.Running, task.Execute(rig.Actor, null));
+        rig.RunActionStateManager();
+        task.Pause();
+
+        Assert.IsTrue(rig.Player.PlayActionFrame(CombatSimulationTiming.FixedDeltaTime));
+        rig.Player.FinishActionFrame();
+        Assert.IsNull(rig.Player.CurrentAction);
+        Assert.IsTrue(task.isPaused);
+        Assert.IsTrue(task.isRunning);
+
+        Assert.AreEqual(Status.Success, task.Execute(rig.Actor, null));
+        rig.RunActionStateManager();
+        Assert.IsNull(rig.Player.CurrentAction, "Resuming must not enqueue another attack.");
+    }
+
+    [Test]
+    public void PlayActionTask_CancelCompletionWaitDoesNotStopActionOrFinishNextExecution()
+    {
+        TestRig rig = CreateRig();
+        ActionAsset first = CreateAction("Previous Attack", ActionTriggerMode.Poll);
+        ActionAsset second = CreateLongAction("Next Attack");
+        PlayActionTask task = CreatePlayActionTask(rig, first);
+        task.waitForCompletion = true;
+        Assert.AreEqual(Status.Running, task.Execute(rig.Actor, null));
+        rig.RunActionStateManager();
+        ActionInstance original = rig.Player.CurrentAction;
+        task.EndAction((bool?)null);
+        Assert.AreSame(original, rig.Player.CurrentAction);
+
+        task.actionToPlay.value = second;
+        Assert.AreEqual(Status.Running, task.Execute(rig.Actor, null));
+        Assert.IsTrue(rig.Player.PlayActionFrame(CombatSimulationTiming.FixedDeltaTime));
+        rig.Player.FinishActionFrame();
+        Assert.IsTrue(task.isRunning, "The previous execution's finish must not resolve the new request.");
+        rig.RunActionStateManager();
+
+        Assert.AreSame(second, rig.Player.CurrentAction.Config);
+        Assert.AreEqual(Status.Running, task.Execute(rig.Actor, null));
+        task.EndAction((bool?)null);
+    }
+
+    [Test]
     public void ExternalRequest_OutsideCancelWindowFailsOnceAndDoesNotPersist()
     {
         TestRig rig = CreateRig();

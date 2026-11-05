@@ -22,7 +22,13 @@
 
 ## 战斗
 
+- [胜负结算与整场重开](Battle_Restart_Flow.md)：胜利／死亡结果、倒计时进度线、默认 3 秒结算＋2 秒过渡后才加载、敌人绑定与验证边界。
+- [Demo 空中连段次数限制](Demo_AirCombo_Limit.md)：每次滞空只能成功起手一套空中连段；组件／Condition 接入与人工验证步骤。
 - [弹反代码合同与配置](Combat_Parry_Contract.md)：命中裁决、有效窗口与方向、被弹反事件、Unity 配置步骤、验证结果与未验收边界。
+
+## 相机
+
+- [CameraControl 职责与整理边界](Camera_Control_Architecture.md)：软硬锁模块、调度与切换、代理目标保护、旧入口清理及人工验证清单。
 
 ## Scripts 组织
 
@@ -42,6 +48,7 @@
 ## Action 与 Preview
 
 - [Action 编辑器与播放架构](CombatSample_Action_Editor_Architecture_2026-09-19_zh-CN.md)：现行 ActionAsset／ActionRuntime 与编辑器职责。
+- [Action 区间特效、曲线震屏与隔离粒子预览](Action_Effect_Contract.md)：VFX 绑定 / 朝向与共用播放能力，原生 Impulse 的 Action 曲线、专用通道和严格清理，以及隔离粒子预览与实际画面验收边界。
 - [Animation → Action → Actor 收尾审查](CombatSample_Animation_Action_Actor_Closure_Audit_2026-09-23_zh-CN.md)：该阶段的变更与验收边界。
 - [Preview 确定性审查](ActionPreview_Determinism_Audit_2026-10-01_zh-CN.md)：Preview 问题与当时核对结果。
 - [Timeline 吸附交接](ActionTimeline_Snapping_Handoff_2026-10-01_zh-CN.md)：对应交互调整的交接记录。
@@ -52,4 +59,5 @@
 
 ## 场景
 
+- [战斗训练大厅交付](Combat_Training_Arena.md)：最新 HyperGraph 玩法迁入、完成版大厅资源、清理结果及场景重开依赖。
 - [场景归属基线](Scene_Ownership_Baseline_2026-08-02.md)：指定日期的场景职责快照，使用时以当前场景核对。

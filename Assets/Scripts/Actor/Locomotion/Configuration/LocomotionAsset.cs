@@ -12,7 +12,8 @@ public abstract class LocomotionAsset : ScriptableObject
 {
     [SerializeField] private int priority;
     [SerializeReference, SubclassSelector] private List<LocomotionModeCondition> entryConditions = new();
-    [SerializeField] private List<TagReference> selfTags = new();
+    [SerializeField, Tooltip("Transient tags held while this asset is selected and no Action is active. Removed during Actions, even when Action movement is allowed.")]
+    private List<TagReference> selfTags = new();
     [SerializeField] private LocomotionMovementConfig movementConfig = LocomotionMovementConfig.Default;
     [SerializeField] private LocomotionMoveDefinition move = new();
 

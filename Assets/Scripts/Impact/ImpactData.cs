@@ -8,6 +8,9 @@ public class ImpactData
     /// <summary>本次命中的战斗层来源；由 <see cref="FromAttackHit"/> 写入。</summary>
     public AttackHitData SourceHit;
 
+    /// <summary>Resolved contact outcome. Original attacker/target roles are retained, including on parries.</summary>
+    public HitResolveOutcome Outcome = HitResolveOutcome.Normal;
+
     public ActorCombater Attacker;
     public GameObject TargetObject;
     public Vector3 HitPoint;
@@ -35,7 +38,7 @@ public class ImpactData
     /// <summary>缓存的目标受击组件，避免重复 GetComponent。</summary>
     public HitFeedbackReceiver TargetReceiver;
 
-    /// <summary>缓存的受击 Profile（可与 Receiver 上引用一致）。</summary>
+    /// <summary>Selected feedback Profile for this outcome. A parry never falls back to the ordinary hit Profile.</summary>
     public HitFeedbackProfile TargetProfile;
 
     public ImpactData(
@@ -51,15 +54,20 @@ public class ImpactData
         VfxSpawnPoint = hitPoint;
     }
 
-    public static ImpactData FromAttackHit(in AttackHitData hit)
+    public static ImpactData FromAttackHit(in AttackHitData hit) => FromAttackHit(hit, HitResolveOutcome.Normal);
+
+    public static ImpactData FromAttackHit(in AttackHitData hit, HitResolveOutcome outcome)
     {
-        var d = new ImpactData(hit.Attacker, hit.Target, hit.HitPoint, hit.Damage);
-        d.SourceHit = hit;
+        var d = new ImpactData(hit.Attacker, hit.Target, hit.HitPoint, hit.Damage)
+        {
+            SourceHit = hit,
+            Outcome = outcome,
+        };
 
         if (hit.Target != null)
         {
             d.TargetReceiver = hit.Target.GetComponentInParent<HitFeedbackReceiver>();
-            d.TargetProfile = d.TargetReceiver != null ? d.TargetReceiver.Profile : null;
+            d.TargetProfile = d.TargetReceiver != null ? d.TargetReceiver.GetProfile(outcome) : null;
         }
 
         return d;

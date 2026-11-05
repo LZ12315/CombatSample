@@ -59,6 +59,18 @@ internal sealed class ActionPreviewSpatialEvaluator
         _boundaries.Clear();
         _boundaries.Add(Vector3.zero);
         Diagnostic = string.Empty;
+        // Preview has no runtime target; never invent a target or imply that pursuit is simulated.
+        IReadOnlyList<GameplayLane> lanes = action?.Timeline?.GameplayLanes;
+        for (int i = 0; lanes != null && i < lanes.Count; i++)
+        {
+            GameplayLane lane = lanes[i];
+            if (lane == null || lane.Muted) continue;
+            for (int j = 0; lane.Items != null && j < lane.Items.Count; j++)
+            {
+                if (lane.Items[j] is MoveToTargetItem move && !move.Muted)
+                    Diagnostic = "Move To Target requires a runtime target and is not simulated in Preview (including its RootMotion override).";
+            }
+        }
     }
 
     private void EnsureBoundary(int boundary)
@@ -133,13 +145,11 @@ internal sealed class ActionPreviewSpatialEvaluator
         {
             RootMotionItemConfig config = root.Config;
             RootMotionTrajectory trajectory = config?.animationAsset != null ? config.animationAsset.RootMotionData : null;
-            ActionItemRuntimeUtility.GetSourceWindow(config?.sourceStartTime ?? 0f, config?.playRate ?? 1f,
-                localFrame, out float sourceStart, out float sourceEnd);
+            ActionItemRuntimeUtility.GetRootMotionSourceWindow(config?.sourceStartTime ?? 0f, root.SourceEndTime,
+                config?.playRate ?? 1f, localFrame, out float sourceStart, out float sourceEnd);
             if (trajectory != null && trajectory.TryExtract(sourceStart, sourceEnd, out RootMotionTransform delta))
             {
-                Vector3 local = delta.Position;
-                local.y = 0f;
-                _translation.SubmitTrajectoryRootMotion(translationOwner, local);
+                _translation.SubmitTrajectoryRootMotion(translationOwner, config.ScalePlanarTranslation(delta.Position));
             }
         }
     }

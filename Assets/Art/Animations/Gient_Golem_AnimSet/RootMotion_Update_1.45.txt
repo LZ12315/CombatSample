@@ -1,0 +1,10 @@
+Giant Golem AnimSet 1.45 - Shoulder Hit Root Motion Fix
+
+Fixed horizontal root-motion import for hit_shoulder_left and hit_shoulder_right. Their horizontal translation is now extracted as root motion instead of being baked entirely into the bone pose.
+
+For moving playback, enable Apply Root Motion on the Animator (or consume Animator.deltaPosition in your controller).
+For stationary playback, use the existing clips in Animation/Humanoid/Inplace. These retain their in-place motion and original asset GUIDs.
+
+Original FBX animation keys, clip names, timing, Avatar mapping, and unrelated animations are preserved. Existing loop settings are unchanged; configure a one-shot state transition for a single hit reaction as appropriate for your controller.
+
+This package uses Unity Humanoid. The Unreal Engine patch is packaged separately and uses Unreal's Force Root Lock / Anim First Frame settings.

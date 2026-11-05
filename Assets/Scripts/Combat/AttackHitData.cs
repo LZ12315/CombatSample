@@ -76,7 +76,7 @@ public readonly struct HitResolveResult
         return new HitResolveResult(HitResolveOutcome.AlreadyDead, false, false, false, false);
     }
 
-    /// <summary>Parries suppress ordinary hit feedback; dedicated feedback can subscribe to ActorCombater.ParrySucceeded.</summary>
+    /// <summary>Parries suppress ordinary hit feedback; ImpactSystem routes this outcome to the defender's parry Profile.</summary>
     public static HitResolveResult Parried()
     {
         return new HitResolveResult(HitResolveOutcome.Parried, false, false, false, false);

@@ -53,10 +53,16 @@ public sealed class TranslationDomain
     public bool HasTrajectoryRootMotionTick => _tickTrajectoryRootMotionOwner.IsValid;
     public Vector3 TrajectoryRootMotionLocalPosition => _tickTrajectoryRootMotionLocalPosition;
 
-    public MotionOwner BeginHorizontalVelocity()
+    public MotionOwner BeginHorizontalVelocity() => BeginHorizontalVelocity(null);
+
+    /// <summary>
+    /// The winning provider is evaluated at motion composition, including ticks without a new Action frame.
+    /// It receives movement-scaled delta time and returns an unscaled world-planar velocity.
+    /// </summary>
+    public MotionOwner BeginHorizontalVelocity(System.Func<float, Vector3> velocityProvider)
     {
         MotionOwner owner = NewOwner();
-        _horizontalVelocityOwners.Add(new HorizontalVelocityOwnerState(owner, Vector3.zero));
+        _horizontalVelocityOwners.Add(new HorizontalVelocityOwnerState(owner, Vector3.zero, velocityProvider));
         return owner;
     }
 
@@ -231,17 +237,23 @@ public sealed class TranslationDomain
         }
     }
 
-    public Vector3 ComposeHorizontal(Vector3 locomotionVelocity, float timeScale)
+    public Vector3 ComposeHorizontal(Vector3 locomotionVelocity, float timeScale) =>
+        ComposeHorizontal(locomotionVelocity, timeScale, 0f);
+
+    public Vector3 ComposeHorizontal(Vector3 locomotionVelocity, float timeScale, float deltaTime)
     {
-        if (TryGetTopHorizontal(out HorizontalVelocityOwnerState owner))
-            return owner.Velocity * timeScale;
+        if (TryComposeHorizontalVelocityOwner(timeScale, out Vector3 velocity, deltaTime))
+            return velocity;
 
         Vector3 horizontal = locomotionVelocity + _horizontalImpulseVelocity;
         horizontal.y = 0f;
         return horizontal * timeScale;
     }
 
-    public bool TryComposeHorizontalVelocityOwner(float timeScale, out Vector3 velocity)
+    public bool TryComposeHorizontalVelocityOwner(float timeScale, out Vector3 velocity) =>
+        TryComposeHorizontalVelocityOwner(timeScale, out velocity, 0f);
+
+    public bool TryComposeHorizontalVelocityOwner(float timeScale, out Vector3 velocity, float deltaTime)
     {
         if (!TryGetTopHorizontal(out HorizontalVelocityOwnerState owner))
         {
@@ -249,7 +261,15 @@ public sealed class TranslationDomain
             return false;
         }
 
-        velocity = owner.Velocity * timeScale;
+        float motionDeltaTime = Mathf.Max(0f, deltaTime) * Mathf.Max(0f, timeScale);
+        velocity = owner.VelocityProvider != null
+            ? (motionDeltaTime > 0f ? owner.VelocityProvider(motionDeltaTime) : Vector3.zero)
+            : owner.Velocity;
+        velocity.y = 0f;
+        if (owner.VelocityProvider != null)
+            _horizontalVelocityOwners[_horizontalVelocityOwners.Count - 1] =
+                new HorizontalVelocityOwnerState(owner.Owner, velocity, owner.VelocityProvider);
+        velocity *= timeScale;
         return true;
     }
 
@@ -344,11 +364,14 @@ public sealed class TranslationDomain
     {
         public readonly MotionOwner Owner;
         public readonly Vector3 Velocity;
+        public readonly System.Func<float, Vector3> VelocityProvider;
 
-        public HorizontalVelocityOwnerState(MotionOwner owner, Vector3 velocity)
+        public HorizontalVelocityOwnerState(MotionOwner owner, Vector3 velocity,
+            System.Func<float, Vector3> velocityProvider = null)
         {
             Owner = owner;
             Velocity = velocity;
+            VelocityProvider = velocityProvider;
         }
     }
 

@@ -1,0 +1,104 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2fb589b8fd064b95b2feff521d1c2c92, type: 3}
+  m_Name: Anim_Giant_Hit_Air_Down_Loop
+  m_EditorClassIdentifier: 
+  _clip: {fileID: 7400000, guid: 2ff0edba8aaba324eaac529e816c5cf3, type: 2}
+  _hasRootMotionData: 1
+  _rootMotionData:
+    sourceClip: {fileID: 7400000, guid: 2ff0edba8aaba324eaac529e816c5cf3, type: 2}
+    sampleRate: 60
+    duration: 0.33333334
+    bakerVersion: 1
+    dependencyHash: 4f19ca63483172f91bdfe2a96f45a445
+    sampleTimes:
+    - 0
+    - 0.016666668
+    - 0.033333335
+    - 0.05
+    - 0.06666667
+    - 0.083333336
+    - 0.1
+    - 0.11666667
+    - 0.13333334
+    - 0.15
+    - 0.16666667
+    - 0.18333334
+    - 0.2
+    - 0.21666667
+    - 0.23333333
+    - 0.25
+    - 0.26666668
+    - 0.28333333
+    - 0.3
+    - 0.31666666
+    - 0.33333334
+    cumulativePositions:
+    - {x: 0, y: 0, z: 0}
+    - {x: 0.00060095615, y: 0, z: -0.0003036422}
+    - {x: 0.0011236174, y: 0, z: -0.00041768246}
+    - {x: 0.0014393663, y: 0, z: 0.000022916385}
+    - {x: 0.0016208588, y: 0, z: 0.00068136875}
+    - {x: 0.0016799186, y: 0, z: 0.0013886908}
+    - {x: 0.0016704467, y: 0, z: 0.0020064814}
+    - {x: 0.0016393553, y: 0, z: 0.0023296254}
+    - {x: 0.0016193815, y: 0, z: 0.0023893951}
+    - {x: 0.0016833168, y: 0, z: 0.0020967515}
+    - {x: 0.0017578977, y: 0, z: 0.0016075128}
+    - {x: 0.0018154841, y: 0, z: 0.0010414976}
+    - {x: 0.0017920055, y: 0, z: 0.000417781}
+    - {x: 0.0015864146, y: 0, z: -0.00022051274}
+    - {x: 0.0012820296, y: 0, z: -0.0008256959}
+    - {x: 0.00091079134, y: 0, z: -0.001353561}
+    - {x: 0.0005257598, y: 0, z: -0.0017505924}
+    - {x: 0.00017663368, y: 0, z: -0.0019649821}
+    - {x: -0.00009455459, y: 0, z: -0.0019474665}
+    - {x: -0.00019970982, y: 0, z: -0.0014945723}
+    - {x: -0.00022732932, y: 0, z: -0.0010170544}
+    cumulativeRotations:
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+  _locomotionData:
+    sourceClip: {fileID: 7400000, guid: 2ff0edba8aaba324eaac529e816c5cf3, type: 2}
+    trajectoryHash: 4f19ca63483172f91bdfe2a96f45a445
+    footSetup: '|'
+    stopTime: 0
+    footMarkers:
+    - time: 0
+      foot: 0
+    - time: 0.1
+      foot: 1
+  _locomotionOverrideClip: {fileID: 0}
+  _overrideStopTime: 0
+  _stopTimeOverride: 0
+  _overrideFootMarkers: 0
+  _footMarkerOverrides: []
+  _animationRigAsset: {fileID: 11400000, guid: 601c811d3c24d7442a8fa5911ba2c3bc, type: 2}

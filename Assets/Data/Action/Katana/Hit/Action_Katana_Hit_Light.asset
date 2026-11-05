@@ -16,10 +16,10 @@ MonoBehaviour:
     _animationSegments:
     - _editorId: 4d9424ba9ec6498a9ba42105a18d638b
       _startFrame: 0
-      _animationAsset: {fileID: 11400000, guid: 9e4675d5796ef4a4b922402c9994f258,
+      _animationAsset: {fileID: 11400000, guid: d5267293830a82a468aecffc871dc7ce,
         type: 2}
       _sourceStartTime: 0
-      _sourceEndTime: 1
+      _sourceEndTime: 0.8333334
       _playRate: 1
     _gameplayLanes:
     - _editorId: fa42e4d2678047ee86666373ed2c3e0f
@@ -27,6 +27,11 @@ MonoBehaviour:
       _muted: 0
       _items:
       - rid: 6940827128231100418
+    - _editorId: 2c881c67a0c74e779d1cc73d5764266a
+      _name: Gameplay 2
+      _muted: 0
+      _items:
+      - rid: 4877645814652993544
   _priorityLayer: 1
   _priorityValue: 0
   _cancelRules:
@@ -54,13 +59,30 @@ MonoBehaviour:
     airLocomotionScale: 1
     gravityScale: 1
   isLoop: 0
-  _allowReenterWhilePlaying: 0
+  _allowReenterWhilePlaying: 1
   _entryConditions:
   - rid: 6940827116907528192
   - rid: 6940827116907528193
   references:
     version: 2
     RefIds:
+    - rid: 4877645814652993544
+      type: {class: SelfRotationItem, ns: , asm: Assembly-CSharp}
+      data:
+        _editorId: a5d4d71a68b3489c8eba46645f6e15d9
+        _muted: 0
+        _startFrame: 0
+        _durationFrames: 1
+        _config:
+          source: 1
+          mode: 0
+          targetSource: 0
+          directionSource: 0
+          presetLocalDirection: {x: 0, y: 0, z: 1}
+          angularSpeedDegrees: 720
+          animationAsset: {fileID: 0}
+          sourceStartTime: 0
+          playRate: 1
     - rid: 6940827116907528192
       type: {class: InputSequenceCondition, ns: , asm: Assembly-CSharp}
       data:
@@ -81,9 +103,9 @@ MonoBehaviour:
         _editorId: a0fd8a62957a4fff8229e5e76e206c12
         _muted: 0
         _startFrame: 0
-        _durationFrames: 60
+        _durationFrames: 51
         _config:
-          animationAsset: {fileID: 11400000, guid: 9e4675d5796ef4a4b922402c9994f258,
+          animationAsset: {fileID: 11400000, guid: d5267293830a82a468aecffc871dc7ce,
             type: 2}
           sourceStartTime: 0
           playRate: 1

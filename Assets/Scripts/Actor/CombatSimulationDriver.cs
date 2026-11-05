@@ -203,6 +203,10 @@ public sealed class CombatSimulationDriver : MonoBehaviour
 
         for (int i = 0; i < _tickActors.Count; i++)
             _tickActors[i].PublishWorldResult();
+
+        // Realize/update Action presentation ranges at the final world position, before hit feedback.
+        for (int i = 0; i < _tickActors.Count; i++)
+            _tickActors[i].FlushActionEffects();
     }
 
     private void RunHitPhase()
@@ -352,6 +356,8 @@ public sealed class CombatSimulationDriver : MonoBehaviour
 
         _ownsSimulation = false;
         ImpactSystem.Instance?.ClearFixedSpeedEffects();
+        for (int i = 0; i < RegisteredActors.Count; i++)
+            RegisteredActors[i].ActionEffects.Clear();
 
         if (_owner == this)
             _owner = null;

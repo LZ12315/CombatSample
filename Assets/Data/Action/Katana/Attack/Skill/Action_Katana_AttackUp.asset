@@ -19,7 +19,7 @@ MonoBehaviour:
       _animationAsset: {fileID: 11400000, guid: c883ba3a54ea076428f8cafd1d0e4da2,
         type: 2}
       _sourceStartTime: 0
-      _sourceEndTime: 1.1
+      _sourceEndTime: 0.95
       _playRate: 1
     _gameplayLanes:
     - _editorId: d41ec04df7ee430cb90085efdc4d7aab
@@ -27,6 +27,11 @@ MonoBehaviour:
       _muted: 0
       _items:
       - rid: 6940827094329589760
+    - _editorId: c2baf7d22cb04904a7795eeab70b37f6
+      _name: Gameplay 4
+      _muted: 0
+      _items:
+      - rid: 4877645847360176134
     - _editorId: b902df72d2d14011ad96d183562cc6c2
       _name: Gameplay 3
       _muted: 0
@@ -37,18 +42,23 @@ MonoBehaviour:
       _muted: 0
       _items:
       - rid: 6940827094329589761
+    - _editorId: 2e7f5202ed8f47dc9fc128fc25809686
+      _name: Gameplay 5
+      _muted: 0
+      _items:
+      - rid: 4877645870441168902
   _priorityLayer: 1
   _priorityValue: 0
   _cancelRules:
   - targetKind: 0
-    specificTarget: {fileID: 11400000, guid: fed94f8bdf28b794aa8c9ff1ced23170, type: 2}
+    specificTarget: {fileID: 11400000, guid: c20a7153013c6fa4ba4e15615aff78f0, type: 2}
     targetTag:
       TagId: 0
     locomotionIntentThreshold: 0.01
     window:
       startAnchor: 0
-      startFrame: 20
-      endAnchor: 0
+      startFrame: 40
+      endAnchor: 2
       endFrame: 50
     conditions: []
   _selfTags: []
@@ -62,7 +72,7 @@ MonoBehaviour:
     turning: 2
     maxTurnSpeed: 180
     airLocomotionScale: 1
-    gravityScale: 1
+    gravityScale: 0
   isLoop: 0
   _allowReenterWhilePlaying: 0
   _entryConditions:
@@ -105,18 +115,97 @@ MonoBehaviour:
         - {fileID: 8300000, guid: a65d792d6907f744490c9b15bb70edfe, type: 3}
         volume: 1
         pitchVariation: 0.1
+    - rid: 4877645847360176134
+      type: {class: VelocityOverrideItem, ns: , asm: Assembly-CSharp}
+      data:
+        _editorId: 751d2da4da824404ba9ade3cbf093000
+        _muted: 0
+        _startFrame: 12
+        _durationFrames: 28
+        _config:
+          velocity:
+            directionMode: 4
+            localHorizontalDirection: {x: 0, y: 0, z: 1}
+            useHorizontalVelocity: 0
+            horizontalSpeed: 0
+            useVerticalVelocity: 1
+            verticalSpeed: 20
+            horizontalCurve:
+              serializedVersion: 2
+              m_Curve:
+              - serializedVersion: 3
+                time: 0
+                value: 1
+                inSlope: 0
+                outSlope: 0
+                tangentMode: 0
+                weightedMode: 0
+                inWeight: 0
+                outWeight: 0
+              - serializedVersion: 3
+                time: 1
+                value: 1
+                inSlope: 0
+                outSlope: 0
+                tangentMode: 0
+                weightedMode: 0
+                inWeight: 0
+                outWeight: 0
+              m_PreInfinity: 2
+              m_PostInfinity: 2
+              m_RotationOrder: 4
+            verticalCurve:
+              serializedVersion: 2
+              m_Curve:
+              - serializedVersion: 3
+                time: 0
+                value: 1
+                inSlope: 0
+                outSlope: 0
+                tangentMode: 0
+                weightedMode: 0
+                inWeight: 0
+                outWeight: 0
+              - serializedVersion: 3
+                time: 1
+                value: 0
+                inSlope: 0
+                outSlope: 0
+                tangentMode: 0
+                weightedMode: 0
+                inWeight: 0
+                outWeight: 0
+              m_PreInfinity: 2
+              m_PostInfinity: 2
+              m_RotationOrder: 4
+            debugLog: 0
+    - rid: 4877645870441168902
+      type: {class: TagItem, ns: , asm: Assembly-CSharp}
+      data:
+        _editorId: 6a1e8024cf27448a9a90eafea56d3d4a
+        _muted: 0
+        _startFrame: 0
+        _durationFrames: 57
+        _config:
+          tag:
+            TagId: -1070838861
+          targetContainer: 0
     - rid: 6940827094329589760
       type: {class: RootMotionItem, ns: , asm: Assembly-CSharp}
       data:
         _editorId: 7378f497e364411d909e612d8b9f3a76
         _muted: 0
         _startFrame: 0
-        _durationFrames: 67
+        _durationFrames: 57
         _config:
           animationAsset: {fileID: 11400000, guid: c883ba3a54ea076428f8cafd1d0e4da2,
             type: 2}
           sourceStartTime: 0
+          sourceEndTime: 0.95
           playRate: 1
+          distanceScale: 1
+          _hasDistanceScale: 1
+        _hasSourceRange: 1
     - rid: 6940827094329589761
       type: {class: HitBoxItem, ns: , asm: Assembly-CSharp}
       data:
@@ -139,7 +228,8 @@ MonoBehaviour:
               m_Bits: 64
             _baseDamage: 10
             hitEventTag:
-              TagId: 645108757
+              TagId: -1047247032
+            canBeParried: 0
           effects:
           - rid: 1000
           - rid: 1001
@@ -168,7 +258,7 @@ MonoBehaviour:
         maxSequenceTime: 0.5
         clips:
         - type: 0
-          button: 8
+          button: 16
           direction: 0
     - rid: 6940827116907528193
       type: {class: GroundStateCondition, ns: , asm: Assembly-CSharp}

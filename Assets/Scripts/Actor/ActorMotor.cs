@@ -184,6 +184,12 @@ public class ActorMotor : MonoBehaviour, ICharacterController
         return _translation.BeginHorizontalVelocity();
     }
 
+    /// <summary>Evaluates only the winning owner's velocity on each Motor step, using movement-scaled time.</summary>
+    public MotionOwner BeginHorizontalVelocity(Func<float, Vector3> velocityProvider)
+    {
+        return _translation.BeginHorizontalVelocity(velocityProvider);
+    }
+
     public void SetHorizontalVelocity(MotionOwner owner, Vector3 velocity)
     {
         _translation.SetHorizontalVelocity(owner, ProjectPlanar(velocity));
@@ -636,7 +642,7 @@ public class ActorMotor : MonoBehaviour, ICharacterController
         float timeScale = _movementTimeScale;
         Vector3 characterUp = Motor != null ? Motor.CharacterUp : Vector3.up;
         Vector3 horizontal;
-        if (_translation.TryComposeHorizontalVelocityOwner(timeScale, out horizontal))
+        if (_translation.TryComposeHorizontalVelocityOwner(timeScale, out horizontal, deltaTime))
         {
             _intervalHorizontalSource = HorizontalMotionSource.HorizontalVelocityOwner;
         }

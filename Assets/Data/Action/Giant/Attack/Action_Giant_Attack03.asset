@@ -1,0 +1,463 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d4a14c808be2c4f4a8f1b6d45ebd172f, type: 3}
+  m_Name: Action_Giant_Attack03
+  m_EditorClassIdentifier: 
+  _actionTimeline:
+    _animationSegments:
+    - _editorId: 8755d00edbed43e1999cc2e527a06752
+      _startFrame: 0
+      _animationAsset: {fileID: 11400000, guid: 9fe39ff34d052b04c8b9be2315e4afb3,
+        type: 2}
+      _sourceStartTime: 0
+      _sourceEndTime: 3.6666667
+      _playRate: 1
+    _gameplayLanes:
+    - _editorId: 41b9603e552240f196c1e5f83eb68130
+      _name: Gameplay
+      _muted: 0
+      _items:
+      - rid: 4877645814652993567
+    - _editorId: c9cead5af40543688a259a2b898fca59
+      _name: Gameplay 2
+      _muted: 0
+      _items:
+      - rid: 4877645814652993568
+      - rid: 4877645891754262564
+    - _editorId: 919ca1a99e57447e81097053d08f3f00
+      _name: Gameplay 3
+      _muted: 0
+      _items:
+      - rid: 4877645814652993576
+    - _editorId: eff75a3643f74ab7a7ccb2e39bdf8039
+      _name: Gameplay 4
+      _muted: 0
+      _items:
+      - rid: 4877645870441168913
+      - rid: 4877645891754262562
+    - _editorId: 0cb5462c61df4eb6a87b779db2ba3498
+      _name: Gameplay 5
+      _muted: 0
+      _items:
+      - rid: 4877645870441168905
+    - _editorId: 65dcf61494804993b957c6a122c4615d
+      _name: Gameplay 6
+      _muted: 0
+      _items:
+      - rid: 4877645891754262565
+  _priorityLayer: 1
+  _priorityValue: 0
+  _cancelRules: []
+  _selfTags: []
+  _triggerMode: 0
+  _eventTriggerTag:
+    TagId: 0
+  _startContextMode: 0
+  _motionPolicy:
+    movement: 2
+    locomotionScale: 1
+    turning: 2
+    maxTurnSpeed: 180
+    airLocomotionScale: 1
+    gravityScale: 1
+  isLoop: 0
+  _allowReenterWhilePlaying: 0
+  _entryConditions:
+  - rid: 4877645814652993566
+  references:
+    version: 2
+    RefIds:
+    - rid: 4877645814652993566
+      type: {class: GroundStateCondition, ns: , asm: Assembly-CSharp}
+      data:
+        invertResult: 0
+        acceptedStates: 3
+    - rid: 4877645814652993567
+      type: {class: RootMotionItem, ns: , asm: Assembly-CSharp}
+      data:
+        _editorId: 1173b3392a964b8fbe20151506c75586
+        _muted: 0
+        _startFrame: 0
+        _durationFrames: 221
+        _config:
+          animationAsset: {fileID: 11400000, guid: 9fe39ff34d052b04c8b9be2315e4afb3,
+            type: 2}
+          sourceStartTime: 0
+          sourceEndTime: 3.6666667
+          playRate: 1
+          distanceScale: 1
+          _hasDistanceScale: 1
+        _hasSourceRange: 1
+    - rid: 4877645814652993568
+      type: {class: SelfRotationItem, ns: , asm: Assembly-CSharp}
+      data:
+        _editorId: 79af0aa7c9694dc09b590595798f5f0c
+        _muted: 0
+        _startFrame: 14
+        _durationFrames: 34
+        _config:
+          source: 1
+          mode: 1
+          targetSource: 0
+          directionSource: 0
+          presetLocalDirection: {x: 0, y: 0, z: 1}
+          angularSpeedDegrees: 360
+          animationAsset: {fileID: 0}
+          sourceStartTime: 0
+          playRate: 1
+    - rid: 4877645814652993576
+      type: {class: HitBoxItem, ns: , asm: Assembly-CSharp}
+      data:
+        _editorId: 93402b4dc97d4f05887b1e313dac7b70
+        _muted: 0
+        _startFrame: 106
+        _durationFrames: 2
+        _config:
+          anchor: 0
+          hitboxConfig:
+            shape: 1
+            center: {x: 0, y: 0.5, z: 3}
+            rotation: {x: 0, y: 0, z: 0, w: 1}
+            size: {x: 3, y: 1, z: 7}
+            height: 0.5
+            radius: 0.1
+          dataConfig:
+            targetLayers:
+              serializedVersion: 2
+              m_Bits: 128
+            _baseDamage: 30
+            hitEventTag:
+              TagId: -1300321786
+            canBeParried: 0
+          effects:
+          - rid: 4877645814652993577
+          - rid: 4877645814652993578
+          - rid: 4877645814652993579
+    - rid: 4877645814652993577
+      type: {class: SpeedEffectConfig, ns: , asm: Assembly-CSharp}
+      data:
+        enabled: 1
+        duration: 0.15
+        speedScale: 0.05
+        affectBothParties: 1
+    - rid: 4877645814652993578
+      type: {class: HitVfxConfig, ns: , asm: Assembly-CSharp}
+      data:
+        enabled: 1
+        prefab: {fileID: 1107029698261400, guid: 6e09e616ba00652ce88f8183147587ed,
+          type: 3}
+        occlusionMode: 1
+        scale: 2
+        lifetime: 1
+        simulationSpeed: 1
+        anchorMode: 0
+        orientationMode: 0
+        screenAngleMode: 1
+        anglePresetDegrees: 0
+        angleRandomRange: 360
+        worldDirectionMode: 0
+        rollMode: 0
+        rollPresetDegrees: 0
+        rollRandomRange: 360
+    - rid: 4877645814652993579
+      type: {class: HitSoundEffectConfig, ns: , asm: Assembly-CSharp}
+      data:
+        enabled: 1
+        clips:
+        - {fileID: 8300000, guid: a65d792d6907f744490c9b15bb70edfe, type: 3}
+        volume: 1
+        pitchVariation: 0.1
+    - rid: 4877645870441168905
+      type: {class: ScreenShakeItem, ns: , asm: Assembly-CSharp}
+      data:
+        _editorId: 562b10e15fb14178a13bb5e7f8f05edd
+        _muted: 0
+        _startFrame: 103
+        _durationFrames: 20
+        _frame: -2147483648
+        _config:
+          _hasDirectionalSettings: 1
+          _hasCurveSettings: 1
+          screenShake:
+            enabled: 1
+            intensity: 0.65
+          direction: 1
+          mode: 0
+          customDirection: {x: 0, y: 1, z: 0}
+          waveform:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 0.15
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 0.35
+              value: -0.6
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 0.6
+              value: 0.25
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          positionX:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 0
+              inSlope: 2
+              outSlope: 2
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          positionY:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          positionZ:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          useRotation: 0
+          rotationAmplitude: 1
+          pitch:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          yaw:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          roll:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          maxDistance: 20
+    - rid: 4877645870441168913
+      type: {class: TagItem, ns: , asm: Assembly-CSharp}
+      data:
+        _editorId: 48ea20106d914483a86c7e6d427adcff
+        _muted: 0
+        _startFrame: 123
+        _durationFrames: 78
+        _config:
+          tag:
+            TagId: -1070838861
+          targetContainer: 0
+    - rid: 4877645891754262562
+      type: {class: TagItem, ns: , asm: Assembly-CSharp}
+      data:
+        _editorId: dc975a227b4e4250bca8e1962a31c994
+        _muted: 0
+        _startFrame: 0
+        _durationFrames: 106
+        _config:
+          tag:
+            TagId: -1070838861
+          targetContainer: 0
+    - rid: 4877645891754262564
+      type: {class: SelfRotationItem, ns: , asm: Assembly-CSharp}
+      data:
+        _editorId: dbcc578aa7a94c49a0c77bd0a29ea954
+        _muted: 0
+        _startFrame: 88
+        _durationFrames: 15
+        _config:
+          source: 1
+          mode: 1
+          targetSource: 0
+          directionSource: 0
+          presetLocalDirection: {x: 0, y: 0, z: 1}
+          angularSpeedDegrees: 360
+          animationAsset: {fileID: 0}
+          sourceStartTime: 0
+          playRate: 1
+    - rid: 4877645891754262565
+      type: {class: EffectItem, ns: , asm: Assembly-CSharp}
+      data:
+        _editorId: cb64dda24d094c569c8c5618e9a2d3d7
+        _muted: 0
+        _startFrame: 100
+        _durationFrames: 78
+        _frame: -2147483648
+        _config:
+          _hasPlaybackSettings: 1
+          prefab: {fileID: 6755296226137300596, guid: 1388ae682a0a6da30b15be1381373594,
+            type: 3}
+          anchor: 0
+          bone: 18
+          transformPath: 
+          localPosition: {x: 0, y: 0.5, z: 3.5}
+          localEulerAngles: {x: 90, y: 0, z: 0}
+          scale: 1.25
+          followAnchor: 0
+          orientation: 0
+          orientationUpdate: 0
+          worldDirection: 0
+          customWorldDirection: {x: 0, y: 0, z: 1}
+          screenAngleMode: 0
+          anglePresetDegrees: 0
+          angleRandomRange: 360
+          rollMode: 1
+          rollPresetDegrees: 0
+          rollRandomRange: 360
+          occlusionMode: 1
+          simulationSpeed: 1

@@ -17,9 +17,9 @@ MonoBehaviour:
   - rid: 6940827070443552770
   selfTags: []
   movementConfig:
-    MaxSpeed: 7
-    Acceleration: 20
-    Deceleration: 12
+    MaxSpeed: 5
+    Acceleration: 15
+    Deceleration: 10
     DirectionResponse: 12
     RotateSpeed: 600
     TurnResponseTime: 0.08

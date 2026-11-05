@@ -827,15 +827,135 @@ public sealed class LocomotionAnimationContractTests
             Assert.That(transition.TimeD, Is.GreaterThan(time));
             _animation.EndActionOverride(action);
             _animation.Evaluate(0f);
-            Assert.That(_animancer.Layers[1].Weight, Is.Zero);
+            Assert.That(_animation.HasActiveActionOwner, Is.False);
+            Assert.That(_animancer.Layers[1].Weight, Is.EqualTo(1f));
+            Assert.That(_probe.localPosition.x, Is.EqualTo(9f).Within(0.001f));
             Assert.That(_animancer.Layers[0].CurrentState, Is.SameAs(transition));
-            Assert.That(transition.TimeD, Is.GreaterThan(time));
+            double releaseTime = LocomotionAnimationUtility.EvaluatedTime(transition);
+            _animation.BeginFixedAnimationTick();
+            _animation.Evaluate(0.075f);
+            Assert.That(_animancer.Layers[1].Weight, Is.GreaterThan(0f).And.LessThan(1f));
+            Assert.That(LocomotionAnimationUtility.EvaluatedTime(transition), Is.GreaterThan(releaseTime));
+            _animation.Evaluate(0.1f);
+            Assert.That(_animancer.Layers[1].Weight, Is.Zero);
         }
         finally
         {
             _animation.EndLocomotionSession(_owner);
             transition.Destroy();
         }
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void ActionExit_BlendsTheLastDisplayedPose_NotAnUnevaluatedSubmission(bool differentClip)
+    {
+        JsonUtility.FromJsonOverwrite("{\"actionLocomotionBlendDuration\":0.2}", _animation);
+        var actionClip = Clip("Changing Action", 9f);
+        actionClip.Clip.SetCurve("PoseProbe", typeof(Transform), "m_LocalPosition.x",
+            AnimationCurve.Linear(0f, 5f, 1f, 13f));
+        var action = ShowAction(actionClip, 0.5f);
+        _animation.BeginFixedAnimationTick();
+        _animation.SubmitActionClipPose(action, differentClip ? Clip("Unseen", 20f).Clip : actionClip.Clip, 0.9f);
+        _animation.EndActionOverride(action);
+        _animation.Evaluate(0f);
+        Assert.That(_probe.localPosition.x, Is.EqualTo(9f).Within(0.001f));
+        _animation.BeginFixedAnimationTick();
+        _animation.Evaluate(0.1f);
+        Assert.That(_probe.localPosition.x, Is.EqualTo(5f).Within(0.001f),
+            "Halfway between the displayed Action (9) and base pose (1).");
+        Assert.That(_animancer.Layers[1].CurrentState.TimeD, Is.EqualTo(0.5d).Within(1e-5));
+        _animation.Evaluate(0f);
+        Assert.That(_probe.localPosition.x, Is.EqualTo(5f).Within(0.001f));
+        _animation.Evaluate(0.11f);
+        Assert.That(_animancer.Layers[1].Weight, Is.Zero);
+        Assert.That(_probe.localPosition.x, Is.EqualTo(1f).Within(0.001f));
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void NewAction_InterruptsExitFade_AndRejectsStaleOwner(bool reuseClip)
+    {
+        var clip = Clip("First Action", 9f);
+        var first = ShowAction(clip);
+        _animation.EndActionOverride(first);
+        _animation.Evaluate(0.075f);
+        Assert.That(_animancer.Layers[1].Weight, Is.GreaterThan(0f).And.LessThan(1f));
+        var next = _animation.BeginActionOverride();
+        _animation.EndActionOverride(first);
+        Assert.That(_animation.SubmitActionClipPose(first, clip.Clip, 0f), Is.False);
+        _animation.SubmitActionClipPose(next, reuseClip ? clip.Clip : Clip("Next Action", 13f).Clip, 0.25f);
+        _animation.Evaluate(0.3f);
+        Assert.That(_animation.HasActiveActionOwner, Is.True);
+        Assert.That(_animancer.Layers[1].Weight, Is.EqualTo(1f));
+        Assert.That(_probe.localPosition.x, Is.EqualTo(reuseClip ? 9f : 13f).Within(0.001f));
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void AnimationGap_FadesWithoutEndingOwnership_AndNextPoseReclaimsTheLayer(bool completeFade)
+    {
+        var clip = Clip("Action", 9f);
+        var action = ShowAction(clip);
+        _animation.BeginFixedAnimationTick(); // No sample in this part of the timeline.
+        _animation.Evaluate(completeFade ? 0.2f : 0.075f);
+        Assert.That(_animation.HasActiveActionOwner, Is.True);
+        Assert.That(_probe.localPosition.x, Is.InRange(1f, 9f));
+        if (completeFade)
+            Assert.That(_animancer.Layers[1].Weight, Is.Zero);
+        else
+            Assert.That(_animancer.Layers[1].Weight, Is.GreaterThan(0f).And.LessThan(1f));
+        Assert.That(_animation.SubmitActionClipPose(action, clip.Clip, 0.25f), Is.True);
+        _animation.Evaluate(0.2f);
+        Assert.That(_animancer.Layers[1].Weight, Is.EqualTo(1f));
+        Assert.That(_probe.localPosition.x, Is.EqualTo(9f).Within(0.001f));
+    }
+
+    [Test]
+    public void ZeroExitDuration_StillSwitchesImmediately()
+    {
+        JsonUtility.FromJsonOverwrite("{\"actionLocomotionBlendDuration\":0}", _animation);
+        var action = ShowAction(Clip("Action", 9f));
+        _animation.EndActionOverride(action);
+        _animation.Evaluate(0f);
+        Assert.That(_animancer.Layers[1].Weight, Is.Zero);
+        Assert.That(_probe.localPosition.x, Is.EqualTo(1f).Within(0.001f));
+    }
+
+    [Test]
+    public void ActionCancelledBeforeFirstEvaluation_DoesNotFadeAnUnseenPose()
+    {
+        _animation.SubmitLocomotion(_owner, new LocomotionAnimationRequest(new ClipState(Clip("Base", 1f).Clip)));
+        _animation.Evaluate(0f);
+        var action = _animation.BeginActionOverride();
+        _animation.SubmitActionClipPose(action, Clip("Unseen", 9f).Clip, 0f);
+        _animation.EndActionOverride(action);
+        _animation.Evaluate(0f);
+        Assert.That(_animancer.Layers[1].Weight, Is.Zero);
+        Assert.That(_probe.localPosition.x, Is.EqualTo(1f).Within(0.001f));
+    }
+
+    [Test]
+    public void SimulationCancel_ClearsExitFadeImmediately()
+    {
+        var action = ShowAction(Clip("Action", 9f));
+        _animation.EndActionOverride(action);
+        _animation.Evaluate(0.05f);
+        _animation.CancelFixedAnimationTick();
+        _animation.Evaluate(0f);
+        Assert.That(_animation.HasActiveActionOwner, Is.False);
+        Assert.That(_animancer.Layers[1].Weight, Is.Zero);
+        Assert.That(_probe.localPosition.x, Is.EqualTo(1f).Within(0.001f));
+    }
+
+    private ActorAnimationActionOwner ShowAction(AnimationAsset clip, float time = 0.25f)
+    {
+        _animation.SubmitLocomotion(_owner, new LocomotionAnimationRequest(new ClipState(Clip("Base", 1f).Clip)));
+        _animation.Evaluate(0f);
+        var owner = _animation.BeginActionOverride();
+        Assert.That(_animation.SubmitActionClipPose(owner, clip.Clip, time), Is.True);
+        _animation.Evaluate(0f);
+        return owner;
     }
 
     [TestCase(false)]
@@ -933,7 +1053,9 @@ public sealed class LocomotionAnimationContractTests
             _animation.Evaluate(0.3f);
             Assert.That(_probe.localPosition.x, Is.EqualTo(9f).Within(0.001f));
             _animation.EndActionOverride(action); _animation.Evaluate(0f);
-            Assert.That(_probe.localPosition.x, Is.EqualTo(evaluatedPose).Within(0.001f));
+            Assert.That(_probe.localPosition.x, Is.EqualTo(9f).Within(0.001f));
+            _animation.Evaluate(0.075f);
+            Assert.That(_probe.localPosition.x, Is.EqualTo((9f + evaluatedPose) * 0.5f).Within(0.001f));
             _animation.Evaluate(0.3f);
             Assert.That(_probe.localPosition.x, Is.EqualTo(evaluatedPose).Within(0.001f));
         }

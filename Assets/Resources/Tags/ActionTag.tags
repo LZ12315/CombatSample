@@ -13,11 +13,10 @@ Action.Idle
 State.Physics.Grounded
 State.Combat.Stun
 State.Physics.Airbone
-Hit.Air.Light
-Hit.Air.Hard
-Hit.Down
-Hit.Air.Relaunch
 State.Combat.SuperArmor
 State.Combat.Invincibility
 State.Combat.Parry
 Hit.Parried
+State.Movement.Strafe
+Hit.Air.Up
+Hit.Air.Down

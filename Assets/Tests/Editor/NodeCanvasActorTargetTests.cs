@@ -137,6 +137,83 @@ public sealed class NodeCanvasActorTargetTests
         Assert.IsNull(output.value);
     }
 
+    [Test]
+    public void EnterSoftLock_UsesStoredTargetAndRepeatedExecutionDoesNotUnlockOrRetarget()
+    {
+        Actor self = CreateActor("Soft Lock Self", Vector3.one * 10000f);
+        Actor target = CreateActor("Soft Lock Target", self.transform.position + Vector3.forward * 2f);
+        target.combater = target.gameObject.AddComponent<ActorCombater>();
+        SetStoredTarget(self, target.gameObject);
+        var task = new EnterSoftLockTask();
+        Bind(task, self);
+
+        Assert.AreEqual(Status.Success, task.Execute(self.transform, null));
+        Assert.AreEqual(Enums.LockMode.SoftLock, self.combater.LockMode);
+        Assert.AreSame(target.gameObject, self.combater.CombatTarget);
+        long revision = self.combater.LockRevision;
+        Assert.AreEqual(Status.Success, task.Execute(self.transform, null));
+        Assert.AreEqual(revision, self.combater.LockRevision);
+        task.EndAction(null);
+        Assert.AreEqual(Enums.LockMode.SoftLock, self.combater.LockMode,
+            "This node sets lock state; it does not own a temporary lock scope.");
+        Assert.AreSame(target.gameObject, self.combater.CombatTarget);
+    }
+
+    [Test]
+    public void EnterSoftLock_DoesNotDowngradeHardLock()
+    {
+        Actor self = CreateActor("Hard Lock Self", Vector3.one * 10000f);
+        Actor target = CreateActor("Hard Lock Target", self.transform.position + Vector3.forward * 2f);
+        target.combater = target.gameObject.AddComponent<ActorCombater>();
+        SetStoredTarget(self, target.gameObject);
+        Assert.IsTrue(self.combater.TryEnterHardLock());
+        long revision = self.combater.LockRevision;
+        var task = new EnterSoftLockTask();
+        Bind(task, self);
+
+        Assert.AreEqual(Status.Failure, task.Execute(self.transform, null));
+        Assert.AreEqual(Enums.LockMode.HardLock, self.combater.LockMode);
+        Assert.AreSame(target.gameObject, self.combater.CombatTarget);
+        Assert.AreEqual(revision, self.combater.LockRevision);
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void EnterSoftLock_RejectsMissingOrDisabledCombater(bool disabled)
+    {
+        Actor self = CreateActor("Unavailable Combater", Vector3.one * 10000f);
+        if (disabled)
+        {
+            self.combater = self.gameObject.AddComponent<ActorCombater>();
+            self.combater.enabled = false;
+        }
+        var task = new EnterSoftLockTask();
+        Bind(task, self);
+
+        Assert.AreEqual(Status.Failure, task.Execute(self.transform, null));
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void EnterSoftLock_RequiresAValidTargetEvenWhenAlreadySoftLocked(bool previouslyLocked)
+    {
+        // Isolate acquisition from any actors in the currently open Editor scene.
+        Actor self = CreateActor("No Target Self", Vector3.one * 10000f);
+        SetStoredTarget(self, null);
+        if (previouslyLocked)
+        {
+            Actor target = CreateActor("Lost Soft Lock Target", self.transform.position + Vector3.forward * 2f);
+            target.combater = target.gameObject.AddComponent<ActorCombater>();
+            SetStoredTarget(self, target.gameObject);
+            Assert.IsTrue(self.combater.TryEnterSoftLock());
+            target.gameObject.SetActive(false);
+        }
+        var task = new EnterSoftLockTask();
+        Bind(task, self);
+
+        Assert.AreEqual(Status.Failure, task.Execute(self.transform, null));
+    }
+
     private Actor CreateActor(string name, Vector3 position)
     {
         var gameObject = new GameObject(name);

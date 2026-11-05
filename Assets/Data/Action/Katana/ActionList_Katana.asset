@@ -22,6 +22,9 @@ MonoBehaviour:
   - action: {fileID: 11400000, guid: 3b56637cbd8913448a4a2c6c4f688f33, type: 2}
     allowFromNeutral: 1
     conditions: []
+  - action: {fileID: 11400000, guid: c20a7153013c6fa4ba4e15615aff78f0, type: 2}
+    allowFromNeutral: 1
+    conditions: []
   references:
     version: 2
     RefIds: []

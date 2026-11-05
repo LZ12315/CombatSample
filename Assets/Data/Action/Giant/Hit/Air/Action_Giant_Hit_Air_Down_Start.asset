@@ -1,0 +1,106 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d4a14c808be2c4f4a8f1b6d45ebd172f, type: 3}
+  m_Name: Action_Giant_Hit_Air_Down_Start
+  m_EditorClassIdentifier: 
+  _actionTimeline:
+    _animationSegments:
+    - _editorId: 8755d00edbed43e1999cc2e527a06752
+      _startFrame: 0
+      _animationAsset: {fileID: 11400000, guid: ff2a3bfc46777db4bbca95872f03ec88,
+        type: 2}
+      _sourceStartTime: 0
+      _sourceEndTime: 0.33333334
+      _playRate: 1
+    _gameplayLanes:
+    - _editorId: 41b9603e552240f196c1e5f83eb68130
+      _name: Gameplay
+      _muted: 0
+      _items:
+      - rid: 4877645814652993567
+    - _editorId: 9dc21637aaf644f2b3eb05fbe7bbb456
+      _name: Gameplay 2
+      _muted: 0
+      _items:
+      - rid: 4877645870441168896
+  _priorityLayer: 1
+  _priorityValue: 0
+  _cancelRules:
+  - targetKind: 0
+    specificTarget: {fileID: 11400000, guid: 37f6fe03006863f4f86336585cc3d452, type: 2}
+    targetTag:
+      TagId: 0
+    locomotionIntentThreshold: 0.01
+    window:
+      startAnchor: 0
+      startFrame: 20
+      endAnchor: 2
+      endFrame: 0
+    conditions: []
+  _selfTags: []
+  _triggerMode: 1
+  _eventTriggerTag:
+    TagId: 1756399373
+  _startContextMode: 0
+  _motionPolicy:
+    movement: 2
+    locomotionScale: 1
+    turning: 2
+    maxTurnSpeed: 180
+    airLocomotionScale: 1
+    gravityScale: 1
+  isLoop: 0
+  _allowReenterWhilePlaying: 1
+  _entryConditions:
+  - rid: 4877645814652993566
+  references:
+    version: 2
+    RefIds:
+    - rid: 4877645814652993566
+      type: {class: GroundStateCondition, ns: , asm: Assembly-CSharp}
+      data:
+        invertResult: 0
+        acceptedStates: 4
+    - rid: 4877645814652993567
+      type: {class: RootMotionItem, ns: , asm: Assembly-CSharp}
+      data:
+        _editorId: 1173b3392a964b8fbe20151506c75586
+        _muted: 0
+        _startFrame: 0
+        _durationFrames: 20
+        _config:
+          animationAsset: {fileID: 11400000, guid: ff2a3bfc46777db4bbca95872f03ec88,
+            type: 2}
+          sourceStartTime: 0
+          sourceEndTime: 0.33333334
+          playRate: 1
+          distanceScale: 1
+          _hasDistanceScale: 1
+        _hasSourceRange: 1
+    - rid: 4877645870441168896
+      type: {class: ImpulseItem, ns: , asm: Assembly-CSharp}
+      data:
+        _editorId: 299dc22c3e8a4055a21888fefca8ab95
+        _muted: 0
+        _frame: 8
+        _config:
+          impulse:
+            directionMode: 0
+            localHorizontalDirection: {x: 0, y: 0, z: 1}
+            horizontalForce: 5
+            verticalForce: -10
+            debugLog: 0
+          useHorizontalImpulse: 0
+          useVerticalBallistic: 1
+          verticalOperation: 0
+          overrideGravityScale: 0
+          gravityScale: 1

@@ -13,12 +13,14 @@ MonoBehaviour:
   m_Name: Locomotion_GreatSword_Strafe
   m_EditorClassIdentifier: 
   priority: 0
-  entryConditions: []
+  entryConditions:
+  - rid: 1000
+  - rid: 1001
   selfTags: []
   movementConfig:
-    MaxSpeed: 5
-    Acceleration: 20
-    Deceleration: 32
+    MaxSpeed: 2
+    Acceleration: 1
+    Deceleration: 2
     DirectionResponse: 12
     RotateSpeed: 600
     TurnResponseTime: 0.08
@@ -53,7 +55,7 @@ MonoBehaviour:
       FullLeanAcceleration: 20
       MinimumSpeed: 0.5
       SmoothSeconds: 0.1
-  transitionBlendDuration: 0.1
+  transitionBlendDuration: 0.15
   stopPlaybackMode: 1
   transitionDecisionConfig:
     StationarySpeed: 0.1
@@ -61,13 +63,21 @@ MonoBehaviour:
     PivotMinimumAngleDegrees: 120
   start:
   - animation: {fileID: 11400000, guid: 2459a5d73584cca4fbb94d7faaedd93b, type: 2}
+    facingMode: 0
     targetLocalDirection: {x: 0, y: 1}
+    signedTurnAngleDegrees: 0
   - animation: {fileID: 11400000, guid: 0745695d844828145a8fd8d49d390856, type: 2}
+    facingMode: 0
     targetLocalDirection: {x: 0, y: -1}
+    signedTurnAngleDegrees: 0
   - animation: {fileID: 11400000, guid: cd245109b4d89ff46be141df42010107, type: 2}
+    facingMode: 0
     targetLocalDirection: {x: 1, y: 0}
+    signedTurnAngleDegrees: 0
   - animation: {fileID: 11400000, guid: 34e67b5a83067b44aadb2c92f38155ff, type: 2}
+    facingMode: 0
     targetLocalDirection: {x: -1, y: 0}
+    signedTurnAngleDegrees: 0
   stop:
   - animation: {fileID: 11400000, guid: a6e5f09a333ccbc488d8f14149110697, type: 2}
     sourceLocalDirection: {x: 0, y: 1}
@@ -80,4 +90,17 @@ MonoBehaviour:
   pivot: []
   references:
     version: 2
-    RefIds: []
+    RefIds:
+    - rid: 1000
+      type: {class: LocomotionGroundStateCondition, ns: , asm: Assembly-CSharp}
+      data:
+        invertResult: 0
+        acceptedStates: 3
+    - rid: 1001
+      type: {class: LocomotionActorTagCondition, ns: , asm: Assembly-CSharp}
+      data:
+        invertResult: 0
+        requiredTag:
+          TagId: -1807905049
+        targetContainer: 0
+        matchMode: 1

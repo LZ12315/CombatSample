@@ -227,7 +227,7 @@ MonoBehaviour:
   _locomotionOverrideClip: {fileID: 7400000, guid: f9deff493e7dab346ac483e7df7279f5,
     type: 2}
   _overrideStopTime: 0
-  _stopTimeOverride: 0.43333334
+  _stopTimeOverride: 0.41666666
   _overrideFootMarkers: 0
   _footMarkerOverrides: []
   _animationRigAsset: {fileID: 11400000, guid: fc89eaa1b4d3b4c42b7e1abef2592b1d, type: 2}

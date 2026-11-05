@@ -1,0 +1,105 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2fb589b8fd064b95b2feff521d1c2c92, type: 3}
+  m_Name: Anim_Giant_Hit_Air_Apex
+  m_EditorClassIdentifier: 
+  _clip: {fileID: 7343633069299119517, guid: 5543c56271cdca64394b9b8148e394a2, type: 3}
+  _hasRootMotionData: 1
+  _rootMotionData:
+    sourceClip: {fileID: 7343633069299119517, guid: 5543c56271cdca64394b9b8148e394a2,
+      type: 3}
+    sampleRate: 60
+    duration: 0.33333337
+    bakerVersion: 1
+    dependencyHash: 78a711439849c36bdbd10244999dc582
+    sampleTimes:
+    - 0
+    - 0.016666668
+    - 0.033333335
+    - 0.05
+    - 0.06666667
+    - 0.083333336
+    - 0.1
+    - 0.11666667
+    - 0.13333334
+    - 0.15
+    - 0.16666667
+    - 0.18333334
+    - 0.2
+    - 0.21666667
+    - 0.23333333
+    - 0.25
+    - 0.26666668
+    - 0.28333333
+    - 0.3
+    - 0.31666666
+    - 0.33333334
+    - 0.33333337
+    cumulativePositions:
+    - {x: 0, y: 0, z: 0}
+    - {x: -0.0049837376, y: 0, z: -0.14140944}
+    - {x: -0.0026975975, y: 0, z: -0.28323236}
+    - {x: 0.00088006933, y: 0, z: -0.42501777}
+    - {x: 0.005496244, y: 0, z: -0.5663148}
+    - {x: 0.01034159, y: 0, z: -0.7066721}
+    - {x: 0.01466007, y: 0, z: -0.84563863}
+    - {x: 0.018721517, y: 0, z: -0.98276395}
+    - {x: 0.022865139, y: 0, z: -1.1175964}
+    - {x: 0.02707069, y: 0, z: -1.2496853}
+    - {x: 0.03134345, y: 0, z: -1.378579}
+    - {x: 0.036061153, y: 0, z: -1.5038273}
+    - {x: 0.041357335, y: 0, z: -1.6249785}
+    - {x: 0.045673024, y: 0, z: -1.7415819}
+    - {x: 0.04684724, y: 0, z: -1.8546522}
+    - {x: 0.043568064, y: 0, z: -1.9650588}
+    - {x: 0.036803126, y: 0, z: -2.0721345}
+    - {x: 0.027810868, y: 0, z: -2.1752129}
+    - {x: 0.017481912, y: 0, z: -2.2736259}
+    - {x: 0.0023306515, y: 0, z: -2.3667064}
+    - {x: -0.015625231, y: 0, z: -2.4537873}
+    - {x: -0.015625231, y: 0, z: -2.4537873}
+    cumulativeRotations:
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+  _locomotionData:
+    sourceClip: {fileID: 7343633069299119517, guid: 5543c56271cdca64394b9b8148e394a2,
+      type: 3}
+    trajectoryHash: 78a711439849c36bdbd10244999dc582
+    footSetup: '|'
+    stopTime: 0.33333334
+    footMarkers: []
+  _locomotionOverrideClip: {fileID: 0}
+  _overrideStopTime: 0
+  _stopTimeOverride: 0
+  _overrideFootMarkers: 0
+  _footMarkerOverrides: []
+  _animationRigAsset: {fileID: 11400000, guid: 601c811d3c24d7442a8fa5911ba2c3bc, type: 2}
