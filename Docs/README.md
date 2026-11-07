@@ -8,6 +8,11 @@
 | [Proposals](Proposals/README.md) | 待实施或未收口的方案；当前包含 Demo 封闭式战斗训练场计划。 |
 | [Archive](Archive/README.md) | 历史计划、阶段交接、调查与验证快照。 |
 
+## 开发与许可
+
+- [HyperGraph → main 整合整理](Current/Main_Migration.md)：当前迁移分支、阶段清理与验证范围。
+- [素材与第三方说明](Third_Party_Notice_zh-CN.md)：第三方依赖、版权索引及源码分发边界。
+
 ## 项目结构
 
 - [项目结构与归位约定](Current/Project_Structure.md)：当前 Assets 布局、资源归属及本轮整理的验证边界。历史目录快照不再作为当前布局依据。

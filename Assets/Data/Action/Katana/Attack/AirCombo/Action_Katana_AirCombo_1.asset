@@ -73,7 +73,6 @@ MonoBehaviour:
   _entryConditions:
   - rid: 6940827116907528192
   - rid: 6940827116907528193
-  - rid: 4877645891754262566
   references:
     version: 2
     RefIds:
@@ -175,10 +174,6 @@ MonoBehaviour:
               m_PostInfinity: 2
               m_RotationOrder: 4
             debugLog: 0
-    - rid: 4877645891754262566
-      type: {class: DemoAirComboAvailableCondition, ns: , asm: Assembly-CSharp}
-      data:
-        invertResult: 0
     - rid: 6940827094329589760
       type: {class: RootMotionItem, ns: , asm: Assembly-CSharp}
       data:

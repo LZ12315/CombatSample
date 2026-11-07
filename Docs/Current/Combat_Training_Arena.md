@@ -1,8 +1,15 @@
-# 战斗训练大厅交付
+# 战斗训练场与迁移记录
 
 场景：**`Assets/Scenes/CombatTrainingArena.unity`**。直接在 Project 中打开即可；不需要制作工具或中转场景。
 
-## 当前内容
+## 当前用途
+
+- 作为 `main-migration` 的主要战斗试玩与回归入口，暂时保留玩家、敌人、环境及胜负重开。
+- 本阶段只移除 Demo 专用空连次数组件；AirCombo_1 仍使用输入与空中状态条件，不限制同次滞空的起手次数。
+- 当前场景为 5 秒结算＋2 秒重开过渡，之后才加载；需要在 Build Settings 中启用训练场。
+- 本次没有改场景布局、战斗参数、共享资源或项目设置。后续验收见 [主线迁移记录](Main_Migration.md)。
+
+## 原始玩法迁入记录
 
 - 最新 `HyperGraph` 的 `Manager`、`CameraSet`、`Player`、`Enemy` 已整体迁入，保留对象间引用和 Prefab 连接；旧停用 `Characters` 组不再保留。
 - 出生点沿用本次迁入配置：玩家 `(0,0,-10)`、敌人 `(0,0,0)`；死亡重开延迟为源场景配置的 5 秒。
@@ -10,7 +17,7 @@
 - 保留训练场相机背景与后处理开关；其余镜头、角色和玩法参数以迁入的 HyperGraph 配置为准。
 - 这是一次迁移快照，不会自动同步 HyperGraph 之后的新修改。
 
-## 资源与清理
+## 环境资源与原始清理
 
 - 环境：`Assets/Prefabs/Environment/CombatTrainingArena/CombatTrainingArena.prefab`。
 - 后处理：同目录 `FinishedArenaVolume.asset`。
@@ -18,7 +25,7 @@
 - 已移除制作/迁移脚本、Lookdev 样板场景及其独立资源、中转场景，以及本训练场范围内不再被场景或 Prefab 引用的资产。
 - 历史对照图片和重复样板文档已清理，只保留完成版环境参考图。参考图摄于玩法迁移前，不代表最新出生点或运行镜头。
 
-## 检查与已知边界
+## 原始迁入检查与已知边界
 
 - 迁入玩法在保存并重开后，对象和组件序列化比对一致；场景不保留重复玩法根对象。
 - 未覆盖 HyperGraph 或修改共享玩法/相机资源。没有为迁移更改 Build Settings、Packages 或全局渲染配置。

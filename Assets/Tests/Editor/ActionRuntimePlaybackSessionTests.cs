@@ -267,6 +267,69 @@ public sealed class ActionRuntimePlaybackSessionTests
         }
     }
 
+    [Test]
+    public void FailedStartDoesNotNotify_ValidStartNotifiesWithSynchronizedState()
+    {
+        ActionPlayer player = CreatePlayer(out Actor actor);
+        int starts = 0;
+        ActionInstance observedAction = null;
+        ActionInstance observedCurrentAction = null;
+        int observedFrame = -1;
+        int observedDuration = -1;
+        player.OnActionStarted += action =>
+        {
+            starts++;
+            observedAction = action;
+            observedCurrentAction = player.CurrentAction;
+            observedFrame = player.CurrentFrame;
+            observedDuration = player.TotalFrames;
+        };
+        ActionAsset invalid = CreateActionRuntimeAsset();
+        var segment = new AnimationSegment();
+        segment.EditorSetData(0, null, 0f, 1f, 1f);
+        invalid.Timeline.EditorAnimationSegments.Add(segment);
+        Assert.IsFalse(player.TryBeginAction(invalid, ActionContext.ForSelf(actor), out _));
+        Assert.AreEqual(0, starts);
+        Assert.IsTrue(player.TryBeginAction(CreateActionRuntimeAsset(), ActionContext.ForSelf(actor), out string reason), reason);
+        Assert.AreEqual(1, starts);
+        Assert.AreSame(observedAction, observedCurrentAction);
+        Assert.AreEqual(0, observedFrame);
+        Assert.AreEqual(observedAction.Config.Timeline.DurationFrames, observedDuration);
+        player.StopAction();
+        Assert.AreEqual(1, starts);
+    }
+
+    [Test]
+    public void LoopReplayDoesNotNotifyAnotherStart_ExplicitReplacementDoes()
+    {
+        ActionPlayer player = CreatePlayer(out Actor actor);
+        ActionAsset loop = CreateActionRuntimeAsset();
+        JsonUtility.FromJsonOverwrite("{\"isLoop\":true}", loop);
+        int starts = 0;
+        player.OnActionStarted += _ => starts++;
+        Assert.IsTrue(player.TryBeginAction(loop, ActionContext.ForSelf(actor), out string reason), reason);
+        Assert.IsTrue(player.PlayActionFrame(CombatSimulationTiming.FixedDeltaTime));
+        player.FinishActionFrame();
+        Assert.IsTrue(player.PlayActionFrame(CombatSimulationTiming.FixedDeltaTime));
+        player.FinishActionFrame();
+        Assert.AreEqual(1, starts);
+        Assert.IsTrue(player.TryBeginAction(CreateActionRuntimeAsset(), ActionContext.ForSelf(actor), out reason), reason);
+        Assert.AreEqual(2, starts);
+        player.StopAction();
+    }
+
+    private ActionPlayer CreatePlayer(out Actor actor)
+    {
+        var owner = new GameObject("Action start notification actor");
+        _objects.Add(owner);
+        ActionPlayer player = owner.AddComponent<ActionPlayer>();
+        actor = owner.AddComponent<Actor>();
+        actor.actionPlayer = player;
+        // Ordinary MonoBehaviour Awake is not guaranteed by EditMode tests.
+        JsonUtility.FromJsonOverwrite($"{{\"_actor\":{{\"instanceID\":{actor.GetInstanceID()}}}}}", player);
+        return player;
+    }
+
     private ActionAsset CreateActionRuntimeAsset()
     {
         ActionAsset asset = ScriptableObject.CreateInstance<ActionAsset>();

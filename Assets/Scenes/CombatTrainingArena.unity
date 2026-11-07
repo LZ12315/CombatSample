@@ -704,7 +704,6 @@ GameObject:
   - component: {fileID: 822416651}
   - component: {fileID: 822416650}
   - component: {fileID: 822416649}
-  - component: {fileID: 822416657}
   m_Layer: 7
   m_Name: Player
   m_TagString: Untagged
@@ -896,19 +895,6 @@ Transform:
   - {fileID: 753148904}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &822416657
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 822416648}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 447589735a599674698e5001f11561a9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  _airComboStart: {fileID: 11400000, guid: c20a7153013c6fa4ba4e15615aff78f0, type: 2}
 --- !u!1 &834021224 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 8731557962528598772, guid: c0707a8c6ed296841b5bfd2bddd936b1,
