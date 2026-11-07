@@ -47,7 +47,12 @@ public interface IActionRangeRuntime
 public readonly struct ActionRuntimeContext
 {
     internal ActionRuntimeContext(Actor actor, ActionContext actionContext)
+        : this(actor, actionContext, actor != null ? actor.ActionEffects : null) { }
+
+    internal ActionRuntimeContext(Actor actor, ActionContext actionContext, ActionEffectBuffer effects, Func<double> actionPosition = null)
     {
+        _actionPosition = actionPosition;
+        Effects = effects;
         Actor = actor;
         ActionContext = actionContext;
         Motor = actor != null ? actor.actorMotor : null;
@@ -58,6 +63,9 @@ public readonly struct ActionRuntimeContext
     public ActionContext ActionContext { get; }
     public ActorMotor Motor { get; }
     internal ActorHitBoxRuntime HitBoxes { get; }
+    internal ActionEffectBuffer Effects { get; }
+    private readonly Func<double> _actionPosition;
+    internal double ActionPosition => _actionPosition?.Invoke() ?? 0d;
 }
 
 /// <summary>Immutable timing data retained by a scheduler for one execution.</summary>
@@ -90,6 +98,7 @@ public readonly struct ActionRuntimeAnimationRecord
 public sealed class ActionRuntimeScheduler
 {
     private readonly ActionRuntimeContext _context;
+    private readonly Action<int> _beforeFrame;
     private readonly Dictionary<int, List<PointGameplayItem>> _pointsByFrame = new Dictionary<int, List<PointGameplayItem>>();
     private readonly Dictionary<int, List<RangeRecord>> _rangesByStartFrame = new Dictionary<int, List<RangeRecord>>();
     private readonly List<ActiveRange> _activeRanges = new List<ActiveRange>();
@@ -102,9 +111,10 @@ public sealed class ActionRuntimeScheduler
     private int _currentFrame = -1;
     private double _continuousPosition;
 
-    internal ActionRuntimeScheduler(ActionTimelineData timeline, ActionRuntimeContext context)
+    internal ActionRuntimeScheduler(ActionTimelineData timeline, ActionRuntimeContext context, Action<int> beforeFrame = null)
     {
         _context = context;
+        _beforeFrame = beforeFrame;
         DurationFrames = timeline != null ? timeline.DurationFrames : 1;
         CaptureSnapshot(timeline);
     }
@@ -298,6 +308,7 @@ public sealed class ActionRuntimeScheduler
 
         _currentFrame = frame;
         _hasOpenFrame = true;
+        _beforeFrame?.Invoke(frame);
 
         if (_pointsByFrame.TryGetValue(frame, out List<PointGameplayItem> points))
         {
@@ -414,6 +425,7 @@ public sealed class ActionRuntime
     private readonly ActionContext _actionContext;
     private ActorAnimation _actorAnimation;
     private ActorAnimationActionOwner _animationOwner;
+    private ActionMotionPolicySession _motionPolicy;
     private bool _paused;
     private float _speed = 1f;
 
@@ -449,8 +461,10 @@ public sealed class ActionRuntime
 
         try
         {
-            var context = new ActionRuntimeContext(_actor, _actionContext);
-            Scheduler = new ActionRuntimeScheduler(ActionAsset.Timeline, context);
+            var context = new ActionRuntimeContext(_actor, _actionContext, _actor?.ActionEffects,
+                () => Scheduler?.ContinuousPosition ?? 0d);
+            _motionPolicy = new ActionMotionPolicySession(ActionAsset, context.Motor);
+            Scheduler = new ActionRuntimeScheduler(ActionAsset.Timeline, context, _motionPolicy.ApplyFrame);
             Scheduler.ValidateAnimationSnapshot();
             AcquireSelfTags();
             AcquireAnimationOwner();
@@ -514,6 +528,7 @@ public sealed class ActionRuntime
 
             State = ActionRuntimeState.Interrupted;
             TerminationResult = ActionRuntimeTerminationResult.Interrupted;
+            _motionPolicy?.Dispose();
             ReleaseSelfTags();
             ReleaseAnimationOwner();
             return true;
@@ -540,6 +555,7 @@ public sealed class ActionRuntime
         {
             State = ActionRuntimeState.Aborted;
             TerminationResult = ActionRuntimeTerminationResult.Aborted;
+            _motionPolicy?.Dispose();
             ReleaseSelfTags();
             ReleaseAnimationOwner();
         }
@@ -584,6 +600,7 @@ public sealed class ActionRuntime
     {
         State = ActionRuntimeState.Completed;
         TerminationResult = ActionRuntimeTerminationResult.Completed;
+        _motionPolicy?.Dispose();
         ReleaseSelfTags();
         ReleaseAnimationOwner();
     }

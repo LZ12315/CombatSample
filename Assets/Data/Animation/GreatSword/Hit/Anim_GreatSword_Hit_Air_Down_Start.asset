@@ -1,0 +1,104 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2fb589b8fd064b95b2feff521d1c2c92, type: 3}
+  m_Name: Anim_GreatSword_Hit_Air_Down_Start
+  m_EditorClassIdentifier: 
+  _clip: {fileID: 7400000, guid: 729af1d76c18cde46965fb395a9cba1a, type: 2}
+  _hasRootMotionData: 1
+  _rootMotionData:
+    sourceClip: {fileID: 7400000, guid: 729af1d76c18cde46965fb395a9cba1a, type: 2}
+    sampleRate: 60
+    duration: 0.3166667
+    bakerVersion: 1
+    dependencyHash: 2e211a8da4ddbd05c097b29c39df5088
+    sampleTimes:
+    - 0
+    - 0.016666668
+    - 0.033333335
+    - 0.05
+    - 0.06666667
+    - 0.083333336
+    - 0.1
+    - 0.11666667
+    - 0.13333334
+    - 0.15
+    - 0.16666667
+    - 0.18333334
+    - 0.2
+    - 0.21666667
+    - 0.23333333
+    - 0.25
+    - 0.26666668
+    - 0.28333333
+    - 0.3
+    - 0.31666666
+    - 0.3166667
+    cumulativePositions:
+    - {x: 0, y: 0, z: 0}
+    - {x: -0.0036426052, y: 0, z: -0.0011945943}
+    - {x: -0.008990599, y: 0, z: -0.0092761}
+    - {x: -0.011055124, y: 0, z: -0.026098274}
+    - {x: -0.015277805, y: 0, z: -0.045237027}
+    - {x: -0.027909135, y: 0, z: -0.06557291}
+    - {x: -0.04205501, y: 0, z: -0.08990376}
+    - {x: -0.056406908, y: 0, z: -0.11893729}
+    - {x: -0.0687386, y: 0, z: -0.15374543}
+    - {x: -0.07774152, y: 0, z: -0.19210497}
+    - {x: -0.08577296, y: 0, z: -0.22789313}
+    - {x: -0.09197501, y: 0, z: -0.2578208}
+    - {x: -0.0954295, y: 0, z: -0.28320155}
+    - {x: -0.09663796, y: 0, z: -0.3069926}
+    - {x: -0.095693015, y: 0, z: -0.3309567}
+    - {x: -0.09255213, y: 0, z: -0.3541293}
+    - {x: -0.08789481, y: 0, z: -0.37413302}
+    - {x: -0.08270133, y: 0, z: -0.38879755}
+    - {x: -0.07824036, y: 0, z: -0.39751133}
+    - {x: -0.07599806, y: 0, z: -0.40065837}
+    - {x: -0.07599806, y: 0, z: -0.40065837}
+    cumulativeRotations:
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+  _locomotionData:
+    sourceClip: {fileID: 7400000, guid: 729af1d76c18cde46965fb395a9cba1a, type: 2}
+    trajectoryHash: 2e211a8da4ddbd05c097b29c39df5088
+    footSetup: '|'
+    stopTime: 0.28333333
+    footMarkers:
+    - time: 0
+      foot: 0
+    - time: 0.2
+      foot: 1
+  _locomotionOverrideClip: {fileID: 0}
+  _overrideStopTime: 0
+  _stopTimeOverride: 0
+  _overrideFootMarkers: 0
+  _footMarkerOverrides: []
+  _animationRigAsset: {fileID: 11400000, guid: 094e26a819508f44884acc06c510730f, type: 2}

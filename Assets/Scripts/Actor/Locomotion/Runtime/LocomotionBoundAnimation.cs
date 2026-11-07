@@ -9,6 +9,7 @@ internal readonly struct LocomotionBoundAnimation
     public readonly float Duration;
     public readonly bool HasCycleTrajectory;
     public readonly Vector3 CycleDisplacement;
+    public readonly LocomotionStartYawCurve StartYaw;
 
     internal LocomotionBoundAnimation(AnimationAsset animation, LocomotionMovePlayback.TrajectoryQuery query = null)
     {
@@ -17,6 +18,8 @@ internal readonly struct LocomotionBoundAnimation
         RootMotionTrajectory trajectory = null;
         bool qualified = animation != null && animation.TryGetLocomotionTrajectory(out trajectory, out _);
         if (!qualified) trajectory = null;
+        StartYaw = Clip != null && !Clip.isLooping && Clip.isHumanMotion
+            ? LocomotionStartYawCurve.Capture(trajectory) : null;
         FootPhase = animation?.CreateFootPhaseTrack(trajectory);
         StopCurve = animation != null && animation.TryCreateStopCurve(trajectory, out var curve) ? curve : null;
         HasCycleTrajectory = false;

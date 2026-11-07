@@ -5,7 +5,7 @@
 | 目录 | 内容 |
 | --- | --- |
 | [Current](Current/README.md) | 当前架构、制作工作流、验证合同与最新审查入口。 |
-| [Proposals](Proposals/README.md) | 尚未实施的方案。本次整理后没有活动方案正文。 |
+| [Proposals](Proposals/README.md) | 待实施或未收口的方案；当前包含 Demo 封闭式战斗训练场计划。 |
 | [Archive](Archive/README.md) | 历史计划、阶段交接、调查与验证快照。 |
 
 ## 项目结构

@@ -53,10 +53,16 @@ public sealed class TranslationDomain
     public bool HasTrajectoryRootMotionTick => _tickTrajectoryRootMotionOwner.IsValid;
     public Vector3 TrajectoryRootMotionLocalPosition => _tickTrajectoryRootMotionLocalPosition;
 
-    public MotionOwner BeginHorizontalVelocity()
+    public MotionOwner BeginHorizontalVelocity() => BeginHorizontalVelocity(null);
+
+    /// <summary>
+    /// The winning provider is evaluated at motion composition, including ticks without a new Action frame.
+    /// It receives movement-scaled delta time and returns an unscaled world-planar velocity.
+    /// </summary>
+    public MotionOwner BeginHorizontalVelocity(System.Func<float, Vector3> velocityProvider)
     {
         MotionOwner owner = NewOwner();
-        _horizontalVelocityOwners.Add(new HorizontalVelocityOwnerState(owner, Vector3.zero));
+        _horizontalVelocityOwners.Add(new HorizontalVelocityOwnerState(owner, Vector3.zero, velocityProvider));
         return owner;
     }
 
@@ -231,17 +237,23 @@ public sealed class TranslationDomain
         }
     }
 
-    public Vector3 ComposeHorizontal(Vector3 locomotionVelocity, float timeScale)
+    public Vector3 ComposeHorizontal(Vector3 locomotionVelocity, float timeScale) =>
+        ComposeHorizontal(locomotionVelocity, timeScale, 0f);
+
+    public Vector3 ComposeHorizontal(Vector3 locomotionVelocity, float timeScale, float deltaTime)
     {
-        if (TryGetTopHorizontal(out HorizontalVelocityOwnerState owner))
-            return owner.Velocity * timeScale;
+        if (TryComposeHorizontalVelocityOwner(timeScale, out Vector3 velocity, deltaTime))
+            return velocity;
 
         Vector3 horizontal = locomotionVelocity + _horizontalImpulseVelocity;
         horizontal.y = 0f;
         return horizontal * timeScale;
     }
 
-    public bool TryComposeHorizontalVelocityOwner(float timeScale, out Vector3 velocity)
+    public bool TryComposeHorizontalVelocityOwner(float timeScale, out Vector3 velocity) =>
+        TryComposeHorizontalVelocityOwner(timeScale, out velocity, 0f);
+
+    public bool TryComposeHorizontalVelocityOwner(float timeScale, out Vector3 velocity, float deltaTime)
     {
         if (!TryGetTopHorizontal(out HorizontalVelocityOwnerState owner))
         {
@@ -249,7 +261,15 @@ public sealed class TranslationDomain
             return false;
         }
 
-        velocity = owner.Velocity * timeScale;
+        float motionDeltaTime = Mathf.Max(0f, deltaTime) * Mathf.Max(0f, timeScale);
+        velocity = owner.VelocityProvider != null
+            ? (motionDeltaTime > 0f ? owner.VelocityProvider(motionDeltaTime) : Vector3.zero)
+            : owner.Velocity;
+        velocity.y = 0f;
+        if (owner.VelocityProvider != null)
+            _horizontalVelocityOwners[_horizontalVelocityOwners.Count - 1] =
+                new HorizontalVelocityOwnerState(owner.Owner, velocity, owner.VelocityProvider);
+        velocity *= timeScale;
         return true;
     }
 
@@ -344,11 +364,14 @@ public sealed class TranslationDomain
     {
         public readonly MotionOwner Owner;
         public readonly Vector3 Velocity;
+        public readonly System.Func<float, Vector3> VelocityProvider;
 
-        public HorizontalVelocityOwnerState(MotionOwner owner, Vector3 velocity)
+        public HorizontalVelocityOwnerState(MotionOwner owner, Vector3 velocity,
+            System.Func<float, Vector3> velocityProvider = null)
         {
             Owner = owner;
             Velocity = velocity;
+            VelocityProvider = velocityProvider;
         }
     }
 
@@ -393,13 +416,60 @@ public sealed class MotionPolicyState
     private readonly List<PolicyOwnerState> _airLocomotionScaleOwners = new();
     private readonly List<PolicyOwnerState> _gravityScaleOwners = new();
 
-    public float LocomotionScale => ComposeMin(_baseLocomotionScale, _locomotionScaleOwners);
-    public float AirLocomotionScale => ComposeMin(_baseAirLocomotionScale, _airLocomotionScaleOwners);
-    public float GravityScale => ComposeMultiply(_baseGravityScale, _gravityScaleOwners);
+    private readonly List<ActionPolicyOwner> _actionPolicies = new();
 
-    public int DebugLocomotionScaleOwnerCount => _locomotionScaleOwners.Count;
-    public int DebugAirLocomotionScaleOwnerCount => _airLocomotionScaleOwners.Count;
-    public int DebugGravityScaleOwnerCount => _gravityScaleOwners.Count;
+    public float LocomotionScale => Mathf.Min(ComposeMin(_baseLocomotionScale, _locomotionScaleOwners), ActionValues.LocomotionScale);
+    public float AirLocomotionScale => Mathf.Min(ComposeMin(_baseAirLocomotionScale, _airLocomotionScaleOwners), ActionValues.AirLocomotionScale);
+    public float GravityScale => ComposeMultiply(_baseGravityScale, _gravityScaleOwners) * ActionValues.GravityScale;
+    public bool BrakeLocomotion => ActionValues.BrakeLocomotion;
+    public bool LockLocomotionRotation => ActionValues.LockLocomotionRotation;
+    public float LocomotionTurnSpeedLimit => ActionValues.TurnSpeedLimit;
+    internal MotionPolicyValues ActionValues
+    {
+        get
+        {
+            var values = MotionPolicyValues.Neutral;
+            foreach (var policy in _actionPolicies) values = MotionPolicyValues.Restrict(values, policy.Values);
+            return values;
+        }
+    }
+
+    public int DebugLocomotionScaleOwnerCount => _locomotionScaleOwners.Count + _actionPolicies.Count;
+    public int DebugAirLocomotionScaleOwnerCount => _airLocomotionScaleOwners.Count + _actionPolicies.Count;
+    public int DebugGravityScaleOwnerCount => _gravityScaleOwners.Count + _actionPolicies.Count;
+
+    // The Action resolves its defaults/windows before registering here. Independent sources still restrict it.
+    internal MotionOwner BeginActionPolicy(in MotionPolicyValues values)
+    {
+        var owner = NewOwner();
+        _actionPolicies.Add(new ActionPolicyOwner(owner, values));
+        return owner;
+    }
+
+    internal bool UpdateActionPolicy(MotionOwner owner, in MotionPolicyValues values)
+    {
+        for (int i = 0; i < _actionPolicies.Count; i++)
+        {
+            if (_actionPolicies[i].Owner.Id != owner.Id) continue;
+            _actionPolicies[i] = new ActionPolicyOwner(owner, values);
+            return true;
+        }
+        return false;
+    }
+
+    internal bool EndActionPolicy(MotionOwner owner)
+    {
+        for (int i = 0; i < _actionPolicies.Count; i++)
+            if (_actionPolicies[i].Owner.Id == owner.Id) { _actionPolicies.RemoveAt(i); return true; }
+        return false;
+    }
+
+    private readonly struct ActionPolicyOwner
+    {
+        internal readonly MotionOwner Owner;
+        internal readonly MotionPolicyValues Values;
+        internal ActionPolicyOwner(MotionOwner owner, MotionPolicyValues values) { Owner = owner; Values = values; }
+    }
 
     public void SetBaseLocomotionScale(float scale)
     {

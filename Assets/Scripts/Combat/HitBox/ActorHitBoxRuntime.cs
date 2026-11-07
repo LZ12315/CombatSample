@@ -214,7 +214,8 @@ internal sealed class ActorHitBoxRuntime
                 candidate.Target,
                 candidate.Collider,
                 candidate.HitPoint,
-                ResolveHitEventTag(hitBox.AttackConfig));
+                ResolveHitEventTag(hitBox.AttackConfig),
+                hitBox.AttackConfig.canBeParried);
 
             var pendingHit = new PendingHit(
                 _actor.GetInstanceID(),

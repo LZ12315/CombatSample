@@ -70,9 +70,9 @@
 .action-editor-playback-options .unity-toolbar-toggle:checked { background-color: rgba(81, 145, 202, 0.26); border-color: var(--action-heading); color: var(--action-heading); }
 .action-editor-transport-bar .action-editor-details-button { height: 20px; min-width: 52px; flex-shrink: 0; margin-left: 4px; padding-left: 6px; padding-right: 6px; border-width: 1px; border-color: var(--action-border); border-radius: 2px; background-color: var(--action-controls); }
 .action-editor-transport-bar .action-editor-details-button:hover { background-color: var(--action-track-hover); }
-.action-editor-frame-label { min-width: 48px; height: 18px; flex-shrink: 0; margin-left: 4px; margin-right: 4px; padding-left: 5px; padding-right: 5px; -unity-text-align: middle-left; background-color: var(--action-canvas); border-width: 1px; border-color: var(--action-border); }
+.action-editor-frame-label { width: 96px; min-width: 96px; max-width: 96px; height: 18px; flex-grow: 0; flex-shrink: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; margin-left: 4px; margin-right: 4px; padding-left: 5px; padding-right: 5px; -unity-text-align: middle-left; background-color: var(--action-canvas); border-width: 1px; border-color: var(--action-border); }
 .action-editor-compact .action-editor-transport-button { width: 22px; min-width: 22px; }
-.action-editor-compact .action-editor-frame-label { min-width: 36px; }
+.action-editor-compact .action-editor-frame-label { width: 80px; min-width: 80px; max-width: 80px; }
 
 .action-editor-identity-banner {
     min-height: 34px;
@@ -383,12 +383,15 @@
 .action-editor-range-entry.action-editor-animation-entry .action-editor-range-body { background-color: rgb(63, 91, 119); }
 .action-editor-range-entry.action-editor-item-impulse .action-editor-range-body { background-color: rgb(132, 86, 49); }
 .action-editor-range-entry.action-editor-item-hitbox .action-editor-range-body { background-color: rgb(137, 93, 61); }
+.action-editor-range-entry.action-editor-item-effect .action-editor-range-body { background-color: rgb(77, 150, 167); }
+.action-editor-range-entry.action-editor-item-screen-shake .action-editor-range-body { background-color: rgb(145, 115, 63); }
 .action-editor-range-entry.action-editor-item-root-motion .action-editor-range-body { background-color: rgb(66, 100, 87); }
 .action-editor-range-entry.action-editor-item-self-rotation .action-editor-range-body { background-color: rgb(91, 82, 113); }
 .action-editor-range-entry.action-editor-item-velocity .action-editor-range-body { background-color: rgb(68, 99, 90); }
 .action-editor-range-entry.action-editor-item-motion-policy .action-editor-range-body { background-color: rgb(93, 83, 113); }
 .action-editor-range-entry.action-editor-item-tag .action-editor-range-body { background-color: rgb(93, 80, 109); }
 .action-editor-range-entry.action-editor-item-unknown .action-editor-range-body { background-color: rgb(76, 78, 84); }
+.action-editor-range-entry.action-editor-entry-draft .action-editor-range-body { border-color: rgb(232, 183, 99); }
 .action-editor-range-entry.action-editor-drag-ghost .action-editor-range-body { opacity: 0.82; border-color: rgb(129, 202, 255); }
 .action-editor-range-entry.action-editor-drag-invalid .action-editor-range-body { background-color: rgba(151, 49, 55, 0.90); border-color: rgb(255, 104, 104); }
 .action-editor-muted { opacity: 0.42; }
@@ -470,3 +473,5 @@
 }
 .action-editor-mini-buttons { flex-direction: row; justify-content: flex-end; margin-top: 7px; }
 .action-editor-mini-buttons > Button { margin-left: 4px; min-width: 58px; }
+.action-editor-source-buttons > Button { flex-grow: 1; flex-shrink: 1; flex-basis: 0; }
+.action-editor-source-buttons > .action-editor-full-clip-button { flex-grow: 1.4; min-width: 88px; margin-left: 0; }

@@ -18,6 +18,7 @@ public class Actor : MonoBehaviour
     public ActorCombater combater;
 
     internal ActorHitBoxRuntime HitBoxes => _simulationRuntime?.HitBoxes;
+    internal ActionEffectBuffer ActionEffects => _simulationRuntime?.ActionEffects;
     // Runtime-only view, published by the local player at the fixed input boundary.
     internal PlayerInputBuffer PlayerInput { get; set; }
     internal PlayerInputDirections PlayerInputDirections { get; set; }

@@ -1,0 +1,68 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d4a14c808be2c4f4a8f1b6d45ebd172f, type: 3}
+  m_Name: Action_GreatSword_Hit_GetUp
+  m_EditorClassIdentifier: 
+  _actionTimeline:
+    _animationSegments:
+    - _editorId: 3070e3e0d6ec4beea14bccf4dec14b74
+      _startFrame: 0
+      _animationAsset: {fileID: 11400000, guid: d7bdf5eacb36e8c4ba78df0bb879b10b,
+        type: 2}
+      _sourceStartTime: 0
+      _sourceEndTime: 2.1666667
+      _playRate: 1
+    _gameplayLanes:
+    - _editorId: 9ff32af9d51345c6ba2b80f30e55d0eb
+      _name: Gameplay
+      _muted: 0
+      _items:
+      - rid: 6940827153219190829
+  _priorityLayer: 1
+  _priorityValue: 0
+  _cancelRules: []
+  _selfTags: []
+  _triggerMode: 1
+  _eventTriggerTag:
+    TagId: 645108757
+  _startContextMode: 0
+  _motionPolicy:
+    movement: 2
+    locomotionScale: 1
+    turning: 2
+    maxTurnSpeed: 180
+    airLocomotionScale: 1
+    gravityScale: 1
+  isLoop: 0
+  _allowReenterWhilePlaying: 0
+  _entryConditions:
+  - rid: 6940827153219190828
+  references:
+    version: 2
+    RefIds:
+    - rid: 6940827153219190828
+      type: {class: GroundStateCondition, ns: , asm: Assembly-CSharp}
+      data:
+        invertResult: 0
+        acceptedStates: 3
+    - rid: 6940827153219190829
+      type: {class: RootMotionItem, ns: , asm: Assembly-CSharp}
+      data:
+        _editorId: 6a6c54c5f5294dbaa2b63f9260ab2a1b
+        _muted: 0
+        _startFrame: 0
+        _durationFrames: 131
+        _config:
+          animationAsset: {fileID: 11400000, guid: d7bdf5eacb36e8c4ba78df0bb879b10b,
+            type: 2}
+          sourceStartTime: 0
+          playRate: 1

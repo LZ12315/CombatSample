@@ -207,10 +207,18 @@ public sealed partial class ActorLocomotion : MonoBehaviour
         float timeScale = snapshot.Motor.MotionState.MovementTimeScale;
         float verticalSpeed = motor != null && timeScale > 0f
             ? Vector3.Dot(motor.RequestedVelocity, snapshot.Motor.CharacterUp) / timeScale : 0f;
+        // Motion has already been composed. Follow the Motor's chosen path, including at 180 degrees,
+        // instead of resolving a second left/right choice from the input's start/end directions.
+        Quaternion requestedRotation = motor != null ? motor.RequestedRotation
+            : _tick.MotionRequest.HasRotation ? _tick.MotionRequest.TargetWorldRotation : snapshot.Motor.CurrentWorldRotation;
+        Vector3 up = snapshot.Motor.CharacterUp;
+        float facingYawDelta = Vector3.SignedAngle(
+            Vector3.ProjectOnPlane(snapshot.Motor.CurrentWorldRotation * Vector3.forward, up),
+            Vector3.ProjectOnPlane(requestedRotation * Vector3.forward, up), up);
         var context = new LocomotionRuntimeAnimationContext(snapshot.Intent, snapshot.HasIntent,
             snapshot.VelocityBeforeMotion, snapshot.ModelVelocity, snapshot.Motor,
             verticalSpeed, animation.ActiveActionOwnerId, deltaTime,
-            animation.GetLocomotionFootPhaseReference(_animationOwner));
+            animation.GetLocomotionFootPhaseReference(_animationOwner), facingYawDelta, requestedRotation);
         LocomotionAnimationRequest request = _currentRuntime.UpdateAnimation(context);
         bool accepted = animation.SubmitLocomotion(_animationOwner, request);
 #if UNITY_EDITOR
@@ -270,7 +278,7 @@ public sealed partial class ActorLocomotion : MonoBehaviour
 
         _currentRuntime = GetOrCreateRuntime(CurrentAsset);
         CurrentMovementConfig = _currentRuntime.MovementConfig;
-        AcquireAssetTags(CurrentAsset);
+        RefreshSelfTags();
         _currentRuntime.Enter(this, actor);
     }
 
@@ -306,6 +314,23 @@ public sealed partial class ActorLocomotion : MonoBehaviour
         foreach (KeyValuePair<LocomotionAsset, LocomotionRuntime> pair in _runtimes)
             pair.Value?.Dispose();
         _runtimes.Clear();
+    }
+
+    /// <summary>SelfTags describe base locomotion, never the movement that continues underneath an Action.</summary>
+    internal void RefreshSelfTags()
+    {
+        ResolveActor();
+        ActionPlayer player = actor != null
+            ? (actor.actionPlayer != null ? actor.actionPlayer : actor.GetComponent<ActionPlayer>())
+            : null;
+        if (!isActiveAndEnabled || actor == null || !actor.isActiveAndEnabled
+            || CurrentAsset == null || (player != null && player.CurrentAction != null))
+        {
+            ReleaseAcquiredTags();
+            return;
+        }
+
+        AcquireAssetTags(CurrentAsset);
     }
 
     private void AcquireAssetTags(LocomotionAsset asset)

@@ -8,6 +8,7 @@ public sealed class LocomotionRunner
     private LocomotionIntent _effectiveIntent = LocomotionIntent.Idle;
     private bool _hasEffectiveIntent;
     private Vector3 _cachedVelocity;
+    private float _previousPolicyScale = 1f;
 
     private Quaternion _targetRotation = Quaternion.identity;
     private Quaternion _pendingRotation = Quaternion.identity;
@@ -34,6 +35,7 @@ public sealed class LocomotionRunner
         _effectiveIntent = LocomotionIntent.Idle;
         _hasEffectiveIntent = false;
         _cachedVelocity = Vector3.zero;
+        _previousPolicyScale = 1f;
     }
 
     public void Prepare(
@@ -42,18 +44,53 @@ public sealed class LocomotionRunner
         float deltaTime,
         in LocomotionMovementConfig movementConfig)
     {
-        if (deltaTime <= 0f)
-            return;
+        PrepareInternal(intent, hasIntent, deltaTime, movementConfig, default, _pendingRotation, true, false);
+    }
 
+    public void Prepare(in LocomotionIntent intent, bool hasIntent, in LocomotionMotionContext context,
+        in LocomotionMovementConfig movementConfig)
+    {
+        PrepareInternal(intent, hasIntent, context.EffectiveDeltaTime, movementConfig,
+            context.MotionState, context.CurrentWorldRotation, context.IsGrounded, true);
+    }
+
+    private void PrepareInternal(in LocomotionIntent intent, bool hasIntent, float deltaTime,
+        in LocomotionMovementConfig movementConfig, in MotionStateSnapshot policy,
+        Quaternion currentRotation, bool grounded, bool syncWorldRotation)
+    {
+        if (deltaTime <= 0f) return;
+        LocomotionMovementConfig config = movementConfig.Sanitize();
+        float scale = policy.IsValid ? policy.LocomotionScale * (grounded ? 1f : policy.AirLocomotionScale) : 1f;
+        bool blocked = scale <= 0f;
         _effectiveIntent = hasIntent ? intent : LocomotionIntent.Idle;
         _hasEffectiveIntent = hasIntent;
+        if (blocked || policy.BrakeLocomotion)
+        {
+            _effectiveIntent.WorldMoveDirection = Vector3.zero;
+            _effectiveIntent.MoveStrength = 0f;
+        }
 
-        LocomotionMovementConfig config = movementConfig.Sanitize();
-        UpdateRotation(intent, hasIntent, deltaTime, config);
-        Vector3 targetVelocity = ComputeTargetVelocity(config);
-        _cachedVelocity = IntegrateVelocity(
-            _cachedVelocity, targetVelocity, config.Acceleration, config.Deceleration,
-            config.DirectionResponse, deltaTime);
+        // Rebase on the body, never on a hidden proposal accumulated while another source was in charge.
+        if (syncWorldRotation) _pendingRotation = currentRotation;
+        if (policy.LockLocomotionRotation) SyncRotation(currentRotation);
+        else
+        {
+            if (policy.LocomotionTurnSpeedLimit > 0f)
+                config.RotateSpeed = Mathf.Min(config.RotateSpeed, policy.LocomotionTurnSpeedLimit);
+            UpdateRotation(_effectiveIntent, hasIntent, deltaTime, config);
+        }
+
+        if (blocked) _cachedVelocity = Vector3.zero;
+        else
+        {
+            // Relaxing a scale while braking must not accelerate the body as a side-effect.
+            if (policy.BrakeLocomotion && _previousPolicyScale > 0f && scale > _previousPolicyScale)
+                _cachedVelocity *= _previousPolicyScale / scale;
+            Vector3 targetVelocity = ComputeTargetVelocity(config);
+            _cachedVelocity = IntegrateVelocity(_cachedVelocity, targetVelocity, config.Acceleration,
+                config.Deceleration, config.DirectionResponse, deltaTime);
+        }
+        _previousPolicyScale = scale;
     }
 
     /// <summary>Continuous linear braking prediction, in world metres under the current policy.

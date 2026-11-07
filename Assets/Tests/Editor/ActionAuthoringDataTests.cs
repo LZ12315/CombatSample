@@ -98,6 +98,7 @@ public sealed class ActionAuthoringDataTests
         lane.EditorItems.Add(new VelocityOverrideItem());
         lane.EditorItems.Add(new MotionPolicyItem());
         lane.EditorItems.Add(new TagItem());
+        lane.EditorItems.Add(new MoveToTargetItem());
         asset.Timeline.EditorGameplayLanes.Add(lane);
         ActionAuthoringIdentity.RepairInvalidIds(asset);
 
@@ -114,6 +115,35 @@ public sealed class ActionAuthoringDataTests
         Assert.IsInstanceOf<VelocityOverrideItem>(items[4]);
         Assert.IsInstanceOf<MotionPolicyItem>(items[5]);
         Assert.IsInstanceOf<TagItem>(items[6]);
+        Assert.IsInstanceOf<MoveToTargetItem>(items[7]);
+    }
+
+    [Test]
+    public void ActionList_RegistersUniqueActionsInAuthoredOrderRegardlessOfNeutralGatesAndTracksEdits()
+    {
+        ActionAssetList list = ScriptableObject.CreateInstance<ActionAssetList>();
+        ActionAsset first = ScriptableObject.CreateInstance<ActionAsset>();
+        ActionAsset second = ScriptableObject.CreateInstance<ActionAsset>();
+        try
+        {
+            list.EditorEntries.Add(new ActionListEntry { action = first, allowFromNeutral = false });
+            list.EditorEntries.Add(new ActionListEntry { action = first });
+            list.EditorEntries.Add(null);
+            list.EditorEntries.Add(new ActionListEntry { action = second });
+            list.EditorEntries[0].conditions.Add(null);
+            CollectionAssert.AreEqual(new[] { first, second }, list.GetAllAvailableActions());
+
+            list.EditorEntries[0].action = second;
+            CollectionAssert.AreEqual(new[] { second, first }, list.GetAllAvailableActions());
+            list.EditorEntries.Clear();
+            Assert.IsEmpty(list.GetAllAvailableActions());
+        }
+        finally
+        {
+            Object.DestroyImmediate(list);
+            Object.DestroyImmediate(first);
+            Object.DestroyImmediate(second);
+        }
     }
 
     [Test]
@@ -140,5 +170,54 @@ public sealed class ActionAuthoringDataTests
         }
     }
 
+    [TestCase(0.5f, 60)]
+    [TestCase(1f, 30)]
+    [TestCase(2f, 15)]
+    public void RootMotionSourceRange_DerivesDurationAndSurvivesSerialization(float rate, int duration)
+    {
+        var root = new RootMotionItem();
+        root.EditorSetSource(10, null, 0.125f, 0.625f, rate);
+        RangeGameplayItem range = root;
+        Assert.AreEqual(duration, range.DurationFrames);
+        Assert.AreEqual(10L + duration, range.EndFrameExclusiveLong);
+        var restored = JsonUtility.FromJson<RootMotionItem>(JsonUtility.ToJson(root));
+        Assert.AreEqual(0.625f, restored.SourceEndTime);
+        Assert.AreEqual(duration, restored.DurationFrames);
+        restored.Config.playRate = 0.5f;
+        Assert.AreEqual(0.625f, restored.SourceEndTime, "Rate changes must not replace the source range.");
+        Assert.AreEqual(60, restored.DurationFrames);
+    }
+
+    [Test]
+    public void LegacyRootMotion_KeepsExactFramesAndReconstructsUnclampedSourceEnd()
+    {
+        var root = new RootMotionItem();
+        root.EditorSetTiming(3, 13);
+        root.Config.sourceStartTime = 0.2f;
+        root.Config.playRate = 0.7f;
+        float expected = 0.2f + (float)(13d / 60d * 0.7f);
+        Assert.AreEqual(expected, root.SourceEndTime);
+        Assert.AreEqual(13, root.DurationFrames);
+        var restored = JsonUtility.FromJson<RootMotionItem>(JsonUtility.ToJson(root));
+        Assert.AreEqual(expected, restored.SourceEndTime);
+        Assert.AreEqual(13, restored.DurationFrames);
+        restored.EditorSetTiming(20, restored.DurationFrames);
+        Assert.AreEqual(expected, restored.SourceEndTime, "Moving legacy data must not migrate or trim it.");
+    }
+
+    [TestCase(1f, 1)]
+    [TestCase(2f, 0)]
+    public void RootMotionSampling_ClampsLastFrameToSelectedSourceEnd(float rate, int lastFrame)
+    {
+        const float sourceEnd = 0.025f;
+        ActionItemRuntimeUtility.GetRootMotionSourceWindow(0f, sourceEnd, rate, lastFrame,
+            out float start, out float end);
+        Assert.Less(start, sourceEnd);
+        Assert.AreEqual(sourceEnd, end);
+        ActionItemRuntimeUtility.GetRootMotionSourceWindow(0f, sourceEnd, rate, lastFrame + 1,
+            out start, out end);
+        Assert.AreEqual(sourceEnd, start);
+        Assert.AreEqual(sourceEnd, end);
+    }
 }
 #endif

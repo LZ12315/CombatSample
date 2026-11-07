@@ -34,16 +34,6 @@ public sealed class AuthoringListClipboardTests
         return value;
     }
 
-    private static void SetEntryConditions(ActionAsset action, params ActionCondition[] conditions)
-    {
-        using var serialized = new SerializedObject(action);
-        SerializedProperty list = serialized.FindProperty("_entryConditions");
-        list.arraySize = conditions.Length;
-        for (int i = 0; i < conditions.Length; i++)
-            list.GetArrayElementAtIndex(i).managedReferenceValue = conditions[i];
-        serialized.ApplyModifiedPropertiesWithoutUndo();
-    }
-
     [Test]
     public void Conditions_CopyCapturesAnIndependentGraphAndEachPasteCreatesAnotherCopy()
     {
@@ -59,7 +49,7 @@ public sealed class AuthoringListClipboardTests
             values = new List<int> { 3, 7 },
         };
         condition.link = condition;
-        SetEntryConditions(source, condition, null, new AlwaysTrueCondition(), condition);
+        source.EditorRequirements.AddRange(new ActionCondition[] { condition, null, new AlwaysTrueCondition(), condition });
         using var from = new SerializedObject(source);
         using var toFirst = new SerializedObject(first);
         using var toSecond = new SerializedObject(second);
@@ -68,17 +58,15 @@ public sealed class AuthoringListClipboardTests
         Assert.That(AuthoringListClipboard.Copy(from.FindProperty("_entryConditions"), AuthoringListClipboard.Kind.Conditions, out string error), Is.True, error);
         Assert.That(EditorJsonUtility.ToJson(source), Is.EqualTo(before));
         Assert.That(EditorUtility.IsDirty(source), Is.EqualTo(wasDirty));
-        // The source graph is live serialized data, not necessarily the object passed into SetEntryConditions.
-        condition = (ClipboardGraphCondition)source.EntryConditions[0];
         condition.values[0] = 99;
         condition.curve.keys = AnimationCurve.Constant(0f, 1f, 99f).keys;
         Assert.That(AuthoringListClipboard.Paste(toFirst.FindProperty("_entryConditions"), AuthoringListClipboard.Kind.Conditions, out error), Is.True, error);
-        Assert.That(first.EntryConditions.Count, Is.EqualTo(4));
-        var a = (ClipboardGraphCondition)first.EntryConditions[0];
+        Assert.That(first.Requirements.Count, Is.EqualTo(4));
+        var a = (ClipboardGraphCondition)first.Requirements[0];
         Assert.That(a, Is.Not.SameAs(condition));
-        Assert.That(first.EntryConditions[1], Is.Null);
-        Assert.That(first.EntryConditions[2], Is.TypeOf<AlwaysTrueCondition>());
-        Assert.That(first.EntryConditions[3], Is.SameAs(a));
+        Assert.That(first.Requirements[1], Is.Null);
+        Assert.That(first.Requirements[2], Is.TypeOf<AlwaysTrueCondition>());
+        Assert.That(first.Requirements[3], Is.SameAs(a));
         Assert.That(a.link, Is.SameAs(a));
         Assert.That(a.reference, Is.SameAs(reference));
         Assert.That(a.HiddenValue, Is.EqualTo(31));
@@ -86,9 +74,8 @@ public sealed class AuthoringListClipboardTests
         Assert.That(a.curve.Evaluate(0.5f), Is.EqualTo(3f).Within(0.001f));
         a.values[0] = -1;
         a.curve.keys = AnimationCurve.Constant(0f, 1f, -1f).keys;
-        // Entry and Exit are the same clipboard family; their runtime semantics remain unchanged.
-        Assert.That(AuthoringListClipboard.Paste(toSecond.FindProperty("_exitConditions"), AuthoringListClipboard.Kind.Conditions, out error), Is.True, error);
-        var b = (ClipboardGraphCondition)second.ExitConditions[0];
+        Assert.That(AuthoringListClipboard.Paste(toSecond.FindProperty("_entryConditions"), AuthoringListClipboard.Kind.Conditions, out error), Is.True, error);
+        var b = (ClipboardGraphCondition)second.Requirements[0];
         Assert.That(b, Is.Not.SameAs(a));
         Assert.That(b.values, Is.EqualTo(new[] { 3, 7 }));
         Assert.That(b.curve.Evaluate(0.5f), Is.EqualTo(3f).Within(0.001f));
@@ -97,34 +84,39 @@ public sealed class AuthoringListClipboardTests
     }
 
     [Test]
-    public void CancelRules_CopyPreservesConfigurationAndResourcesWithoutSharingMutableData()
+    public void CancelRules_CopyIncludesNestedConditionsAndResourcesWithoutSharingMutableData()
     {
         var source = Create<ActionAsset>();
         var target = Create<ActionAsset>();
         var reference = Create<ActionAsset>();
+        var sequence = new InputSequenceCondition
+        {
+            maxSequenceTime = 0.75f,
+            clips = new[] { new InputEventClip { type = InputEventType.DirectionEntered, direction = InputDirection.Right } },
+        };
         source.EditorCancelRules.Add(new CancelRule
         {
-            targetKind = CancelTargetKind.SpecificAction,
             specificTarget = reference,
-            locomotionIntentThreshold = 0.4f,
             window = new CancelWindow { startAnchor = FrameAnchor.Custom, startFrame = 3, endAnchor = FrameAnchor.Custom, endFrame = 19 },
+            conditions = new List<ActionCondition> { sequence, null, new ActionAssetCondition { requiredAction = reference } },
         });
         using var from = new SerializedObject(source);
         using var to = new SerializedObject(target);
         Assert.That(AuthoringListClipboard.Copy(from.FindProperty("_cancelRules"), AuthoringListClipboard.Kind.CancelRules, out string error), Is.True, error);
-        source.EditorCancelRules[0].window.endFrame = 27;
+        sequence.clips[0].direction = InputDirection.Left;
         Assert.That(AuthoringListClipboard.Paste(to.FindProperty("_cancelRules"), AuthoringListClipboard.Kind.CancelRules, out error), Is.True, error);
-        CancelRule rule = target.CancelRules[0];
-        Assert.That(rule, Is.Not.SameAs(source.CancelRules[0]));
-        Assert.That(rule.targetKind, Is.EqualTo(CancelTargetKind.SpecificAction));
+        CancelRule rule = target.EditorCancelRules[0];
+        Assert.That(rule, Is.Not.SameAs(source.EditorCancelRules[0]));
         Assert.That(rule.specificTarget, Is.SameAs(reference));
-        Assert.That(rule.locomotionIntentThreshold, Is.EqualTo(0.4f));
-        Assert.That(rule.window.startAnchor, Is.EqualTo(FrameAnchor.Custom));
-        Assert.That(rule.window.endAnchor, Is.EqualTo(FrameAnchor.Custom));
         Assert.That(rule.window.startFrame, Is.EqualTo(3));
         Assert.That(rule.window.endFrame, Is.EqualTo(19));
-        rule.window.endFrame = 35;
-        Assert.That(source.CancelRules[0].window.endFrame, Is.EqualTo(27));
+        Assert.That(rule.conditions.Count, Is.EqualTo(3));
+        Assert.That(rule.conditions[1], Is.Null);
+        Assert.That(((ActionAssetCondition)rule.conditions[2]).requiredAction, Is.SameAs(reference));
+        var copied = (InputSequenceCondition)rule.conditions[0];
+        Assert.That(copied.clips[0].direction, Is.EqualTo(InputDirection.Right));
+        copied.clips[0].direction = InputDirection.Neutral;
+        Assert.That(sequence.clips[0].direction, Is.EqualTo(InputDirection.Left));
     }
 
     [Test]
@@ -157,8 +149,8 @@ public sealed class AuthoringListClipboardTests
     {
         var source = Create<ActionAsset>();
         var target = Create<ActionAsset>();
-        SetEntryConditions(source, new VelocityCondition { threshold = 4f });
-        SetEntryConditions(target, new AlwaysTrueCondition());
+        source.EditorRequirements.Add(new VelocityCondition { threshold = 4f });
+        target.EditorRequirements.Add(new AlwaysTrueCondition());
         target.EditorCancelRules.Add(new CancelRule());
         using var from = new SerializedObject(source);
         using var to = new SerializedObject(target);
@@ -166,14 +158,14 @@ public sealed class AuthoringListClipboardTests
         Assert.That(AuthoringListClipboard.Copy(from.FindProperty("_entryConditions"), AuthoringListClipboard.Kind.Conditions, out string error), Is.True, error);
         to.FindProperty("_cancelRules").GetArrayElementAtIndex(0).FindPropertyRelative("locomotionIntentThreshold").floatValue = 0.3f;
         Assert.That(AuthoringListClipboard.Paste(to.FindProperty("_entryConditions"), AuthoringListClipboard.Kind.Conditions, out error), Is.True, error);
-        Assert.That(((VelocityCondition)target.EntryConditions[0]).threshold, Is.EqualTo(8f));
-        Assert.That(target.CancelRules[0].locomotionIntentThreshold, Is.EqualTo(0.3f));
+        Assert.That(((VelocityCondition)target.Requirements[0]).threshold, Is.EqualTo(8f));
+        Assert.That(target.EditorCancelRules[0].locomotionIntentThreshold, Is.EqualTo(0.3f));
         Undo.FlushUndoRecordObjects();
         Undo.PerformUndo();
-        Assert.That(target.EntryConditions[0], Is.TypeOf<AlwaysTrueCondition>());
-        Assert.That(target.CancelRules[0].locomotionIntentThreshold, Is.EqualTo(0.3f));
+        Assert.That(target.Requirements[0], Is.TypeOf<AlwaysTrueCondition>());
+        Assert.That(target.EditorCancelRules[0].locomotionIntentThreshold, Is.EqualTo(0.3f));
         Undo.PerformRedo();
-        Assert.That(((VelocityCondition)target.EntryConditions[0]).threshold, Is.EqualTo(8f));
+        Assert.That(((VelocityCondition)target.Requirements[0]).threshold, Is.EqualTo(8f));
     }
 
     [Test]
@@ -181,7 +173,7 @@ public sealed class AuthoringListClipboardTests
     {
         var source = Create<ActionAsset>();
         var target = Create<ActionAsset>();
-        SetEntryConditions(target, new AlwaysTrueCondition());
+        target.EditorRequirements.Add(new AlwaysTrueCondition());
         using var from = new SerializedObject(source);
         using var to = new SerializedObject(target);
         Assert.That(AuthoringListClipboard.Copy(from.FindProperty("_entryConditions"), AuthoringListClipboard.Kind.Conditions, out string error), Is.True, error);
@@ -191,7 +183,7 @@ public sealed class AuthoringListClipboardTests
         Assert.That(AuthoringListClipboard.Paste(to.FindProperty("_entryConditions"), AuthoringListClipboard.Kind.Effects, out _), Is.False);
         Assert.That(EditorJsonUtility.ToJson(target), Is.EqualTo(before));
         Assert.That(AuthoringListClipboard.Paste(to.FindProperty("_entryConditions"), AuthoringListClipboard.Kind.Conditions, out error), Is.True, error);
-        Assert.That(target.EntryConditions, Is.Empty);
+        Assert.That(target.Requirements, Is.Empty);
         EditorGUIUtility.systemCopyBuffer = "ordinary text";
         Assert.That(AuthoringListClipboard.CanPaste(AuthoringListClipboard.Kind.Conditions), Is.False);
         before = EditorJsonUtility.ToJson(target);

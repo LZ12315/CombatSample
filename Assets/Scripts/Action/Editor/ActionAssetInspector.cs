@@ -1,6 +1,5 @@
 #if UNITY_EDITOR
 using System;
-using MackySoft.SerializeReferenceExtensions.Editor;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -9,32 +8,28 @@ using UnityEngine.UIElements;
 public sealed class ActionAssetInspector : Editor
 {
     private VisualElement _root;
-    private ActionAuthoringListGUI _entryConditions;
-    private ActionAuthoringListGUI _exitConditions;
+    private ActionAuthoringListGUI _requirements;
     private ActionAuthoringListGUI _cancelRules;
 
     public override VisualElement CreateInspectorGUI()
     {
         _root = new VisualElement();
         ActionEditorTheme.Apply(_root, "action-editor-asset-inspector");
-        _entryConditions = new ActionAuthoringListGUI(ApplyConditionTypeSelection);
-        _exitConditions = new ActionAuthoringListGUI(ApplyConditionTypeSelection);
+        _requirements = new ActionAuthoringListGUI(typeof(ActionCondition));
         _cancelRules = new ActionAuthoringListGUI();
         Undo.undoRedoPerformed -= OnUndoRedo;
         Undo.undoRedoPerformed += OnUndoRedo;
         ActionEditorInteractionGate.Changed -= Repaint;
         ActionEditorInteractionGate.Changed += Repaint;
 
-        AddCard("Timeline", () =>
+        AddCard("Timeline & Playback", () =>
         {
             ActionAsset action = target as ActionAsset;
             if (GUILayout.Button("Open Action Timeline"))
                 ActionTimelineWindow.Open(action);
             using (new EditorGUI.DisabledScope(true))
                 EditorGUILayout.IntField("Duration", Mathf.Max(1, action.Timeline?.DurationFrames ?? 1));
-        });
-        AddCard("Playback", () =>
-        {
+            GUILayout.Space(4f);
             DrawBoolean("isLoop", new GUIContent("Loop", "Loop this Action at runtime. This is separate from Timeline preview looping."));
             DrawEnum("_priorityLayer", new GUIContent("Priority Layer"));
             DrawInteger("_priorityValue", new GUIContent("Priority Value"));
@@ -47,13 +42,14 @@ public sealed class ActionAssetInspector : Editor
             if (triggerMode != null && triggerMode.enumValueIndex == (int)ActionTriggerMode.Event)
                 DrawProperty("_eventTriggerTag", new GUIContent("Event Trigger Tag"), true);
         });
-        AddCard("Conditions", () =>
-        {
-            DrawAuthoringList(_entryConditions, "Entry Conditions", "_entryConditions");
-            DrawAuthoringList(_exitConditions, "Exit Conditions", "_exitConditions");
-        });
-        AddCard("Cancellation", () => DrawAuthoringList(_cancelRules, "Cancel Rules", "_cancelRules"));
         AddCard("Tags", () => DrawFoldoutProperty("Self Tags", "_selfTags"));
+        AddCard("Motion Control", () => ActionMotionPolicyGUI.DrawDefaults(serializedObject.FindProperty("_motionPolicy")));
+        AddCard("Rules", () =>
+        {
+            DrawAuthoringList(_requirements, "Requirements", "_entryConditions");
+            GUILayout.Space(6f);
+            DrawAuthoringList(_cancelRules, "Cancel Rules", "_cancelRules");
+        });
         _root.Add(new IMGUIContainer(DrawInteractionMessage));
         return _root;
     }
@@ -67,8 +63,7 @@ public sealed class ActionAssetInspector : Editor
 
     private void OnUndoRedo()
     {
-        _entryConditions?.Reset();
-        _exitConditions?.Reset();
+        _requirements?.Reset();
         _cancelRules?.Reset();
         Repaint();
     }
@@ -78,26 +73,6 @@ public sealed class ActionAssetInspector : Editor
         SerializedProperty property = serializedObject.FindProperty(path);
         if (property != null)
             list.Draw(property, title);
-    }
-
-    private void ApplyConditionTypeSelection(SerializedObject source, string path, Type type)
-    {
-        if (this == null || target == null || source != serializedObject)
-            return;
-        ActionAsset action = target as ActionAsset;
-        if (ActionEditorInteractionGate.IsActive && action == ActionEditorContext.Shared.CurrentAction)
-            return;
-        source.UpdateIfRequiredOrScript();
-        SerializedProperty current = source.FindProperty(path);
-        if (current == null || current.propertyType != SerializedPropertyType.ManagedReference)
-            return;
-        current.SetManagedReference(type);
-        current.isExpanded = type != null;
-        if (source.ApplyModifiedProperties())
-            ReportAssetChange(action);
-        _entryConditions.Reset();
-        _exitConditions.Reset();
-        Repaint();
     }
 
     private void AddCard(string title, Action draw)

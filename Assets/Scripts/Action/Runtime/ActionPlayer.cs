@@ -67,6 +67,8 @@ public class ActionPlayer : MonoBehaviour
     /// <summary>当前播放 Action 的启动上下文快照，供 Loop 重播时保留。</summary>
     private ActionContext _currentContext;
 
+    /// <summary>动作会话成功启动并同步播放状态后触发。启动失败和 Loop 内部重播不触发；仅供观察，不应在回调中切换动作。</summary>
+    public event Action<ActionInstance> OnActionStarted;
     /// <summary>动作正常结束且已完成 OnExit / 清 transient / 释放播放载体后触发。Loop 重播不会触发。</summary>
     public event Action<ActionInstance> OnActionFinished;
     /// <summary>动作被播放载体异常中断时触发。显式 StopAction / 切换 Action 不触发。</summary>
@@ -126,13 +128,14 @@ public class ActionPlayer : MonoBehaviour
         IActionPlaybackSession session = null;
         try
         {
+            // Revoke base-locomotion tags before Action gameplay can observe the Actor.
+            _actor?.actorLocomotion?.RefreshSelfTags();
             action.OnEnter(_actor, _currentContext);
             session = CreateSession(action, _currentContext);
             BindSession(session);
             session.SetSpeed(PlaybackSpeed);
             session.Start();
             SyncPublicPlaybackState();
-            return true;
         }
         catch (Exception exception)
         {
@@ -140,6 +143,29 @@ public class ActionPlayer : MonoBehaviour
             SafeStopSession(session, ActionPlaybackStopMode.Interrupted);
             FinalizeCurrentAction(action, session);
             return false;
+        }
+
+        NotifyActionStarted(action);
+        return true;
+    }
+
+    private void NotifyActionStarted(ActionInstance action)
+    {
+        if (OnActionStarted == null)
+            return;
+
+        // Observers must not turn an already successful start into a failed request,
+        // or prevent another observer from recording the same start.
+        foreach (Action<ActionInstance> observer in OnActionStarted.GetInvocationList())
+        {
+            try
+            {
+                observer(action);
+            }
+            catch (Exception exception)
+            {
+                Debug.LogException(exception, this);
+            }
         }
     }
 
@@ -496,7 +522,15 @@ public class ActionPlayer : MonoBehaviour
         finally
         {
             _isFinalizingAction = false;
-            DisposeSession(session);
+            try
+            {
+                DisposeSession(session);
+            }
+            finally
+            {
+                // Restore only after Action-owned tags and playback resources have been released.
+                _actor?.actorLocomotion?.RefreshSelfTags();
+            }
         }
     }
 

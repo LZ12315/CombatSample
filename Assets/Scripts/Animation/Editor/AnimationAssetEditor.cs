@@ -16,8 +16,14 @@ public sealed class AnimationAssetEditor : Editor
     private static readonly FieldInfo PreviewStartField = TimeControlField?.FieldType.GetField("startTime", BindingFlags.Instance | BindingFlags.Public);
     private static readonly FieldInfo PreviewStopField = TimeControlField?.FieldType.GetField("stopTime", BindingFlags.Instance | BindingFlags.Public);
 
+    // AvatarPreview has no per-editor model setter. Its constructor reads this shared selection.
+    private static readonly System.Type PreviewSelectionType = typeof(Editor).Assembly.GetType("UnityEditor.AvatarPreviewSelection");
+    private static readonly MethodInfo GetPreviewSelection = PreviewSelectionType?.GetMethod("GetPreview", BindingFlags.Static | BindingFlags.Public);
+    private static readonly MethodInfo SetPreviewSelection = PreviewSelectionType?.GetMethod("SetPreview", BindingFlags.Static | BindingFlags.Public);
+
     private Editor _clipEditor;
     private AnimationClip _previewClip;
+    private GameObject _previewModel;
     private VisualElement _rootMotionCard;
     private VisualElement _stopPointCard;
     private VisualElement _footMarkersCard;
@@ -25,11 +31,15 @@ public sealed class AnimationAssetEditor : Editor
     {
         get
         {
-            var clip = ((AnimationAsset)target).Clip;
-            if (_previewClip != clip)
+            var asset = (AnimationAsset)target;
+            var clip = asset.Clip;
+            var rig = asset.AnimationRigAsset;
+            var model = rig != null ? rig.DefaultPreviewPrefab : null;
+            if (_previewClip != clip || _previewModel != model)
             {
                 if (_clipEditor != null) DestroyImmediate(_clipEditor);
                 _previewClip = clip;
+                _previewModel = model;
                 _clipEditor = clip != null && NativeClipEditorType != null ? CreateEditor(clip, NativeClipEditorType) : null;
             }
             return _clipEditor;
@@ -41,15 +51,44 @@ public sealed class AnimationAssetEditor : Editor
         if (_clipEditor != null) DestroyImmediate(_clipEditor);
         _clipEditor = null;
         _previewClip = null;
+        _previewModel = null;
         _rootMotionCard = _stopPointCard = _footMarkersCard = null;
     }
-    public override bool HasPreviewGUI() => ClipEditor != null && ClipEditor.HasPreviewGUI() && SetPreviewRange();
+    public override bool HasPreviewGUI()
+    {
+        var editor = ClipEditor;
+        if (editor == null) return false;
+        if (_previewModel == null || GetPreviewSelection == null || SetPreviewSelection == null
+            || AvatarPreviewField?.GetValue(editor) != null)
+            return editor.HasPreviewGUI() && SetPreviewRange();
+
+        // Apply the rig default only while this preview initializes. Restore Unity's shared
+        // selection afterwards, and leave an initialized preview alone so manual overrides work.
+        var type = _previewClip.legacy ? ModelImporterAnimationType.Legacy
+            : _previewClip.humanMotion ? ModelImporterAnimationType.Human : ModelImporterAnimationType.Generic;
+        object previous = GetPreviewSelection.Invoke(null, new object[] { type });
+        try
+        {
+            SetPreviewSelection.Invoke(null, new object[] { type, _previewModel });
+            return editor.HasPreviewGUI() && SetPreviewRange();
+        }
+        finally
+        {
+            SetPreviewSelection.Invoke(null, new object[] { type, previous });
+        }
+    }
     public override void OnInteractivePreviewGUI(Rect rect, GUIStyle background)
     {
-        if (SetPreviewRange()) ClipEditor.OnInteractivePreviewGUI(rect, background);
+        if (HasPreviewGUI()) _clipEditor.OnInteractivePreviewGUI(rect, background);
     }
-    public override void OnPreviewGUI(Rect rect, GUIStyle background) => ClipEditor?.OnPreviewGUI(rect, background);
-    public override void OnPreviewSettings() => ClipEditor?.OnPreviewSettings();
+    public override void OnPreviewGUI(Rect rect, GUIStyle background)
+    {
+        if (HasPreviewGUI()) _clipEditor.OnPreviewGUI(rect, background);
+    }
+    public override void OnPreviewSettings()
+    {
+        if (HasPreviewGUI()) _clipEditor.OnPreviewSettings();
+    }
 
     private bool SetPreviewRange()
     {

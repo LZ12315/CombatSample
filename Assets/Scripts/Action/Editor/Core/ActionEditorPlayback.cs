@@ -28,7 +28,7 @@ internal static class ActionEditorPlayback
         if (IsPlaying || action == null || action.Timeline == null || EditorApplication.isPlayingOrWillChangePlaymode)
             return;
 
-        int duration = Mathf.Max(1, action.Timeline.DurationFrames);
+        int duration = ActionEditorContext.Shared.PreviewDurationFrames;
         if (ActionEditorContext.Shared.PreviewPosition >= duration)
             ActionEditorContext.Shared.SetPreviewPosition(0d);
         _lastUpdateTime = EditorApplication.timeSinceStartup;
@@ -70,7 +70,7 @@ internal static class ActionEditorPlayback
         if (elapsed <= 0d)
             return;
 
-        double duration = Math.Max(1, action.Timeline.DurationFrames);
+        double duration = ActionEditorContext.Shared.PreviewDurationFrames;
         double next = ActionEditorContext.Shared.PreviewPosition + elapsed * ActionTimelineData.FrameRate;
         if (next >= duration)
         {

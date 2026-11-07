@@ -1,0 +1,76 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2fb589b8fd064b95b2feff521d1c2c92, type: 3}
+  m_Name: Anim_Katana_Combo03_3_Start
+  m_EditorClassIdentifier: 
+  _clip: {fileID: 7400000, guid: c06d3060f29c9954990af6356107253f, type: 2}
+  _hasRootMotionData: 1
+  _rootMotionData:
+    sourceClip: {fileID: 7400000, guid: c06d3060f29c9954990af6356107253f, type: 2}
+    sampleRate: 60
+    duration: 0.16666675
+    bakerVersion: 1
+    dependencyHash: 637bd1e055890e9ec3bcbab285509474
+    sampleTimes:
+    - 0
+    - 0.016666668
+    - 0.033333335
+    - 0.05
+    - 0.06666667
+    - 0.083333336
+    - 0.1
+    - 0.11666667
+    - 0.13333334
+    - 0.15
+    - 0.16666667
+    - 0.16666675
+    cumulativePositions:
+    - {x: 0, y: 0, z: 0}
+    - {x: 0.003024339, y: 0, z: 0.037789375}
+    - {x: 0.009348738, y: 0, z: 0.14240503}
+    - {x: 0.01480783, y: 0, z: 0.2991571}
+    - {x: 0.015132077, y: 0, z: 0.49587458}
+    - {x: 0.011489934, y: 0, z: 0.7123897}
+    - {x: 0.0055808537, y: 0, z: 0.9415107}
+    - {x: -0.0016795695, y: 0, z: 1.1726496}
+    - {x: -0.006426514, y: 0, z: 1.3938936}
+    - {x: -0.0076842904, y: 0, z: 1.5956903}
+    - {x: -0.008362525, y: 0, z: 1.77086}
+    - {x: -0.008362553, y: 0, z: 1.7708598}
+    cumulativeRotations:
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+    - {x: 0, y: 0, z: 0, w: 1}
+  _locomotionData:
+    sourceClip: {fileID: 7400000, guid: c06d3060f29c9954990af6356107253f, type: 2}
+    trajectoryHash: 637bd1e055890e9ec3bcbab285509474
+    footSetup: '|'
+    stopTime: 0.16666667
+    footMarkers:
+    - time: 0.033333335
+      foot: 0
+  _locomotionOverrideClip: {fileID: 7400000, guid: 864654293d3c1c041b269201f2e523b7,
+    type: 2}
+  _overrideStopTime: 0
+  _stopTimeOverride: 0
+  _overrideFootMarkers: 0
+  _footMarkerOverrides: []
+  _animationRigAsset: {fileID: 11400000, guid: fc89eaa1b4d3b4c42b7e1abef2592b1d, type: 2}

@@ -26,8 +26,28 @@ public abstract class ActionCondition
         return invertResult ? !result : result;
     }
 
+    /// <summary>Shared, read-only evaluation for requirements, neutral entries and cancel rules.</summary>
+    internal static bool TryMatchAll(IReadOnlyList<ActionCondition> conditions, Actor actor,
+        ActionContext context, bool skipInput, out ActionEntryMatch match)
+    {
+        match = default;
+        if (actor == null || !TryValidateAll(conditions, skipInput, out _)) return false;
+        List<PlayerInputMatch> inputs = null;
+        for (int i = 0; conditions != null && i < conditions.Count; i++)
+        {
+            ActionCondition condition = conditions[i];
+            if (skipInput && condition.RequiresPlayerInput) continue;
+            if (!condition.TryEvaluate(actor, context, out PlayerInputMatch input)) return false;
+            if (!condition.ConsumesInput) continue;
+            inputs ??= new List<PlayerInputMatch>();
+            inputs.Add(input);
+        }
+        match = new ActionEntryMatch(inputs);
+        return true;
+    }
+
     internal static bool TryValidateAll(IReadOnlyList<ActionCondition> conditions,
-        bool skipInput, out int invalidIndex, bool exit = false)
+        bool skipInput, out int invalidIndex)
     {
         invalidIndex = -1;
         for (int i = 0; conditions != null && i < conditions.Count; i++)
@@ -35,8 +55,7 @@ public abstract class ActionCondition
             ActionCondition condition = conditions[i];
             if (condition != null && skipInput && condition.RequiresPlayerInput) continue;
             if (condition != null && condition.IsConfigurationValid
-                && (!condition.invertResult || condition.SupportsInversion)
-                && (!exit || !condition.ConsumesInput)) continue;
+                && (!condition.invertResult || condition.SupportsInversion)) continue;
             invalidIndex = i;
             return false;
         }

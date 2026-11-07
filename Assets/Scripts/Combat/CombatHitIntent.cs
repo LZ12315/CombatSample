@@ -69,8 +69,7 @@ internal sealed class CombatHitBuffer
             {
                 PendingHit hit = _hits[i];
                 HitResolveResult result = ResolveOne(hit);
-                if (result.ImpactAllowed)
-                    ImpactSystem.HandleConfirmedHit(hit.HitData, hit.Effects);
+                ImpactSystem.HandleResolvedHit(hit.HitData, result, hit.Effects);
             }
         }
         finally

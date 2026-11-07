@@ -241,7 +241,13 @@ public sealed class ActionRuntimeSchedulerTests
         Destroy(asset);
     }
 
-    private static ActionAsset CreateAsset() => ScriptableObject.CreateInstance<ActionAsset>();
+    private static ActionAsset CreateAsset()
+    {
+        var asset = ScriptableObject.CreateInstance<ActionAsset>();
+        asset.MotionPolicy.movement = ActionMovementControl.Allow;
+        asset.MotionPolicy.turning = ActionTurnControl.Normal; // Scheduler tests intentionally run without a Motor.
+        return asset;
+    }
 
     private static GameplayLane AddLane(ActionAsset asset)
     {

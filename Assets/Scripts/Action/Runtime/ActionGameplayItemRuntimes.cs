@@ -30,46 +30,51 @@ internal sealed class ActionTagItemRuntime : IActionRangeRuntime
     }
 }
 
-internal sealed class ActionMotionPolicyItemRuntime : IActionRangeRuntime
+internal sealed class ActionEffectItemRuntime : IActionRangeRuntime
 {
-    private readonly MotionPolicyItemConfig _config;
-    private ActorMotor _motor;
-    private MotionOwner _locomotionOwner;
-    private MotionOwner _airLocomotionOwner;
-    private MotionOwner _gravityOwner;
+    private readonly EffectItemConfig _config;
+    private IDisposable _scope;
 
-    public ActionMotionPolicyItemRuntime(MotionPolicyItemConfig config) => _config = config;
+    public ActionEffectItemRuntime(EffectItemConfig config) => _config = config;
 
-    public void Enter(ActionRuntimeContext context)
-    {
-        _motor = context.Motor ?? throw new InvalidOperationException("MotionPolicyItem requires ActorMotor.");
-        if (_config == null || (!_config.useLocomotionScale && !_config.useAirLocomotionScale && !_config.useGravityScale))
-            throw new InvalidOperationException("MotionPolicyItem requires at least one policy.");
-
-        if (_config.useLocomotionScale)
-            _locomotionOwner = _motor.BeginLocomotionScale(_config.locomotionScale);
-        if (_config.useAirLocomotionScale)
-            _airLocomotionOwner = _motor.BeginAirLocomotionScale(_config.airLocomotionScale);
-        if (_config.useGravityScale)
-            _gravityOwner = _motor.BeginGravityScale(_config.gravityScale);
-    }
-
+    public void Enter(ActionRuntimeContext context) => _scope = context.Effects?.BeginEffect(_config, context.Actor);
     public void Tick(ActionRuntimeContext context, int localFrame) { }
     public void Exit(ActionRuntimeContext context, ActionRangeExitReason reason) => Release();
     public void Abort(ActionRuntimeContext context) => Release();
 
     private void Release()
     {
-        if (_motor != null)
-        {
-            if (_locomotionOwner.IsValid) _motor.EndLocomotionScale(_locomotionOwner);
-            if (_airLocomotionOwner.IsValid) _motor.EndAirLocomotionScale(_airLocomotionOwner);
-            if (_gravityOwner.IsValid) _motor.EndGravityScale(_gravityOwner);
-        }
-        _locomotionOwner = default;
-        _airLocomotionOwner = default;
-        _gravityOwner = default;
-        _motor = null;
+        _scope?.Dispose();
+        _scope = null;
+    }
+}
+
+internal sealed class ActionScreenShakeItemRuntime : IActionRangeRuntime
+{
+    private readonly ScreenShakeItemConfig _config;
+    private readonly int _durationFrames;
+    private IDisposable _scope;
+
+    public ActionScreenShakeItemRuntime(ScreenShakeItemConfig config, int durationFrames)
+    {
+        _config = config;
+        _durationFrames = durationFrames;
+    }
+
+    public void Enter(ActionRuntimeContext context)
+    {
+        int start = (int)Math.Floor(context.ActionPosition + 1e-9d);
+        _scope = context.Effects?.BeginScreenShake(_config,
+            () => ActionScreenShakeRequest.Normalize(context.ActionPosition, start, _durationFrames), context.Actor);
+    }
+    public void Tick(ActionRuntimeContext context, int localFrame) { }
+    public void Exit(ActionRuntimeContext context, ActionRangeExitReason reason) => Release();
+    public void Abort(ActionRuntimeContext context) => Release();
+
+    private void Release()
+    {
+        _scope?.Dispose();
+        _scope = null;
     }
 }
 
@@ -179,18 +184,113 @@ internal sealed class ActionVelocityOverrideItemRuntime : IActionRangeRuntime
     }
 }
 
+/// <summary>
+/// Locks target identity at Enter, but resolves its position at every Motor step. Keeps a zero-speed
+/// horizontal owner after arrival/target loss so underlying RootMotion cannot resume mid-window.
+/// </summary>
+internal sealed class ActionMoveToTargetItemRuntime : IActionRangeRuntime
+{
+    private readonly MoveToTargetItemConfig _config;
+    private readonly int _durationFrames;
+    private ActorMotor _motor;
+    private GameObject _target;
+    private MotionOwner _owner;
+    private float _speed;
+    private bool _arrived;
+
+    public ActionMoveToTargetItemRuntime(MoveToTargetItemConfig config, int durationFrames)
+    {
+        _config = config;
+        _durationFrames = Math.Max(1, durationFrames);
+    }
+
+    public void Enter(ActionRuntimeContext context)
+    {
+        _motor = context.Motor ?? throw new InvalidOperationException("MoveToTargetItem requires ActorMotor.");
+        if (_config == null)
+            throw new InvalidOperationException("MoveToTargetItem requires config.");
+        _target = _config.targetSource switch
+        {
+            ActionMoveToTargetSource.CombatTarget => context.Actor != null && context.Actor.combater != null
+                ? context.Actor.combater.CombatTarget : null,
+            ActionMoveToTargetSource.ContextInstigator => context.ActionContext.Instigator,
+            ActionMoveToTargetSource.ContextTarget => context.ActionContext.Target,
+            _ => null,
+        };
+        _arrived = false;
+        _speed = 0f;
+        _owner = _motor.BeginHorizontalVelocity(EvaluateVelocity);
+    }
+
+    public void Tick(ActionRuntimeContext context, int localFrame)
+    {
+        float sample = _durationFrames <= 1 ? 0f : Mathf.Clamp01(localFrame / (float)(_durationFrames - 1));
+        float multiplier = _config.speedCurve != null ? _config.speedCurve.Evaluate(sample) : 1f;
+        _speed = ActionTargetApproach.NonNegativeFinite(_config.speed) * ActionTargetApproach.NonNegativeFinite(multiplier);
+    }
+
+    private Vector3 EvaluateVelocity(float motionDeltaTime)
+    {
+        if (_target == null || _motor == null)
+            return Vector3.zero;
+        Quaternion rotation = ActionItemRuntimeUtility.GetSimulationRotation(null, _motor);
+        return ActionTargetApproach.EvaluateVelocity(
+            ActionItemRuntimeUtility.GetSimulationPosition(_target) - ActionItemRuntimeUtility.GetSimulationPosition(_motor.gameObject),
+            ActionItemRuntimeUtility.GetCharacterUp(_motor, rotation),
+            _speed, _config.stopDistance, motionDeltaTime, ref _arrived);
+    }
+
+    public void Exit(ActionRuntimeContext context, ActionRangeExitReason reason) => Release();
+    public void Abort(ActionRuntimeContext context) => Release();
+
+    private void Release()
+    {
+        if (_motor != null && _owner.IsValid)
+            _motor.EndHorizontalVelocity(_owner);
+        _owner = default;
+        _target = null;
+        _motor = null;
+    }
+}
+
+/// <summary>Pure pursuit math. Completion uses observed distance, never the requested/unresolved step.</summary>
+internal static class ActionTargetApproach
+{
+    internal static Vector3 EvaluateVelocity(Vector3 offset, Vector3 up, float speed, float stopDistance,
+        float motionDeltaTime, ref bool arrived)
+    {
+        if (arrived)
+            return Vector3.zero;
+        Vector3 planar = Vector3.ProjectOnPlane(offset, up);
+        float distance = planar.magnitude;
+        float remaining = distance - NonNegativeFinite(stopDistance);
+        if (remaining <= 0.0001f)
+        {
+            arrived = true;
+            return Vector3.zero;
+        }
+        if (motionDeltaTime <= 0f || float.IsNaN(distance) || float.IsInfinity(distance))
+            return Vector3.zero;
+        float cappedSpeed = Mathf.Min(NonNegativeFinite(speed), remaining / motionDeltaTime);
+        return planar / distance * cappedSpeed;
+    }
+
+    internal static float NonNegativeFinite(float value) =>
+        float.IsNaN(value) || float.IsInfinity(value) ? 0f : Mathf.Max(0f, value);
+}
+
 internal sealed class ActionRootMotionItemRuntime : IActionRangeRuntime
 {
     private readonly RootMotionItemConfig _config;
-    private readonly int _durationFrames;
+    private readonly float _sourceEndTime;
     private ActorMotor _motor;
     private RootMotionTrajectory _trajectory;
     private MotionOwner _owner;
 
-    public ActionRootMotionItemRuntime(RootMotionItemConfig config, int durationFrames)
+    public ActionRootMotionItemRuntime(RootMotionItemConfig config, float sourceEndTime)
     {
         _config = config;
-        _durationFrames = Math.Max(1, durationFrames);
+        _sourceEndTime = sourceEndTime;
     }
 
     public void Enter(ActionRuntimeContext context)
@@ -207,12 +307,11 @@ internal sealed class ActionRootMotionItemRuntime : IActionRangeRuntime
         if (!_owner.IsValid || _trajectory == null)
             return;
 
-        ActionItemRuntimeUtility.GetSourceWindow(_config.sourceStartTime, _config.playRate, localFrame, out float start, out float end);
+        ActionItemRuntimeUtility.GetRootMotionSourceWindow(_config.sourceStartTime, _sourceEndTime,
+            _config.playRate, localFrame, out float start, out float end);
         if (_trajectory.TryExtract(start, end, out RootMotionTransform delta))
         {
-            Vector3 localDelta = delta.Position;
-            localDelta.y = 0f;
-            _motor.SubmitTrajectoryRootMotion(_owner, localDelta);
+            _motor.SubmitTrajectoryRootMotion(_owner, _config.ScalePlanarTranslation(delta.Position));
         }
     }
 
@@ -437,6 +536,15 @@ internal static class ActionItemRuntimeUtility
     {
         start = sourceStartTime + localFrame / (float)ActionTimelineData.FrameRate * playRate;
         end = sourceStartTime + (localFrame + 1) / (float)ActionTimelineData.FrameRate * playRate;
+    }
+
+    internal static void GetRootMotionSourceWindow(float sourceStartTime, float sourceEndTime, float playRate,
+        int localFrame, out float start, out float end)
+    {
+        GetSourceWindow(sourceStartTime, playRate, localFrame, out start, out end);
+        // A ceil-rounded final Timeline frame must not extract beyond the selected source range.
+        start = Mathf.Min(start, sourceEndTime);
+        end = Mathf.Min(end, sourceEndTime);
     }
 
     internal static Quaternion GetSimulationRotation(Actor actor, ActorMotor motor)

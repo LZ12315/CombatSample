@@ -178,6 +178,7 @@ public sealed class ActionTimelineWindow : EditorWindow
         ActionTimelineWindow window = GetWindow<ActionTimelineWindow>("Action Timeline");
         if (ActionEditorContext.Shared.CurrentAction == null && Selection.activeObject is ActionAsset action)
             ActionEditorContext.Shared.SetAction(action);
+        ActionEditorContext.Shared.EnsureDefaultAnimationSelection();
         window.Show();
     }
 
@@ -188,12 +189,18 @@ public sealed class ActionTimelineWindow : EditorWindow
         window.Show();
     }
 
-    internal static void OpenShared() => GetWindow<ActionTimelineWindow>("Action Timeline").Show();
+    internal static void OpenShared()
+    {
+        ActionEditorContext.Shared.EnsureDefaultAnimationSelection();
+        GetWindow<ActionTimelineWindow>("Action Timeline").Show();
+    }
 
     private void OnEnable()
     {
         _uiReady = false;
         _pendingContextChanges = ActionEditorChangeFlags.None;
+        _snapEnabled = true; // Do not restore a disabled default from an older saved window layout.
+        ActionEditorContext.Shared.EnsureDefaultAnimationSelection();
         ActionEditorContext.Changed += OnContextChanged;
         EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
     }
@@ -250,7 +257,7 @@ public sealed class ActionTimelineWindow : EditorWindow
             "Play / Pause", TogglePlayback, out _playButtonIcon);
         playback.Add(_playButton);
         playback.Add(TransportButton("Animation.NextKey", "Next frame", () => RunTimelineNavigation(() => ActionEditorContext.Shared.SetFrame(ActionEditorContext.Shared.CurrentFrame + 1))));
-        playback.Add(TransportButton("Animation.LastKey", "Last frame", () => RunTimelineNavigation(() => ActionEditorContext.Shared.SetFrame(Mathf.Max(0, (_document?.DurationFrames ?? 1) - 1)))));
+        playback.Add(TransportButton("Animation.LastKey", "Last frame", () => RunTimelineNavigation(() => ActionEditorContext.Shared.SetFrame(ActionEditorContext.Shared.PreviewDurationFrames - 1))));
         transport.Add(playback);
         _frameLabel = new Label("0") { tooltip = "Preview position in frames" };
         _frameLabel.AddToClassList("action-editor-frame-label");
@@ -590,6 +597,15 @@ public sealed class ActionTimelineWindow : EditorWindow
         FlushPendingContextChanges();
     }
 
+    private static ActionDocumentEntry DisplayEntry(ActionDocumentEntry entry)
+    {
+        ActionEditorContext context = ActionEditorContext.Shared;
+        return entry != null && !string.IsNullOrEmpty(context.PreviewSourceEditorId) &&
+               entry.EditorId == context.PreviewSourceEditorId &&
+               context.PreviewDocument.ById.TryGetValue(entry.EditorId, out ActionDocumentEntry preview)
+            ? preview : entry;
+    }
+
     private void RefreshEntryContentPresentation()
     {
         foreach (KeyValuePair<string, VisualElement> pair in _entryViews)
@@ -604,9 +620,9 @@ public sealed class ActionTimelineWindow : EditorWindow
             _entriesByDisplayKey[pair.Key] = entry;
             Label contentLabel = view.Q<Label>(className: "action-editor-entry-label");
             if (contentLabel != null)
-                contentLabel.text = EntryLabel(entry, _geometry != null && _geometry.EntryRect(entry).Overflow);
+                contentLabel.text = EntryLabel(DisplayEntry(entry), _geometry != null && _geometry.EntryRect(DisplayEntry(entry)).Overflow);
             view.EnableInClassList("action-editor-muted", entry.Muted);
-            view.tooltip = EntryTooltip(entry, false);
+            view.tooltip = EntryTooltip(DisplayEntry(entry), false);
         }
 
         // Content/presentation changes do not change lane layout or interrupt playback.
@@ -1131,11 +1147,12 @@ public sealed class ActionTimelineWindow : EditorWindow
             return;
         float viewportWidth = TimelineViewportWidth();
         _timeViewport.SetViewportWidth(viewportWidth);
-        _timeViewport.UpdateWorkspace(_document.HorizonFrames);
+        ActionEditorDocument displayDocument = ActionEditorContext.Shared.PreviewDocument;
+        _timeViewport.UpdateWorkspace(displayDocument.HorizonFrames);
         StoreTimeViewportState();
         _geometry = new ActionTimelineGeometry(
-            _document.DurationFrames,
-            _document.HorizonFrames,
+            displayDocument.DurationFrames,
+            displayDocument.HorizonFrames,
             _document.Lanes.Count,
             _timeViewport.VisibleStartFrame,
             _timeViewport.VisibleSpanFrames,
@@ -1153,14 +1170,14 @@ public sealed class ActionTimelineWindow : EditorWindow
         SetLayerSize(_ghostLayer, width, height);
         SetLayerSize(_guideLayer, width, height);
 
-        float durationX = _geometry.FrameToPixel(_document.DurationFrames, out bool durationOverflow);
+        float durationX = _geometry.FrameToPixel(ActionEditorContext.Shared.PreviewDurationFrames, out bool durationOverflow);
         _durationLine.style.display = durationOverflow ? DisplayStyle.None : DisplayStyle.Flex;
         _durationLine.style.left = durationX;
         _postDurationShade.style.display = durationOverflow ? DisplayStyle.None : DisplayStyle.Flex;
         _postDurationShade.style.left = durationX;
         _postDurationShade.style.width = Mathf.Max(0f, width - durationX);
         _postDurationShade.style.height = height;
-        float horizonX = _geometry.FrameToPixel(_document.HorizonFrames, out bool horizonOverflow);
+        float horizonX = _geometry.FrameToPixel(displayDocument.HorizonFrames, out bool horizonOverflow);
         bool horizonVisible = !horizonOverflow && horizonX >= 0f && horizonX <= width;
         _horizonLine.style.display = horizonVisible ? DisplayStyle.Flex : DisplayStyle.None;
         _horizonLine.style.left = horizonX;
@@ -1171,7 +1188,9 @@ public sealed class ActionTimelineWindow : EditorWindow
 
         foreach (KeyValuePair<string, VisualElement> pair in _entryViews)
         {
-            ActionDocumentEntry entry = _entriesByDisplayKey[pair.Key];
+            ActionDocumentEntry entry = DisplayEntry(_entriesByDisplayKey[pair.Key]);
+            pair.Value.EnableInClassList("action-editor-entry-draft", ActionEditorContext.Shared.PreviewSourceEditorId != null &&
+                entry.EditorId == ActionEditorContext.Shared.PreviewSourceEditorId);
             ActionEntryGeometry layout = _geometry.EntryRect(entry);
             pair.Value.style.left = layout.Left;
             pair.Value.style.width = layout.Width;
@@ -1247,15 +1266,15 @@ public sealed class ActionTimelineWindow : EditorWindow
         if (_rulerPlayhead != null) _rulerPlayhead.style.left = x;
         foreach (KeyValuePair<string, VisualElement> pair in _entryViews)
         {
-            ActionDocumentEntry entry = _entriesByDisplayKey[pair.Key];
+            ActionDocumentEntry entry = DisplayEntry(_entriesByDisplayKey[pair.Key]);
             pair.Value.EnableInClassList("action-editor-entry-active", frame >= entry.StartFrame && frame < entry.RawEndFrameExclusive);
             pair.Value.EnableInClassList("action-editor-entry-hold", false);
         }
-        ActionDocumentEntry activeAnimation = _document.AnimationSegments.FirstOrDefault(entry =>
+        ActionDocumentEntry activeAnimation = ActionEditorContext.Shared.PreviewDocument.AnimationSegments.FirstOrDefault(entry =>
             entry.Source != null && frame >= entry.StartFrame && frame < entry.RawEndFrameExclusive);
         if (activeAnimation == null)
         {
-            ActionDocumentEntry heldAnimation = _document.AnimationSegments
+            ActionDocumentEntry heldAnimation = ActionEditorContext.Shared.PreviewDocument.AnimationSegments
                 .Where(entry => entry.Source != null && entry.RawEndFrameExclusive <= frame)
                 .OrderBy(entry => entry.RawEndFrameExclusive)
                 .LastOrDefault();
@@ -1295,7 +1314,9 @@ public sealed class ActionTimelineWindow : EditorWindow
     {
         if (_document == null)
             return;
-        _statusLabel.text = $"Duration {_document.DurationFrames}f";
+        ActionEditorContext context = ActionEditorContext.Shared;
+        _statusLabel.text = $"Duration {context.PreviewDurationFrames}f" +
+                            (context.PreviewSourceEditorId != null ? " · Draft preview (not saved)" : string.Empty);
     }
 
     private bool CanAuthor(out string message)
@@ -1482,12 +1503,15 @@ public sealed class ActionTimelineWindow : EditorWindow
             return;
         }
         AddAuthoringMenuItem(menu, "Point/Impulse", () => AddGameplayItem(lane, typeof(ImpulseItem), frame));
+        AddAuthoringMenuItem(menu, "Presentation/Effect", () => AddGameplayItem(lane, typeof(EffectItem), frame));
+        AddAuthoringMenuItem(menu, "Presentation/Screen Shake", () => AddGameplayItem(lane, typeof(ScreenShakeItem), frame));
         menu.AddSeparator(string.Empty);
         AddAuthoringMenuItem(menu, "Collision/Hit Box", () => AddGameplayItem(lane, typeof(HitBoxItem), frame));
         menu.AddSeparator(string.Empty);
         AddAuthoringMenuItem(menu, "Motion/Root Motion", () => AddGameplayItem(lane, typeof(RootMotionItem), frame));
         AddAuthoringMenuItem(menu, "Motion/Self Rotation", () => AddGameplayItem(lane, typeof(SelfRotationItem), frame));
         AddAuthoringMenuItem(menu, "Motion/Velocity Override", () => AddGameplayItem(lane, typeof(VelocityOverrideItem), frame));
+        AddAuthoringMenuItem(menu, "Motion/Move To Target", () => AddGameplayItem(lane, typeof(MoveToTargetItem), frame));
         menu.AddSeparator(string.Empty);
         AddAuthoringMenuItem(menu, "State/Motion Policy", () => AddGameplayItem(lane, typeof(MotionPolicyItem), frame));
         AddAuthoringMenuItem(menu, "State/Tag", () => AddGameplayItem(lane, typeof(TagItem), frame));
@@ -1883,6 +1907,14 @@ public sealed class ActionTimelineWindow : EditorWindow
         string requestedEditorId = _pendingEditorId;
         ActionAsset requestedAction = _pendingAction;
         InteractionState next = _pendingManipulationState;
+        string previewEditorId = ActionEditorContext.Shared.PreviewSourceEditorId;
+        if (previewEditorId != null && (requestedEditorId == previewEditorId ||
+            next == InteractionState.Move && ActionEditorContext.Shared.IsSelected(previewEditorId)))
+        {
+            SetStatusNotice("Apply or Revert the source draft before dragging these items.");
+            ClearPendingManipulation();
+            return false;
+        }
         VisualElement currentView = _captureTarget;
         ActionDocumentEntry entry = _document?.ContentEntries.FirstOrDefault(candidate =>
             candidate.HasStableSelection && string.Equals(candidate.EditorId, requestedEditorId, StringComparison.Ordinal));
@@ -3075,10 +3107,10 @@ public sealed class ActionTimelineWindow : EditorWindow
                 GUI.Label(new Rect(x + 4f, 2f, 60f, 18f), frame.ToString(), style);
         }
 
-        float durationX = _geometry.FrameToPixel(_document.DurationFrames, out bool durationOverflow);
+        float durationX = _geometry.FrameToPixel(ActionEditorContext.Shared.PreviewDurationFrames, out bool durationOverflow);
         if (!durationOverflow && durationX >= visibleLeft - 1f && durationX <= visibleRight + 1f)
             EditorGUI.DrawRect(new Rect(durationX, 0f, 1f, height), new Color(0.35f, 0.72f, 0.92f, 0.8f));
-        float horizonX = _geometry.FrameToPixel(_document.HorizonFrames, out bool horizonOverflow);
+        float horizonX = _geometry.FrameToPixel(ActionEditorContext.Shared.PreviewDocument.HorizonFrames, out bool horizonOverflow);
         if (!horizonOverflow && horizonX >= visibleLeft - 1f && horizonX <= visibleRight + 1f)
             EditorGUI.DrawRect(new Rect(horizonX, 0f, 1f, height), ActionEditorTheme.HorizonLine);
         if (visible.First == 0)
@@ -3150,7 +3182,7 @@ public sealed class ActionTimelineWindow : EditorWindow
             return;
         CancelPendingScrollRestore();
         ResetWheelAnchor();
-        _timeViewport.Fit(_document.HorizonFrames);
+        _timeViewport.Fit(ActionEditorContext.Shared.PreviewDocument.HorizonFrames);
         CommitTimeViewport();
     }
 
@@ -3160,7 +3192,7 @@ public sealed class ActionTimelineWindow : EditorWindow
             return;
         List<ActionDocumentEntry> selected = ActionEditorContext.Shared.SelectedIds
             .Where(id => _document.ById.TryGetValue(id, out _))
-            .Select(id => _document.ById[id])
+            .Select(id => DisplayEntry(_document.ById[id]))
             .Where(entry => entry.SelectionKind == ActionSelectionKind.AnimationSegment || entry.SelectionKind == ActionSelectionKind.GameplayItem)
             .ToList();
         if (selected.Count == 0)
@@ -3188,6 +3220,7 @@ public sealed class ActionTimelineWindow : EditorWindow
     private void FrameEntry(ActionDocumentEntry entry)
     {
         if (entry == null) return;
+        entry = DisplayEntry(entry);
         ResetWheelAnchor();
         double start = Math.Max(0d, entry.StartFrame);
         double end = Math.Max(start + 1d, entry.RawEndFrameExclusive);
@@ -3305,6 +3338,8 @@ public sealed class ActionTimelineWindow : EditorWindow
             RefreshDocumentAndViews();
             return;
         }
+        if ((flags & ActionEditorChangeFlags.DraftPreview) != 0)
+            RefreshGeometry(); // Display-only update: do not rebuild controls or stop preview playback.
         if ((flags & (ActionEditorChangeFlags.Content |
                       ActionEditorChangeFlags.Presentation)) != 0)
             RefreshContentOnly();
@@ -3426,6 +3461,7 @@ public sealed class ActionTimelineWindow : EditorWindow
     {
         if (entry == null || !_entryViews.TryGetValue(entry.DisplayKey, out VisualElement view) || _geometry == null)
             return default;
+        entry = DisplayEntry(entry);
         if (entry.DisplayState != ActionEntryDisplayState.Normal)
             return view.layout;
 
@@ -3567,10 +3603,12 @@ public sealed class ActionTimelineWindow : EditorWindow
         if (source is HitBoxItem) return "action-editor-item-hitbox";
         if (source is RootMotionItem) return "action-editor-item-root-motion";
         if (source is SelfRotationItem) return "action-editor-item-self-rotation";
-        if (source is VelocityOverrideItem) return "action-editor-item-velocity";
+        if (source is VelocityOverrideItem || source is MoveToTargetItem) return "action-editor-item-velocity";
         if (source is MotionPolicyItem) return "action-editor-item-motion-policy";
         if (source is TagItem) return "action-editor-item-tag";
         if (source is ImpulseItem) return "action-editor-item-impulse";
+        if (source is EffectItem) return "action-editor-item-effect";
+        if (source is ScreenShakeItem) return "action-editor-item-screen-shake";
         return "action-editor-item-unknown";
     }
 

@@ -11,6 +11,10 @@ public sealed class ActorAnimation : MonoBehaviour
 
     [SerializeField] private Actor actor;
     [SerializeField] private AnimancerComponent animancer;
+    [SerializeField, Min(0f), Tooltip("Seconds to fade the last displayed Action pose back to locomotion. Zero switches immediately. Uses the animation clock, not real time.")]
+    private float actionLocomotionBlendDuration = 0.15f;
+
+    private enum ActionLayerPhase { Inactive, Playing, FadingOut }
 
     private int _nextActionOwnerId;
     private int _activeActionOwnerId;
@@ -23,6 +27,9 @@ public sealed class ActorAnimation : MonoBehaviour
     private AnimancerLayer _actionLayer;
     private AnimancerState _actionState;
     private AnimationClip _actionStateClip;
+    private ActionLayerPhase _actionLayerPhase;
+    private AnimancerState _evaluatedActionState;
+    private double _evaluatedActionTime;
     private int _nextLocomotionOwnerId;
     private int _activeLocomotionOwnerId;
     private AnimancerState _locomotionState;
@@ -232,11 +239,13 @@ public sealed class ActorAnimation : MonoBehaviour
 
     private static AnimancerState CreatePoseSnapshot(AnimancerNode source)
     {
+        if (source is LocomotionStartPoseState alignedStart)
+            return alignedStart.CapturePose();
         if (source is AnimancerState state && LocomotionAnimationUtility.IsUsableClip(state.Clip))
             return new ClipState(state.Clip) { TimeD = LocomotionAnimationUtility.EvaluatedTime(state), Speed = 0f };
         if (source.ChildCount == 0)
             return null;
-        var snapshot = new ManualMixerState { Speed = 0f };
+        var snapshot = new FrozenPoseMixerState { Speed = 0f };
         for (int i = 0; i < source.ChildCount; i++)
         {
             AnimancerState sourceChild = source.GetChild(i);
@@ -261,6 +270,13 @@ public sealed class ActorAnimation : MonoBehaviour
         return snapshot;
     }
 
+    // Animancer applies a new state's initial Time (zero) while attaching its playable.
+    // A normal mixer propagates that seek to every child, destroying the captured per-leaf times.
+    private sealed class FrozenPoseMixerState : ManualMixerState
+    {
+        public override double RawTime { get => base.RawTime; set { } }
+    }
+
     private static void FreezePose(AnimancerState state)
     {
         state.CancelFade();
@@ -277,6 +293,8 @@ public sealed class ActorAnimation : MonoBehaviour
         ApplyManualUpdateMode();
         EnsureLayers();
 
+        // A new Action owns a fresh visual session, including when it interrupts an exit fade.
+        ClearActionLayer();
         _actionOwnerActive = true;
         _activeActionOwnerId = ++_nextActionOwnerId;
         _hasActionPoseThisTick = false;
@@ -291,6 +309,7 @@ public sealed class ActorAnimation : MonoBehaviour
         _actionOwnerActive = false;
         _activeActionOwnerId = 0;
         _hasActionPoseThisTick = false;
+        FadeOutActionLayer();
     }
 
     internal void BeginFixedAnimationTick()
@@ -337,6 +356,10 @@ public sealed class ActorAnimation : MonoBehaviour
         if (_actionState == null)
             return false;
 
+        // A pose returning after an animation gap cancels its visual fade, not its logical owner.
+        _actionLayer.CancelFade();
+        _actionLayer.Weight = 1f;
+        _actionLayerPhase = ActionLayerPhase.Playing;
         _actionState.Speed = 0f;
         _actionState.Time = Mathf.Clamp(sampleTime, 0f, clip.length);
         _actionState.IsPlaying = true;
@@ -353,10 +376,33 @@ public sealed class ActorAnimation : MonoBehaviour
         ApplyManualUpdateMode();
         EnsureLayers();
 
+        // Missing timeline poses may fade visually without ending the Action's gameplay ownership.
         if (!_actionOwnerActive || !_hasActionPoseThisTick)
-            ClearActionLayer();
+            FadeOutActionLayer();
 
-        animancer.Evaluate(Mathf.Max(0f, deltaSeconds));
+        float dt = LocomotionDataValidation.IsFinite(deltaSeconds) ? Mathf.Max(0f, deltaSeconds) : 0f;
+        animancer.Evaluate(dt);
+        if (_actionLayerPhase == ActionLayerPhase.Playing)
+        {
+            _evaluatedActionState = _actionState;
+            _evaluatedActionTime = LocomotionAnimationUtility.EvaluatedTime(_actionState);
+        }
+        else if (_actionLayerPhase == ActionLayerPhase.FadingOut && _actionLayer.Weight <= 0f)
+        {
+            ClearActionLayer();
+        }
+        RecordEvaluatedStartPoses(_baseLayer);
+    }
+
+    private static void RecordEvaluatedStartPoses(AnimancerNode node)
+    {
+        if (node == null || !node.Playable.IsValid() || node.Weight <= LocomotionAnimationUtility.WeightEpsilon) return;
+        if (node is LocomotionStartPoseState start)
+        {
+            start.RecordEvaluatedPose();
+            return;
+        }
+        for (int i = 0; i < node.ChildCount; i++) RecordEvaluatedStartPoses(node.GetChild(i));
     }
 
 #if UNITY_EDITOR
@@ -410,6 +456,29 @@ public sealed class ActorAnimation : MonoBehaviour
         actor?.actorLocomotion?.OnAnimationSessionLost(this, owner);
     }
 
+    private void FadeOutActionLayer()
+    {
+        if (_actionLayerPhase != ActionLayerPhase.Playing)
+            return; // Never restart an in-progress fade on each tick.
+        if (_evaluatedActionState == null || !_evaluatedActionState.Playable.IsValid()
+            || _actionLayer == null || !_actionLayer.Playable.IsValid()
+            || !LocomotionDataValidation.IsFinite(actionLocomotionBlendDuration)
+            || actionLocomotionBlendDuration <= 0f)
+        {
+            ClearActionLayer();
+            return;
+        }
+
+        // An Action can submit another sample and be cancelled before evaluation. Fade the pose
+        // actually displayed, not that unseen sample (which can even belong to a different clip).
+        _actionState = _actionLayer.Play(_evaluatedActionState);
+        _actionStateClip = _actionState.Clip;
+        _actionState.Speed = 0f;
+        _actionState.TimeD = _evaluatedActionTime;
+        _actionLayerPhase = ActionLayerPhase.FadingOut;
+        _actionLayer.StartFade(0f, actionLocomotionBlendDuration);
+    }
+
     private void ClearActionLayer()
     {
         if (_actionLayer != null && _actionLayer.Playable.IsValid())
@@ -420,6 +489,9 @@ public sealed class ActorAnimation : MonoBehaviour
 
         _actionState = null;
         _actionStateClip = null;
+        _actionLayerPhase = ActionLayerPhase.Inactive;
+        _evaluatedActionState = null;
+        _evaluatedActionTime = 0d;
     }
 
     private void ResolveDependencies()
@@ -450,6 +522,9 @@ public sealed class ActorAnimation : MonoBehaviour
             _protectionState = null;
             _actionState = null;
             _actionStateClip = null;
+            _actionLayerPhase = ActionLayerPhase.Inactive;
+            _evaluatedActionState = null;
+            _evaluatedActionTime = 0d;
         }
         _baseLayer = animancer.Layers[LocomotionBaseLayerIndex];
         _actionLayer = animancer.Layers[ActionOverrideLayerIndex];

@@ -1,0 +1,289 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d4a14c808be2c4f4a8f1b6d45ebd172f, type: 3}
+  m_Name: Action_GreatSword_Attack01
+  m_EditorClassIdentifier: 
+  _actionTimeline:
+    _animationSegments:
+    - _editorId: 7020015fa71249a1965554fcf175e61d
+      _startFrame: 0
+      _animationAsset: {fileID: 11400000, guid: 2f828c7a3307b544ea422928acb24015,
+        type: 2}
+      _sourceStartTime: 0
+      _sourceEndTime: 0.5833335
+      _playRate: 0.5
+    - _editorId: 2004dab9fee246508241aaafd45adf24
+      _startFrame: 71
+      _animationAsset: {fileID: 11400000, guid: bbfbefd084daabe49a29f1e9d445a908,
+        type: 2}
+      _sourceStartTime: 0
+      _sourceEndTime: 2.0833335
+      _playRate: 0.7
+    _gameplayLanes:
+    - _editorId: 5dd2bd7cf750401f93c0e766f0d5cb17
+      _name: Gameplay
+      _muted: 0
+      _items:
+      - rid: 4877645814652993561
+      - rid: 6940827153219190785
+    - _editorId: 2404775bac5e4aa98aaeb3a2d189824c
+      _name: Gameplay 3
+      _muted: 0
+      _items:
+      - rid: 4877645814652993536
+      - rid: 4877645814652993537
+    - _editorId: ddfda9b947174299a9fa4fdf766f0dfd
+      _name: Gameplay 2
+      _muted: 0
+      _items:
+      - rid: 6940827297969602560
+      - rid: 1003
+    - _editorId: eef5578e4dbb4af1979c11688268fb5b
+      _name: Gameplay 4
+      _muted: 0
+      _items:
+      - rid: 4877645814652993553
+      - rid: 4877645814652993562
+  _priorityLayer: 1
+  _priorityValue: 0
+  _cancelRules: []
+  _selfTags: []
+  _triggerMode: 0
+  _eventTriggerTag:
+    TagId: 0
+  _startContextMode: 0
+  _motionPolicy:
+    movement: 2
+    locomotionScale: 1
+    turning: 2
+    maxTurnSpeed: 180
+    airLocomotionScale: 1
+    gravityScale: 1
+  isLoop: 0
+  _allowReenterWhilePlaying: 0
+  _entryConditions:
+  - rid: 6940827297969602624
+  references:
+    version: 2
+    RefIds:
+    - rid: 1000
+      type: {class: SpeedEffectConfig, ns: , asm: Assembly-CSharp}
+      data:
+        enabled: 1
+        duration: 0.2
+        speedScale: 0.05
+        affectBothParties: 1
+    - rid: 1001
+      type: {class: HitVfxConfig, ns: , asm: Assembly-CSharp}
+      data:
+        enabled: 1
+        prefab: {fileID: 1107029698261400, guid: 6e09e616ba00652ce88f8183147587ed,
+          type: 3}
+        occlusionMode: 1
+        scale: 1
+        lifetime: 1
+        simulationSpeed: 1
+        anchorMode: 0
+        orientationMode: 0
+        screenAngleMode: 1
+        anglePresetDegrees: 0
+        angleRandomRange: 360
+        worldDirectionMode: 0
+        rollMode: 0
+        rollPresetDegrees: 0
+        rollRandomRange: 360
+    - rid: 1002
+      type: {class: HitSoundEffectConfig, ns: , asm: Assembly-CSharp}
+      data:
+        enabled: 1
+        clips:
+        - {fileID: 8300000, guid: a65d792d6907f744490c9b15bb70edfe, type: 3}
+        volume: 1
+        pitchVariation: 0.1
+    - rid: 1003
+      type: {class: HitBoxItem, ns: , asm: Assembly-CSharp}
+      data:
+        _editorId: 57de5a7169c34a83863f7764b596f7c7
+        _muted: 0
+        _startFrame: 98
+        _durationFrames: 4
+        _config:
+          anchor: 0
+          hitboxConfig:
+            shape: 1
+            center: {x: 0, y: 1, z: 1}
+            rotation: {x: 0, y: 0, z: 0, w: 1}
+            size: {x: 1.75, y: 2, z: 2}
+            height: 0.5
+            radius: 0.1
+          dataConfig:
+            targetLayers:
+              serializedVersion: 2
+              m_Bits: 128
+            _baseDamage: 20
+            hitEventTag:
+              TagId: -1300321786
+            canBeParried: 1
+          effects:
+          - rid: 1004
+          - rid: 1005
+          - rid: 1006
+    - rid: 1004
+      type: {class: SpeedEffectConfig, ns: , asm: Assembly-CSharp}
+      data:
+        enabled: 1
+        duration: 0.2
+        speedScale: 0.05
+        affectBothParties: 1
+    - rid: 1005
+      type: {class: HitVfxConfig, ns: , asm: Assembly-CSharp}
+      data:
+        enabled: 1
+        prefab: {fileID: 1107029698261400, guid: 6e09e616ba00652ce88f8183147587ed,
+          type: 3}
+        occlusionMode: 1
+        scale: 1
+        lifetime: 1
+        simulationSpeed: 1
+        anchorMode: 0
+        orientationMode: 0
+        screenAngleMode: 1
+        anglePresetDegrees: 0
+        angleRandomRange: 360
+        worldDirectionMode: 0
+        rollMode: 0
+        rollPresetDegrees: 0
+        rollRandomRange: 360
+    - rid: 1006
+      type: {class: HitSoundEffectConfig, ns: , asm: Assembly-CSharp}
+      data:
+        enabled: 1
+        clips:
+        - {fileID: 8300000, guid: a65d792d6907f744490c9b15bb70edfe, type: 3}
+        volume: 1
+        pitchVariation: 0.1
+    - rid: 4877645814652993536
+      type: {class: SelfRotationItem, ns: , asm: Assembly-CSharp}
+      data:
+        _editorId: a245b5b7f5c4420085fa697d271d8443
+        _muted: 0
+        _startFrame: 16
+        _durationFrames: 19
+        _config:
+          source: 1
+          mode: 1
+          targetSource: 0
+          directionSource: 0
+          presetLocalDirection: {x: 0, y: 0, z: 1}
+          angularSpeedDegrees: 360
+          animationAsset: {fileID: 0}
+          sourceStartTime: 0
+          playRate: 1
+    - rid: 4877645814652993537
+      type: {class: SelfRotationItem, ns: , asm: Assembly-CSharp}
+      data:
+        _editorId: d18a7b9a7d384617a34bca496c7290c2
+        _muted: 0
+        _startFrame: 84
+        _durationFrames: 14
+        _config:
+          source: 1
+          mode: 1
+          targetSource: 0
+          directionSource: 0
+          presetLocalDirection: {x: 0, y: 0, z: 1}
+          angularSpeedDegrees: 360
+          animationAsset: {fileID: 0}
+          sourceStartTime: 0
+          playRate: 1
+    - rid: 4877645814652993553
+      type: {class: TagItem, ns: , asm: Assembly-CSharp}
+      data:
+        _editorId: 2e82691c6f144b5491cf5f48cb74b05b
+        _muted: 0
+        _startFrame: 0
+        _durationFrames: 35
+        _config:
+          tag:
+            TagId: -1070838861
+          targetContainer: 0
+    - rid: 4877645814652993561
+      type: {class: RootMotionItem, ns: , asm: Assembly-CSharp}
+      data:
+        _editorId: f76a678474c1412384902e83efdb8e3f
+        _muted: 0
+        _startFrame: 1
+        _durationFrames: 70
+        _config:
+          animationAsset: {fileID: 11400000, guid: 2f828c7a3307b544ea422928acb24015,
+            type: 2}
+          sourceStartTime: 0
+          sourceEndTime: 0
+          playRate: 0.5
+        _hasSourceRange: 0
+    - rid: 4877645814652993562
+      type: {class: TagItem, ns: , asm: Assembly-CSharp}
+      data:
+        _editorId: b390721c76244252afea7b4b3b096ea6
+        _muted: 0
+        _startFrame: 79
+        _durationFrames: 19
+        _config:
+          tag:
+            TagId: -1070838861
+          targetContainer: 0
+    - rid: 6940827153219190785
+      type: {class: RootMotionItem, ns: , asm: Assembly-CSharp}
+      data:
+        _editorId: 06898a57354a43dbbfccc0de41348a7f
+        _muted: 0
+        _startFrame: 71
+        _durationFrames: 179
+        _config:
+          animationAsset: {fileID: 11400000, guid: bbfbefd084daabe49a29f1e9d445a908,
+            type: 2}
+          sourceStartTime: 0
+          sourceEndTime: 2.0833335
+          playRate: 0.7
+        _hasSourceRange: 1
+    - rid: 6940827297969602560
+      type: {class: HitBoxItem, ns: , asm: Assembly-CSharp}
+      data:
+        _editorId: cbe91a96216c46e4a7582b2238386e08
+        _muted: 0
+        _startFrame: 35
+        _durationFrames: 4
+        _config:
+          anchor: 0
+          hitboxConfig:
+            shape: 1
+            center: {x: 0, y: 1, z: 1}
+            rotation: {x: 0, y: 0, z: 0, w: 1}
+            size: {x: 2, y: 1.7, z: 2}
+            height: 0.5
+            radius: 0.1
+          dataConfig:
+            targetLayers:
+              serializedVersion: 2
+              m_Bits: 128
+            _baseDamage: 10
+            hitEventTag:
+              TagId: 645108757
+            canBeParried: 1
+          effects:
+          - rid: 1000
+          - rid: 1001
+          - rid: 1002
+    - rid: 6940827297969602624
+      type: {class: AlwaysTrueCondition, ns: , asm: Assembly-CSharp}
+      data:
+        invertResult: 0

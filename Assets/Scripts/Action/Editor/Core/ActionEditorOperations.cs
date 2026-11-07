@@ -14,6 +14,7 @@ internal enum ActionTimelineOperationKind
     SetPointTiming,
     SetRangeTiming,
     SetAnimationTiming,
+    SetRootMotionTiming,
 }
 
 internal enum ActionTimelineOperationState
@@ -554,25 +555,41 @@ internal sealed class ActionTimelineOperationSnapshot
                 return Rejected("Range Start must be non-negative and Duration must be at least one Frame.");
             if (startFrame == target.StartFrame && durationFrames == target.DurationFrames)
                 return new ActionTimelineOperationResult { State = ActionTimelineOperationState.NoChange };
+            if (target.Source is RootMotionItem && durationFrames != target.DurationFrames)
+                return EvaluateRootMotionResize(target, startFrame, durationFrames);
             ActionTimelineOperationResult rangeResult = Allowed(Candidate(target, startFrame, durationFrames, target.LaneIndex));
             return ModifiedGameplayItemsOverlap(rangeResult.Candidates)
                 ? Rejected("Range timing would overlap another GameplayItem on the same Lane.")
                 : rangeResult;
         }
 
-        if (Kind != ActionTimelineOperationKind.SetAnimationTiming || !(target.Source is AnimationSegment))
-            return Rejected("Animation timing requires an AnimationSegment.");
+        bool animationTiming = Kind == ActionTimelineOperationKind.SetAnimationTiming && target.Source is AnimationSegment;
+        bool rootMotionTiming = Kind == ActionTimelineOperationKind.SetRootMotionTiming && target.Source is RootMotionItem;
+        if (!animationTiming && !rootMotionTiming)
+            return Rejected("Source timing requires the matching AnimationSegment or RootMotionItem.");
+        return EvaluateSourceTiming(target, startFrame, animationAsset, sourceStartTime, sourceEndTime, playRate);
+    }
+
+    private ActionTimelineOperationResult EvaluateSourceTiming(Entry target, int startFrame,
+        AnimationAsset animationAsset, float sourceStartTime, float sourceEndTime, float playRate)
+    {
         AnimationClip clip = animationAsset != null ? animationAsset.Clip : null;
         float clipLength = clip != null ? clip.length : 0f;
-        if (startFrame < 0 || animationAsset == null || clip == null ||
-            !ActionAuthoringMath.IsFinite(clipLength) || clipLength <= 0f ||
-            !ActionAuthoringMath.IsFinite(sourceStartTime) || !ActionAuthoringMath.IsFinite(sourceEndTime) ||
-            !ActionAuthoringMath.IsFinite(playRate) || playRate <= 0f || sourceStartTime < 0f ||
-            sourceEndTime <= sourceStartTime || sourceEndTime > clipLength + 0.00001f)
-            return Rejected("Animation source must have a valid Clip, increasing in-range Source values, and Play Rate above zero.");
+        if (startFrame < 0)
+            return Rejected("Timeline Start must be non-negative.");
+        if (animationAsset == null || clip == null || !ActionAuthoringMath.IsFinite(clipLength) || clipLength <= 0f)
+            return Rejected("Animation Asset must reference a non-empty AnimationClip.");
+        if (!ActionAuthoringMath.IsFinite(sourceStartTime) || sourceStartTime < 0f)
+            return Rejected("Source Start must be finite and non-negative.");
+        if (!ActionAuthoringMath.IsFinite(sourceEndTime) || sourceEndTime <= sourceStartTime)
+            return Rejected("Source End must be finite and greater than Source Start.");
+        if (sourceEndTime > clipLength + 0.00001f)
+            return Rejected($"Source End ({sourceEndTime:0.#####}s) exceeds Clip '{clip.name}' length ({clipLength:0.#####}s).");
+        if (!ActionAuthoringMath.IsFinite(playRate) || playRate <= 0f)
+            return Rejected("Play Rate must be finite and greater than zero.");
         int derivedDuration = CalculateAnimationDuration(sourceStartTime, sourceEndTime, playRate);
         if (derivedDuration < 1)
-            return Rejected("Animation source does not derive a valid Duration.");
+            return Rejected("Source does not derive a valid Duration.");
 
         bool unchanged = startFrame == target.StartFrame && animationAsset == target.AnimationAsset &&
                          Mathf.Approximately(sourceStartTime, target.SourceStartTime) &&
@@ -589,8 +606,14 @@ internal sealed class ActionTimelineOperationSnapshot
         candidate.SourceEndTime = sourceEndTime;
         candidate.PlayRate = playRate;
         ActionTimelineOperationResult result = Allowed(candidate);
-        if (ModifiedAnimationsOverlap(result.Candidates))
-            return Rejected("Animation timing would overlap another AnimationSegment.");
+        if (target.Source is RootMotionItem && ModifiedGameplayItemsOverlap(result.Candidates, out string conflict))
+            return Rejected(conflict);
+        if (target.Source is AnimationSegment && ModifiedAnimationsOverlap(result.Candidates))
+        {
+            Entry other = _animations.First(entry => !ReferenceEquals(entry.Source, target.Source) && entry.DurationFrames > 0 &&
+                startFrame < (long)entry.StartFrame + entry.DurationFrames && entry.StartFrame < (long)startFrame + derivedDuration);
+            return Rejected($"Overlaps Animation '{other.AnimationAsset?.name}' ({other.EditorId}) [{other.StartFrame}, {(long)other.StartFrame + other.DurationFrames}).");
+        }
         return result;
     }
 
@@ -690,11 +713,21 @@ internal sealed class ActionTimelineOperationSnapshot
         long duration = left ? (long)target.DurationFrames - frameDelta : (long)target.DurationFrames + frameDelta;
         if (start < 0L || start > int.MaxValue || duration < 1L || duration > int.MaxValue)
             return Rejected("Range must remain at or after Frame 0 and at least one Frame long.");
+        if (target.Source is RootMotionItem)
+            return EvaluateRootMotionResize(target, (int)start, (int)duration);
         var result = new ActionTimelineOperationResult { State = ActionTimelineOperationState.Allowed };
         result.Candidates.Add(Candidate(target, (int)start, (int)duration, target.LaneIndex));
         if (ModifiedGameplayItemsOverlap(result.Candidates))
             return Rejected("Range resize would overlap another GameplayItem on the same Lane.");
         return result;
+    }
+
+    private ActionTimelineOperationResult EvaluateRootMotionResize(Entry target, int startFrame, int durationFrames)
+    {
+        // Preserve the existing range-resize meaning: keep source start/rate, adjust covered source end.
+        float sourceEnd = target.SourceStartTime +
+            (float)(durationFrames / (double)ActionTimelineData.FrameRate * target.PlayRate);
+        return EvaluateSourceTiming(target, startFrame, target.AnimationAsset, target.SourceStartTime, sourceEnd, target.PlayRate);
     }
 
     private ActionTimelineOperationResult EvaluateTrim(int frameDelta)
@@ -753,8 +786,12 @@ internal sealed class ActionTimelineOperationSnapshot
         return false;
     }
 
-    private bool ModifiedGameplayItemsOverlap(List<ActionTimelineOperationCandidate> candidates)
+    private bool ModifiedGameplayItemsOverlap(List<ActionTimelineOperationCandidate> candidates) =>
+        ModifiedGameplayItemsOverlap(candidates, out _);
+
+    private bool ModifiedGameplayItemsOverlap(List<ActionTimelineOperationCandidate> candidates, out string message)
     {
+        message = string.Empty;
         var candidateBySource = candidates.Where(candidate => candidate.Source is GameplayItem)
             .ToDictionary(candidate => candidate.Source, candidate => candidate);
         if (candidateBySource.Count == 0)
@@ -792,7 +829,12 @@ internal sealed class ActionTimelineOperationSnapshot
             var b = finalItems[right];
             if (a.lane == b.lane && (a.modified || b.modified)
                                  && ActionGameplayLaneOccupancy.Overlaps(a.start, a.end, b.start, b.end))
+            {
+                var other = a.modified ? b : a;
+                var item = (GameplayItem)other.source;
+                message = $"Overlaps {item.GetType().Name} ({item.EditorId}) [{other.start}, {other.end}) on Lane {other.lane + 1}.";
                 return true;
+            }
         }
         return false;
     }
@@ -802,8 +844,7 @@ internal sealed class ActionTimelineOperationSnapshot
         if (target.Source is PointGameplayItem point)
             return point.EditorId == target.EditorId && point.Frame == target.StartFrame;
         if (target.Source is RangeGameplayItem range)
-            return range.EditorId == target.EditorId && range.StartFrame == target.StartFrame &&
-                   range.DurationFrames == target.DurationFrames;
+            return MatchesGameplay(target, range);
         return target.Source is AnimationSegment animation && Matches(target, animation);
     }
 
@@ -811,6 +852,15 @@ internal sealed class ActionTimelineOperationSnapshot
     {
         if (item == null) return entry.Source == null;
         if (item.EditorId != entry.EditorId) return false;
+        if (item is RootMotionItem root)
+        {
+            AnimationClip clip = root.Config?.animationAsset != null ? root.Config.animationAsset.Clip : null;
+            if (root.Config?.animationAsset != entry.AnimationAsset || clip != entry.Clip ||
+                !(clip != null ? clip.length : 0f).Equals(entry.ClipLength) ||
+                !(root.Config?.sourceStartTime ?? 0f).Equals(entry.SourceStartTime) ||
+                !root.SourceEndTime.Equals(entry.SourceEndTime) ||
+                !(root.Config?.playRate ?? 1f).Equals(entry.PlayRate)) return false;
+        }
         if (item is PointGameplayItem point)
             return point.Frame == entry.StartFrame && entry.DurationFrames == 1;
         return item is RangeGameplayItem range && range.StartFrame == entry.StartFrame &&
@@ -848,6 +898,15 @@ internal sealed class ActionTimelineOperationSnapshot
             entry.SourceStartTime = animation.SourceStartTime;
             entry.SourceEndTime = animation.SourceEndTime;
             entry.PlayRate = animation.PlayRate;
+        }
+        else if (documentEntry.Source is RootMotionItem root)
+        {
+            entry.AnimationAsset = root.Config?.animationAsset;
+            entry.Clip = entry.AnimationAsset != null ? entry.AnimationAsset.Clip : null;
+            entry.ClipLength = entry.Clip != null ? entry.Clip.length : 0f;
+            entry.SourceStartTime = root.Config?.sourceStartTime ?? 0f;
+            entry.SourceEndTime = root.SourceEndTime;
+            entry.PlayRate = root.Config?.playRate ?? 1f;
         }
         return entry;
     }

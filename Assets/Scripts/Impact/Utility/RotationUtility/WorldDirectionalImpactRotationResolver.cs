@@ -14,7 +14,11 @@ public static class WorldDirectionalImpactRotationResolver
         float rollRandomRangeDegrees,
         ImpactData impact)
     {
-        Vector3 forward = ResolveForward(directionMode, impact);
+        return Resolve(ResolveForward(directionMode, impact), rollMode, rollPresetDegrees, rollRandomRangeDegrees);
+    }
+
+    public static Quaternion Resolve(Vector3 forward, VFXRollMode rollMode, float rollPresetDegrees, float rollRandomRangeDegrees)
+    {
         if (forward.sqrMagnitude < 1e-8f)
             forward = Vector3.forward;
         forward.Normalize();

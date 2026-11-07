@@ -33,7 +33,7 @@ public struct LocomotionTransitionDecisionConfig
     public float StationarySpeed;
     [Tooltip("Minimum model speed required to enter Pivot (m/s).")]
     public float PivotMinimumSpeed;
-    [Tooltip("Minimum input reversal angle required to enter Pivot (degrees).")]
+    [Tooltip("Minimum angle required for BOTH movement reversal and the body turn from current facing to FacingDirection (degrees). Does not change Motor rotation.")]
     public float PivotMinimumAngleDegrees;
 
     public static LocomotionTransitionDecisionConfig Default => new LocomotionTransitionDecisionConfig
@@ -53,10 +53,17 @@ public struct LocomotionTransitionDecisionConfig
 public sealed class LocomotionStartEntry
 {
     [SerializeField] private AnimationAsset animation;
-    [SerializeField] private Vector2 targetLocalDirection = Vector2.up;
+    [SerializeField, Tooltip("Directional keeps the existing pose-only/strafe behavior. TurnToMove reconstructs extracted yaw and aligns the ending pose to Motor-forward; requires a baked non-looping Humanoid clip.")]
+    private LocomotionStartFacingMode facingMode;
+    [SerializeField, Tooltip("Used by Directional starts: x right, y forward, relative to entry facing.")]
+    private Vector2 targetLocalDirection = Vector2.up;
+    [SerializeField, Range(-180f, 180f), Tooltip("Used by TurnToMove: authored ending travel/facing relative to entry forward, NOT total extracted root yaw. Negative left, positive right; -180 and +180 select distinct turn paths.")]
+    private float signedTurnAngleDegrees;
 
     public AnimationAsset Animation => animation;
     public Vector2 TargetLocalDirection => targetLocalDirection;
+    public LocomotionStartFacingMode FacingMode => facingMode;
+    public float SignedTurnAngleDegrees => signedTurnAngleDegrees;
 }
 
 [Serializable]
@@ -73,13 +80,13 @@ public sealed class LocomotionStopEntry
 public sealed class LocomotionPivotEntry
 {
     [SerializeField] private AnimationAsset animation;
-    [SerializeField] private Vector2 sourceLocalDirection = Vector2.up;
-    [SerializeField] private Vector2 targetLocalDirection = Vector2.down;
+    [SerializeField, Range(-180f, 180f), Tooltip("Animation selection only: negative turns left, positive turns right. -180 and +180 are distinct. Zero is not a Pivot.")]
+    private float signedTurnAngleDegrees = 180f;
 
     public AnimationAsset Animation => animation;
-    public Vector2 SourceLocalDirection => sourceLocalDirection;
-    public Vector2 TargetLocalDirection => targetLocalDirection;
-    public float SignedAngle => Vector2.SignedAngle(sourceLocalDirection, targetLocalDirection);
+    public float SignedTurnAngleDegrees => signedTurnAngleDegrees;
 }
+
+public enum LocomotionStartFacingMode { Directional, TurnToMove }
 
 public enum LocomotionStopPlaybackMode { Time, Distance }

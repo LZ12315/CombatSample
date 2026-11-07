@@ -29,6 +29,7 @@ internal sealed class ActorSimulationRuntime
     public int StableId => _actor != null ? _actor.GetInstanceID() : 0;
 
     public ActorHitBoxRuntime HitBoxes => _hitBoxes;
+    internal ActionEffectBuffer ActionEffects { get; } = new ActionEffectBuffer();
 
     public void Control(float deltaSeconds)
     {
@@ -153,6 +154,20 @@ internal sealed class ActorSimulationRuntime
         ResolveActorMotor()?.PublishWorldResult();
     }
 
+    internal void FlushActionEffects()
+    {
+        // Enter is deferred until World; range Exit/Abort also releases already-realized resources.
+        if (!IsActive)
+        {
+            ActionEffects.Clear();
+            return;
+        }
+
+        ActionEffects.UpdateWorld(_actor.transform.position, PlayActionEffect, ActionScreenShakeOutput.Begin);
+    }
+
+    private IActionPresentation PlayActionEffect(ActionEffectRequest request) => ActionEffectPlayer.Play(_actor, request);
+
     public void QueryHits(CombatHitBuffer buffer)
     {
         if (!_tickClosed && _playedActionFrameThisTick)
@@ -172,6 +187,7 @@ internal sealed class ActorSimulationRuntime
 
     public void CancelFrame()
     {
+        ActionEffects.Clear();
         ResolveActionStateManager()?.AbortQueuedActionRequests();
         ResolveActorMotor()?.CancelPreparedMotion();
         ResolveActorLocomotion()?.CancelSimulation();

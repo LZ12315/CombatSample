@@ -39,6 +39,75 @@ public sealed class ActionDetailsWindow : EditorWindow
 
         internal bool CanRetain(ActionAsset action, ActionSelectionValue selection) =>
             Targets(action, selection) && Snapshot.MatchesCurrentSource(out _);
+
+        internal static TimingDraft Create(ActionEditorDocument document, ActionDocumentEntry entry)
+        {
+            var animation = entry.Source as AnimationSegment;
+            var root = entry.Source as RootMotionItem;
+            return new TimingDraft
+            {
+                Kind = entry.SelectionKind, EditorId = entry.EditorId, Source = entry.Source,
+                Snapshot = ActionTimelineOperationSnapshot.Capture(document,
+                    root != null ? ActionTimelineOperationKind.SetRootMotionTiming : ActionTimelineOperationKind.SetAnimationTiming,
+                    new[] { entry.EditorId }),
+                StartFrame = entry.StartFrame,
+                DurationFrames = animation != null ? animation.DerivedDurationFrames : root.DurationFrames,
+                AnimationAsset = animation != null ? animation.AnimationAsset : root.Config.animationAsset,
+                SourceStartTime = animation != null ? animation.SourceStartTime : root.Config.sourceStartTime,
+                SourceEndTime = animation != null ? animation.SourceEndTime : root.SourceEndTime,
+                PlayRate = animation != null ? animation.PlayRate : root.Config.playRate,
+            };
+        }
+
+        internal ActionTimelineOperationInput Input => ActionTimelineOperationInput.Absolute(StartFrame, DurationFrames,
+            AnimationAsset, SourceStartTime, SourceEndTime, PlayRate);
+
+        internal ActionTimelineOperationResult Evaluate() => Snapshot.Evaluate(Input);
+
+        internal void SetAnimationAsset(AnimationAsset animationAsset)
+        {
+            if (AnimationAsset == animationAsset) return;
+            AnimationAsset = animationAsset;
+            SourceStartTime = 0f;
+            SourceEndTime = animationAsset != null && animationAsset.Clip != null ? animationAsset.Clip.length : 0f;
+        }
+
+        internal bool UseFullClip()
+        {
+            AnimationClip clip = AnimationAsset != null ? AnimationAsset.Clip : null;
+            if (clip == null) return false;
+            SourceStartTime = 0f;
+            SourceEndTime = clip.length;
+            return true;
+        }
+
+        internal bool TryApply(out string message)
+        {
+            ActionEditorContext context = ActionEditorContext.Shared;
+            message = string.Empty;
+            if (ActionEditorInteractionGate.IsActive)
+            {
+                message = "Finish the current Timeline interaction before applying changes.";
+                return false;
+            }
+            if (!Targets(context.CurrentAction, context.PrimarySelection))
+            {
+                message = "The edited source is no longer selected.";
+                return false;
+            }
+            context.FlushQueuedBindingChange();
+            if (!Snapshot.MatchesCurrentSource(out message)) return false;
+            ActionTimelineOperationResult result = Evaluate();
+            if (result.State == ActionTimelineOperationState.NoChange) return true;
+            if (result.State == ActionTimelineOperationState.Rejected)
+            {
+                message = result.Message;
+                return false;
+            }
+            Undo.IncrementCurrentGroup();
+            try { return ActionEditorCommands.CommitTimelineOperation(Snapshot, Input, out message); }
+            finally { Undo.IncrementCurrentGroup(); }
+        }
     }
 
     [SerializeField] private float _savedScrollY;
@@ -52,6 +121,10 @@ public sealed class ActionDetailsWindow : EditorWindow
     private VisualElement _content;
     private Label _draftDerived;
     private Label _draftEnd;
+    private HelpBox _draftFeedback;
+    private Button _draftApply;
+    private Button _draftFullClip;
+    private bool _draftEditable;
     private TimingDraft _draft;
     private ActionGameplayTimingEdit _gameplayTiming;
     private LongField _gameplayStart;
@@ -77,15 +150,10 @@ public sealed class ActionDetailsWindow : EditorWindow
         OpenShared();
     }
 
-    internal static void OpenShared() => GetWindow<ActionDetailsWindow>("Action Details").Show();
-
-    private static void SelectCurrentActionAsset()
+    internal static void OpenShared()
     {
-        ActionAsset action = ActionEditorContext.Shared.CurrentAction;
-        if (action == null)
-            return;
-        Selection.activeObject = action;
-        EditorGUIUtility.PingObject(action);
+        ActionEditorContext.Shared.EnsureDefaultAnimationSelection();
+        GetWindow<ActionDetailsWindow>("Action Details").Show();
     }
 
     private void OnEnable()
@@ -96,6 +164,7 @@ public sealed class ActionDetailsWindow : EditorWindow
         if (float.IsNaN(_splitRatio) || float.IsInfinity(_splitRatio) || _splitRatio <= 0f || _splitRatio >= 1f)
             _splitRatio = 0.4f;
         if (_previewPanel == null) _previewPanel = new ActionPreviewPanel();
+        ActionEditorContext.Shared.EnsureDefaultAnimationSelection();
         ActionEditorContext.Changed += OnContextChanged;
         ActionEditorInteractionGate.Changed += OnInteractionGateChanged;
         EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
@@ -122,9 +191,7 @@ public sealed class ActionDetailsWindow : EditorWindow
         ActionEditorTheme.Apply(rootVisualElement, "action-editor-details-window");
         rootVisualElement.Add(ActionEditorChrome.ContextBar(
             ActionEditorContext.Shared.CurrentAction,
-            null,
-            ("Select Asset", SelectCurrentActionAsset),
-            ("Timeline", ActionTimelineWindow.OpenShared)));
+            null));
 
         _splitView = new ActionDetailsSplitView(_splitRatio, SaveSplitRatio);
         _detailsPane = new VisualElement();
@@ -173,6 +240,9 @@ public sealed class ActionDetailsWindow : EditorWindow
         _content.Clear();
         _draftDerived = null;
         _draftEnd = null;
+        _draftFeedback = null;
+        _draftApply = null;
+        _draftFullClip = null;
         _gameplayTiming = null;
         _gameplayStart = null;
         _gameplayEnd = null;
@@ -235,8 +305,20 @@ public sealed class ActionDetailsWindow : EditorWindow
         SerializedProperty entryProperty = ResolveEntryProperty(entry);
         switch (entry.Source)
         {
-            case AnimationSegment segment:
-                DrawAnimation(segment, entry, editable);
+            case AnimationSegment:
+                DrawSourceTiming(entry, editable);
+                break;
+            case RootMotionItem root:
+                VisualElement common = Section(entry.DisplayName);
+                AddBoundProperty(common, entryProperty?.FindPropertyRelative("_muted"), "Muted", editable);
+                _content.Add(common);
+                if (root.Config == null) AddMissingConfig(common, root, editable);
+                else
+                {
+                    AddBoundProperty(common, entryProperty?.FindPropertyRelative("_config")?.FindPropertyRelative("distanceScale"),
+                        "Distance Scale", editable);
+                    DrawSourceTiming(entry, editable);
+                }
                 break;
             case GameplayLane lane:
                 DrawLane(lane, entryProperty, editable);
@@ -247,9 +329,9 @@ public sealed class ActionDetailsWindow : EditorWindow
         }
     }
 
-    private void DrawAnimation(AnimationSegment segment, ActionDocumentEntry entry, bool editable)
+    private void DrawSourceTiming(ActionDocumentEntry entry, bool editable)
     {
-        _draft = CreateAnimationDraft(segment, entry);
+        _draft = CreateSourceDraft(entry);
         var editor = new VisualElement();
 
         VisualElement timing = Section("Timing");
@@ -263,9 +345,7 @@ public sealed class ActionDetailsWindow : EditorWindow
         timing.Add(timingRow);
         editor.Add(timing);
 
-        VisualElement source = Section("Animation Source");
-        DraftObject(source, "Animation Asset", _draft.AnimationAsset, typeof(AnimationAsset),
-            value => _draft.AnimationAsset = value as AnimationAsset, editable);
+        VisualElement source = Section(entry.Source is RootMotionItem ? "Root Motion Source" : "Animation Source");
         var sourceRange = new VisualElement();
         sourceRange.AddToClassList("action-editor-compact-timing-row");
         FloatField sourceStart = DraftFloat(sourceRange, "Source Start (s)", _draft.SourceStartTime,
@@ -276,24 +356,24 @@ public sealed class ActionDetailsWindow : EditorWindow
             value => _draft.SourceEndTime = value, editable);
         sourceEnd.AddToClassList("action-editor-compact-timing-field");
         sourceEnd.AddToClassList("action-editor-source-time-field");
+        DraftObject(source, "Animation Asset", _draft.AnimationAsset, typeof(AnimationAsset), value =>
+        {
+            _draft.SetAnimationAsset(value as AnimationAsset);
+            sourceStart.SetValueWithoutNotify(_draft.SourceStartTime);
+            sourceEnd.SetValueWithoutNotify(_draft.SourceEndTime);
+        }, editable);
         source.Add(sourceRange);
         DraftFloat(source, "Play Rate", _draft.PlayRate, value => _draft.PlayRate = value, editable);
         var fullClip = new Button(() =>
         {
-            AnimationClip clip = _draft.AnimationAsset != null ? _draft.AnimationAsset.Clip : null;
-            if (clip == null)
-                return;
-            _draft.SourceStartTime = 0f;
-            _draft.SourceEndTime = clip.length;
-            sourceStart.SetValueWithoutNotify(0f);
-            sourceEnd.SetValueWithoutNotify(clip.length);
+            if (ActionEditorInteractionGate.IsActive || !_draft.UseFullClip()) return;
+            sourceStart.SetValueWithoutNotify(_draft.SourceStartTime);
+            sourceEnd.SetValueWithoutNotify(_draft.SourceEndTime);
             RefreshDraftFeedback();
         }) { text = "Use Full Clip" };
-        fullClip.SetEnabled(editable);
-        source.Add(fullClip);
+        AddDraftFooter(source, fullClip, derived, end, editable);
         editor.Add(source);
 
-        AddDraftFooter(editor, derived, end, editable);
         RegisterDraftKeys(editor);
         _content.Add(editor);
     }
@@ -388,20 +468,17 @@ public sealed class ActionDetailsWindow : EditorWindow
             return;
         switch (item)
         {
+            case EffectItem effect:
+                DrawEffect(parent, effect, config, editable);
+                break;
+            case ScreenShakeItem screenShake:
+                DrawScreenShake(parent, screenShake, config, editable);
+                break;
             case ImpulseItem impulse:
                 DrawImpulse(parent, impulse, config, editable);
                 break;
             case HitBoxItem hitBox:
                 DrawHitBox(parent, hitBox, config, editable);
-                break;
-            case RootMotionItem rootMotion:
-                AddBoundProperty(parent, config.FindPropertyRelative("animationAsset"), "Animation Asset", editable);
-                AddBoundProperty(parent, config.FindPropertyRelative("sourceStartTime"), "Source Start", editable);
-                AddBoundProperty(parent, config.FindPropertyRelative("playRate"), "Play Rate", editable);
-                var fullClip = new Button(() => ActionEditorCommands.UseFullRootMotionClip(_document.Asset, rootMotion.EditorId))
-                    { text = "Use Full Clip" };
-                fullClip.SetEnabled(editable);
-                parent.Add(fullClip);
                 break;
             case SelfRotationItem:
                 DrawSelfRotation(parent, config, editable);
@@ -409,8 +486,17 @@ public sealed class ActionDetailsWindow : EditorWindow
             case VelocityOverrideItem velocity:
                 DrawVelocity(parent, velocity, config, editable);
                 break;
-            case MotionPolicyItem:
-                DrawMotionPolicy(parent, config, editable);
+            case MoveToTargetItem:
+                AddBoundProperty(parent, config.FindPropertyRelative("targetSource"), "Target Source", editable);
+                AddBoundProperty(parent, config.FindPropertyRelative("speed"), "Speed (m/s)", editable);
+                AddBoundProperty(parent, config.FindPropertyRelative("stopDistance"), "Stop Distance (root to root)", editable);
+                AddImGuiProperty(parent, config.FindPropertyRelative("speedCurve"), "Speed Curve", editable);
+                parent.Add(new HelpBox("Locks the target on entry and tracks its horizontal position. Stops permanently on arrival. " +
+                    "Overrides horizontal RootMotion through the end of this window, including after arrival or target loss. " +
+                    "Does not rotate the actor. Runtime only: target movement is not simulated in Preview.", HelpBoxMessageType.Info));
+                break;
+            case MotionPolicyItem policy:
+                DrawMotionPolicy(parent, config, policy, editable);
                 break;
             case TagItem:
                 AddImGuiProperty(parent, config.FindPropertyRelative("tag"), "Tag", editable);
@@ -420,6 +506,110 @@ public sealed class ActionDetailsWindow : EditorWindow
                 break;
         }
     }
+
+    private void DrawEffect(VisualElement parent, EffectItem item, SerializedProperty config, bool editable)
+    {
+        var value = item.Config;
+        AddBoundProperty(parent, config.FindPropertyRelative("prefab"), "Prefab", editable);
+        AddSubheading(parent, "Position Binding");
+        AddBoundProperty(parent, config.FindPropertyRelative("anchor"), "Anchor", editable, true);
+        if (value.anchor == ActionEffectAnchor.HumanoidBone)
+            AddBoundProperty(parent, config.FindPropertyRelative("bone"), "Humanoid Bone", editable);
+        else if (value.anchor == ActionEffectAnchor.TransformPath)
+            AddBoundProperty(parent, config.FindPropertyRelative("transformPath"), "Path from Actor Root", editable);
+        AddBoundProperty(parent, config.FindPropertyRelative("localPosition"), "Local Position", editable);
+        AddBoundProperty(parent, config.FindPropertyRelative("followAnchor"), "Follow Position / Scale", editable);
+        AddSubheading(parent, "Orientation");
+        AddBoundProperty(parent, config.FindPropertyRelative("orientation"), "Orientation", editable, true);
+        AddBoundProperty(parent, config.FindPropertyRelative("orientationUpdate"), "Update Policy", editable);
+        if (value.orientation == ActionEffectOrientation.ScreenOriented)
+        {
+            AddBoundProperty(parent, config.FindPropertyRelative("screenAngleMode"), "Screen Angle Mode", editable, true);
+            AddBoundProperty(parent, config.FindPropertyRelative(value.screenAngleMode == ScreenAngleMode.Preset ? "anglePresetDegrees" : "angleRandomRange"),
+                value.screenAngleMode == ScreenAngleMode.Preset ? "Screen Angle (degrees)" : "Random Screen Angle [0, max]", editable);
+        }
+        else if (value.orientation == ActionEffectOrientation.WorldDirectional)
+        {
+            AddBoundProperty(parent, config.FindPropertyRelative("worldDirection"), "World Direction", editable, true);
+            if (value.worldDirection == ActionEffectWorldDirection.Custom)
+                AddBoundProperty(parent, config.FindPropertyRelative("customWorldDirection"), "World Vector", editable);
+            AddBoundProperty(parent, config.FindPropertyRelative("rollMode"), "Roll Mode", editable, true);
+            AddBoundProperty(parent, config.FindPropertyRelative(value.rollMode == VFXRollMode.Preset ? "rollPresetDegrees" : "rollRandomRange"),
+                value.rollMode == VFXRollMode.Preset ? "Roll (degrees)" : "Random Roll [0, max]", editable);
+        }
+        AddBoundProperty(parent, config.FindPropertyRelative("localEulerAngles"), "Rotation Offset (degrees)", editable);
+        AddSubheading(parent, "Playback");
+        AddBoundProperty(parent, config.FindPropertyRelative("scale"), "Scale Multiplier", editable);
+        AddBoundProperty(parent, config.FindPropertyRelative("simulationSpeed"), "Particle Speed Multiplier", editable);
+        AddBoundProperty(parent, config.FindPropertyRelative("occlusionMode"), "Occlusion", editable);
+        parent.Add(new HelpBox("One instance per interval, strictly destroyed at exit/interruption/Abort; no particle tail. " +
+            "Position binding and orientation are independent. Match Position Binding = continuous orientation when following, " +
+            "otherwise entry-only. Random angles are sampled once, including continuous facing. " +
+            "Screen orientation uses the same emitter-axis convention as Damage VFX. Particle speed is explicit and does not follow Action pause/speed.", HelpBoxMessageType.Info));
+        parent.Add(new IMGUIContainer(() => DrawEffectDiagnostics(item)));
+    }
+
+    private void DrawEffectDiagnostics(EffectItem item)
+    {
+        if (!ActionEffectRequest.TryCreate(item.Config, out var request, out string error))
+        { EditorGUILayout.HelpBox(error, MessageType.Error); return; }
+        GameObject character = ActionPreviewCharacterResolver.Resolve(_document?.Asset, ActionEditorContext.Shared.PreviewCharacter);
+        if (character != null && !ActionEffectAnchorResolver.TryResolve(request, character.transform,
+            character.GetComponentInChildren<Animator>(true), out _, out error)) EditorGUILayout.HelpBox(error, MessageType.Warning);
+        error = ActionPresentationPreview.ValidatePrefab(request.Prefab);
+        if (!string.IsNullOrEmpty(error)) EditorGUILayout.HelpBox(error, MessageType.Warning);
+        bool autoplay = false;
+        foreach (var particle in request.Prefab.GetComponentsInChildren<ParticleSystem>(true)) autoplay |= particle.main.playOnAwake;
+        if (!autoplay) EditorGUILayout.HelpBox("No autoplay particles. Runtime does not force Play; scripted initialization is runtime-only.", MessageType.Warning);
+        if (item.DurationFrames <= 2) DrawShortPresentationWarning();
+        EditorGUILayout.HelpBox("Preview is an isolated, seeded ParticleSystem sample at nominal 1x timeline age. " +
+            "It uses the preview camera and current emitter pose, not gameplay pause history or world-space emission trails along the whole movement path.", MessageType.Info);
+    }
+
+    private void DrawScreenShake(VisualElement parent, ScreenShakeItem item, SerializedProperty config, bool editable)
+    {
+        if (item.Config.screenShake == null) { AddMissingConfig(parent, item, editable); return; }
+        SerializedProperty shake = config.FindPropertyRelative("screenShake");
+        AddBoundProperty(parent, shake.FindPropertyRelative("enabled"), "Enabled", editable);
+        AddBoundProperty(parent, shake.FindPropertyRelative("intensity"), "Position Amplitude (Unity units)", editable);
+        AddBoundProperty(parent, config.FindPropertyRelative("mode"), "Signal Mode", editable, true);
+        if (item.Config.mode == ActionScreenShakeMode.Directional)
+        {
+            AddBoundProperty(parent, config.FindPropertyRelative("direction"), "Camera-space Direction", editable, true);
+            if (item.Config.direction == ActionScreenShakeDirection.Custom)
+                AddBoundProperty(parent, config.FindPropertyRelative("customDirection"), "Direction Vector (normalized)", editable);
+            AddImGuiProperty(parent, config.FindPropertyRelative("waveform"), "Signed Motion", editable);
+        }
+        else
+        {
+            AddImGuiProperty(parent, config.FindPropertyRelative("positionX"), "X / Right", editable);
+            AddImGuiProperty(parent, config.FindPropertyRelative("positionY"), "Y / Up", editable);
+            AddImGuiProperty(parent, config.FindPropertyRelative("positionZ"), "Z / Forward", editable);
+        }
+        AddBoundProperty(parent, config.FindPropertyRelative("useRotation"), "Rotation Signal", editable, true);
+        if (item.Config.useRotation)
+        {
+            AddBoundProperty(parent, config.FindPropertyRelative("rotationAmplitude"), "Rotation Amplitude (degrees)", editable);
+            AddImGuiProperty(parent, config.FindPropertyRelative("pitch"), "Pitch / X", editable);
+            AddImGuiProperty(parent, config.FindPropertyRelative("yaw"), "Yaw / Y", editable);
+            AddImGuiProperty(parent, config.FindPropertyRelative("roll"), "Roll / Z", editable);
+        }
+        AddBoundProperty(parent, config.FindPropertyRelative("maxDistance"), "Max Distance", editable);
+        parent.Add(new HelpBox("Curves: X = normalized Action progress [0,1], Y = signed motion × the corresponding amplitude. " +
+            "No hidden sine, frequency or secondary reaction. Pause holds the current sample, including nonzero offsets. " +
+            "Dedicated native Impulse channel 2, per-virtual-camera space before blending; no final-Camera Transform writes. " +
+            "Exit cancels only this event with no tail. Preview draws direction/rotation guides but never emits camera shake.", HelpBoxMessageType.Info));
+        parent.Add(new IMGUIContainer(() => {
+            if (!item.Config.screenShake.enabled) return;
+            if (!ActionScreenShakeRequest.TryCreate(item.Config, out var request, out string error)) EditorGUILayout.HelpBox(error, MessageType.Error);
+            else if (request.HasNonZeroEndpoint()) EditorGUILayout.HelpBox("Nonzero signal endpoint: strict entry/exit may pop. Your curves are not modified.", MessageType.Warning);
+            if (item.DurationFrames <= 2) DrawShortPresentationWarning();
+        }));
+    }
+
+    private static void DrawShortPresentationWarning() => EditorGUILayout.HelpBox(
+        "Very short interval: it can finish between renders. A one-frame shake samples only t=0; endpoint-zero waves may never become visible. " +
+        "No hidden minimum visible frame or automatic tail is added.", MessageType.Warning);
 
     private void DrawImpulse(VisualElement parent, ImpulseItem item, SerializedProperty config, bool editable)
     {
@@ -604,53 +794,38 @@ public sealed class ActionDetailsWindow : EditorWindow
         }
     }
 
-    private void DrawMotionPolicy(VisualElement parent, SerializedProperty config, bool editable)
+    private void DrawMotionPolicy(VisualElement parent, SerializedProperty config, MotionPolicyItem item, bool editable)
     {
-        DrawPolicy(parent, config, "useLocomotionScale", "locomotionScale", "Locomotion", editable);
-        DrawPolicy(parent, config, "useAirLocomotionScale", "airLocomotionScale", "Air Locomotion", editable);
-        DrawPolicy(parent, config, "useGravityScale", "gravityScale", "Gravity", editable);
+        var watch = CreateWatch(config, false, false, false);
+        var container = new IMGUIContainer(() => DrawImGuiProperty(watch, string.Empty, editable,
+            property => ActionMotionPolicyGUI.DrawWindow(property, _document.Asset, item)));
+        container.AddToClassList("action-editor-imgui-property");
+        parent.Add(container);
     }
 
-    private void DrawPolicy(VisualElement parent, SerializedProperty config, string toggleName, string scaleName,
-        string label, bool editable)
-    {
-        SerializedProperty toggle = config.FindPropertyRelative(toggleName);
-        AddBoundProperty(parent, toggle, label, editable, true);
-        if (toggle != null && toggle.boolValue)
-            AddBoundProperty(parent, config.FindPropertyRelative(scaleName), $"{label} Scale", editable);
-    }
-
-    private TimingDraft CreateAnimationDraft(AnimationSegment animation, ActionDocumentEntry entry)
+    private TimingDraft CreateSourceDraft(ActionDocumentEntry entry)
     {
         if (_draft != null && _draft.Kind == entry.SelectionKind && _draft.EditorId == entry.EditorId &&
             ReferenceEquals(_draft.Source, entry.Source))
             return _draft;
-        var draft = new TimingDraft
-        {
-            Kind = entry.SelectionKind,
-            EditorId = entry.EditorId,
-            Source = entry.Source,
-            Snapshot = ActionTimelineOperationSnapshot.Capture(_document,
-                ActionTimelineOperationKind.SetAnimationTiming, new[] { entry.EditorId }),
-            StartFrame = entry.StartFrame,
-            DurationFrames = animation.DerivedDurationFrames,
-            AnimationAsset = animation.AnimationAsset,
-            SourceStartTime = animation.SourceStartTime,
-            SourceEndTime = animation.SourceEndTime,
-            PlayRate = animation.PlayRate,
-        };
-        return draft;
+        return TimingDraft.Create(_document, entry);
     }
 
-    private void AddDraftFooter(VisualElement parent, Label derived, Label end, bool editable)
+    private void AddDraftFooter(VisualElement parent, Button fullClip, Label derived, Label end, bool editable)
     {
+        _draftEditable = editable;
+        _draftFeedback = new HelpBox(string.Empty, HelpBoxMessageType.Info);
+        parent.Add(_draftFeedback);
         VisualElement buttons = MiniButtons();
-        Button apply = new Button(ApplyDraft) { text = "Apply" };
-        Button revert = new Button(() => RevertDraft()) { text = "Revert" };
-        apply.SetEnabled(editable && !ActionEditorInteractionGate.IsActive);
+        buttons.AddToClassList("action-editor-source-buttons");
+        _draftFullClip = fullClip;
+        fullClip.AddToClassList("action-editor-full-clip-button");
+        _draftApply = new Button(ApplyDraft) { text = "Apply", tooltip = "Apply source and timing changes (Enter)" };
+        var revert = new Button(RevertDraft) { text = "Revert", tooltip = "Discard unapplied changes (Esc)" };
         revert.SetEnabled(editable);
+        buttons.Add(fullClip);
+        buttons.Add(_draftApply);
         buttons.Add(revert);
-        buttons.Add(apply);
         parent.Add(buttons);
         _draftDerived = derived;
         _draftEnd = end;
@@ -660,43 +835,55 @@ public sealed class ActionDetailsWindow : EditorWindow
     private void RefreshDraftFeedback()
     {
         ActionTimelineOperationResult result = EvaluateDraft();
-        ActionTimelineOperationCandidate candidate = result?.Candidates.Count > 0 ? result.Candidates[0] : null;
-        int duration = candidate != null ? candidate.DurationFrames : _draft?.DurationFrames ?? 0;
-        if (_draftDerived != null)
-            _draftDerived.text = result != null && result.State != ActionTimelineOperationState.Rejected && duration > 0
-                ? $"{duration} frames"
-                : "—";
+        int duration = result?.State == ActionTimelineOperationState.NoChange ? _draft.DurationFrames :
+            _draft != null ? AnimationSegment.CalculateDerivedDurationFrames(_draft.SourceStartTime, _draft.SourceEndTime, _draft.PlayRate) : 0;
+        if (_draftDerived != null) _draftDerived.text = duration > 0 ? $"{duration} frames" : "—";
         if (_draftEnd != null && _draft != null)
-            _draftEnd.text = result != null && result.State != ActionTimelineOperationState.Rejected && duration > 0
-                ? ((long)_draft.StartFrame + duration).ToString()
-                : "—";
+            _draftEnd.text = duration > 0 ? ((long)_draft.StartFrame + duration).ToString() : "—";
+        bool rejected = result?.State == ActionTimelineOperationState.Rejected;
+        bool changed = result?.State == ActionTimelineOperationState.Allowed;
+        _draftApply?.SetEnabled(_draftEditable && changed);
+        _draftFullClip?.SetEnabled(_draftEditable && _draft?.AnimationAsset != null && _draft.AnimationAsset.Clip != null);
+        ActionEditorContext context = ActionEditorContext.Shared;
+        bool previewing = changed && context.SetSourcePreview(_draft, _draft.Snapshot, _draft.Input);
+        if (!previewing) context.ClearSourcePreview(_draft);
+        if (_draftFeedback != null)
+        {
+            _draftFeedback.text = rejected ? result.Message + "\nPreview shows applied data until this is resolved." :
+                previewing ? "Previewing unapplied changes — Apply / Enter to save, Revert / Esc to restore." :
+                "Unapplied changes — Apply / Enter to save, Revert / Esc to discard. Preview is unavailable in Play Mode.";
+            _draftFeedback.messageType = rejected ? HelpBoxMessageType.Error : HelpBoxMessageType.Info;
+            _draftFeedback.style.display = rejected || changed ? DisplayStyle.Flex : DisplayStyle.None;
+        }
     }
 
     private ActionTimelineOperationResult EvaluateDraft()
     {
         if (_draft?.Snapshot == null)
             return null;
-        return _draft.Snapshot.Evaluate(CreateDraftInput());
+        if (!_draft.Snapshot.MatchesCurrentSource(out string message))
+            return new ActionTimelineOperationResult { State = ActionTimelineOperationState.Rejected, Message = message };
+        return _draft.Evaluate();
     }
-
-    private ActionTimelineOperationInput CreateDraftInput() =>
-        ActionTimelineOperationInput.Absolute(_draft.StartFrame, _draft.DurationFrames, _draft.AnimationAsset,
-            _draft.SourceStartTime, _draft.SourceEndTime, _draft.PlayRate);
 
     private void ApplyDraft()
     {
         if (ActionEditorInteractionGate.IsActive)
             return;
-        ActionTimelineOperationResult result = EvaluateDraft();
-        if (result == null || result.State == ActionTimelineOperationState.Rejected)
-            return;
-        if (result.State == ActionTimelineOperationState.NoChange)
-            return;
-        ActionTimelineOperationSnapshot snapshot = _draft.Snapshot;
-        ActionTimelineOperationInput input = CreateDraftInput();
-        DiscardDraft(); // The following notification represents this Apply, not an external invalidation.
-        if (!ActionEditorCommands.CommitTimelineOperation(snapshot, input, out _))
-            RefreshDocumentAndPage(true);
+        TimingDraft draft = _draft;
+        if (draft == null) return;
+        if (!draft.TryApply(out string message))
+        {
+            ActionEditorContext.Shared.ClearSourcePreview(draft);
+            if (_draftFeedback != null)
+            {
+                _draftFeedback.text = message;
+                _draftFeedback.messageType = HelpBoxMessageType.Error;
+                _draftFeedback.style.display = DisplayStyle.Flex;
+            }
+            return; // Keep all input intact on a rejected Apply.
+        }
+        if (ReferenceEquals(_draft, draft)) RefreshDocumentAndPage(true);
     }
 
     private void RevertDraft()
@@ -772,11 +959,14 @@ public sealed class ActionDetailsWindow : EditorWindow
     {
         return item switch
         {
+            EffectItem value => value.Config,
+            ScreenShakeItem value => value.Config,
             ImpulseItem value => value.Config,
             HitBoxItem value => value.Config,
             RootMotionItem value => value.Config,
             SelfRotationItem value => value.Config,
             VelocityOverrideItem value => value.Config,
+            MoveToTargetItem value => value.Config,
             MotionPolicyItem value => value.Config,
             TagItem value => value.Config,
             _ => null,
@@ -880,9 +1070,8 @@ public sealed class ActionDetailsWindow : EditorWindow
             drawProperty(property);
         bool changed = EditorGUI.EndChangeCheck();
         EditorGUI.EndDisabledGroup();
-        if (changed)
-            _serializedAction.ApplyModifiedProperties();
-        if (changed)
+        // Foldout/view changes are not content edits and must not dirty the Action.
+        if (changed && _serializedAction.ApplyModifiedProperties())
             OnLeafChanged(watch);
     }
 
@@ -1029,7 +1218,10 @@ public sealed class ActionDetailsWindow : EditorWindow
             if (change.Origin == ActionEditorChangeOrigin.Binding &&
                 (_draft == null || _draft.CanRetain(ActionEditorContext.Shared.CurrentAction,
                     ActionEditorContext.Shared.PrimarySelection)))
+            {
                 RefreshDocumentOnly();
+                if (_draft != null) RefreshDraftFeedback();
+            }
             else
             {
                 ClearPendingBindingSectionRefresh();
@@ -1062,7 +1254,17 @@ public sealed class ActionDetailsWindow : EditorWindow
 
     private void OnLostFocus() => _previewPanel?.CancelCameraInteraction();
 
-    private void OnPlayModeStateChanged(PlayModeStateChange state) => _previewPanel?.OnPlayModeStateChanged(state);
+    private void OnPlayModeStateChanged(PlayModeStateChange state)
+    {
+        _previewPanel?.OnPlayModeStateChanged(state);
+        if (state == PlayModeStateChange.ExitingEditMode || state == PlayModeStateChange.EnteredPlayMode)
+        {
+            ActionEditorContext.Shared.ClearSourcePreview(_draft);
+            if (_draft != null) RefreshDraftFeedback();
+        }
+        else if (state == PlayModeStateChange.EnteredEditMode && _draft != null)
+            RefreshDraftFeedback();
+    }
 
     private void SaveScroll()
     {
@@ -1070,7 +1272,12 @@ public sealed class ActionDetailsWindow : EditorWindow
             _savedScrollY = _scroll.scrollOffset.y;
     }
 
-    private void DiscardDraft() => _draft = null;
+    private void DiscardDraft()
+    {
+        TimingDraft previous = _draft;
+        _draft = null;
+        if (previous != null) ActionEditorContext.Shared.ClearSourcePreview(previous);
+    }
 
     private static bool SameSelection(ActionSelectionValue left, ActionSelectionValue right) =>
         left.Kind == right.Kind && string.Equals(left.EditorId, right.EditorId, StringComparison.Ordinal);
