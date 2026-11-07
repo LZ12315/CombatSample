@@ -83,7 +83,8 @@ namespace NodeCanvas.Tasks.Actions
         private void Tick()
         {
             var actorValue = agent;
-            if (actorValue?.actorLocomotion == null)
+            if (actorValue == null || !actorValue.isActiveAndEnabled
+                || actorValue.actorLocomotion == null || !actorValue.actorLocomotion.isActiveAndEnabled)
             {
                 EndAction(false);
                 return;

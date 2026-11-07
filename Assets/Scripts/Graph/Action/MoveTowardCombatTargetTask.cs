@@ -75,21 +75,22 @@ namespace NodeCanvas.Tasks.Actions
         private void TickMove()
         {
             var actorValue = agent;
-            if (actorValue?.actorLocomotion == null)
+            if (actorValue == null || !actorValue.isActiveAndEnabled
+                || actorValue.actorLocomotion == null || !actorValue.actorLocomotion.isActiveAndEnabled)
             {
                 EndAction(false);
                 return;
             }
 
             var targetValue = target?.value;
-            if (targetValue == null)
+            if (targetValue == null || !targetValue.gameObject.activeInHierarchy)
             {
                 EndAction(false);
                 return;
             }
 
             Transform targetTransform = targetValue.transform;
-            if (useTimeout && Time.time - _startTime >= timeout)
+            if (moveMode == MoveMode.MoveUntilDistance && useTimeout && Time.time - _startTime >= timeout)
             {
                 PushIdle(actorValue, targetTransform);
                 EndAction(false);

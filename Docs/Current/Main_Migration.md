@@ -131,9 +131,29 @@
 - 原生 VFX 初始化失败后的销毁、Prefab Awake 副作用、真实禁用／重启、弹反窗口／事件 Action、多个区间与命中／弹反 Impulse 叠加和连续重开仍待运行环境检查。没有为了这些场景检查把资源依赖或原生粒子测试塞入默认 suite。
 - 公共／序列化接口、场景、动作／角色资源、项目设置及美术参数均未改动。
 
+## 第二阶段第五批：Camera 绑定归还与 Graph 任务边界
+
+### 定位与实施
+
+- Soft / Hard Lock 模块原先销毁目标时不归还 Follow / LookAt，虚拟相机留下指向已销毁对象的绑定。现在构造时保存原绑定，销毁运行时对象前逐项归还仍由自身持有的引用；若外部已替换其中一项，不覆盖新绑定，另一项仍独立清理。重复销毁无副作用。
+- Move Toward Target 的 Push Once 原先也检查连续模式的隐藏 Timeout；保存过 useTimeout / timeout=0 的节点切回 Push Once 会立即失败。现超时判断只在 Move Until Distance 生效，与既有字段说明一致。
+- Move Toward Target / Set Locomotion Intent 检查 Actor 与 ActorLocomotion 的启用状态，失效时任务失败并释放连续意图，不再向拒收意图的组件持续报告 Running / Success。Move 拒绝已停用目标，与 Strafe 的既有处理一致；不修改移动强度、停止距离、计时模型或转向公式。
+- 审查 PlayActionTask 与 WithActorTag：保留待决请求可撤销、停止不强停已开始动作、暂停完成结果不重放、标签实际获取引用成对释放等合同，没有增加旧自身／目标接口回退。
+- 旧配置核对：Enemy_Test_1 仍有 2 处 targetOverride；Jaeger 两图虽无旧字段，但 target 为空、没有获取步骤，Combat 图动作引用也为空，仍是未完成草稿。它们仍被旧场景／Enemy.prefab／嵌套 FSM 引用，留待样例依赖梳理决定补线或整体裁剪，不孤立删除、不声称迁移已完成。节点合同文档已纠正原来的过期描述。
+- Deprecated 目录不能作为删除依据：FilteredCinemachineInputProvider 仍被 CM_FreeLook.prefab 引用，本批保留。没有改动相机优先级、混合／退出快照、构图、输入过滤、Action 震屏通道或序列化调参，也没有变更场景／Prefab／图资产。
+
+### 验证与边界
+
+- 原 NodeCanvas 目标／标签／绕行合同 **34 / 34 通过**；新增 6 项任务边界和 4 项相机资源所有权回归，当前测试在旧生产实现上 **34 / 44 通过、10 项均失败**。修复后均通过，没有删用例或放宽预期。
+- 相机 4 项只创建虚拟相机、TargetGroup 与 Transform，直接检查绑定与销毁；不依赖仓库资源、Brain、渲染或机位几何。这是 Unity 引用所有权无法用纯数值合同替代的最小对象层测试，不调用控制器私有生命周期。
+- Unity 2022.3.62f3 独立编译 Runtime 155 个源码、Editor / Tests 81 个源码通过，无诊断；新增源码仅一份相机生命周期测试及其 .meta。
+- 与上一批选定回归组合：**280 / 280 通过，无跳过**。其中 NodeCanvasActorTargetTests 20、WithActorTagTests 10、CombatStrafeMovementTests 10、CameraRigLifecycleTests 4；其余 236 项为上一批 Action / Motion / Combat / 表现等回归。
+- 日志与 XML：`.git/migration-validation/camera-graph-review-*`，仅本机工件。初版相机断言曾触发 NUnit 把 Transform 当集合比较／格式化的问题，最终按引用身份输出布尔断言；旧实现的最终对照以 regressions-old 为准，不把格式化错误当生产缺陷证据。
+- 真实 Brain 混合与快速解锁／重锁、控制器／Actor 停用接管、原生 Impulse 叠加、完整 GraphOwner 暂停／恢复／停止、图 Inspector 保存重载和代表性敌人 AI 仍需主工程场景验收。没有把最小绑定测试当作全部相机生命周期或镜头手感验收。
+
 ## 后续顺序
 
-1. **系统主链路**：继续 Camera / Graph 的职责、旧入口与生命周期审查；运动的真实世界接管／恢复，以及本批 Combat / 表现的原生生命周期纳入后续场景回归。不为历史资源无限保留兼容层，也不借机重写框架。
+1. **系统主链路收尾**：已完成 Action、Motion、Combat / 表现和 Camera / Graph 的本轮定向代码审查；不是整体验收完成。剩余真实接管、清理与生命周期纳入后续场景回归；资源梳理若发现现用链路缺口，再定向修复，不继续为外观重构框架。
 2. **样例／资源瘦身**：在系统职责清楚后，保留足以覆盖核心能力的代表性数据与美术；按实际依赖处理旧场景、草稿配置和未使用资源，不按目录名字盲删。
 3. **最终回归**：保留小型稳定合同测试，完成代表性战斗、运动接管、命中／弹反、相机、中断／禁用清理与连续重开；检查 Player 构建与启动。
 4. **合回 main**：复核最终代码、数据、文档与项目设置后合回。本阶段只在 main-migration 提交，不推送、不移动 main 或 HyperGraph。

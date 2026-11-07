@@ -23,6 +23,8 @@ internal sealed class HardLockCameraRig
         public float EnemyWeight;
     }
 
+    private readonly Transform _previousFollow;
+    private readonly Transform _previousLookAt;
     private Transform _anchor;
     private Vector3 _positionVelocity;
     private float _anchorYaw;
@@ -35,6 +37,8 @@ internal sealed class HardLockCameraRig
     public HardLockCameraRig(CinemachineVirtualCamera camera, Vector3 initialPosition)
     {
         Camera = camera;
+        _previousFollow = camera != null ? camera.Follow : null;
+        _previousLookAt = camera != null ? camera.LookAt : null;
         _anchor = LockCameraRuntimeObjects.CreateTransform("Runtime_LockAnchor", initialPosition);
         TargetGroup = LockCameraRuntimeObjects.CreateTargetGroup(
             "Runtime_LockTargetGroup", CinemachineTargetGroup.PositionMode.GroupCenter);
@@ -144,6 +148,14 @@ internal sealed class HardLockCameraRig
 
     public void DestroyRuntime()
     {
+        // Return only bindings still owned by this rig, before destroying their targets.
+        if (Camera != null)
+        {
+            if (_anchor != null && Camera.Follow == _anchor)
+                Camera.Follow = _previousFollow;
+            if (TargetGroup != null && Camera.LookAt == TargetGroup.transform)
+                Camera.LookAt = _previousLookAt;
+        }
         if (TargetGroup != null)
             LockCameraRuntimeObjects.Destroy(TargetGroup.gameObject);
         TargetGroup = null;

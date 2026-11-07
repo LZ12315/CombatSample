@@ -1,8 +1,8 @@
 # CameraControl：职责与整理边界
 
-## 本轮范围
+## 当前范围
 
-本轮只整理结构、旧入口和诊断，不调整 SoftLock 手感，不修改场景、相机 Prefab、Package 或序列化参数。
+整理结构、旧入口、诊断与锁定模块的绑定归还，不调整 SoftLock 手感，不修改场景、相机 Prefab、Package 或序列化参数。
 
 SoftLock 和 HardLock 都保留，各自拥有运行时状态。后续软锁机位、角色遮挡和构图体验应另做变更，不与本轮合并验收。
 
@@ -29,7 +29,7 @@ SoftLock 和 HardLock 都保留，各自拥有运行时状态。后续软锁机�
 5. `Brain.IsLive` 包括混合参与者。不是当前状态、但仍参与混合的退出镜头，不刷新其运行时输入。
 6. 进入另一锁定模式时，先刷新目标和 TargetGroup，硬锁立即设置锚点，然后使进入镜头的旧状态失效并执行一次无阻尼计算，最后应用优先级。
 7. 退出到 FreeLook 时，只有 FreeLook 尚未参与输出／混合，才使用主相机位置和朝向准备它。
-8. 销毁控制器时，各锁定模块销毁各自对象。
+8. 销毁控制器时，各锁定模块先归还仍由自己持有的 Follow / LookAt 绑定，再销毁各自对象。模块构造时捕获原绑定；清理时两项分别比较当前引用，已经被其他逻辑替换的绑定不覆盖。重复清理无副作用。
 
 相机优先级保持当前 20、其他 10。保留原有待机更新配置，不修改 Prefab 的 Standby Update。
 
@@ -65,7 +65,13 @@ SoftLock 和 HardLock 都保留，各自拥有运行时状态。后续软锁机�
 - 对比全部 20 个私有序列化字段声明／默认值与 4 个公开 Actor／相机字段，保持一致。
 - 对比本轮开始时的 `HyperGraph.unity`、相机 Prefab 和保留的相机 `.meta` 内容，保持一致（软锁、硬锁、诊断的 `.meta` 仅路径移动；合并掉的两个工具脚本 `.meta` 随之删除）。
 
-验证产物输出到系统临时目录，没有改写 Library／Temp／工程生成文件，也没有启动第二个 Unity 编辑器实例。
+上述为原结构整理时的验证记录。主线整合后的最新结果见 [主线迁移记录](Main_Migration.md)：新增 CameraRigLifecycleTests 4 项，在旧实现上均因绑定未归还失败，修复后通过，并纳入 280 项选定组合回归。
+
+这 4 项是无场景资源的 EditMode 绑定所有权测试：创建最少量的虚拟相机与 Transform，检查归还原 Follow / LookAt、外部替换不被覆盖、重复释放及运行时目标销毁。绑定／Unity 对象释放合同不能由纯数值函数替代，因此保留这层最小对象测试；不创建 Brain，不检查几何、阻尼、机位或混合画面。没有调用控制器私有生命周期或通过反射断言结构。
+
+历史验证工件在系统临时目录；最新工件位于 `.git/migration-validation/camera-graph-review-*`。均未改写主工程 Library／Temp／工程生成文件；隔离 Test Runner 不代表主工程或 Player 验收。
+
+`Deprecated/FilteredCinemachineInputProvider.cs` 虽位于旧目录，仍被 `CM_FreeLook.prefab` 引用，承担输入权限过滤，不能按目录名删除。本批不调整控制器停用时的相机优先级／混合策略，也不把模块销毁回归当作完整停用接管验收。
 
 仍需在 Unity 中人工对照，不能把编译结果当作手感验收：
 
@@ -77,4 +83,4 @@ SoftLock 和 HardLock 都保留，各自拥有运行时状态。后续软锁机�
 - [ ] 退出镜头的代理点保护、待机预更新及震屏。
 - [ ] 停止 Play 后无遗留运行时目标，无新增 Console 错误或丢失引用。
 
-手工验证入口为 `Assets/Scenes/HyperGraph.unity`。本轮未运行 Play Mode、Unity Test Runner 或 Player Build，也未关闭正在使用的编辑器。
+当前主要手工验证入口为 `Assets/Scenes/CombatTrainingArena.unity`；`HyperGraph.unity` 是仍保留的旧样例。主线整理只运行了上述隔离 EditMode 合同，主场景 Play Mode、镜头画面与 Player Build 仍待验收。

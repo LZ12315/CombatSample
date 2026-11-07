@@ -16,6 +16,8 @@ internal sealed class SoftLockCameraRig
         public float EnemyRadius;
     }
 
+    private readonly Transform _previousFollow;
+    private readonly Transform _previousLookAt;
     private Transform _followTarget;
     private Transform _playerFramingTarget;
     private Transform _enemyFramingTarget;
@@ -27,6 +29,8 @@ internal sealed class SoftLockCameraRig
     public SoftLockCameraRig(CinemachineVirtualCamera camera)
     {
         Camera = camera;
+        _previousFollow = camera != null ? camera.Follow : null;
+        _previousLookAt = camera != null ? camera.LookAt : null;
         TargetGroup = LockCameraRuntimeObjects.CreateTargetGroup(
             "Runtime_LockTargetGroup", CinemachineTargetGroup.PositionMode.GroupCenter);
     }
@@ -109,6 +113,14 @@ internal sealed class SoftLockCameraRig
 
     public void DestroyRuntime()
     {
+        // Return only bindings still owned by this rig, before destroying their targets.
+        if (Camera != null)
+        {
+            if (_followTarget != null && Camera.Follow == _followTarget)
+                Camera.Follow = _previousFollow;
+            if (TargetGroup != null && Camera.LookAt == TargetGroup.transform)
+                Camera.LookAt = _previousLookAt;
+        }
         if (TargetGroup != null)
             LockCameraRuntimeObjects.Destroy(TargetGroup.gameObject);
         TargetGroup = null;

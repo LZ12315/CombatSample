@@ -90,6 +90,74 @@ public sealed class NodeCanvasActorTargetTests
     }
 
     [Test]
+    public void MovePushOnce_IgnoresTimeoutSettingsFromContinuousMode()
+    {
+        Actor self = CreateMovingActor();
+        Actor target = CreateActor("Target", Vector3.forward * 5f);
+        var task = new MoveTowardCombatTargetTask
+        {
+            target = new BBParameter<Actor>(target),
+            useTimeout = true,
+            timeout = 0f,
+        };
+        Bind(task, self);
+
+        Assert.AreEqual(Status.Success, task.Execute(self.transform, null));
+        self.actorLocomotion.BeginControlTick();
+        Assert.IsTrue(self.actorLocomotion.TryGetControlIntent(out LocomotionIntent intent));
+        Assert.AreEqual(Vector3.forward, intent.WorldMoveDirection);
+    }
+
+    [TestCase(false, false)] [TestCase(false, true)]
+    [TestCase(true, false)] [TestCase(true, true)]
+    public void ContinuousMovement_UnavailableActorOrLocomotionFailsAndReleasesInput(bool setIntent, bool disableLocomotion)
+    {
+        Actor self = CreateMovingActor();
+        Actor target = CreateActor("Target", Vector3.forward * 5f);
+        ActionTask task = setIntent
+            ? (ActionTask)new SetLocomotionIntentTask
+            {
+                runMode = SetLocomotionIntentTask.RunMode.RunUntilPointReached,
+                worldDirection = new BBParameter<Vector3>(Vector3.forward),
+            }
+            : new MoveTowardCombatTargetTask
+            {
+                target = new BBParameter<Actor>(target),
+                moveMode = MoveTowardCombatTargetTask.MoveMode.MoveUntilDistance,
+            };
+        Bind(task, self);
+        Assert.AreEqual(Status.Running, task.Execute(self.transform, null));
+        self.actorLocomotion.BeginControlTick();
+        Assert.IsTrue(self.actorLocomotion.TryGetControlIntent(out _));
+
+        if (disableLocomotion) self.actorLocomotion.enabled = false;
+        else self.enabled = false;
+        // Validate the task's own availability check, not EditMode's native OnDisable dispatch.
+        Assert.AreEqual(Status.Failure, task.Execute(self.transform, null));
+        self.actorLocomotion.BeginControlTick();
+        Assert.IsFalse(self.actorLocomotion.TryGetControlIntent(out _));
+    }
+
+    [Test]
+    public void ContinuousMove_DeactivatedTargetFailsAndReleasesInput()
+    {
+        Actor self = CreateMovingActor();
+        Actor target = CreateActor("Target", Vector3.forward * 5f);
+        var task = new MoveTowardCombatTargetTask
+        {
+            target = new BBParameter<Actor>(target),
+            moveMode = MoveTowardCombatTargetTask.MoveMode.MoveUntilDistance,
+        };
+        Bind(task, self);
+        Assert.AreEqual(Status.Running, task.Execute(self.transform, null));
+        target.gameObject.SetActive(false);
+
+        Assert.AreEqual(Status.Failure, task.Execute(self.transform, null));
+        self.actorLocomotion.BeginControlTick();
+        Assert.IsFalse(self.actorLocomotion.TryGetControlIntent(out _));
+    }
+
+    [Test]
     public void GetCombatTarget_WritesActorSnapshotAndClearsItOnNextFailedRead()
     {
         Actor self = CreateActor("Self", Vector3.zero);
@@ -212,6 +280,14 @@ public sealed class NodeCanvasActorTargetTests
         Bind(task, self);
 
         Assert.AreEqual(Status.Failure, task.Execute(self.transform, null));
+    }
+
+    private Actor CreateMovingActor()
+    {
+        Actor self = CreateActor("Moving Self", Vector3.zero);
+        self.actorLocomotion = self.gameObject.AddComponent<ActorLocomotion>();
+        self.actorLocomotion.Bind(self);
+        return self;
     }
 
     private Actor CreateActor(string name, Vector3 position)
