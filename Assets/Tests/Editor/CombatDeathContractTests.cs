@@ -1,5 +1,8 @@
+using System.Reflection;
+using System.Text.RegularExpressions;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.TestTools;
 
 public sealed class CombatDeathContractTests
 {
@@ -11,8 +14,11 @@ public sealed class CombatDeathContractTests
     {
         _root = new GameObject("Death contract defender");
         _combater = _root.AddComponent<ActorCombater>();
-        // Explicit standard startup: EditMode does not run normal scene Awake.
-        _root.SendMessage("Awake");
+        // Fixture-only initialization: EditMode does not run normal scene Awake, and
+        // SendMessage("Awake") hits Unity's ShouldRunBehaviour assertion outside Play Mode.
+        // Invoke only this component's startup; assertions below exercise its public contracts.
+        typeof(ActorCombater).GetMethod("Awake", BindingFlags.Instance | BindingFlags.NonPublic)
+            .Invoke(_combater, null);
     }
 
     [TearDown]
@@ -67,6 +73,69 @@ public sealed class CombatDeathContractTests
         Assert.IsTrue(fatalResult.TargetKilled);
         Assert.AreEqual(HitResolveOutcome.AlreadyDead, repeatedResult.Outcome);
         Assert.IsFalse(repeatedResult.TargetKilled);
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void HealthObserverFailure_DoesNotBlockOtherObserversOrHitResolution(bool lethal)
+    {
+        int healthNotifications = 0;
+        int deaths = 0;
+        float notifiedHealth = -1f;
+        _combater.HealthChanged += (_, __, ___) => throw new System.InvalidOperationException("Expected health observer failure");
+        _combater.HealthChanged += (_, health, __) => { healthNotifications++; notifiedHealth = health; };
+        _combater.Died += (_, __) => deaths++;
+        LogAssert.Expect(LogType.Exception, new Regex("Expected health observer failure"));
+
+        HitResolveResult result = _combater.TakeDamage(Hit(_combater.MaxHealth * (lethal ? 2f : 0.5f)));
+
+        Assert.AreEqual(1, healthNotifications);
+        Assert.AreEqual(_combater.CurrentHealth, notifiedHealth);
+        Assert.AreEqual(lethal ? 1 : 0, deaths);
+        Assert.AreEqual(lethal, result.TargetKilled);
+        Assert.IsTrue(result.ImpactAllowed);
+        Assert.AreEqual(!lethal, _root.activeSelf);
+    }
+
+    [Test]
+    public void DeathObserverFailure_DoesNotBlockOtherObserversOrActorDisable()
+    {
+        int deaths = 0;
+        bool activeDuringNotification = false;
+        _combater.Died += (_, __) => throw new System.InvalidOperationException("Expected death observer failure");
+        _combater.Died += (actor, _) => { deaths++; activeDuringNotification = actor.gameObject.activeSelf; };
+        LogAssert.Expect(LogType.Exception, new Regex("Expected death observer failure"));
+
+        HitResolveResult result = _combater.TakeDamage(Hit(_combater.MaxHealth * 2f));
+        _combater.TakeDamage(Hit(1f));
+
+        Assert.AreEqual(1, deaths);
+        Assert.IsTrue(activeDuringNotification);
+        Assert.IsTrue(result.TargetKilled);
+        Assert.IsFalse(_root.activeSelf);
+    }
+
+    [Test]
+    public void HealthObserverNestedFatalHit_OnlyTheFatalHitOwnsTheDeathNotification()
+    {
+        int deaths = 0;
+        AttackHitData fatalHit = Hit(_combater.MaxHealth * 2f);
+        AttackHitData deathHit = default;
+        HitResolveResult nestedResult = default;
+        _combater.HealthChanged += (_, health, __) =>
+        {
+            if (health > 0f)
+                nestedResult = _combater.TakeDamage(fatalHit);
+        };
+        _combater.Died += (_, hit) => { deaths++; deathHit = hit; };
+
+        HitResolveResult originalResult = _combater.TakeDamage(Hit(1f));
+
+        Assert.AreEqual(1, deaths);
+        Assert.AreEqual(fatalHit, deathHit);
+        Assert.IsTrue(nestedResult.TargetKilled);
+        Assert.IsFalse(originalResult.TargetKilled);
+        Assert.IsFalse(_root.activeSelf);
     }
 
     private AttackHitData Hit(float damage) =>

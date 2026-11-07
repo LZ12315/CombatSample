@@ -332,6 +332,8 @@ public class ActorCombater : MonoBehaviour, IDamageable
 
         float previousHealth = _currentHealth;
         _currentHealth = Mathf.Clamp(_currentHealth - attackData.Damage, 0f, _maxHealth);
+        // Attribute death to this hit before observers can submit another hit.
+        bool targetKilled = previousHealth > 0f && _currentHealth <= 0f;
         if (!Mathf.Approximately(previousHealth, _currentHealth))
             NotifyHealthChanged();
 
@@ -345,7 +347,6 @@ public class ActorCombater : MonoBehaviour, IDamageable
                      $"剩余生命: {_currentHealth}/{_maxHealth}");
         }
 
-        bool targetKilled = previousHealth > 0f && _currentHealth <= 0f;
         if (targetKilled)
         {
             Die(attackData);
@@ -396,20 +397,42 @@ public class ActorCombater : MonoBehaviour, IDamageable
         if (_debugLog)
             Debug.Log($"[Parry] {name} parried {attacker.name}.", this);
 
-        ParrySucceeded?.Invoke(this, attackData);
+        NotifyHitObservers(ParrySucceeded, attackData);
     }
 
     private void Die(AttackHitData attackData)
     {
         string attackerName = attackData.Attacker != null ? attackData.Attacker.name : "Unknown";
         if (_debugLog) Debug.Log($"[死亡] {name} 被 {attackerName} 击败");
-        Died?.Invoke(this, attackData);
+        NotifyHitObservers(Died, attackData);
         gameObject.SetActive(false);
+    }
+
+    private void NotifyHitObservers(Action<ActorCombater, AttackHitData> observers, AttackHitData hit)
+    {
+        if (observers == null)
+            return;
+
+        foreach (Action<ActorCombater, AttackHitData> observer in observers.GetInvocationList())
+        {
+            try { observer(this, hit); }
+            catch (Exception exception) { Debug.LogException(exception, this); }
+        }
     }
 
     private void NotifyHealthChanged()
     {
-        HealthChanged?.Invoke(this, _currentHealth, _maxHealth);
+        var observers = HealthChanged;
+        if (observers == null)
+            return;
+
+        float health = _currentHealth;
+        float maxHealth = _maxHealth;
+        foreach (Action<ActorCombater, float, float> observer in observers.GetInvocationList())
+        {
+            try { observer(this, health, maxHealth); }
+            catch (Exception exception) { Debug.LogException(exception, this); }
+        }
     }
 
     private bool ApplyHitEventTag(AttackHitData attackData)

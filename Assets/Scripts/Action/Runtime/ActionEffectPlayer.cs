@@ -144,15 +144,25 @@ internal static class ActionEffectPlayer
         Vector3 worldScale = Vector3.Scale(anchor.lossyScale, localScale);
         if (!ActionEffectRequest.IsFinite(position) || !ActionEffectRequest.IsFinite(worldScale)) return null;
         GameObject instance = Object.Instantiate(request.Prefab, position, rotation, request.ParentToAnchor ? anchor : null);
-        instance.transform.localScale = request.ParentToAnchor ? localScale : worldScale;
-        if (!VfxPlaybackUtility.Initialize(instance, request.Occlusion, request.SimulationSpeed) && !_warnedMissingLayer)
+        var presentation = new Instance(instance);
+        try
         {
-            _warnedMissingLayer = true;
-            Debug.LogWarning($"Layer '{HitConfirmVfxRenderUtility.HitConfirmVfxLayerName}' is missing. Action VFX will use normal depth.", actor);
+            instance.transform.localScale = request.ParentToAnchor ? localScale : worldScale;
+            if (!VfxPlaybackUtility.Initialize(instance, request.Occlusion, request.SimulationSpeed) && !_warnedMissingLayer)
+            {
+                _warnedMissingLayer = true;
+                Debug.LogWarning($"Layer '{HitConfirmVfxRenderUtility.HitConfirmVfxLayerName}' is missing. Action VFX will use normal depth.", actor);
+            }
+            if (!request.ParentToAnchor && (request.FollowAnchor || request.ContinuousOrientation))
+                instance.AddComponent<ActionEffectFollower>().Bind(request, anchor, actor.transform, localScale, angles);
+            return presentation;
         }
-        if (!request.ParentToAnchor && (request.FollowAnchor || request.ContinuousOrientation))
-            instance.AddComponent<ActionEffectFollower>().Bind(request, anchor, actor.transform, localScale, angles);
-        return new Instance(instance);
+        catch
+        {
+            // The buffer cannot release a handle that failed before Play returned it.
+            presentation.Dispose();
+            throw;
+        }
     }
 
     private sealed class Instance : IActionPresentation

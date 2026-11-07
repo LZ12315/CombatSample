@@ -15,6 +15,8 @@ Exit / Interrupt / Abort / Disable / Driver 释放 → 立即停止并释放本�
 - 首次 World 前退出会取消创建；Prefab Awake 中发生角色取消，也会释放刚创建的对象。
 - 静音 Item / Lane 不生效。Loop 重新进入才创建新实例 / event。
 - 多区间独立持有；停止一份不会取消其他区间、角色或命中 / 弹反的 Impulse。
+- 单个区间在创建／空间更新时抛异常：记录错误、释放失败区间，不逐 Tick 重试，继续处理本次 World 的其他区间。释放异常也在表现边界记录，不阻断其他区间退出或 Action 完成；不因单纯表现错误将 CombatSimulationDriver 置为故障。
+- VFX 已 Instantiate、但初始化／绑定未完成时，由 ActionEffectPlayer 自行隐藏并销毁实例，再把错误交给 Buffer。不能等一个从未成功返回的 handle 来清理资源。
 - **没有粒子尾迹、二次震动或最少可见帧兜底。**短区间可以完全落在两次渲染之间；Details 会警告，但不会偷偷延长。
 - 不依赖命中、目标、ActorCombater 或零伤害假命中。Combat 既有已提交 Hit、弹反反馈路由不变。
 
@@ -142,7 +144,9 @@ Preview：
 
 验证结果需区分：默认小型合同测试、隔离原生集成测试、主场景视觉验收。测试通过不等价于手感与美术验收完成。
 
-本轮验证工件保存在 `.git/action-effect-validation/`；使用当前源文件复制到隔离 Unity 2022.3.62f3 工程，不修改主工程场景 / Prefab / ProjectSettings / 包。最终通过数和入口见本轮交付说明。
+原功能接入验证工件保存在 `.git/action-effect-validation/`。主线整理新增创建／空间更新失败隔离、退出释放失败不阻断 Action 完成的 3 项合同回归；当前 ActionEffectContractTests 22 / 22、ActionVfxContractTests 17 / 17 通过。整体批次与最新结果见 [主线迁移记录](Main_Migration.md)，工件位于 `.git/migration-validation/combat-review-*`。均使用当前源文件复制到隔离 Unity 2022.3.62f3 工程，不修改主工程场景 / Prefab / ProjectSettings / 包。
+
+这些合同通过 fake presentation 验证资源所有权和异常边界，不在默认 suite 中实例化真实粒子或读取仓库 Prefab。真实 Prefab 初始化失败后的销毁、脚本 Awake 副作用及 Unity 延迟 Destroy 仍需运行环境检查。
 
 仍需主工程实际操作：
 

@@ -60,7 +60,16 @@ internal sealed class ActionEffectBuffer
             // A prefab's Awake can cancel this Actor or start another Action. New scopes wait for the next World.
             int count = _scopes.Count;
             for (int i = 0; i < count; i++)
-                _scopes[i].UpdateWorld(sourcePosition, startEffect, startShake);
+            {
+                Scope scope = _scopes[i];
+                try { scope.UpdateWorld(sourcePosition, startEffect, startShake); }
+                catch (Exception exception)
+                {
+                    // Presentation failure must not fault the combat simulation or other ranges.
+                    Debug.LogException(exception);
+                    scope.Dispose();
+                }
+            }
         }
         finally
         {
@@ -77,10 +86,7 @@ internal sealed class ActionEffectBuffer
         try
         {
             for (int i = 0; i < _scopes.Count; i++)
-            {
-                try { _scopes[i].Dispose(); }
-                catch (Exception exception) { Debug.LogException(exception); }
-            }
+                _scopes[i].Dispose();
         }
         finally
         {
@@ -88,6 +94,12 @@ internal sealed class ActionEffectBuffer
             if (!_updating)
                 _scopes.Clear();
         }
+    }
+
+    private static void DisposePresentation(IActionPresentation presentation)
+    {
+        try { presentation?.Dispose(); }
+        catch (Exception exception) { Debug.LogException(exception); }
     }
 
     private sealed class Scope : IDisposable
@@ -114,7 +126,7 @@ internal sealed class ActionEffectBuffer
                 _started = true;
                 IActionPresentation presentation = _isEffect ? startEffect?.Invoke(_effect) : startShake?.Invoke(_shake, position, _progress);
                 if (IsDisposed)
-                    presentation?.Dispose(); // Actor may have been disabled during prefab Awake.
+                    DisposePresentation(presentation); // Actor may have been disabled during prefab Awake.
                 else
                     _presentation = presentation;
             }
@@ -129,7 +141,7 @@ internal sealed class ActionEffectBuffer
             _progress = null;
             IActionPresentation presentation = _presentation;
             _presentation = null;
-            presentation?.Dispose();
+            DisposePresentation(presentation);
         }
     }
 }

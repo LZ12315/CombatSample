@@ -98,7 +98,7 @@ Direction  = 弹反者指向被弹反者
 
 Effect 上下文保留来袭攻击的身份：`Attacker` 是敌人，`Target` 是防守者。SpeedEffect 的 `affectBothParties = false` 影响来袭攻击者；true 则同时影响双方（沿用现有目标侧延迟规则）。
 
-`ActorCombater.ParrySucceeded` 仍保留为玩法通知，参数是防守者和原始 AttackHitData。**标准弹反反馈已经由结果入口自动播放，不要再订阅该通知重复播放同一组 Effects。**
+`ActorCombater.ParrySucceeded` 仍保留为玩法通知，参数是防守者和原始 AttackHitData。与死亡通知共用逐订阅者异常隔离：一个观察者报错会记录异常，但不阻断后续观察者或 Parried 结果返回。**标准弹反反馈已经由结果入口自动播放，不要再订阅该通知重复播放同一组 Effects。**
 
 ## 时序与边界
 
@@ -111,7 +111,9 @@ Effect 上下文保留来袭攻击的身份：`Attacker` 是敌人，`Target` �
 
 ## 验证
 
-反馈接入后已完成：
+以下为反馈接入时的历史验证；主线整理后的最新组合回归见 [主线迁移记录](Main_Migration.md)。纯弹反规则 17 项、反馈路由 12 项、命中队列 7 项及速度效果 33 项仍通过；实际弹反窗口／事件 Action 与原生音画组合不在这些纯合同的覆盖范围内。
+
+反馈接入时已完成：
 
 - 使用主工程 Unity 编译参数和依赖编译当前运行时、编辑器及测试源码，无错误。过程中遇到的无关 Action 编辑器／旧测试接口阻塞已由工作区其他改动解除，本轮没有修改那些文件。
 - 在 `.git/parry-feedback-validation/project` 隔离工程中，复制当前运行时源码、KCC Core、所需插件依赖和四组合同测试，使用相同 Unity 2022.3.62f3 的真实 EditMode Test Runner 执行：**69 个通过，0 失败**。

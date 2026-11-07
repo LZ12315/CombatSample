@@ -105,6 +105,59 @@ public sealed class ActionEffectContractTests
         buffer.Clear(); Assert.AreEqual(1, probe.Disposals);
     }
 
+    [Test]
+    public void RangeExit_DisposalFailureDoesNotBlockOtherRangesOrActionCompletion()
+    {
+        var buffer = new ActionEffectBuffer();
+        var timeline = Timeline(out GameplayLane lane);
+        AddShake(lane, 0, 1);
+        AddShake(lane, 0, 1);
+        var scheduler = Scheduler(timeline, buffer);
+        var healthy = new Probe();
+        int starts = 0;
+        scheduler.Begin();
+        buffer.UpdateWorld(Vector3.zero, null, (_, __, ___) =>
+            starts++ == 0 ? (IActionPresentation)new FaultingPresentation() : healthy);
+        UnityEngine.TestTools.LogAssert.Expect(LogType.Exception,
+            new System.Text.RegularExpressions.Regex("Expected presentation disposal fault"));
+
+        Assert.IsTrue(scheduler.Finish());
+        Assert.AreEqual(1, healthy.Disposals);
+        buffer.Clear();
+        Assert.AreEqual(1, healthy.Disposals);
+    }
+
+    [TestCase(false)] [TestCase(true)]
+    public void PresentationFailure_ReleasesOnlyTheFailedRangeAndContinuesOtherRanges(bool failOnStart)
+    {
+        var buffer = new ActionEffectBuffer();
+        IDisposable failedScope = buffer.BeginScreenShake(new ScreenShakeItemConfig(), () => 0f);
+        buffer.BeginScreenShake(new ScreenShakeItemConfig(), () => 0f);
+        var failed = new FaultingSpatialPresentation();
+        var healthy = new Probe();
+        int starts = 0;
+        Func<ActionScreenShakeRequest, Vector3, Func<float>, IActionPresentation> start = (_, __, ___) =>
+        {
+            if (starts++ != 0) return healthy;
+            if (failOnStart) throw new InvalidOperationException("Expected presentation failure");
+            return failed;
+        };
+        UnityEngine.TestTools.LogAssert.Expect(LogType.Exception,
+            new System.Text.RegularExpressions.Regex("Expected presentation failure"));
+
+        buffer.UpdateWorld(Vector3.zero, null, start);
+        Assert.AreEqual(2, starts, "One bad presentation must not block the next range in the same World phase.");
+        Assert.AreEqual(failOnStart ? 0 : 1, failed.Disposals);
+        Assert.AreEqual(0, healthy.Disposals);
+        buffer.UpdateWorld(Vector3.up, null, start);
+        Assert.AreEqual(2, starts, "A failed range must not be retried every tick.");
+        Assert.AreEqual(Vector3.up, healthy.Position);
+        failedScope.Dispose();
+        buffer.Clear();
+        Assert.AreEqual(failOnStart ? 0 : 1, failed.Disposals);
+        Assert.AreEqual(1, healthy.Disposals);
+    }
+
     [TestCase(true, false)] [TestCase(false, true)]
     public void MutedItemOrLane_DoesNotStart(bool itemMuted, bool laneMuted)
     {
@@ -203,6 +256,13 @@ public sealed class ActionEffectContractTests
 
     private sealed class FaultingPresentation : IActionPresentation
     { public void Dispose() => throw new InvalidOperationException("Expected presentation disposal fault"); }
+
+    private sealed class FaultingSpatialPresentation : IActionSpatialPresentation
+    {
+        internal int Disposals;
+        public void UpdateSourcePosition(Vector3 position) => throw new InvalidOperationException("Expected presentation failure");
+        public void Dispose() => Disposals++;
+    }
 
     private sealed class Probe : IActionSpatialPresentation
     {
