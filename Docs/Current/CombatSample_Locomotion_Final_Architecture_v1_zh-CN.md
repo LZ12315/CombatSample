@@ -345,6 +345,8 @@ Motor 消费 Request 后应用 Locomotion/Air Scale，并保留既有仲裁：
 旋转：ScriptedRotation > RootRotation > LocomotionRotation
 ```
 
+水平来源选择集中在 Motor 持有的 TranslationDomain：输入是策略处理后的自主速度、Tick 起始朝向、运动时间倍率与仿真 dt，输出速度以及来源／冲量事实。ActorMotor 复用这条选择路径，再做 CharacterUp 投影、地面切向修正并合成竖直速度；运动域不查询 KCC 或场景。动态速度 provider 只在非冻结时采样，收到 movement-scaled dt；RootMotion 则仍以 actor-local 区间位移除以仿真 dt 转成世界速度，不额外乘第二次运动倍率。
+
 Motor/KCC 继续负责重力、斜坡、碰撞、ForceUnground 和实际速度发布。Action 覆盖不会停止 Locomotion 内部状态；覆盖结束后使用当时的 Request，不追偿被覆盖的位移。
 
 ## 7. 动画数据、选择语义与匹配

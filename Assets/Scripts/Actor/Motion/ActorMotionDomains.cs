@@ -237,6 +237,37 @@ public sealed class TranslationDomain
         }
     }
 
+    /// <summary>
+    /// Selects the horizontal source before ActorMotor projects onto character-up and ground geometry.
+    /// Root motion is actor-local interval displacement; the other sources are unscaled world velocities.
+    /// </summary>
+    internal Vector3 ComposeHorizontalMotion(Vector3 locomotionVelocity, bool hasLocomotionVelocity,
+        Quaternion tickStartRotation, float timeScale, float deltaTime,
+        out HorizontalMotionSource source, out bool hadImpulse)
+    {
+        source = HorizontalMotionSource.Unknown;
+        hadImpulse = false;
+        if (deltaTime <= 0f || timeScale <= 0f)
+            return Vector3.zero;
+
+        if (TryComposeHorizontalVelocityOwner(timeScale, out Vector3 velocity, deltaTime))
+        {
+            source = HorizontalMotionSource.HorizontalVelocityOwner;
+            return velocity;
+        }
+        if (HasTrajectoryRootMotionTick)
+        {
+            source = HorizontalMotionSource.TrajectoryRootMotion;
+            Vector3 localDelta = TrajectoryRootMotionLocalPosition;
+            localDelta.y = 0f;
+            return tickStartRotation * localDelta / deltaTime;
+        }
+
+        source = hasLocomotionVelocity ? HorizontalMotionSource.Locomotion : HorizontalMotionSource.Unknown;
+        hadImpulse = _horizontalImpulseVelocity.sqrMagnitude > 0.000001f;
+        return ComposeHorizontal(locomotionVelocity, timeScale);
+    }
+
     public Vector3 ComposeHorizontal(Vector3 locomotionVelocity, float timeScale) =>
         ComposeHorizontal(locomotionVelocity, timeScale, 0f);
 

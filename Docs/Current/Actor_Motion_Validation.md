@@ -25,7 +25,7 @@ Finish → 发布请求、实际运动与来源事实，供后续 Tick 反馈
 
 | 范围 | 合同 |
 | --- | --- |
-| 水平仲裁 | HorizontalVelocity owner ＞ Action 轨迹 Root Motion ＞ Locomotion + HorizontalImpulse。被覆盖贡献不追偿遗漏位移。 |
+| 水平仲裁 | HorizontalVelocity owner ＞ Action 轨迹 Root Motion ＞ Locomotion + HorizontalImpulse。由 Motor 持有的 TranslationDomain 统一选择并返回来源／冲量事实；ActorMotor 再做 CharacterUp 投影及地面修正。被覆盖贡献不追偿遗漏位移。 |
 | 垂直 | VerticalVelocity owner 优先，否则 Ballistic；owner 存在时冻结 Ballistic 时间演化。最后一个垂直 owner 释放时清零 Ballistic；有效向上 Add／Set 应解除接地，撞顶只截断正向 Ballistic。 |
 | 旋转 | Scripted ＞ Root ＞ Locomotion；Root／Scripted owner 按已有栈规则恢复，失效 token 不影响当前 owner，被覆盖的旋转不补播。 |
 | Root Motion | Action 使用 actor-local 轨迹区间位移；普通 Locomotion 的根轨迹用于动画匹配，不直接驱动 Capsule，不读取 Animator delta 作为 Gameplay authority。 |
@@ -62,7 +62,9 @@ Finish → 发布请求、实际运动与来源事实，供后续 Tick 反馈
 
 编译不替代 Test Runner。独立 Mono 进程只用于可执行的纯逻辑断言，不提供 Unity 原生对象或动画图，不能将其通过数视为完整套件结果。
 
-`main-migration` 组合运动失败的定位：普通 MonoBehaviour 的 Awake 不保证在 EditMode 中执行，ActorMotor 未绑定 KCC 时 BeginMotion / ComposeMotion 会直接返回，RequestedVelocity 的零值不是一次有效仲裁结果。该用例改为直接检查运动域和会话所有权，不通过反射注入字段或给整组组件发送 Awake。KCC 合成、接地和碰撞求解仍需独立运行环境与下述人工回归；本次没有改动运动优先级或运行时初始化方式。最新执行结果见 [主线迁移记录](Main_Migration.md)。
+`main-migration` 组合运动失败的定位：普通 MonoBehaviour 的 Awake 不保证在 EditMode 中执行，ActorMotor 未绑定 KCC 时 BeginMotion / ComposeMotion 会直接返回，RequestedVelocity 的零值不是一次有效仲裁结果。该用例改为直接检查运动域和会话所有权，不通过反射注入字段或给整组组件发送 Awake。KCC 合成、接地和碰撞求解仍需独立运行环境与下述人工回归；没有改动运动优先级或运行时初始化方式。随后将 ActorMotor 的水平来源选择归入 TranslationDomain，直接验证运行时复用的选择逻辑，不以未初始化 Motor 的 Requested / Actual 默认零值作为验证依据。最新执行结果见 [主线迁移记录](Main_Migration.md)。
+
+输入时序用例比较迟到提交与正常边界提交的等价结果，不固定转向积分器某个中间速度；方向响应和加减速数值由独立 Runner 合同覆盖。停止清理用例直接调用 OnDisable / Driver abort 共用的 CancelSimulation，检查速度、资产及输入清理；普通 EditMode 的 enabled 切换不代替引擎生命周期验收。
 
 ## 5. 人工回归
 

@@ -641,25 +641,9 @@ public class ActorMotor : MonoBehaviour, ICharacterController
 
         float timeScale = _movementTimeScale;
         Vector3 characterUp = Motor != null ? Motor.CharacterUp : Vector3.up;
-        Vector3 horizontal;
-        if (_translation.TryComposeHorizontalVelocityOwner(timeScale, out horizontal, deltaTime))
-        {
-            _intervalHorizontalSource = HorizontalMotionSource.HorizontalVelocityOwner;
-        }
-        else if (_translation.HasTrajectoryRootMotionTick)
-        {
-            _intervalHorizontalSource = HorizontalMotionSource.TrajectoryRootMotion;
-            Vector3 localDelta = _translation.TrajectoryRootMotionLocalPosition;
-            localDelta.y = 0f;
-            horizontal = tickStartRotation * localDelta / deltaTime;
-        }
-        else
-        {
-            _intervalHorizontalSource = hasLocomotionVelocity
-                ? HorizontalMotionSource.Locomotion : HorizontalMotionSource.Unknown;
-            _intervalHadImpulse = _translation.HorizontalImpulseVelocity.sqrMagnitude > 0.000001f;
-            horizontal = _translation.ComposeHorizontal(locomotionVelocity, timeScale);
-        }
+        Vector3 horizontal = _translation.ComposeHorizontalMotion(
+            locomotionVelocity, hasLocomotionVelocity, tickStartRotation, timeScale, deltaTime,
+            out _intervalHorizontalSource, out _intervalHadImpulse);
 
         horizontal = Vector3.ProjectOnPlane(horizontal, characterUp);
         float vertical = _translation.ComposeVertical(timeScale);

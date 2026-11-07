@@ -90,12 +90,23 @@ public sealed class ActionStateManagerContextTests
         Assert.That(first.WorldPlanarVelocity.x, Is.EqualTo(0.4f).Within(0.001f));
 
         rig.Locomotion.BeginControlTick();
+        Assert.IsTrue(rig.Locomotion.TryGetControlIntent(out LocomotionIntent nextIntent));
+        Assert.That(nextIntent.WorldMoveDirection, Is.EqualTo(Vector3.left));
+        Assert.That(nextIntent.MoveStrength, Is.EqualTo(0.5f));
         LocomotionMotionRequest second = rig.Locomotion.BuildMotionRequest(context);
-        Assert.That(second.WorldPlanarVelocity.x, Is.EqualTo(-0.15f).Within(0.001f));
+        // Compare with the same submissions made before their respective boundaries.
+        // This is an input-timing contract, not a duplicate of the steering integrator.
+        TestRig onTime = CreateRig();
+        onTime.Locomotion.SetLocomotionIntent(new LocomotionIntent { WorldMoveDirection = Vector3.right, MoveStrength = 1f });
+        onTime.Locomotion.BeginControlTick();
+        Assert.That(onTime.Locomotion.BuildMotionRequest(context).WorldPlanarVelocity, Is.EqualTo(first.WorldPlanarVelocity));
+        onTime.Locomotion.SetLocomotionIntent(new LocomotionIntent { WorldMoveDirection = Vector3.left, MoveStrength = 0.5f });
+        onTime.Locomotion.BeginControlTick();
+        Assert.That(second.WorldPlanarVelocity, Is.EqualTo(onTime.Locomotion.BuildMotionRequest(context).WorldPlanarVelocity));
     }
 
     [Test]
-    public void LocomotionControlRelease_BrakesWhileDisableResetsSharedVelocity()
+    public void LocomotionControlRelease_BrakesWhileCancellationResetsSharedVelocity()
     {
         TestRig rig = CreateRig();
         var context = new LocomotionMotionContext(0.02f, true, Vector3.up, Quaternion.identity, default, default);
@@ -115,8 +126,11 @@ public sealed class ActionStateManagerContextTests
         Assert.That(rig.Locomotion.TryGetControlIntent(out _), Is.False);
         float brakingSpeed = rig.Locomotion.BuildMotionRequest(context).WorldPlanarVelocity.x;
         Assert.That(brakingSpeed, Is.GreaterThan(0f).And.LessThan(speed));
-        rig.Locomotion.enabled = false;
+        // Test the cleanup used by OnDisable / Driver abort, not EditMode's native message dispatch.
+        rig.Locomotion.CancelSimulation();
         Assert.That(rig.Locomotion.DebugLocomotionVelocity, Is.EqualTo(Vector3.zero));
+        Assert.IsNull(rig.Locomotion.CurrentAsset);
+        Assert.IsFalse(rig.Locomotion.TryGetControlIntent(out _));
     }
 
     [Test]
@@ -159,62 +173,67 @@ public sealed class ActionStateManagerContextTests
         rig.Locomotion.BeginControlTick();
         Assert.IsFalse(rig.Locomotion.TryGetControlIntent(out _));
         rig.Locomotion.SetLocomotionIntent(LocomotionIntent.Idle);
-        rig.Locomotion.enabled = false;
-        rig.Locomotion.enabled = true;
+        rig.Locomotion.CancelSimulation();
         rig.Locomotion.BeginControlTick();
         Assert.IsFalse(rig.Locomotion.TryGetControlIntent(out _));
     }
 
     [Test]
-    public void MotorCompose_PolicyAndOwnerPriorityKeepRequestedSeparateFromActual()
+    public void HorizontalComposition_UsesOwnerRootFallbackPriorityAndMovementTime()
     {
-        TestRig rig = CreateRig();
-        ActorMotor motor = rig.Motor;
-        var locomotionRequest = new LocomotionMotionRequest(Vector3.right * 4f,
-            Quaternion.identity, true, true);
+        var translation = new TranslationDomain();
+        var policy = new MotionPolicyState();
+        MotionOwner locked = policy.BeginLocomotionScale(0f);
+        Vector3 fallback = Vector3.right * 4f;
+        Quaternion body = Quaternion.Euler(0f, 90f, 0f);
+        Assert.That(translation.ComposeHorizontalMotion(fallback * policy.LocomotionScale, true,
+            body, 1f, 0.02f, out _, out _), Is.EqualTo(Vector3.zero));
 
-        MotionOwner policy = motor.BeginLocomotionScale(0f);
-        motor.BeginMotion(0.02f);
-        motor.ComposeMotion(locomotionRequest);
-        Assert.That(motor.RequestedVelocity.x, Is.EqualTo(0f).Within(0.001f));
-        motor.CancelPreparedMotion();
-        motor.EndLocomotionScale(policy);
+        MotionOwner velocity = translation.BeginHorizontalVelocity();
+        translation.SetHorizontalVelocity(velocity, Vector3.left * 3f);
+        MotionOwner root = translation.BeginTrajectoryRootMotion();
+        translation.SubmitTrajectoryRootMotion(root, Vector3.forward * 0.2f);
+        translation.BeginMotionTick();
+        Assert.That(translation.ComposeHorizontalMotion(fallback * policy.LocomotionScale, true,
+            body, 1f, 0.02f, out var source, out _), Is.EqualTo(Vector3.left * 3f));
+        Assert.That(source, Is.EqualTo(HorizontalMotionSource.HorizontalVelocityOwner));
+        policy.EndLocomotionScale(locked);
+        translation.EndHorizontalVelocity(velocity);
 
-        MotionOwner velocityOwner = motor.BeginHorizontalVelocity();
-        motor.SetHorizontalVelocity(velocityOwner, Vector3.left * 3f);
-        MotionOwner rootOwner = motor.BeginTrajectoryRootMotion();
-        motor.SubmitTrajectoryRootMotion(rootOwner, Vector3.right * 0.2f);
-        motor.BeginMotion(0.02f);
-        motor.ComposeMotion(locomotionRequest);
-        Assert.That(motor.RequestedVelocity.x, Is.EqualTo(-3f).Within(0.001f));
+        translation.BeginMotionTick();
+        Assert.That(translation.ComposeHorizontalMotion(fallback, true, body, 1f, 0.02f,
+            out source, out _), Is.EqualTo(Vector3.zero), "Covered RootMotion must not be replayed next tick.");
+        Assert.That(source, Is.EqualTo(HorizontalMotionSource.TrajectoryRootMotion));
+        translation.SubmitTrajectoryRootMotion(root, Vector3.forward * 0.1f);
+        translation.BeginMotionTick();
+        Vector3 rootVelocity = translation.ComposeHorizontalMotion(fallback, true, body, 1f, 0.02f,
+            out source, out _);
+        Assert.That(rootVelocity.x, Is.EqualTo(5f).Within(0.001f));
+        Assert.That(rootVelocity.z, Is.Zero.Within(0.001f));
+        Assert.That(source, Is.EqualTo(HorizontalMotionSource.TrajectoryRootMotion));
+        translation.EndTrajectoryRootMotion(root);
 
-        motor.EndHorizontalVelocity(velocityOwner);
-        motor.PublishWorldResult();
-        Assert.That(motor.LastMotionResult.HorizontalSource,
-            Is.EqualTo(HorizontalMotionSource.HorizontalVelocityOwner));
-        Assert.That(motor.ActualSolvedVelocity.x, Is.EqualTo(0f).Within(0.001f));
-        motor.EndTrajectoryRootMotion(rootOwner);
+        translation.AddHorizontalImpulse(Vector3.forward * 2f);
+        Assert.That(translation.ComposeHorizontalMotion(fallback, true, body, 0.5f, 0.02f,
+            out source, out bool hadImpulse), Is.EqualTo(Vector3.right * 2f + Vector3.forward));
+        Assert.That(source, Is.EqualTo(HorizontalMotionSource.Locomotion));
+        Assert.IsTrue(hadImpulse);
+        translation.ClearHorizontalImpulse();
 
-        rootOwner = motor.BeginTrajectoryRootMotion();
-        motor.SubmitTrajectoryRootMotion(rootOwner, Vector3.right * 0.1f);
-        motor.BeginMotion(0.02f);
-        motor.ComposeMotion(locomotionRequest);
-        Assert.That(motor.RequestedVelocity.x, Is.EqualTo(5f).Within(0.001f));
-        motor.CancelPreparedMotion();
-        motor.EndTrajectoryRootMotion(rootOwner);
-
-        motor.SetMovementTimeScale(0.5f);
-        LocomotionMotionContext halfSpeed = motor.BeginMotion(0.02f);
-        Assert.That(halfSpeed.EffectiveDeltaTime, Is.EqualTo(0.01f).Within(0.0001f));
-        motor.ComposeMotion(locomotionRequest);
-        Assert.That(motor.RequestedVelocity.x, Is.EqualTo(2f).Within(0.001f));
-        motor.CancelPreparedMotion();
-
-        motor.SetMovementTimeScale(0f);
-        Assert.That(motor.BeginMotion(0.02f).EffectiveDeltaTime, Is.Zero);
-        motor.ComposeMotion(default);
-        Assert.That(motor.RequestedVelocity.sqrMagnitude, Is.Zero);
-        motor.CancelPreparedMotion();
+        int samples = 0;
+        float sampledDelta = 0f;
+        translation.BeginHorizontalVelocity(dt => { samples++; sampledDelta = dt; return Vector3.left * 3f; });
+        Assert.That(translation.ComposeHorizontalMotion(fallback, true, body, 0f, 0.02f,
+            out source, out _), Is.EqualTo(Vector3.zero));
+        Assert.AreEqual(0, samples, "Frozen motion must not sample a dynamic provider.");
+        Assert.That(source, Is.EqualTo(HorizontalMotionSource.Unknown));
+        Assert.That(translation.ComposeHorizontalMotion(fallback, true, body, 0.5f, 0.02f,
+            out source, out _), Is.EqualTo(Vector3.left * 1.5f));
+        Assert.AreEqual(1, samples);
+        Assert.That(sampledDelta, Is.EqualTo(0.01f).Within(0.0001f));
+        Assert.That(translation.ComposeHorizontalMotion(fallback, true, body, 1f, 0f,
+            out _, out _), Is.EqualTo(Vector3.zero));
+        Assert.AreEqual(1, samples);
     }
 
     [Test]

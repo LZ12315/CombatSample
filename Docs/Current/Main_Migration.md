@@ -92,9 +92,27 @@
   - `MotorCompose_PolicyAndOwnerPriorityKeepRequestedSeparateFromActual`：速度覆盖期望 -3，实际 0；需要核对 KCC 初始化前提。
 - 日志和 XML：`.git/migration-validation/action-review-*`，仅本机工件。真实首帧 Gameplay 回调、Actor / Driver 禁用、中断表现与重启仍需主场景人工验证；本批没有宣称所有重入和场景生命周期路径已收口。
 
+## 第二阶段第三批：Motion / Locomotion 验证边界与水平合成
+
+### 定位与整理
+
+- 上批 4 项失败没有证明移动算法错误：晚到输入用例把时序合同绑定到旧的反向积分数值；两项禁用／冻结用例依赖普通 MonoBehaviour 在 EditMode 中自动执行 OnDisable；Motor 用例则未初始化 KCC 却检查 Requested / Actual。
+- 晚到输入改为与同一组按正常边界提交的输入结果对照，明确检查下一 Tick 的方向与强度。没有把 -0.15 简单替换为 -0.1707，也没有修改 DirectionResponse、加减速模型或参数。
+- 清理用例直接执行 OnDisable / Driver abort 共用的 CancelSimulation，保留冻结不重放、显式释放优先的检查，并检查速度、当前资产与控制输入均被清理。真实禁用／重启回调仍需运行环境验证，不通过反射或发送 Awake 伪造。
+- 将 ActorMotor 内的水平来源选择归入它持有的 TranslationDomain，Motor 复用同一实现并记录返回的来源／冲量事实。CharacterUp 投影、地面切向修正、竖直合成和实际世界结果仍由 Motor / KCC 负责；没有新建一套仲裁器或引入新的运动来源。
+- 水平合同直接覆盖：自主策略限制、Velocity ＞ RootMotion ＞自主＋冲量、被覆盖 RootMotion 不补偿、actor-local 到世界转换、半速仅缩放一次、冻结不采样动态 provider、provider 使用运动缩放后的 dt。没有用未求解的世界状态默认值充当通过结果。
+
+### 验证
+
+- Unity 2022.3.62f3 独立编译 Runtime 155 个源码、Editor / Tests 80 个源码通过，无诊断。
+- 将上一批回归加上现有 LocomotionContractTests：整理前 **118 / 122 通过、4 失败**；整理后 **122 / 122 通过**，没有删掉或忽略这 4 个用例。
+- 此范围包括 Action / Context / Scheduler / ASM、剪贴板、胜负及 Locomotion 的 33 项输入／积分／选择／冻结／生命周期合同，不是全部运动动画或完整工程测试。
+- 结果与日志：`.git/migration-validation/motion-review-*`；仅本机工件。场景、动作／角色资源、项目设置和所有运动调参未改动。
+- 实际 Actor / Driver 禁用及恢复、接地／斜坡／碰撞、Requested 与 Actual 世界反馈、RootMotion 贴墙与重开仍待代表性场景验收；未将纯运动域通过等同于 KCC／Player 验收。
+
 ## 后续顺序
 
-1. **系统主链路**：下一批优先定位上述 4 项 Motion / Locomotion 失败，再继续运动接管与恢复、Combat / 表现、Camera / Graph 的重复职责、旧接口和生命周期审查。不为历史资源无限保留兼容层，也不借机重写框架。
+1. **系统主链路**：本批已关闭已知 4 项合同失败，继续 Combat / 表现的职责与生命周期审查，再检查 Camera / Graph；运动的真实世界接管和恢复纳入后续场景回归。不为历史资源无限保留兼容层，也不借机重写框架。
 2. **样例／资源瘦身**：在系统职责清楚后，保留足以覆盖核心能力的代表性数据与美术；按实际依赖处理旧场景、草稿配置和未使用资源，不按目录名字盲删。
 3. **最终回归**：保留小型稳定合同测试，完成代表性战斗、运动接管、命中／弹反、相机、中断／禁用清理与连续重开；检查 Player 构建与启动。
 4. **合回 main**：复核最终代码、数据、文档与项目设置后合回。本阶段只在 main-migration 提交，不推送、不移动 main 或 HyperGraph。
