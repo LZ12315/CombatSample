@@ -107,7 +107,7 @@ public sealed class ActionRuntimePlaybackSessionTests
     }
 
     [Test]
-    public void CombinedMotionItems_KeepOwnerPriorityAndReleaseOnAbort()
+    public void CombinedMotionItems_PreserveVelocityOverrideAndReleaseOwnersOnAbort()
     {
         var actorObject = new GameObject("Combined Motion Actor");
         _objects.Add(actorObject);
@@ -154,19 +154,20 @@ public sealed class ActionRuntimePlaybackSessionTests
             Assert.IsTrue(motor.Translation.HasTrajectoryRootMotionOwner);
             Assert.IsTrue(motor.Translation.HasHorizontalVelocityOwner);
 
-            motor.BeginMotion(CombatSimulationTiming.FixedDeltaTime);
-            motor.ComposeMotion(new LocomotionMotionRequest(Vector3.right * 4f,
-                Quaternion.identity, true, true));
-            Assert.That(motor.RequestedVelocity.z, Is.EqualTo(3f).Within(0.001f));
+            // Test Action ownership without requiring KCC startup or a physics world in EditMode.
+            // A locomotion lock must not scale the velocity override owned by this Action.
+            Vector3 composedVelocity = motor.Translation.ComposeHorizontal(Vector3.right * 4f, motor.MovementTimeScale);
+            Assert.That(composedVelocity, Is.EqualTo(Vector3.forward * 3f));
 
             session.Stop(ActionPlaybackStopMode.Explicit);
-            Assert.That(motor.MotionPolicy.DebugLocomotionScaleOwnerCount, Is.Zero);
+            Assert.That(motor.MotionPolicy.LocomotionScale, Is.EqualTo(1f));
             Assert.IsFalse(motor.Translation.HasTrajectoryRootMotionOwner);
             Assert.IsFalse(motor.Translation.HasHorizontalVelocityOwner);
+            Assert.That(motor.Translation.ComposeHorizontal(Vector3.right * 4f, motor.MovementTimeScale),
+                Is.EqualTo(Vector3.right * 4f), "Stopping the Action restores fallback motion.");
         }
         finally
         {
-            motor.CancelPreparedMotion();
             session.Dispose();
         }
     }

@@ -51,6 +51,7 @@ Finish → 发布请求、实际运动与来源事实，供后续 Tick 反馈
 
 | 套件 | 主要范围 |
 | --- | --- |
+| ActionRuntimePlaybackSessionTests | 播放帧推进、暂停、重播、通知与中断清理；组合运动用例检查 Action 生成的策略／运动 owner、速度覆盖和停止后恢复备用运动，不要求 KCC 世界初始化。 |
 | ActionMotionPolicyTests | 默认／旧数据、按字段覆盖、半开区间、重叠与外部合成、配置快照、慢放暂停、生命周期清理、刹停／锁定恢复与 Motor 来源优先级。 |
 | LocomotionContractTests | 输入、运动积分、选择、冻结、重复 Build 与生命周期。 |
 | LocomotionSetDecisionTests | Start／Stop／Pivot 决策、阈值、输入边沿和 Action 中断。 |
@@ -60,6 +61,8 @@ Finish → 发布请求、实际运动与来源事实，供后续 Tick 反馈
 | RootMotionTrajectoryTests、RootMotionBakerTests | 轨迹采样、验证与烘焙。 |
 
 编译不替代 Test Runner。独立 Mono 进程只用于可执行的纯逻辑断言，不提供 Unity 原生对象或动画图，不能将其通过数视为完整套件结果。
+
+`main-migration` 组合运动失败的定位：普通 MonoBehaviour 的 Awake 不保证在 EditMode 中执行，ActorMotor 未绑定 KCC 时 BeginMotion / ComposeMotion 会直接返回，RequestedVelocity 的零值不是一次有效仲裁结果。该用例改为直接检查运动域和会话所有权，不通过反射注入字段或给整组组件发送 Awake。KCC 合成、接地和碰撞求解仍需独立运行环境与下述人工回归；本次没有改动运动优先级或运行时初始化方式。最新执行结果见 [主线迁移记录](Main_Migration.md)。
 
 ## 5. 人工回归
 

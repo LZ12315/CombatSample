@@ -98,6 +98,20 @@ internal static class AuthoringListClipboard
 
     internal static bool Copy(SerializedProperty property, Kind kind, out string error)
     {
+        if (!TryCreateSnapshot(property, kind, out string text, out error)) return false;
+        try
+        {
+            // Only publish once the complete snapshot has succeeded. Do not cache a fallback:
+            // empty/unavailable or externally replaced clipboard contents must never paste old data.
+            EditorGUIUtility.systemCopyBuffer = text;
+            return true;
+        }
+        catch (Exception exception) { error = $"Cannot copy list: {exception.Message}"; return false; }
+    }
+
+    internal static bool TryCreateSnapshot(SerializedProperty property, Kind kind, out string text, out string error)
+    {
+        text = null;
         error = string.Empty;
         AuthoringListClipboardPayload payload = null;
         try
@@ -141,22 +155,26 @@ internal static class AuthoringListClipboard
                 if (value != null) types.Add(value.GetType().AssemblyQualifiedName);
             }
             var snapshot = new Snapshot { session = Session, kind = kind, data = data, types = new List<string>(types).ToArray() };
-            // Do not replace the system clipboard until the complete snapshot has succeeded.
-            EditorGUIUtility.systemCopyBuffer = Prefix + JsonUtility.ToJson(snapshot);
+            text = Prefix + JsonUtility.ToJson(snapshot);
             return true;
         }
         catch (Exception exception) { error = $"Cannot copy list: {exception.Message}"; return false; }
         finally { if (payload != null) Object.DestroyImmediate(payload); }
     }
 
-    internal static bool CanPaste(Kind kind)
+    internal static bool CanPaste(Kind kind) => CanPaste(kind, EditorGUIUtility.systemCopyBuffer);
+
+    internal static bool CanPaste(Kind kind, string text)
     {
-        bool valid = TryRead(kind, out var payload, out _);
+        bool valid = TryRead(kind, text, out var payload, out _);
         if (payload != null) Object.DestroyImmediate(payload);
         return valid;
     }
 
-    internal static bool Paste(SerializedProperty property, Kind kind, out string error)
+    internal static bool Paste(SerializedProperty property, Kind kind, out string error) =>
+        Paste(property, kind, EditorGUIUtility.systemCopyBuffer, out error);
+
+    internal static bool Paste(SerializedProperty property, Kind kind, string text, out string error)
     {
         error = string.Empty;
         AuthoringListClipboardPayload payload = null;
@@ -165,7 +183,7 @@ internal static class AuthoringListClipboard
             if (!Validate(property, out error) || !property.editable) return false;
             Object owner = property.serializedObject.targetObject;
             if (!CanWrite(owner)) { error = "Finish the current Timeline edit before pasting."; return false; }
-            if (!TryRead(kind, out payload, out error)) return false;
+            if (!TryRead(kind, text, out payload, out error)) return false;
             // Flush unrelated pending fields before opening a new staging buffer. They are not part
             // of Paste's Undo group and must not be silently discarded by SerializedObject.Update().
             string path = property.propertyPath;
@@ -230,13 +248,12 @@ internal static class AuthoringListClipboard
         return value;
     }
 
-    private static bool TryRead(Kind kind, out AuthoringListClipboardPayload payload, out string error)
+    private static bool TryRead(Kind kind, string text, out AuthoringListClipboardPayload payload, out string error)
     {
         payload = null;
         error = "The clipboard does not contain a compatible list.";
         try
         {
-            string text = EditorGUIUtility.systemCopyBuffer;
             if (string.IsNullOrEmpty(text) || !text.StartsWith(Prefix, StringComparison.Ordinal)) return false;
             var snapshot = JsonUtility.FromJson<Snapshot>(text.Substring(Prefix.Length));
             if (snapshot == null || snapshot.session != Session || snapshot.kind != kind || string.IsNullOrEmpty(snapshot.data) || snapshot.types == null)
