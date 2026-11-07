@@ -13,6 +13,7 @@ internal sealed class EffectListGUI
 
     private readonly Action<SerializedObject, string, Type> _onTypeSelected;
     private ReorderableList _list;
+    private int _clipboardRevision = -1;
 
     internal EffectListGUI(Action<SerializedObject, string, Type> onTypeSelected)
     {
@@ -21,6 +22,11 @@ internal sealed class EffectListGUI
 
     internal void Draw(SerializedProperty property)
     {
+        if (_clipboardRevision != AuthoringListClipboard.Revision)
+        {
+            _clipboardRevision = AuthoringListClipboard.Revision;
+            _list = null;
+        }
         if (_list == null || _list.serializedProperty == null ||
             _list.serializedProperty.serializedObject != property.serializedObject ||
             _list.serializedProperty.propertyPath != property.propertyPath)
@@ -31,6 +37,9 @@ internal sealed class EffectListGUI
         int previousSize = property.arraySize;
         Rect header = EditorGUILayout.GetControlRect();
         var label = new GUIContent("Effects", property.tooltip);
+        Rect titleRect = header;
+        titleRect.xMax -= EditorGUIUtility.fieldWidth + EditorGUIUtility.standardVerticalSpacing;
+        if (AuthoringListClipboard.HandleHeader(titleRect, property, typeof(ImpactEffectConfig))) return;
         using (new EditorGUI.PropertyScope(header, label, property))
         {
             Rect sizeRect = header;

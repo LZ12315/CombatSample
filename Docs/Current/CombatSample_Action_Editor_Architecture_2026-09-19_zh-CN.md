@@ -66,6 +66,10 @@ Inspector 的 Entry Conditions、Exit Conditions 与 Cancel Rules 使用 `Action
 
 卡片内容使用 12px 内边距，窄 Details 页左右收为 8px。Inspector 展开的条件/取消列表在标题之后额外留 4px、底部按钮之后额外留 8px，元素上下各留 5px；间距覆盖整个列表而非只缩进字段。保留原列表边框、拖动柄、选中背景及增删交互，内层 Input Steps 不额外逐层增加横向缩进。实际窄窗布局与视觉密度由人工确认，不新增 UI 几何测试。
 
+Entry Conditions、Exit Conditions、Cancel Rules，以及 Details / HitFeedbackProfile 的 Effects，均可在列表标题上右键使用 `Copy` / `Paste`。粘贴整组替换而非追加；Entry / Exit 条件互通，Cancel Rules、Effects 只接受各自类型，空列表可用于清空目标。不接管文本框、数量输入框或单个元素的原生菜单，不改变 Entry / Exit 的运行时语义或 ActionList 结构。
+
+`AuthoringListClipboard` 用临时、不可保存的 ScriptableObject 承载整组数据，通过 `JsonUtility` 捕获多态与嵌套配置、曲线、空项、组内共享／循环引用，以及同会话的 Unity Object 引用；每次粘贴独立于源数据和其他粘贴结果。剪贴板使用系统剪贴板，仅支持当前 Unity Editor 会话（含脚本重载），不支持跨进程或重启恢复。粘贴先保留 Inspector 待提交字段，再构建完整替换，并作为一次 Undo / Redo 提交；随后通知当前 Action 编辑上下文并刷新列表缓存。多选、缺失管理引用类型、不可编辑目标或 Timeline 编辑锁下禁用相应操作；菜单打开后宿主数据变化则取消旧回调，避免数组路径写错对象。核心不新增运行时字段或资源迁移。
+
 窗口刷新不修改共享状态；Preview 不控制 Action 或播放。
 
 Details 在刷新属性页之前转发预览通知；播放头更新只重绘预览，不重建属性控件。分隔条调整不写资产、不产生 Undo，也不丢弃未提交的 Timing 草稿。预览相机和设置折叠状态由 Details 序列化保存；关闭窗口或脚本重载时释放资源，进入 Play Mode 时释放预览对象，失焦或面板卸载时结束相机拖动。旧独立 Preview 窗口的布局和相机状态不迁移。
@@ -112,6 +116,13 @@ AnimationAsset 和 AnimationRigAsset 位于 `Assets/Data/Animation/`；Locomotio
 Impact 只保留正式配置路径：速度效果使用 `SpeedEffectConfig`，命中特效使用 `HitVfxConfig`。旧 HitStop/HitStick、屏幕向/世界向独立配置及其兼容执行入口已删除；两个朝向解算器仍由 `HitVfxConfig` 使用。历史资产不是兼容输入，若以后重新导入，应先迁移到当前数据类型；移动目录本身不会转换旧资产内容。
 
 ## 6. 验证
+
+HyperGraph 回迁——列表复制粘贴：
+
+- 当前 `main` Runtime 全部 140 个源码、Editor / Tests 全部 62 个源码，通过 Unity 2022.3.62f3 Roslyn 独立编译，无诊断；未改写主工程生成文件。
+- 将当前源码和所需第三方程序集复制到无场景、无角色资源的隔离工程，使用 Unity 2022.3.62f3 原生 EditMode Test Runner 执行 `AuthoringListClipboardTests`：5 / 5 通过。覆盖独立快照与重复粘贴、Entry → Exit 互通、共享／循环引用、隐藏字段、曲线、Unity Object 引用、取消规则、多态 Effects、待提交字段、一次 Undo / Redo，以及空／不兼容剪贴板和多选拒绝。
+- 原实现使用 `EditorJsonUtility` 时会丢失未保存对象引用，回迁改用同会话的 `JsonUtility` 快照；格式前缀升级为 v2，不把旧格式误读为空列表。临时测试宿主保持可编辑，不使用包含 NotEditable 的 HideAndDontSave 标记。
+- 编译和隔离合同测试不代表主工程完整套件或 UI 验收。人工检查：折叠列表标题右键、跨 Inspector / Details 粘贴与即时刷新、普通字段原菜单、多次 Undo / Redo、菜单打开后切换／重排内容，以及真实资源引用保存重载。没有修改场景、Prefab、动作资产或 ProjectSettings。
 
 2026-10-08 Scripts 整理的编译、纯逻辑测试和 Unity 原生验证边界见[本轮记录](CombatSample_Scripts_Organization_2026-10-08_zh-CN.md)。以下结果保留其原验证日期，不作为本轮完整验收。
 

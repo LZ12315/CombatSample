@@ -16,6 +16,7 @@ internal sealed class ActionAuthoringListGUI
     private const float BottomSpacing = 8f;
     private readonly Action<SerializedObject, string, Type> _onTypeSelected;
     private ReorderableList _list;
+    private int _clipboardRevision = -1;
 
     internal ActionAuthoringListGUI(Action<SerializedObject, string, Type> onTypeSelected = null)
     {
@@ -33,6 +34,11 @@ internal sealed class ActionAuthoringListGUI
             // List depth must not shift foldouts into drag handles or shrink field labels.
             EditorGUI.indentLevel = 0;
             EditorGUIUtility.hierarchyMode = false;
+            if (_clipboardRevision != AuthoringListClipboard.Revision)
+            {
+                _clipboardRevision = AuthoringListClipboard.Revision;
+                _list = null;
+            }
             if (_list == null || _list.serializedProperty.serializedObject != property.serializedObject ||
                 _list.serializedProperty.propertyPath != property.propertyPath)
                 _list = CreateList(property);
@@ -42,6 +48,10 @@ internal sealed class ActionAuthoringListGUI
             int previousSize = property.arraySize;
             Rect header = EditorGUILayout.GetControlRect();
             var label = new GUIContent(title, property.tooltip);
+            Rect titleRect = header;
+            titleRect.xMax -= EditorGUIUtility.fieldWidth + EditorGUIUtility.standardVerticalSpacing;
+            Type elementType = _onTypeSelected != null ? typeof(ActionCondition) : typeof(CancelRule);
+            if (AuthoringListClipboard.HandleHeader(titleRect, property, elementType)) return;
             using (new EditorGUI.PropertyScope(header, label, property))
             {
                 Rect size = header;
