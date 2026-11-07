@@ -86,6 +86,10 @@ Requirements、Cancel Rules、CancelRule / ActionListEntry 的 Conditions，以�
 
 ActionList 的 `_entries` 保存 `ActionListEntry`（Action 引用、Allow From Neutral、Conditions）。列表条件只用于没有当前 Action 时的 Poll 起手，空条件无额外限制；关闭 Allow From Neutral 仅禁止起手，不移除 Event 注册或 Any / AnyWithTag 的取消目标发现，External 也不检查该入口条件。注册动作按首次出现顺序去重；同一 Action 可以有多个 Neutral 入口，按原有仲裁顺序选择首个通过的候选。每条 CancelRule 的 Conditions 在普通取消展开与 External 取消校验中都求值，再与目标 Requirements 合并；输入凭据只在实际开始成功后统一原子消费，跨层重复引用同一事件只消费一次。Event 维持原先仅跳过 Requirements 中玩家输入条件的行为。Locomotion 返回规则维持移动意图门槛，附加 Conditions 通过后才作为低于合法 Action 的返回候选，只有返回被执行时才消费其输入。
 
+ASM 每次固定决策只处理入口处截取的请求快照；条件、生命周期或结果回调不能重入当前决策。请求清理先从待决／裁决列表摘下旧快照，再逐个报告失败；回调提交的新请求留到下一次决策（组件未启用时仍同步失败）。候选收集阶段中止决策后，不再执行旧候选或消费其输入；finally 统一释放裁决快照，新的待决请求不受影响。ActionPlayer 仍只负责播放与资源生命周期，ASM 不再订阅无实际行为的结束回调。
+
+ActionPlayer 的 Started / Finished / Interrupted 通知逐个隔离订阅者异常并记录日志，一个观察者失败不阻止其他观察者收到同一实例的通知。Finished / Interrupted 在旧实例退出与播放资源释放后发送，回调允许启动替代动作，旧通知的异常不能破坏新动作；显式 StopAction 或替换仍不发送 Interrupted。Started 保持仅供观察、不要在回调中切换动作的约定。
+
 Animation Segment 与 RootMotionItem 共用 Source Timing 草稿、校验和提交路径。Details 可编辑 Start、Animation Asset、Source Start / End（秒）和 Play Rate；Duration 与 End 为派生只读值。修改倍率保留源范围，按既有 60 Hz 向上取整规则改变片段长度，不联动其他动画或 GameplayItem。更换 Animation Asset 时，草稿范围重置为新 AnimationClip 全段，保留倍率；不携带旧 Clip 的裁剪范围。Use Full Clip 也仅将草稿源范围设为当前引用的原始 AnimationClip 全段，保留草稿倍率。Use Full Clip / Apply / Revert 同行，宽度约 1.4 : 1 : 1。合法草稿立即反映到 Timeline 长度、条目范围以及 Preview 姿态／位移；Apply 或 Enter 才将源配置与时间作为单次 Undo 原子提交；Revert 或 Esc 丢弃草稿并恢复已应用效果。Details 与 Timeline 标记未保存预览。同轨重叠、源范围非法或快照过期时不写入任何部分，保留输入、恢复已应用预览并说明具体字段／Clip 长度或冲突条目，Apply 不可用。
 
 即时预览由共享 Context 持有 HideAndDontSave 的临时 Action 副本，仍只有一份 TimingDraft，不将草稿写到真实资产再回滚。Preview 的动画、RootMotion、播放终点和拖动播放头使用同一副本。Timeline 仅替换目标条目的显示几何、文案和时长；命令、序列化绑定、选择及源快照仍指向真实资产／Document。DraftPreview 通知不增加真实 DocumentVersion，不重建 Details 控件，也不打断播放；存在草稿的条目拖动前需 Apply 或 Revert，以免已应用时序上的拖动覆盖草稿。修改其他内容、切换选择／Action、Revert、关闭 Details、脚本重载及进入 Play Mode 时释放临时副本；可保留的草稿在真实内容刷新后重新求值并建立新预览。

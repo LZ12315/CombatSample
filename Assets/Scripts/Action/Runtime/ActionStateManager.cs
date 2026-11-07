@@ -160,6 +160,8 @@ public class ActionStateManager : MonoBehaviour
     private readonly List<ActionCandidate> _pendingEventCandidates = new List<ActionCandidate>(4);
     private readonly List<ActionCandidate> _decidingEventCandidates = new List<ActionCandidate>(4);
     private int _nextCandidateOrder;
+    private bool _isDeciding;
+    private bool _decisionAborted;
 
     /// <summary>当前正在播放的 Action 配置；无当前动作时为 null。供 NodeCanvas 等查询。</summary>
     public ActionAsset CurrentActionAsset => _actionPlayer != null
@@ -175,16 +177,10 @@ public class ActionStateManager : MonoBehaviour
     private void OnEnable()
     {
         ResolveActor();
-        if (_actionPlayer != null)
-            _actionPlayer.OnActionFinished += HandleActionFinished;
     }
 
     private void OnDisable()
     {
-        ResolveActor();
-        if (_actionPlayer != null)
-            _actionPlayer.OnActionFinished -= HandleActionFinished;
-
         AbortQueuedActionRequests();
     }
 
@@ -216,34 +212,41 @@ public class ActionStateManager : MonoBehaviour
 
     internal void DecideAction()
     {
-        if (_actionPlayer == null)
-        {
-            AbortQueuedActionRequests();
+        // Lifecycle and result callbacks may submit requests, but cannot open another decision.
+        if (_isDeciding)
             return;
-        }
 
-        PrepareDecidingSnapshot();
-
-        var currentInst = _actionPlayer.CurrentAction;
-        ActionCandidate? startedCandidate = null;
-
+        _isDeciding = true;
+        _decisionAborted = false;
         try
         {
+            if (!isActiveAndEnabled || _actionPlayer == null)
+            {
+                AbortQueuedActionRequests();
+                return;
+            }
+
+            PrepareDecidingSnapshot();
+            var currentInst = _actionPlayer.CurrentAction;
             _validCandidatesCache.Clear();
 
             ActionDecision returnCandidate = CollectNormalCandidates(currentInst);
             CollectEventCandidatesIntoPool();
 
-            startedCandidate = ExecuteDecision(SelectDecision(returnCandidate));
+            ActionCandidate? startedCandidate = _decisionAborted
+                ? null : ExecuteDecision(SelectDecision(returnCandidate));
+            CompleteDecidingExternalRequests(startedCandidate);
         }
         catch
         {
             AbortQueuedActionRequests();
             throw;
         }
-
-        CompleteDecidingExternalRequests(startedCandidate);
-        ClearDecidingSnapshot();
+        finally
+        {
+            ClearDecidingSnapshot();
+            _isDeciding = false;
+        }
     }
 
     private ActionDecision CollectNormalCandidates(ActionInstance currentInst)
@@ -566,11 +569,6 @@ public class ActionStateManager : MonoBehaviour
         return true;
     }
 
-    private void HandleActionFinished(ActionInstance _)
-    {
-        // Action 正常结束，ActionInstance.OnExit 已恢复 ActorMotor 运动策略。
-    }
-
     private void BuildEventMap()
     {
         _eventActionMap = new Dictionary<int, List<ActionAsset>>();
@@ -623,18 +621,20 @@ public class ActionStateManager : MonoBehaviour
 
     internal void AbortQueuedActionRequests()
     {
-        CompleteExternalRequests(_pendingExternalRequests, false);
-        CompleteExternalRequests(_decidingExternalRequests, false);
+        _decisionAborted = true;
+        var aborted = new List<ExternalActionRequest>(_pendingExternalRequests);
+        aborted.AddRange(_decidingExternalRequests);
         _pendingExternalRequests.Clear();
-        _decidingExternalRequests.Clear();
         _pendingEventCandidates.Clear();
-        _decidingEventCandidates.Clear();
-        _validCandidatesCache.Clear();
+        ClearDecidingSnapshot();
+
+        // Detach before callbacks: fresh requests belong to a later decision, not this abort.
+        CompleteExternalRequests(aborted, false);
     }
 
     private void TryAddPollCandidate(ActionAsset action, IReadOnlyList<ActionCondition> conditions)
     {
-        if (action == null || _actor == null) return;
+        if (_decisionAborted || action == null || _actor == null) return;
         if (!TryBuildPollContext(action, out ActionContext context) ||
             !ActionCondition.TryMatchAll(conditions, _actor, context, false, out ActionEntryMatch routeMatch))
             return;
@@ -649,13 +649,13 @@ public class ActionStateManager : MonoBehaviour
 
     private void TryAddCandidate(ActionCandidate candidate)
     {
-        if (candidate.Action == null || _actor == null) return;
+        if (_decisionAborted || candidate.Action == null || _actor == null) return;
         if (candidate.ExternalRequest != null && !candidate.ExternalRequest.IsPending) return;
         if (ContainsEquivalentCandidate(candidate)) return;
         if (CurrentActionAsset == candidate.Action && !candidate.Action.AllowReenterWhilePlaying) return;
         if (!candidate.Action.TryMatchEntry(_actor, candidate.Context,
                 candidate.Origin == ActionCandidateOrigin.Event, out ActionEntryMatch match)) return;
-        if (candidate.ExternalRequest != null && !candidate.ExternalRequest.IsPending) return;
+        if (_decisionAborted || (candidate.ExternalRequest != null && !candidate.ExternalRequest.IsPending)) return;
         _validCandidatesCache.Add(new ActionCandidate(candidate.Action, candidate.Context,
             candidate.Origin, candidate.Order, candidate.ExternalRequest, candidate.EntryMatch.Combine(match)));
     }

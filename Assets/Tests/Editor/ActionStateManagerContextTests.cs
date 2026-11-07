@@ -27,16 +27,6 @@ public sealed class ActionStateManagerContextTests
     }
 
     [Test]
-    public void LateUpdate_NoLongerOwnsActionArbitration()
-    {
-        MethodInfo lateUpdate = typeof(ActionStateManager).GetMethod(
-            "LateUpdate",
-            BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.DeclaredOnly);
-
-        Assert.IsNull(lateUpdate);
-    }
-
-    [Test]
     public void PollCandidate_FreezesContextFromPendingLocomotionIntent()
     {
         TestRig rig = CreateRig();
@@ -534,18 +524,18 @@ public sealed class ActionStateManagerContextTests
         PlayActionTask task = CreatePlayActionTask(rig, first);
         Assert.AreEqual(Status.Running, task.Execute(rig.Actor, null));
 
-        // Starting the first request invokes the current Action's interruption lifecycle.
-        // Restart there: cancellation can no longer undo the start attempt, so its late result
-        // must be rejected by execution identity rather than the task's active flag alone.
+        // Restart after the first session starts but before ASM reports its request result.
+        // Explicit replacement does not emit Interrupted; execution identity must reject
+        // the late start result without ending the newly submitted task execution.
         Action<ActionInstance> restart = null;
         restart = _ =>
         {
-            rig.Player.OnActionInterrupted -= restart;
+            rig.Player.OnActionStarted -= restart;
             task.EndAction((bool?)null);
             task.actionToPlay.value = second;
             Assert.AreEqual(Status.Running, task.Execute(rig.Actor, null));
         };
-        rig.Player.OnActionInterrupted += restart;
+        rig.Player.OnActionStarted += restart;
 
         rig.RunActionStateManager();
 
@@ -563,6 +553,7 @@ public sealed class ActionStateManagerContextTests
     {
         TestRig rig = CreateRig();
         ActionAsset winner = CreateAction("Prioritized Winner", ActionTriggerMode.Poll, priorityValue: 10);
+        rig.SetActionList(winner);
         PlayActionTask task = CreatePlayActionTask(rig, CreateAction("Losing Request", ActionTriggerMode.Poll));
 
         Assert.AreEqual(Status.Running, task.Execute(rig.Actor, null));
@@ -579,6 +570,7 @@ public sealed class ActionStateManagerContextTests
         var winnerCondition = new MutableEntryCondition(true);
         ActionAsset winner = CreateAction("Prioritized Winner", ActionTriggerMode.Poll, priorityValue: 10);
         SetPrivateField(winner, "_entryConditions", new List<ActionCondition> { winnerCondition });
+        rig.SetActionList(winner);
         ActionAsset requested = CreateAction("Retried Request", ActionTriggerMode.Poll);
         PlayActionTask task = CreatePlayActionTask(rig, requested);
         task.untilStarted = true;
@@ -779,6 +771,77 @@ public sealed class ActionStateManagerContextTests
     }
 
     [Test]
+    public void AbortCallbacks_CanQueueAFreshRequestForTheNextDecision()
+    {
+        TestRig rig = CreateRig();
+        ActionAsset action = CreateAction("Retry after abort", ActionTriggerMode.Poll);
+        int aborted = 0;
+        bool? retryResult = null;
+        rig.Asm.RequestExternalAction(action, ActionContext.ForSelf(rig.Actor), result =>
+        {
+            Assert.IsFalse(result);
+            aborted++;
+            rig.Asm.RequestExternalAction(action, ActionContext.ForSelf(rig.Actor), value => retryResult = value);
+        });
+
+        rig.Asm.AbortQueuedActionRequests();
+
+        Assert.AreEqual(1, aborted);
+        Assert.IsNull(retryResult, "Abort resolves its snapshot, not requests submitted by its callbacks.");
+        rig.RunActionStateManager();
+        Assert.AreEqual(true, retryResult);
+        Assert.AreSame(action, rig.Player.CurrentAction.Config);
+    }
+
+    [Test]
+    public void AbortDuringRequirements_DoesNotStartAStaleCandidateOrConsumeInput()
+    {
+        TestRig rig = CreateRig();
+        ActionAsset action = CreateAction("Aborted decision", ActionTriggerMode.Poll);
+        PlayerInputBuffer input = BindPressedInput(rig, action);
+        bool abort = true;
+        action.EditorRequirements.Add(new EntryCallbackCondition(() =>
+        {
+            if (!abort) return;
+            abort = false;
+            rig.Asm.AbortQueuedActionRequests();
+        }));
+        rig.SetActionList(action);
+
+        rig.RunActionStateManager();
+
+        Assert.IsNull(rig.Player.CurrentAction);
+        Assert.IsTrue(input.TryFindEvent(Enums.InputButton.LightAttack, InputButtonEventKind.Pressed, out _));
+        rig.RunActionStateManager();
+        Assert.AreSame(action, rig.Player.CurrentAction.Config);
+        Assert.IsFalse(input.TryFindEvent(Enums.InputButton.LightAttack, InputButtonEventKind.Pressed, out _));
+    }
+
+    [Test]
+    public void DecisionCallback_ReentrantDecisionLeavesNewRequestsForTheNextTick()
+    {
+        TestRig rig = CreateRig();
+        ActionAsset first = CreateAction("First decision", ActionTriggerMode.Poll);
+        ActionAsset next = CreateAction("Next decision", ActionTriggerMode.Poll);
+        bool? nextResult = null;
+        rig.Asm.RequestExternalAction(first, ActionContext.ForSelf(rig.Actor), result =>
+        {
+            Assert.IsTrue(result);
+            rig.Player.StopAction();
+            rig.Asm.RequestExternalAction(next, ActionContext.ForSelf(rig.Actor), value => nextResult = value);
+            rig.RunActionStateManager();
+        });
+
+        rig.RunActionStateManager();
+
+        Assert.IsNull(nextResult);
+        Assert.IsNull(rig.Player.CurrentAction);
+        rig.RunActionStateManager();
+        Assert.AreEqual(true, nextResult);
+        Assert.AreSame(next, rig.Player.CurrentAction.Config);
+    }
+
+    [Test]
     public void ExternalCallbackException_DoesNotBlockOtherCallbacks()
     {
         TestRig rig = CreateRig();
@@ -827,6 +890,7 @@ public sealed class ActionStateManagerContextTests
         ActionAsset action = CreateValidActionRuntimeAction("ActionRuntime Requires Direction");
         var lane = new GameplayLane();
         var impulse = new ImpulseItem();
+        impulse.EditorSetFrame(1); // Missing context is a future-item failure, not a frame-zero failure.
         impulse.Config.useHorizontalImpulse = true;
         impulse.Config.impulse.directionMode = ImpulseDirectionMode.FromContext;
         lane.EditorItems.Add(impulse);

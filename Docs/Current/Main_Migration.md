@@ -69,9 +69,32 @@
 - 结果与日志：`.git/migration-validation/stage2-contracts*`、`stage2-diagnostic*`；仅为本机验证工件，不进入版本控制。
 - 这不是完整 Test Runner、主场景试玩或 Player 构建验收；第一阶段的失败数字保留作历史对照，以本节作为这两项问题的最新状态。
 
+## 第二阶段第二批：Action 决策与通知边界
+
+### 实施
+
+- ActionPlayer 的 Started / Finished / Interrupted 共用逐订阅者异常隔离：错误仍记录日志，后续观察者继续收到通知。正常完成与异常中断均在旧实例清理后通知；观察者已经启动的新动作不因旧通知的异常而被破坏。
+- ASM 防止条件／生命周期／结果回调重入同一决策，候选收集阶段中止后不再启动旧候选或消费输入；finally 释放裁决快照，不清掉回调新提交的待决请求。
+- 请求取消先摘下旧请求快照，再执行回调。回调中的新请求不被本次清理误处理，保留到下一决策；已停用的 ASM 仍按原合同同步报告失败。
+- 移除 ASM 无实际行为的 ActionFinished 订阅和空处理器。没有改动取消窗口、动作优先级、事件准入规则或公共／序列化接口，也没有修改角色与动作资源。
+
+### 测试整理与验证
+
+- 新增 5 项合同回归，旧实现上 5 项均失败：两种终态通知的异常隔离、清理回调新请求保留、条件中止后不启动／不消费、回调决策不可重入。修复后全部通过。
+- 扩大验证时发现 8 项既有失败。其中 4 项为 Action 测试构造错误，已修正：两项优先级测试未注册竞争动作；旧执行回调测试误订阅显式替换不会发送的 Interrupted，改用 Started 时刻；未来 Item 上下文测试把 Item 错放在帧零，改为帧一。保留原有玩法断言，不为旧测试恢复旧行为。
+- 删除仅反射检查私有 LateUpdate 不存在的结构测试，不把私有方法名字作为合同。
+- Unity 2022.3.62f3 独立编译 Runtime 155 个源码、Editor / Tests 80 个源码通过，无诊断。
+- 隔离原生 EditMode 扩展回归 **89 项，85 通过、4 失败**：Context 4 / 4、播放 10 / 10、Scheduler 10 / 10、ASM 52 / 56、剪贴板 5 / 5、胜负 4 / 4。不是全套验收通过。
+- 剩余 4 项均在此次生产代码修改前已经失败，保留到 Motion / Locomotion 批次定位，没有改预期或跳过：
+  - `LocomotionControlSnapshot_LateSubmissionBelongsToNextTick`：下一 Tick 速度期望 -0.15，实际约 -0.1707。
+  - `LocomotionControlRelease_BrakesWhileDisableResetsSharedVelocity`：组件禁用后测试观察到速度未归零。
+  - `LocomotionFreeze_PreservesIntentUntilPositiveMotionTick`：恢复后的意图消费／清理不符合测试预期。
+  - `MotorCompose_PolicyAndOwnerPriorityKeepRequestedSeparateFromActual`：速度覆盖期望 -3，实际 0；需要核对 KCC 初始化前提。
+- 日志和 XML：`.git/migration-validation/action-review-*`，仅本机工件。真实首帧 Gameplay 回调、Actor / Driver 禁用、中断表现与重启仍需主场景人工验证；本批没有宣称所有重入和场景生命周期路径已收口。
+
 ## 后续顺序
 
-1. **系统主链路**：在两项失败已定位、合同回归稳定的基础上，按 Action → Motion / Locomotion → Combat / 表现 → Camera / Graph 收敛重复职责、旧接口和生命周期问题。不为历史资源无限保留兼容层，也不借机重写框架。
+1. **系统主链路**：下一批优先定位上述 4 项 Motion / Locomotion 失败，再继续运动接管与恢复、Combat / 表现、Camera / Graph 的重复职责、旧接口和生命周期审查。不为历史资源无限保留兼容层，也不借机重写框架。
 2. **样例／资源瘦身**：在系统职责清楚后，保留足以覆盖核心能力的代表性数据与美术；按实际依赖处理旧场景、草稿配置和未使用资源，不按目录名字盲删。
 3. **最终回归**：保留小型稳定合同测试，完成代表性战斗、运动接管、命中／弹反、相机、中断／禁用清理与连续重开；检查 Player 构建与启动。
 4. **合回 main**：复核最终代码、数据、文档与项目设置后合回。本阶段只在 main-migration 提交，不推送、不移动 main 或 HyperGraph。

@@ -145,18 +145,18 @@ public class ActionPlayer : MonoBehaviour
             return false;
         }
 
-        NotifyActionStarted(action);
+        NotifyActionObservers(OnActionStarted, action);
         return true;
     }
 
-    private void NotifyActionStarted(ActionInstance action)
+    private void NotifyActionObservers(Action<ActionInstance> observers, ActionInstance action)
     {
-        if (OnActionStarted == null)
+        if (observers == null)
             return;
 
-        // Observers must not turn an already successful start into a failed request,
-        // or prevent another observer from recording the same start.
-        foreach (Action<ActionInstance> observer in OnActionStarted.GetInvocationList())
+        // A subscriber cannot invalidate an already committed lifecycle transition
+        // or prevent remaining subscribers from receiving the same notification.
+        foreach (Action<ActionInstance> observer in observers.GetInvocationList())
         {
             try
             {
@@ -436,7 +436,7 @@ public class ActionPlayer : MonoBehaviour
         }
 
         FinalizeCurrentAction(finished, session);
-        OnActionFinished?.Invoke(finished);
+        NotifyActionObservers(OnActionFinished, finished);
     }
 
     private void HandleSessionInterrupted(IActionPlaybackSession session)
@@ -446,7 +446,7 @@ public class ActionPlayer : MonoBehaviour
 
         ActionInstance interrupted = CurrentAction;
         FinalizeCurrentAction(interrupted, session);
-        OnActionInterrupted?.Invoke(interrupted);
+        NotifyActionObservers(OnActionInterrupted, interrupted);
     }
 
     private void HandleSessionException(ActionInstance action, IActionPlaybackSession session)
@@ -460,7 +460,7 @@ public class ActionPlayer : MonoBehaviour
 
         SafeStopSession(session, ActionPlaybackStopMode.Interrupted);
         FinalizeCurrentAction(action, session);
-        OnActionInterrupted?.Invoke(action);
+        NotifyActionObservers(OnActionInterrupted, action);
     }
 
     private void HandleFixedSessionException(IFixedActionPlaybackSession session, Exception exception)

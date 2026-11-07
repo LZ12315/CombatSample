@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Animancer;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.TestTools;
 
 public sealed class ActionRuntimePlaybackSessionTests
 {
@@ -319,6 +320,59 @@ public sealed class ActionRuntimePlaybackSessionTests
         player.StopAction();
     }
 
+    [TestCase(false)]
+    [TestCase(true)]
+    public void TerminalObserverFailure_DoesNotBlockOtherObserversOrStopAReplacement(bool interrupted)
+    {
+        ActionPlayer player = CreatePlayer(out Actor actor);
+        ActionAsset action = CreateActionRuntimeAsset();
+        ActionAsset replacement = CreateActionRuntimeAsset();
+        if (interrupted)
+            AddLane(action).EditorItems.Add(new CallbackPointItem(1,
+                () => throw new InvalidOperationException("Injected playback failure.")));
+
+        ActionInstance reported = null;
+        int notifications = 0;
+        Action<ActionInstance> first = finished =>
+        {
+            Assert.IsNull(player.CurrentAction, "Terminal observers run after finalization.");
+            Assert.IsTrue(player.TryBeginAction(replacement, ActionContext.ForSelf(actor), out string reason), reason);
+            throw new InvalidOperationException("Injected terminal observer failure.");
+        };
+        Action<ActionInstance> second = finished => { reported = finished; notifications++; };
+        if (interrupted)
+        {
+            player.OnActionInterrupted += first;
+            player.OnActionInterrupted += second;
+        }
+        else
+        {
+            player.OnActionFinished += first;
+            player.OnActionFinished += second;
+        }
+
+        Assert.IsTrue(player.TryBeginAction(action, ActionContext.ForSelf(actor), out string error), error);
+        ActionInstance original = player.CurrentAction;
+        if (!interrupted)
+            LogAssert.Expect(LogType.Exception, "InvalidOperationException: Injected terminal observer failure.");
+        Assert.IsTrue(player.PlayActionFrame(CombatSimulationTiming.FixedDeltaTime));
+        player.FinishActionFrame();
+        if (interrupted)
+        {
+            LogAssert.Expect(LogType.Exception, "InvalidOperationException: Injected playback failure.");
+            LogAssert.Expect(LogType.Exception, "InvalidOperationException: Injected terminal observer failure.");
+            Assert.IsFalse(player.PlayActionFrame(CombatSimulationTiming.FixedDeltaTime));
+        }
+
+        Assert.AreEqual(1, notifications);
+        Assert.AreSame(original, reported);
+        Assert.IsNull(original.Actor);
+        Assert.AreSame(replacement, player.CurrentAction.Config);
+        Assert.AreEqual(0, player.CurrentFrame);
+        Assert.AreEqual(replacement.Timeline.DurationFrames, player.TotalFrames);
+        player.StopAction();
+    }
+
     private ActionPlayer CreatePlayer(out Actor actor)
     {
         var owner = new GameObject("Action start notification actor");
@@ -345,6 +399,20 @@ public sealed class ActionRuntimePlaybackSessionTests
         var lane = new GameplayLane();
         asset.Timeline.EditorGameplayLanes.Add(lane);
         return lane;
+    }
+
+    [Serializable]
+    private sealed class CallbackPointItem : PointGameplayItem
+    {
+        private readonly Action _callback;
+        public CallbackPointItem(int frame, Action callback) { EditorSetFrame(frame); _callback = callback; }
+        protected internal override IActionPointRuntime CreateRuntime() => new Runtime(_callback);
+        private sealed class Runtime : IActionPointRuntime
+        {
+            private readonly Action _callback;
+            public Runtime(Action callback) { _callback = callback; }
+            public void Execute(ActionRuntimeContext context) => _callback();
+        }
     }
 
     [Serializable]
