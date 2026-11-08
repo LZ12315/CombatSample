@@ -1,6 +1,6 @@
 # 项目结构与归位约定
 
-状态：`main-migration` 的当前开发目录。迁移进度与验证结果见 [主线迁移记录](Main_Migration.md)；旧目录快照见 [Archive/Project_Structure.md](../Archive/Project_Structure.md)。
+状态：迁移验收完成后的 `main` 当前开发目录。迁移进度与验证结果见 [主线迁移记录](Main_Migration.md)；旧目录快照见 [Archive/Project_Structure.md](../Archive/Project_Structure.md)。
 
 ## 仓库根目录
 

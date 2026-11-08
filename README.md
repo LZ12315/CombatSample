@@ -4,17 +4,17 @@ Unity 战斗与移动示例工程，包含数据驱动动作、角色运动、�
 
 ## 当前开发状态
 
-- **目标主线：`main`**。HyperGraph 的系统与样例正在 **`main-migration`** 整合、清理和验证，完成后再合回主线。
-- 当前迁移分支尚未合回 `main`，也未推送远端；从远端克隆不会自动得到本机的整理结果。
+- **开发主线：`main`**。HyperGraph 的系统与样例已完成整合、清理和验收，由 **`main-migration`** 快进合回主线；迁移分支保留作追溯。
+- 本轮结果尚未推送远端；从远端克隆不会自动得到本机的整理结果。
 - **主要试玩与回归入口：`Assets/Scenes/CombatTrainingArena.unity`**。保留现有玩家、敌人及胜负重开，作为系统验证样例，而不是限定项目未来只能有这一场战斗。
 - 已按训练场依赖收敛资源：保留 Katana 玩家、Giant 敌人及核心能力配置，裁剪旧场景、草稿图和未使用素材。`Assets` 资产约从 8.1 GiB 缩到 209 MiB；Git 历史不重写，历史体积不会随删除消失。
 - 已移除 Demo 专用的“每次滞空只能起手一次空中连段”限制；动作自身的输入、空中状态和取消窗口条件仍然有效。
-- 整合进度、验证范围与待办见[主线迁移记录](Docs/Current/Main_Migration.md)。
+- 整合结果、验证范围与已知限制见[主线迁移记录](Docs/Current/Main_Migration.md)。
 
 ## 打开与运行
 
 1. 通过 Unity Hub 安装 **Unity 2022.3.62f3**（revision `96770f904ca7`），以 `ProjectSettings/ProjectVersion.txt` 为准，不直接升级 Editor 或 Package。
-2. 克隆工程并检出要开发的分支。下面的命令只克隆远端已有内容；继续迁移工作前须确认对应提交已经同步。
+2. 克隆工程并检出要开发的分支。下面的命令只克隆远端已有内容；获取本轮主线结果前须确认对应提交已经同步。
 
    ```bash
    git clone -c core.autocrlf=false -c core.longpaths=true https://github.com/LZ12315/CombatSample.git
