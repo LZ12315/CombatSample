@@ -170,7 +170,7 @@
 - 重建结果已回写主工作树；逐文件比较确认 **仅 dependencyHash／trajectoryHash 改变**，没有位移／旋转样本、脚步数据、Clip、Rig 或烘焙参数变化。未关闭 freshness 校验，也没有直接篡改哈希来绕过 Rebuild。
 - 静态扫描仍记录 17 个历史未解析 GUID：主要在完整保留的 KCC 示例、NodeCanvas 编辑器样式，以及一个第三方 Smoke 材质的旧附加对象中；它们不是这次裁剪导致的新悬空引用。未把“原生范围检查无缺失脚本”表述为“整个仓库零缺失 GUID”。
 
-### 最终验收已开始，尚未放行
+### 最终验收已开始，尚未放行（第三阶段历史状态；最新结果见第四阶段）
 
 - 在带完整保留资产的独立工程运行全部原生 EditMode：**922 项，906 通过、16 失败，无跳过或 inconclusive**。不是此前选定 280 项的同一范围，不可继续只报 280 全绿。
 - 16 项分布：ActionMotionItem 2、ActionMotionPolicy 2、ActionPreviewArchitecture 1、LocomotionAnimation 8、LocomotionMatching 3。日志包含 EditMode 强发 Awake 的原生断言、会话／预览失效分类、已销毁 Graph 的状态访问，以及未创建 Playable 的权重写入；最终原因仍须逐项定位，不能全部先归为测试问题，也不删除／忽略来刷绿。
@@ -181,9 +181,37 @@
 - 工件：`asset-dependency-audit.json`、`final-import-audit.json`、`final-rebuild-results.txt`、`final-full-editmode-results.xml`、`final-build-summary.txt`、`final-player-*-smoke*`，均为本机 `.git/migration-validation/` 临时记录。
 - **尚未合回 main、尚未推送。** 剩余是关闭这 16 项失败、完成有图形设备的运行与编辑器操作验收，并复核后合回；不再重新开展逐模块框架整理。
 
+## 第四阶段：Graph 生命周期修复与完整回归闭合
+
+### 生产修复
+
+- 根因：Unity 在调用 PlayableGraph.Destroy 后，本帧内部分节点句柄仍可能返回 IsValid。原先只检查节点的逻辑继续认定旧会话可用，采样或清理时进入已销毁 Graph 的 Disconnect。
+- ActorAnimation 的会话、脚相、保护快照、Action 层与采样遍历统一要求所属 PlayableGraph 和节点都有效；Runtime 的缓存复用／释放也使用同一有效性边界。图已销毁时不继续解绑原生连接，不捕获后忽略异常。
+- RestoreUpdateMode 先检查 IsGraphInitialized，不在清理时通过 Animancer.Graph 的懒加载 getter 复活图。
+- 尚未挂图便显式释放的缓存树通过 Animancer 官方 MarkAsUsed 标记已经处理，再执行原有 Destroy；不关闭全局 UnusedNode 警告，不修改第三方包。这样保留真正遗弃节点的诊断，避免正常缓存释放在 finalizer 线程误报警告。
+- 新增旧图会话拒绝提交、重复释放不创建新图的合同。旧实现上明确失败；最初 186 项定向回归由 169 通过／17 失败改善到 173 通过／13 失败，修复同时关闭三项旧 Graph 失败与新增回归。
+
+### 其余 13 项：修正验证前提，不改变玩法
+
+- 五项强发整组 Awake 的用例改到实际共用的 Translation／Rotation 域验证，保留覆盖优先级、只释放自身 owner 及身体局部旋转断言；不伪造 KCC 初始化。Motor 到动画的实际反馈路由仍列为运行检查，不能将域测试当完整世界求解。
+- 三项 Move 准备用例先用 SetGraph 创建最小 native Mixer，再计算其权重；不要求 Animator、场景或额外美术，也不改变生产先挂图再准备的路径。
+- Control 公开视图只在锁定阶段存在，Motion 后已消费；原始动画快照的合同保持不变。策略用例使用有效 Tracking Runtime，避免空 Mixer 未被选中却对默认零值断言。
+- 普通 EditMode enabled 切换不证明 OnDisable 已执行，改调用共用动画会话释放入口；真正 Disable／Enable 仍需运行验收。
+- RootMotion 旧条目的 SourceEndTime 由 playRate 派生，所以更改倍率应报告 Timing；单纯重建同长度轨迹才只改变 Content。保留两种情况的区分断言，不改编辑器失效分类实现。
+- 保护姿势与释放前已显示的 Start 姿势对照，不硬编码成 Idle；非循环片尾测试先零 dt 建立 native 时钟，再跨越片尾，明确断言源 Clip 与完成时间。
+
+### 验证
+
+- 带完整保留资产的独立 Unity 原生 EditMode **连续两次 923 / 923 通过，无跳过或 inconclusive**：`final-lifecycle-contracts-results.xml`、`final-lifecycle-repeat-results.xml`。比前批多一项生命周期回归，没有删掉失败用例。
+- 一次中间运行遭遇 Animancer finalizer 告警与 NUnit 输出 StringBuilder 竞争，XML 只有部分用例且无完整起止时间；该结果明确弃用，不能以其中的 Passed 或部分计数放行。显式释放缓存树的所有权处理完善后，以上两次均生成完整 923 项结果；未用重试或忽略错误替代生产／测试修复。
+- 重新启动检查场景／数据仍无缺失脚本、缺失 managed-reference 类型或空 Action List，56 份动画仍全部 Ready；没有再改烘焙、场景、资源、参数、Packages 或 ProjectSettings。
+- 更新后的 Windows x64 Development Player 构建成功，BuildReport 为 **0 error、0 warning**。原 KCC 示例旧 API 未改，增量构建无警告不表示第三方源码已升级。
+- D3D11 Player 自动连续运行 **180 秒，39 次真实命中、三次玩家死亡并成功重载后再次受击，0 条异常／断言／错误或烘焙过期提示**；未再出现此前 Graph 清理异常。统计见本机 `lifecycle-final-summary.json`。180 秒后由验证脚本结束进程，只验证自动敌人攻击／死亡重开路径，不冒充玩家输入、画面构图、正常退出或完整交互验收。
+- 工件均位于本机 `.git/migration-validation/`，包括 `final-failures-before*`、`final-failures-graph-fix*`、`final-lifecycle-*`。未将临时校验脚本、构建或生成目录纳入项目。
+
 ## 后续顺序
 
 1. **系统主链路收尾**：已完成 Action、Motion、Combat / 表现和 Camera / Graph 的本轮定向代码审查；不是整体验收完成。剩余真实接管、清理与生命周期纳入后续场景回归；资源梳理若发现现用链路缺口，再定向修复，不继续为外观重构框架。
 2. **样例／资源瘦身**：本轮已按训练场与动态入口依赖完成；除最终验收发现具体缺口外，不继续扩展资产清理范围。
-3. **最终回归**：定位完整 EditMode 的 16 项失败；完成有图形设备的代表性战斗、运动接管、命中／弹反、相机、中断／禁用清理与连续重开，以及预览、剪贴板、图保存重载。Player 已构建，自动冒烟不替代实际操作验收。
+3. **最终交互验收**：16 项失败及已复现的重开 Graph 异常已关闭。剩余玩家移动／运动接管、贴墙、主动命中／弹反、镜头快速切换与独立禁用恢复，以及预览蒙皮、系统剪贴板／菜单、图保存重载；自动战斗重开不替代这些实际操作。
 4. **合回 main**：复核最终代码、数据、文档与项目设置后合回。本阶段只在 main-migration 提交，不推送、不移动 main 或 HyperGraph。

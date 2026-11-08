@@ -204,7 +204,7 @@ public sealed class ActionPreviewArchitectureTests
     }
 
     [Test]
-    public void EditorContext_ExternalRootMotionConfigurationAndBakeChangesInvalidateVisualDataOnly()
+    public void EditorContext_ExternalRootMotionPlaybackChangesTiming_BakeChangesContentOnly()
     {
         ActionAsset action = CreateRootMotionAction(1f, out AnimationAsset animation, out AnimationClip clip,
             out RootMotionItem root);
@@ -228,10 +228,11 @@ public sealed class ActionPreviewArchitectureTests
             Assert.AreEqual(1, notifications);
             Assert.AreNotEqual(ActionEditorChangeFlags.None,
                 observed.Flags & ActionEditorChangeFlags.Content);
+            Assert.AreNotEqual(ActionEditorChangeFlags.None,
+                observed.Flags & ActionEditorChangeFlags.Timing,
+                "Changing playRate also changes a legacy RootMotion item's derived source end time.");
             Assert.AreEqual(ActionEditorChangeFlags.None,
-                observed.Flags & (ActionEditorChangeFlags.Structure |
-                                  ActionEditorChangeFlags.Timing |
-                                  ActionEditorChangeFlags.PreviewResources));
+                observed.Flags & (ActionEditorChangeFlags.Structure | ActionEditorChangeFlags.PreviewResources));
 
             var changedTrajectory = new RootMotionTrajectory();
             changedTrajectory.EditorSetData(clip, ActionTimelineData.FrameRate, 1f, 2, "changed-bake",
@@ -244,7 +245,8 @@ public sealed class ActionPreviewArchitectureTests
             Assert.AreNotEqual(ActionEditorChangeFlags.None,
                 observed.Flags & ActionEditorChangeFlags.Content);
             Assert.AreEqual(ActionEditorChangeFlags.None,
-                observed.Flags & ActionEditorChangeFlags.PreviewResources);
+                observed.Flags & (ActionEditorChangeFlags.Structure | ActionEditorChangeFlags.Timing |
+                                  ActionEditorChangeFlags.PreviewResources));
         }
         finally
         {

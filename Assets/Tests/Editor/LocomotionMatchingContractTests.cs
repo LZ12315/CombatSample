@@ -167,8 +167,10 @@ public sealed class LocomotionMatchingContractTests
         var playback = new LocomotionMovePlayback(mixer, new[] { walk, run }, new[] { true, true },
             new[] { false, false }, false, QuerySyntheticTrajectory);
         var context = Context(Policy(1f), Result(Policy(1f)));
+        var graph = new AnimancerGraph();
         try
         {
+            mixer.SetGraph(graph); // Native weights require a graph; no Animator/output is needed here.
             playback.PrepareMove(directional ? Vector2.up : Vector2.right, context);
             Assert.That(playback.ReferenceSpeed, Is.EqualTo(1f).Within(1e-5f));
             playback.PrepareMove(directional ? Vector2.up * 2f : Vector2.right * 2f, context);
@@ -179,7 +181,7 @@ public sealed class LocomotionMatchingContractTests
                 Context(Policy(1f), default, dt: 0f));
             Assert.That(mixer.GetChild(1).Weight, Is.EqualTo(1f).Within(1e-5f));
         }
-        finally { mixer.Destroy(); }
+        finally { graph.Destroy(); }
     }
 
     [Test]
@@ -193,8 +195,10 @@ public sealed class LocomotionMatchingContractTests
         var playback = new LocomotionMovePlayback(mixer, new[] { loop, oneShot }, new[] { false, false },
             new[] { true, false }, false, QuerySyntheticTrajectory);
         var context = Context(Policy(1f), default);
+        var graph = new AnimancerGraph();
         try
         {
+            mixer.SetGraph(graph);
             playback.PrepareMove(Vector2.zero, context);
             child.TimeD = 0.75d;
             playback.PrepareMove(Vector2.right, context);
@@ -208,7 +212,7 @@ public sealed class LocomotionMatchingContractTests
             playback.PrepareMove(Vector2.right, context);
             Assert.That(child.TimeD, Is.Zero);
         }
-        finally { mixer.Destroy(); }
+        finally { graph.Destroy(); }
     }
 
     [Test]

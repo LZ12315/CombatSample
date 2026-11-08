@@ -295,6 +295,8 @@ Move ↔ Pivot
 
 交接保护统一冻结基础层实际已求值的姿势：复制当前有贡献的动画叶节点、实际求值时间及混合权重，保留尚未结束的 crossfade。快照独立于 Runtime 节点，不含其事件、同步或淡入淡出；后续 Runtime 销毁不改变保护姿势。已经处于保护状态时复用快照。Action 覆盖仍独立；新基础动画提交后正常混合接入。
 
+节点句柄有效不代表所属 Graph 仍有效：Graph.Destroy 的本帧内句柄可能尚未失效。会话、脚相、保护快照、Action 层及 Runtime 缓存复用／释放均检查所属 PlayableGraph。清理已销毁图时不继续读姿势或 Disconnect，不通过 Animancer.Graph 的懒加载 getter 重建图。尚未挂图即显式释放的缓存树使用 Animancer 的 MarkAsUsed 标记已处理，避免其 finalizer 将正常释放误报为遗弃；不全局关闭警告或吞掉真正释放异常。
+
 ### 5.1 配置绑定与播放准备
 
 Runtime 构造期间使用 `LocomotionBindingBuilder` 按 AnimationAsset 去重，取得一次轨迹资格结果，再生成脚相、Stop 曲线与周期位移。`LocomotionBoundMove`、`LocomotionBoundSet` 私有保存过滤后的样本与条目，复制参数源、方向、Sync、混合时长及决策配置；构建器和作者列表不进入执行阶段。运动配置继续由 Runtime 基类捕获，资产引用仅保留身份。

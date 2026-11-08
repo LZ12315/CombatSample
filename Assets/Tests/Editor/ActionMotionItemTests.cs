@@ -170,18 +170,18 @@ public sealed class ActionMotionItemTests
     public void MoveToTarget_OverridesRootMotion_AndReleasesOnlyItsOwnerOnExitOrAbort(bool abort)
     {
         Actor actor = CreateActor();
-        actor.gameObject.SendMessage("Awake"); // Explicit standard startup for Motor composition in EditMode.
         TranslationDomain translation = actor.actorMotor.Translation;
         MotionOwner previous = translation.BeginHorizontalVelocity();
         translation.SetHorizontalVelocity(previous, Vector3.forward * 2f);
         MotionOwner root = translation.BeginTrajectoryRootMotion();
         translation.SubmitTrajectoryRootMotion(root, Vector3.right * 100f);
         IActionRangeRuntime runtime = StartMove(actor, Target(Vector3.right * 10f), 3f, 1f);
-        actor.actorMotor.BeginMotion(CombatSimulationTiming.FixedDeltaTime);
-        actor.actorMotor.ComposeMotion(default);
-        Assert.That(actor.actorMotor.RequestedVelocity.x, Is.EqualTo(3f).Within(1e-5f));
-        Assert.That(actor.actorMotor.RequestedVelocity.z, Is.Zero);
-        actor.actorMotor.CancelPreparedMotion();
+        translation.BeginMotionTick();
+        Vector3 velocity = translation.ComposeHorizontalMotion(Vector3.zero, false,
+            Quaternion.identity, 1f, CombatSimulationTiming.FixedDeltaTime, out var source, out _);
+        Assert.That(source, Is.EqualTo(HorizontalMotionSource.HorizontalVelocityOwner));
+        Assert.That(velocity.x, Is.EqualTo(3f).Within(1e-5f));
+        Assert.That(velocity.z, Is.Zero);
         if (abort) runtime.Abort(default);
         else runtime.Exit(default, ActionRangeExitReason.Interrupted);
         Assert.That(Compose(actor).z, Is.EqualTo(2f).Within(1e-5f));

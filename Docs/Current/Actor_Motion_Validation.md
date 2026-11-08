@@ -2,7 +2,7 @@
 
 更新：2026-10-05。本文描述现行运动与动画协作的回归合同，不将历史验收或当前编译结果当作全部测试通过。
 
-最新编译、纯逻辑测试、原生测试阻碍和 Kiana 配置见[阶段提交审查](CombatSample_Locomotion_Commit_Review_2026-10-05_zh-CN.md)。2026-08-29 E3-H 结果与后续阶段调查完整保存在[验证历史](../Archive/Locomotion/Actor_Motion_Validation_2026-10-01.md)。
+当前迁移的编译、完整 Test Runner 与 Player 结果见[主线迁移记录](Main_Migration.md)；[阶段提交审查](CombatSample_Locomotion_Commit_Review_2026-10-05_zh-CN.md)中的 Kiana 配置和阻碍为历史记录。2026-08-29 E3-H 结果与后续阶段调查完整保存在[验证历史](../Archive/Locomotion/Actor_Motion_Validation_2026-10-01.md)。
 
 ## 1. 当前执行链
 
@@ -44,6 +44,7 @@ Finish → 发布请求、实际运动与来源事实，供后续 Tick 反馈
 - Stop 候选按方向、实际入场脚相、作者顺序选择。Time 从零播放；Distance 由积分后模型速度预测刹车距离并反查绑定曲线，碰撞后的实际提前停止不改变这个时钟。零距离采样停止点一次，再按普通时间播放收尾。
 - 交接保护冻结实际已求值的基础层混合姿势；快照独立于旧 Runtime，Action 层保持独立，新基础动画正常混合接入。没有显式 Idle 配置也不推断另一个保护动画。
 - Runtime 配置构造时固定；重入和图重建不刷新。禁用／取消 Simulation 会释放 Runtime；新 Runtime 才读取新配置。绑定、会话、节点和标签清理各自保持幂等。
+- 动画节点可用性同时要求所属 PlayableGraph 与节点有效；Graph.Destroy 后本帧内节点句柄仍可能有效，不能据此继续采样、解绑或提交。清理不通过 Animancer.Graph getter 重建图；显式释放尚未挂图的缓存树时标记其已处理，保留对真正遗弃节点的诊断。
 
 ## 4. 自动验证入口
 
@@ -52,7 +53,7 @@ Finish → 发布请求、实际运动与来源事实，供后续 Tick 反馈
 | 套件 | 主要范围 |
 | --- | --- |
 | ActionRuntimePlaybackSessionTests | 播放帧推进、暂停、重播、通知与中断清理；组合运动用例检查 Action 生成的策略／运动 owner、速度覆盖和停止后恢复备用运动，不要求 KCC 世界初始化。 |
-| ActionMotionPolicyTests | 默认／旧数据、按字段覆盖、半开区间、重叠与外部合成、配置快照、慢放暂停、生命周期清理、刹停／锁定恢复与 Motor 来源优先级。 |
+| ActionMotionPolicyTests | 默认／旧数据、按字段覆盖、半开区间、重叠与外部合成、配置快照、慢放暂停、生命周期清理、刹停／锁定恢复与运行时共用运动域的来源优先级。 |
 | LocomotionContractTests | 输入、运动积分、选择、冻结、重复 Build 与生命周期。 |
 | LocomotionSetDecisionTests | Start／Stop／Pivot 决策、阈值、输入边沿和 Action 中断。 |
 | LocomotionAnimationContractTests | 真实 Animancer 图、脚相参考、交接保护、owner、重建与绑定。 |
@@ -64,7 +65,9 @@ Finish → 发布请求、实际运动与来源事实，供后续 Tick 反馈
 
 `main-migration` 组合运动失败的定位：普通 MonoBehaviour 的 Awake 不保证在 EditMode 中执行，ActorMotor 未绑定 KCC 时 BeginMotion / ComposeMotion 会直接返回，RequestedVelocity 的零值不是一次有效仲裁结果。该用例改为直接检查运动域和会话所有权，不通过反射注入字段或给整组组件发送 Awake。KCC 合成、接地和碰撞求解仍需独立运行环境与下述人工回归；没有改动运动优先级或运行时初始化方式。随后将 ActorMotor 的水平来源选择归入 TranslationDomain，直接验证运行时复用的选择逻辑，不以未初始化 Motor 的 Requested / Actual 默认零值作为验证依据。最新执行结果见 [主线迁移记录](Main_Migration.md)。
 
-输入时序用例比较迟到提交与正常边界提交的等价结果，不固定转向积分器某个中间速度；方向响应和加减速数值由独立 Runner 合同覆盖。停止清理用例直接调用 OnDisable / Driver abort 共用的 CancelSimulation，检查速度、资产及输入清理；普通 EditMode 的 enabled 切换不代替引擎生命周期验收。
+输入时序用例比较迟到提交与正常边界提交的等价结果，不固定转向积分器某个中间速度；方向响应和加减速数值由独立 Runner 合同覆盖。Control 的公开视图只在输入锁定阶段存在；Motion 后原始输入保存在不可变动画快照，不要求 TryGetControlIntent 继续返回旧值。停止清理用例直接调用 OnDisable / Driver abort 共用的 CancelSimulation，动画会话释放调用 ResetAnimationSession；普通 EditMode 的 enabled 切换不代替引擎生命周期验收。
+
+Move 权重准备需要已创建的 native Mixer：匹配用例通过 SetGraph 建立最小图，不给整个 Actor 伪发 Awake。旋转合同在域层验证 Scripted 赢过相反 Locomotion 提案及不同身体起始朝向；Motor 到动画上下文的真实传递仍属下列运行检查，不冒充 EditMode 已初始化 KCC。姿势保护断言对照已显示姿势，不假定释放后变成 Idle；跨越非循环片尾前先以零 dt 建立测试图时钟。
 
 ## 5. 人工回归
 
@@ -76,7 +79,7 @@ Finish → 发布请求、实际运动与来源事实，供后续 Tick 反馈
 | 贴墙或碰撞提前停止 | 实际位移可以小于模型预测；没有追偿位移。Stop 距离时钟继续遵循模型，按约定评估观感。 |
 | HitStop、暂停与恢复 | 运动、动画和 Action 副作用冻结一致；恢复没有补帧。 |
 | Actor／Locomotion／Animation 独立 Disable、图销毁与重建 | owner、节点、标签与请求清理正确；旧 Runtime 销毁不改变独立保护快照。 |
-| Action Root Motion 贴墙、运动／旋转 owner 覆盖与释放 | 不补偿被覆盖或阻挡的区间，不瞬移，不接受失效 token。 |
+| Action Root Motion 贴墙、运动／旋转 owner 覆盖与释放 | 不补偿被覆盖或阻挡的区间，不瞬移，不接受失效 token；Motor 获胜旋转及有符号转角传给动画，不使用被覆盖的自主提案。 |
 | Actor 碰撞与注册顺序 | 改变 Enable 顺序后重复接触，分离结果保持确定，不依赖注册顺序。 |
 
-每次记录明确配置、场景、日期和实际检查项。最新 Kiana 运行体感良好不表示 Jaeger、所有地空模式或全部生命周期路径已验收；脚相择优也不以任意姿势完全无缝为通过条件。
+每次记录明确配置、场景、日期和实际检查项。当前样例为训练场 Katana／Giant；旧 Kiana／Jaeger 记录不作为当前验收。自动敌人攻击与重开不等于玩家输入、所有地空模式及独立 Disable 路径均已验收；脚相择优也不以任意姿势完全无缝为通过条件。

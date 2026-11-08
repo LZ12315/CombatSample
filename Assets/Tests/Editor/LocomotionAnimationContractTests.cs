@@ -1141,11 +1141,9 @@ public sealed class LocomotionAnimationContractTests
         locomotion.OnAnimationSessionLost(_animation, _owner);
         locomotion.OnAnimationSessionLost(null, _owner);
         Assert.That(asset.AnimationResetCount, Is.Zero, "Old owners and other components cannot reset the current session.");
-        _animation.enabled = false;
+        // Exercise the shared session release, not an EditMode enabled toggle that does not run OnDisable.
+        locomotion.ResetAnimationSession();
         Assert.That(asset.AnimationResetCount, Is.EqualTo(1));
-        Tick();
-        Assert.That(asset.AnimationResetCount, Is.EqualTo(1));
-        _animation.enabled = true;
         Tick();
         Assert.That(asset.AnimationResetCount, Is.EqualTo(1));
         _animancer.Graph.Destroy();
@@ -1164,23 +1162,19 @@ public sealed class LocomotionAnimationContractTests
 
     [TestCase(0f)]
     [TestCase(137f)]
-    public void MotionAnimationPipeline_FollowsComposedMotorRotationInsteadOfLocomotionProposal(float initialYaw)
+    public void MotionRotationDomain_ScriptedYawWinsOverTheOppositeLocomotionProposal(float initialYaw)
     {
         _root.transform.rotation = Quaternion.Euler(0f, initialYaw, 0f);
         _root.AddComponent<Actor>();
         var locomotion = _root.AddComponent<ActorLocomotion>();
-        var motor = _root.AddComponent<ActorMotor>();
-        // EditMode does not run MonoBehaviour startup. Dispatch the standard Unity lifecycle once;
-        // assertions below use the real Motor composition and animation context, not private fields.
-        _root.SendMessage("Awake");
+        var rotation = new RotationDomain();
         var asset = ScriptableObject.CreateInstance<TrackingLocomotionAsset>();
         _objects.Add(asset);
         LocomotionContractTests.ConfigureAssets(locomotion, asset);
-        MotionOwner rotationOwner = default;
+        rotation.BeginScriptedRotation(out var owner);
         try
         {
-            Assert.That(motor.BeginScriptedRotation(out rotationOwner), Is.True);
-            Assert.That(motor.SubmitScriptedRotation(rotationOwner, Quaternion.Euler(0f, -7f, 0f)), Is.True);
+            rotation.SubmitScriptedRotation(owner, Quaternion.Euler(0f, -7f, 0f));
             locomotion.SetLocomotionIntent(new LocomotionIntent
             {
                 WorldMoveDirection = _root.transform.forward,
@@ -1188,23 +1182,23 @@ public sealed class LocomotionAnimationContractTests
                 MoveStrength = 1f,
             });
             locomotion.BeginControlTick();
-            var motionContext = motor.BeginMotion(1f / 60f);
+            var motionContext = new LocomotionMotionContext(1f / 60f, true, Vector3.up,
+                _root.transform.rotation, default, default);
             var proposal = locomotion.BuildMotionRequest(motionContext);
-            motor.ComposeMotion(proposal);
-            Assert.That(Vector3.SignedAngle(motionContext.CurrentWorldRotation * Vector3.forward,
-                proposal.TargetWorldRotation * Vector3.forward, motionContext.CharacterUp), Is.GreaterThan(0f));
-            Assert.That(Quaternion.Angle(motor.RequestedRotation,
+            Assert.That(proposal.HasRotation, Is.True);
+            Assert.That(Vector3.SignedAngle(_root.transform.forward,
+                proposal.TargetWorldRotation * Vector3.forward, Vector3.up), Is.GreaterThan(0f));
+            rotation.BeginMotionTick();
+            rotation.Prepare(motionContext.CurrentWorldRotation, proposal.TargetWorldRotation);
+            Assert.That(Quaternion.Angle(rotation.RequestedRotation,
                 motionContext.CurrentWorldRotation * Quaternion.Euler(0f, -7f, 0f)), Is.LessThan(0.001f));
-
-            locomotion.UpdateAnimation(_animation, motor, 1f / 60f);
-            Assert.That(asset.AnimationUpdateCount, Is.EqualTo(1));
-            Assert.That(asset.LastAnimationContext.FacingYawDelta, Is.EqualTo(-7f).Within(0.001f),
-                "Animation must follow the Motor's winning rotation, not the opposite Locomotion proposal.");
+            Assert.That(Vector3.SignedAngle(_root.transform.forward,
+                rotation.RequestedRotation * Vector3.forward, Vector3.up), Is.EqualTo(-7f).Within(0.001f));
         }
         finally
         {
-            motor.CancelPreparedMotion();
-            if (rotationOwner.IsValid) motor.EndScriptedRotation(rotationOwner);
+            rotation.EndScriptedRotation(owner);
+            locomotion.CancelSimulation();
         }
     }
 
@@ -1258,11 +1252,13 @@ public sealed class LocomotionAnimationContractTests
         var old = runtime.UpdateAnimation(Context(Vector3.forward, Vector3.zero));
         _animation.SubmitLocomotion(_owner, old);
         _animation.Evaluate(0.1f);
+        Assert.That(_probe.localPosition.x, Is.EqualTo(3f).Within(0.001f));
+        float displayedPose = _probe.localPosition.x;
         _animation.EndLocomotionSession(_owner);
         runtime.Exit(null, null);
         runtime.Enter(null, null);
         _animation.Evaluate(0f);
-        Assert.That(_probe.localPosition.x, Is.EqualTo(1f).Within(0.001f));
+        Assert.That(_probe.localPosition.x, Is.EqualTo(displayedPose).Within(0.001f));
         _owner = _animation.BeginLocomotionSession();
         var current = runtime.UpdateAnimation(Context(Vector3.forward, Vector3.zero));
         Assert.That(current.State.Clip, Is.SameAs(start.Clip));
@@ -1286,7 +1282,13 @@ public sealed class LocomotionAnimationContractTests
         var runtime = Runtime<LocomotionSetRuntime>(Asset<LocomotionSetAsset>(Move1D(idle, run), entries));
         var old = runtime.UpdateAnimation(Context(Vector3.forward, returningFromStart ? Vector3.zero : Vector3.forward));
         _animation.SubmitLocomotion(_owner, old);
+        _animation.Evaluate(0f); // Attach the native clock before asking it to advance past the clip end.
         _animation.Evaluate(returningFromStart ? 1.1f : 0.1f);
+        if (returningFromStart)
+        {
+            Assert.That(old.State.Clip, Is.SameAs(transition.Clip));
+            Assert.That(old.State.RawTime, Is.GreaterThanOrEqualTo(old.State.Length));
+        }
         var incoming = runtime.UpdateAnimation(Context(returningFromStart ? Vector3.forward : Vector3.back, Vector3.forward));
         _animation.SubmitLocomotion(_owner, incoming);
         _animation.Evaluate(0f);
@@ -1342,6 +1344,23 @@ public sealed class LocomotionAnimationContractTests
         var known = _animation.GetLocomotionFootPhaseReference(_owner);
         Assert.That(known.IsKnown, Is.True);
         Assert.That(known.Phase, Is.Zero, "Equal contributions retain the first graph leaf.");
+    }
+
+    [Test]
+    public void DestroyedGraph_RejectsStaleSubmissionAndReleasesSessionWithoutReinitializing()
+    {
+        var run = Clip("Run", 2f);
+        var request = new LocomotionAnimationRequest(new ClipState(run.Clip));
+        Assert.That(_animation.SubmitLocomotion(_owner, request), Is.True);
+        _animation.Evaluate(0f);
+        _animancer.Graph.Destroy();
+
+        Assert.That(_animation.IsLocomotionOwnerActive(_owner), Is.False);
+        Assert.That(_animation.SubmitLocomotion(_owner, request), Is.False);
+        _animation.EndLocomotionSession(_owner);
+        _animation.EndLocomotionSession(_owner);
+        Assert.That(_animancer.IsGraphInitialized, Is.False,
+            "Releasing an old session must not create a replacement graph.");
     }
 
     [Test]

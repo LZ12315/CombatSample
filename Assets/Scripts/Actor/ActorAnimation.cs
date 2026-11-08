@@ -99,7 +99,7 @@ public sealed class ActorAnimation : MonoBehaviour
 
     internal bool IsLocomotionOwnerActive(ActorAnimationLocomotionOwner owner) =>
         isActiveAndEnabled && owner.IsValid && owner.Id == _activeLocomotionOwnerId
-        && _baseLayer != null && _baseLayer.Playable.IsValid();
+        && LocomotionAnimationUtility.IsLive(_baseLayer);
 
     internal void EndLocomotionSession(ActorAnimationLocomotionOwner owner)
     {
@@ -113,13 +113,13 @@ public sealed class ActorAnimation : MonoBehaviour
 
     internal LocomotionFootPhaseReference GetLocomotionFootPhaseReference(ActorAnimationLocomotionOwner owner)
     {
-        if (_baseLayer != null && !_baseLayer.Playable.IsValid())
+        if (!LocomotionAnimationUtility.IsLive(_baseLayer))
             _locomotionFootTracks.Clear();
         if (!IsLocomotionOwnerActive(owner) || _actionOwnerActive) return default;
 
         _invalidFootStates.Clear();
         foreach (var binding in _locomotionFootTracks)
-            if (!binding.Key.Playable.IsValid()) _invalidFootStates.Add(binding.Key);
+            if (!LocomotionAnimationUtility.IsLive(binding.Key)) _invalidFootStates.Add(binding.Key);
         foreach (var state in _invalidFootStates) _locomotionFootTracks.Remove(state);
         _invalidFootStates.Clear();
 
@@ -134,7 +134,7 @@ public sealed class ActorAnimation : MonoBehaviour
     private static void FindDominantLocomotionLeaf(AnimancerNode node, float weight,
         ref AnimancerState dominant, ref float contribution)
     {
-        if (!node.Playable.IsValid() || !LocomotionDataValidation.IsFinite(weight)
+        if (!LocomotionAnimationUtility.IsLive(node) || !LocomotionDataValidation.IsFinite(weight)
             || weight <= LocomotionAnimationUtility.WeightEpsilon) return;
         if (node.ChildCount == 0)
         {
@@ -201,14 +201,14 @@ public sealed class ActorAnimation : MonoBehaviour
 
     private void HoldLocomotionPose()
     {
-        if (_baseLayer == null || !_baseLayer.Playable.IsValid())
+        if (!LocomotionAnimationUtility.IsLive(_baseLayer))
             return;
         // Capture every contributing state, including both sides of an unfinished fade.
         // Reuse an already protected pose instead of nesting another snapshot around it.
         for (int i = 0; i < _baseLayer.ChildCount; i++)
         {
             var child = _baseLayer.GetChild(i);
-            if (child != _protectionState && child.Playable.IsValid()
+            if (child != _protectionState && LocomotionAnimationUtility.IsLive(child)
                 && child.Weight > LocomotionAnimationUtility.WeightEpsilon)
             {
                 CaptureBasePose(_baseLayer);
@@ -226,7 +226,7 @@ public sealed class ActorAnimation : MonoBehaviour
 
     private void CaptureBasePose(AnimancerNode source)
     {
-        if (source == null || !source.Playable.IsValid())
+        if (!LocomotionAnimationUtility.IsLive(source))
             return;
         // Copy only pose data, not fades, events, synchronization or references to Runtime-owned states.
         AnimancerState snapshot = CreatePoseSnapshot(source);
@@ -249,7 +249,7 @@ public sealed class ActorAnimation : MonoBehaviour
         for (int i = 0; i < source.ChildCount; i++)
         {
             AnimancerState sourceChild = source.GetChild(i);
-            if (!sourceChild.Playable.IsValid()
+            if (!LocomotionAnimationUtility.IsLive(sourceChild)
                 || sourceChild.Weight <= LocomotionAnimationUtility.WeightEpsilon)
                 continue;
             AnimancerState child = CreatePoseSnapshot(sourceChild);
@@ -396,7 +396,7 @@ public sealed class ActorAnimation : MonoBehaviour
 
     private static void RecordEvaluatedStartPoses(AnimancerNode node)
     {
-        if (node == null || !node.Playable.IsValid() || node.Weight <= LocomotionAnimationUtility.WeightEpsilon) return;
+        if (!LocomotionAnimationUtility.IsLive(node) || node.Weight <= LocomotionAnimationUtility.WeightEpsilon) return;
         if (node is LocomotionStartPoseState start)
         {
             start.RecordEvaluatedPose();
@@ -408,7 +408,7 @@ public sealed class ActorAnimation : MonoBehaviour
 #if UNITY_EDITOR
     internal string DescribeEvaluatedLocomotionLayers()
     {
-        if (_baseLayer == null || !_baseLayer.Playable.IsValid())
+        if (!LocomotionAnimationUtility.IsLive(_baseLayer))
             return "Layer0=unavailable";
         var text = new System.Text.StringBuilder();
         text.Append($"Layer0Weight={_baseLayer.Weight:F3}, Layer1Weight={_actionLayer?.Weight ?? 0f:F3}");
@@ -460,8 +460,8 @@ public sealed class ActorAnimation : MonoBehaviour
     {
         if (_actionLayerPhase != ActionLayerPhase.Playing)
             return; // Never restart an in-progress fade on each tick.
-        if (_evaluatedActionState == null || !_evaluatedActionState.Playable.IsValid()
-            || _actionLayer == null || !_actionLayer.Playable.IsValid()
+        if (!LocomotionAnimationUtility.IsLive(_evaluatedActionState)
+            || !LocomotionAnimationUtility.IsLive(_actionLayer)
             || !LocomotionDataValidation.IsFinite(actionLocomotionBlendDuration)
             || actionLocomotionBlendDuration <= 0f)
         {
@@ -481,7 +481,7 @@ public sealed class ActorAnimation : MonoBehaviour
 
     private void ClearActionLayer()
     {
-        if (_actionLayer != null && _actionLayer.Playable.IsValid())
+        if (LocomotionAnimationUtility.IsLive(_actionLayer))
         {
             _actionLayer.CancelFade();
             _actionLayer.Stop();
@@ -554,7 +554,8 @@ public sealed class ActorAnimation : MonoBehaviour
         if (animancer == null || !_hasPreviousUpdateMode)
             return;
 
-        if (animancer.Graph.IsValidOrDispose())
+        // Graph's getter creates a new graph. Cleanup must not resurrect one after destruction.
+        if (animancer.IsGraphInitialized)
             animancer.Graph.UpdateMode = _previousUpdateMode;
 
         _hasPreviousUpdateMode = false;

@@ -365,18 +365,23 @@ public sealed class ActionMotionPolicyTests
     [Test]
     public void LocomotionPipeline_EnforcesTheMotionSnapshotWithoutDeletingControlIntent()
     {
-        var asset = ScriptableObject.CreateInstance<LocomotionMixerAsset>(); _objects.Add(asset);
+        var asset = ScriptableObject.CreateInstance<TrackingLocomotionAsset>(); _objects.Add(asset);
         var actor = Actor();
         var locomotion = actor.gameObject.AddComponent<ActorLocomotion>(); actor.actorLocomotion = locomotion;
         LocomotionContractTests.ConfigureAssets(locomotion, asset);
         locomotion.SetLocomotionIntent(Input); locomotion.BeginControlTick();
-        var request = locomotion.BuildMotionRequest(Context(0f, turnLock: true));
-        Assert.That(request.WorldPlanarVelocity, Is.EqualTo(Vector3.zero));
-        Assert.That(Quaternion.Angle(request.TargetWorldRotation, Quaternion.identity), Is.LessThan(0.001f));
         Assert.That(locomotion.TryGetControlIntent(out var raw), Is.True);
         Assert.That(raw.MoveStrength, Is.EqualTo(1f));
         Assert.That(raw.WorldMoveDirection, Is.EqualTo(Vector3.forward));
+        var request = locomotion.BuildMotionRequest(Context(0f, turnLock: true));
+        Assert.That(locomotion.CurrentAsset, Is.SameAs(asset));
+        Assert.That(request.HasVelocity && request.HasRotation, Is.True);
+        Assert.That(request.WorldPlanarVelocity, Is.EqualTo(Vector3.zero));
+        Assert.That(Quaternion.Angle(request.TargetWorldRotation, Quaternion.identity), Is.LessThan(0.001f));
         Assert.That(locomotion.EffectiveIntent.MoveStrength, Is.Zero);
+        Assert.That(locomotion.TryGetControlIntent(out _), Is.False,
+            "The Action-phase control view ends when Motion consumes the snapshot.");
+        locomotion.CancelSimulation();
     }
 
     [Test]
@@ -394,38 +399,43 @@ public sealed class ActionMotionPolicyTests
     }
 
     [Test]
-    public void Motor_ConstraintsAffectOnlyLocomotionAndKeepTheExistingSourcePriority()
+    public void MotionDomains_ConstraintsAffectOnlyLocomotionAndKeepTheExistingSourcePriority()
     {
         var actor = Actor(); var motor = actor.actorMotor;
-        actor.gameObject.SendMessage("Awake"); // Standard startup is explicit in EditMode; no private-field injection.
         var asset = Asset();
         asset.MotionPolicy.movement = ActionMovementControl.Locked;
         asset.MotionPolicy.turning = ActionTurnControl.Locked;
         var runtime = Runtime(asset, actor); runtime.Begin();
         var request = new LocomotionMotionRequest(Vector3.forward * 5f, Quaternion.Euler(0f, 90f, 0f), true, true);
-        void Compose() { motor.BeginMotion(0.1f); motor.ComposeMotion(request); }
+        Vector3 velocity = default;
+        void Compose()
+        {
+            motor.Translation.BeginMotionTick(); motor.Rotation.BeginMotionTick();
+            velocity = motor.Translation.ComposeHorizontalMotion(
+                request.WorldPlanarVelocity * motor.MotionPolicy.LocomotionScale, true,
+                Quaternion.identity, 1f, 0.1f, out _, out _);
+            motor.Rotation.Prepare(Quaternion.identity, motor.MotionPolicy.LockLocomotionRotation
+                ? Quaternion.identity : request.TargetWorldRotation);
+        }
         Compose();
-        Assert.That(Vector3.ProjectOnPlane(motor.RequestedVelocity, Vector3.up).magnitude, Is.Zero);
-        Assert.That(Quaternion.Angle(motor.RequestedRotation, Quaternion.identity), Is.LessThan(0.001f));
-        motor.CancelPreparedMotion();
+        Assert.That(velocity.magnitude, Is.Zero);
+        Assert.That(Quaternion.Angle(motor.Rotation.RequestedRotation, Quaternion.identity), Is.LessThan(0.001f));
         var root = motor.BeginTrajectoryRootMotion();
         motor.BeginRootRotation(out var rootTurn);
         motor.SubmitTrajectoryRootMotion(root, Vector3.forward);
         motor.SubmitRootRotation(rootTurn, Quaternion.Euler(0f, 20f, 0f));
         Compose();
-        Assert.That(motor.RequestedVelocity.z, Is.EqualTo(10f).Within(0.001f));
-        Assert.That(Quaternion.Angle(motor.RequestedRotation, Quaternion.Euler(0f, 20f, 0f)), Is.LessThan(0.001f));
-        motor.CancelPreparedMotion();
-        var velocity = motor.BeginHorizontalVelocity(); motor.SetHorizontalVelocity(velocity, Vector3.right * 3f);
+        Assert.That(velocity.z, Is.EqualTo(10f).Within(0.001f));
+        Assert.That(Quaternion.Angle(motor.Rotation.RequestedRotation, Quaternion.Euler(0f, 20f, 0f)), Is.LessThan(0.001f));
+        var velocityOwner = motor.BeginHorizontalVelocity(); motor.SetHorizontalVelocity(velocityOwner, Vector3.right * 3f);
         motor.BeginScriptedRotation(out var scripted);
         motor.SubmitScriptedRotation(scripted, Quaternion.Euler(0f, -7f, 0f));
         motor.SubmitTrajectoryRootMotion(root, Vector3.forward);
         Compose();
-        Assert.That(motor.RequestedVelocity.x, Is.EqualTo(3f).Within(0.001f));
-        Assert.That(motor.RequestedVelocity.z, Is.Zero.Within(0.001f));
-        Assert.That(Quaternion.Angle(motor.RequestedRotation, Quaternion.Euler(0f, -7f, 0f)), Is.LessThan(0.001f));
-        motor.CancelPreparedMotion();
-        motor.EndHorizontalVelocity(velocity); motor.EndScriptedRotation(scripted);
+        Assert.That(velocity.x, Is.EqualTo(3f).Within(0.001f));
+        Assert.That(velocity.z, Is.Zero.Within(0.001f));
+        Assert.That(Quaternion.Angle(motor.Rotation.RequestedRotation, Quaternion.Euler(0f, -7f, 0f)), Is.LessThan(0.001f));
+        motor.EndHorizontalVelocity(velocityOwner); motor.EndScriptedRotation(scripted);
         motor.EndTrajectoryRootMotion(root); motor.EndRootRotation(rootTurn);
         Assert.That(motor.MotionPolicy.LocomotionScale, Is.Zero);
         Assert.That(runtime.Finish(), Is.True);
