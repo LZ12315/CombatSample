@@ -12,7 +12,7 @@
 
 ## 已检查的可迁移性
 
-- `Assets/`、`Packages/`、`ProjectSettings/`、`Docs/`、`Tools/`、`bin/` 中没有被 `.gitignore` 排除但仍留在本机的源文件。
+- 历史完整快照中，`Assets/`、`Packages/`、`ProjectSettings/`、`Docs/`、`Tools/`、`bin/` 没有被 `.gitignore` 排除但仍留在本机的源文件。根目录 `Tools/` 与 `bin/` 现已清理，不再作为当前同步内容；旧 `Builds/` 和 `.codex-backups/` 也已按用户要求删除，不另建归档。
 - 本次新增／修改资源的 `.meta` 齐全；拟提交文件集中没有重复 GUID 或孤立的已跟踪 `.meta`。
 - 本次改动的第一方代码没有发现本机盘符绝对路径依赖；简单凭据模式扫描没有发现明显密钥。这不是专业安全审计。
 - 没有 Git submodule、源文件符号链接或 Git LFS 指针需要另行补取。

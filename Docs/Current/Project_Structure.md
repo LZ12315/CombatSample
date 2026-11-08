@@ -8,9 +8,9 @@
 - `Packages/`：包清单、锁文件及仓库内的包。
 - `ProjectSettings/`：Unity 项目设置。
 - `Docs/`：当前合同、历史记录和未实施方案。
-- `Tools/`：本地检查与维护工具。
-- `Bin/`：Unity 导入边界之外的历史资源；本轮 Assets 收敛不清理这里。
 - `AGENTS.md`：项目协作约束。
+
+根目录历史 `Bin/`、一次性 `Tools/`、旧交付包 `Builds/` 和 `.codex-backups/` 已按用户要求直接删除，不另建归档。已跟踪内容仍可从 Git 历史找回；未跟踪交付包和备份不能通过 Git 恢复。未来生成的 `bin/`、`Builds/` 和本机备份不纳入版本控制。
 
 `Library/`、`Temp/`、`Logs/`、`obj/` 及 Unity/IDE 生成的工程文件不是源码或资产整理对象，不提交生成输出。
 
