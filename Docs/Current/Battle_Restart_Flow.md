@@ -33,7 +33,7 @@
 3. `Restart Delay Seconds` 为胜负结算倒计时，默认 **3**；`Restart Transition Seconds` 为「正在重新开始…」的演出等待，默认 **2**。胜利和失败使用相同配置。
 4. 保存场景，在 **Build Settings > Scenes In Build** 中加入并勾选这个场景。代码使用完整路径，不依赖 Build Index 或同名匹配。
 
-**现有 Inspector 覆盖优先。** 前次只读核对发现 `HyperGraph.unity` 中 `restartDelaySeconds` 为 **5**，没有自动改写；若仍保持该值，胜负均为 **5＋2 秒**。需要 **3＋2 秒**时请在 Inspector 改回 3。迁入新场景时要重新确认双方引用。
+**现有 Inspector 覆盖优先。** 当前入口 `CombatTrainingArena.unity` 保存的 `restartDelaySeconds` 为 **5**，胜负均为 **5＋2 秒**；不因代码默认值为 3 自动改写。原 HyperGraph 样例已随资源收敛裁剪。需要 **3＋2 秒**时请在 Inspector 改回 3；接入新场景仍须重新确认双方引用。
 
 本方案用于完整单场景战斗：`Single` 加载会卸载其他普通场景，不保留 Additive 启动场景。静态字段、常驻对象及运行时修改的 ScriptableObject 不会自动复原。输入控制器的 Debug 开关若启用，重载后仍可能按其配置重新开启慢动作。
 

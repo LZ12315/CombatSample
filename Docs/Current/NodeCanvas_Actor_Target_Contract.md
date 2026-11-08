@@ -89,24 +89,13 @@ Conditional：满足绕行条件
 
 攻击分支保留 Wait For Completion。绕行任务的持续时间仍按原来的 Time.time 截止时间计算，暂停不延长；标签作用域本身不改变任务计时。
 
-## 旧图迁移：尚需在 NodeCanvas 编辑器接线
+## 当前样例与旧图恢复边界
 
-本次保留存续节点的脚本类型和 GUID，但明确移除了旧 `actor` / `targetOverride` 参数，不保留兼容回退。旧 Transform 类型目标变量不能直接作为新的 Actor 参数使用。
+当前代表性图为训练场引用的 `Data/Graph/Giant/FSM_Giant.asset` 与 `BT_Giant_Combat.asset`，保留显式 Actor 目标获取、距离／角度判断、动作请求及绕行标签的用法。
 
-主线重新核对后，只有下表 Enemy_Test_1 仍保留旧 `targetOverride`；Jaeger 两图虽已改为新字段，但 `target: {}` 仍为空，也没有获取步骤，不能视为目标接线已迁移完成。本批未擅自修改这些草稿的图结构：
+资源收敛已将 Enemy_Test_1、Jaeger、GreatSword 草稿图与对应旧场景／角色入口共同裁剪；Lucy 的旧绑定 FSM 和带失效嵌套图的 David 预览角色也不再保留。没有把空目标／空 Action 的草稿自动补成新玩法。上文绕行结构及下文攻击计数说明是节点使用示例，不承诺当前训练场采用完全相同的计数和时长。
 
-| 资源 | 需要检查 |
-| --- | --- |
-| `Assets/Data/Graph/Enemy_Test_1.asset` | 距离条件与移动节点各有一处旧 targetOverride，且仍有旧自身 actor 参数；若保留，需新增 Actor 黑板目标和获取步骤并重绑。 |
-| `Assets/Data/Graph/Jaeger/Jaeger_Combat.asset` | 距离条件与移动节点的 target 仍为空，没有 Get Combat Target；攻击 Action 引用也为空，属于待接线草稿，不是可运行战斗样例。 |
-| `Assets/Data/Graph/Jaeger/Jaeger_FSM.asset` | 连线距离条件的 target 为空，没有获取步骤；若保留，需明确获取 / 刷新位置及嵌套 BT 黑板作用域，不能只在初始化时取一次。 |
-| `Assets/Data/Graph/GreatSword/GreatSword_BT_Combat.asset` | 已使用显式 Actor 目标与获取步骤；绕行分支使用 With Actor Tag，保留其余草稿配置。 |
-
-上述目标节点在重新配置前会因为 Target 为空而失败。Enemy_Test_1 仍被多个旧测试场景引用；Jaeger_FSM 仍被 Enemy.prefab 引用，Jaeger_Combat 也有旧场景与嵌套 FSM 引用，不能孤立删除图。下一阶段按保留样例的真实依赖决定接线还是连同旧入口裁剪，不承诺恢复全部草稿玩法。若保留，必须在参与判断的黑板作用域里创建 Actor 变量，并明确获取步骤的执行时机；不要用旧 Self 变量替代目标变量。
-
-此外，`Assets/Prefabs/Actor/Characters/Lucy.prefab` 的绑定 FSM 仍序列化有 `PlayActionTask.actor`。脚本已不再读取该字段，重新保存会清理旧数据；需确认实际 FSM Owner 与自身 Actor 同物体。其余旧图中的自身参数亦同理。
-
-本次资源扫描没有发现 `HasCombatTargetTask` 的序列化引用，不需要替换已有实例。
+存续节点仍保留脚本类型与 GUID；旧 `actor` / `targetOverride` 参数已移除，不保留兼容回退。若从 HyperGraph 历史恢复旧样例，必须同时迁移动作引用和 Actor 黑板目标，在参与判断的作用域明确获取／刷新时机，并核对嵌套图黑板传递；不能只改字段名、使用旧 Transform／Self 变量，或将初始化时的一次快照当实时绑定。旧 `PlayActionTask.actor` 数据不再读取，FSM Owner 必须与自身 Actor 的解析规则一致。
 
 ## 节点 Inspector 字段显隐
 
@@ -136,7 +125,7 @@ Conditional：满足绕行条件
 
 `GreatSword_BT_Combat` 的攻击列表为顺序执行：启用 `Wait For Completion` 的攻击 → `HitCount += 1`。三次完整攻击后进入持续 3 秒的 Strafe，完成后执行 `HitCount = 0`，再开始下一轮。条件仍受图中的目标距离 / 角度约束；动作中断不增加计数。
 
-旧 `RequestMode` / `ResultMode` 已删除。`Jaeger_Combat.asset` 中原本序列化的 `requestMode: 1` 已改为 `untilStarted: true`，保持该节点持续重试的原有意图；其他图未序列化该字段，行为不变。
+旧 `RequestMode` / `ResultMode` 已删除。历史 Jaeger 草稿曾将 `requestMode: 1` 迁为 `untilStarted: true`，但该图现已随旧入口裁剪；恢复历史图时仍须迁移启动等待规则。
 
 ## 验证与人工检查
 
@@ -146,4 +135,4 @@ Conditional：满足绕行条件
 - 使用 Unity 2022.3.62f3 自带编译器和现有引用，在系统临时目录重建 Runtime 与 Editor / Tests 程序集：均 0 error、0 warning；图结构、标签 ID 与资源条件静态检查通过，未修改 Unity 生成文件。
 - 上述为原接口整理时的编译／测试设计记录。主线整合后已在隔离 Unity 2022.3.62f3 原生 EditMode 中运行：NodeCanvasActorTargetTests 20 / 20、WithActorTagTests 10 / 10、CombatStrafeMovementTests 10 / 10 通过；PlayActionTask 合同随 ASM 56 项一起通过。最新组合范围与结果见 [主线迁移记录](Main_Migration.md)。没有运行完整 GraphOwner 的 PlayMode 停止／暂停路由或图资产接线验收。
 - 人工检查：完成仍需迁移的旧图接线；检查各节点 Inspector 的条件字段是否随模式正确显隐、Header / Tooltip 是否按预期显示；检查 `Actor Has Tag` 的 Check Self 开关、目标字段显隐与两种检查对象；验证运行中丢失目标时移动失败并释放连续意图，以及暂停 / 恢复后仍使用显式配置目标。
-- 大剑专项人工检查：标签选择器应显示 `State.Movement.Strafe`；第三次完整攻击后，绕行期间 Actor 的 Transient 容器有该标签、CurrentAsset 为 GreatSword Strafe；绕行结束后标签移除、计数清零并返回 Normal。中途丢失目标、打断子树、停止 / 暂停 GraphOwner、禁用拥有者后均不残留本节点持有的标签；空中和刚离地时选择 Air。
+- 当前训练场人工检查：标签选择器显示 `State.Movement.Strafe`；Giant 绕行期间 Transient 容器具有该标签并选择 Strafe，结束后移除并返回 Normal。中途丢失目标、打断子树、停止 / 暂停 GraphOwner、禁用拥有者后均不残留标签；空中和刚离地时选择 Air。原大剑三次攻击计数例子不再作为现存资产验收项。

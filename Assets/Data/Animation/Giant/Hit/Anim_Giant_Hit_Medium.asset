@@ -19,7 +19,7 @@ MonoBehaviour:
     sampleRate: 60
     duration: 0.8333334
     bakerVersion: 1
-    dependencyHash: 58f7705e366777c450bd0ecbaaedfde3
+    dependencyHash: 66cee7457937001fd40f03b238fb27b8
     sampleTimes:
     - 0
     - 0.016666668
@@ -181,7 +181,7 @@ MonoBehaviour:
     - {x: 0, y: 0, z: 0, w: 1}
   _locomotionData:
     sourceClip: {fileID: 7400000, guid: 997be4bfd344a7b4a8a07bcaf84d9677, type: 2}
-    trajectoryHash: 58f7705e366777c450bd0ecbaaedfde3
+    trajectoryHash: 66cee7457937001fd40f03b238fb27b8
     footSetup: '|'
     stopTime: 0.6166667
     footMarkers:

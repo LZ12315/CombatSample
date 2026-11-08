@@ -151,9 +151,39 @@
 - 日志与 XML：`.git/migration-validation/camera-graph-review-*`，仅本机工件。初版相机断言曾触发 NUnit 把 Transform 当集合比较／格式化的问题，最终按引用身份输出布尔断言；旧实现的最终对照以 regressions-old 为准，不把格式化错误当生产缺陷证据。
 - 真实 Brain 混合与快速解锁／重锁、控制器／Actor 停用接管、原生 Impulse 叠加、完整 GraphOwner 暂停／恢复／停止、图 Inspector 保存重载和代表性敌人 AI 仍需主工程场景验收。没有把最小绑定测试当作全部相机生命周期或镜头手感验收。
 
+## 第三阶段：样例／资源依赖收敛
+
+### 保留与裁剪
+
+- 以 `CombatTrainingArena.unity` 为第一方入口，递归核对场景、Prefab、Action／Animation／Locomotion、图、导入器 `.meta` 与 Shader Graph 引用；额外保留 Scripts、Tests、Plugins、Resources、Settings、ProjectSettings 引用、编辑器按路径加载资源及第三方来源／许可说明。
+- 保留 Katana 玩家与 Giant 敌人，35 份 Action／Action List 数据、56 份 AnimationAsset 与两份 AnimationRigAsset、五份 Locomotion，以及 Giant FSM／BT，覆盖连段、空中受击、绕行标签、显式 Actor 目标、命中反馈和胜负重开。
+- 删除 `HyperGraph`、`MiHoYo_Release`、`SampleScene` 及八份旧测试场景；相应 Enemy_Test_1、Jaeger、GreatSword 等草稿图和旧角色／列表配置一起裁剪，不再将它们列为必须恢复的玩法。
+- Animancer Transition Preview 的默认模型从带失效 Timeline／嵌套 FSM 的 David 样例改为 Katana AnimationRig 已使用的模型；由此关闭 David／ActorRoot 的旧入口依赖，没有只清空坏引用来保留一个伪完整角色。
+- 裁剪 **5,765 个资产、共 12,809 个资产及相应 `.meta` 路径**，保留 1,387 个资产。资产内容从约 **8.1 GiB 收敛到 209 MiB**（不含目录 `.meta`、Packages、Git 历史和导入缓存）。这仅缩小当前工作树，不重写历史。
+- 原始美术／数据的现用 GUID 和路径、训练场场景、战斗／动作／运动／相机参数、全部系统源码与测试、插件、Resources、Packages 和 ProjectSettings 保持不变。原许可证、版权、Credits、来源及使用说明保留，部分原包目录因此只剩说明文件。
+
+### 独立工程验证与动画重建
+
+- 先将候选保留集复制到无 Library 的独立工程，用 Unity 2022.3.62f3 恢复原 Package 并编译、导入；校验工具只在 `.git/migration-validation/` 中，不成为项目测试／运行依赖。
+- Unity 原生 `AssetDatabase.GetDependencies` 得到训练场 308 项依赖，所有 Assets 路径均在保留集中；检查训练场、保留第一方 Prefab 和 Data，没有缺失脚本、缺失 managed-reference 类型或空 Action List。这不是对全部第三方示例或所有非空对象槽的完整正确性证明。
+- 首次导入后 56 份 AnimationAsset 全部报告 Stale。使用现有 `AnimationAssetBakeWorkflow.TryBake` 逐项 Rebuild，**56 / 56 成功并通过原有采样验证**；保存、退出再启动 Unity 后，56 份全部 Ready。
+- 重建结果已回写主工作树；逐文件比较确认 **仅 dependencyHash／trajectoryHash 改变**，没有位移／旋转样本、脚步数据、Clip、Rig 或烘焙参数变化。未关闭 freshness 校验，也没有直接篡改哈希来绕过 Rebuild。
+- 静态扫描仍记录 17 个历史未解析 GUID：主要在完整保留的 KCC 示例、NodeCanvas 编辑器样式，以及一个第三方 Smoke 材质的旧附加对象中；它们不是这次裁剪导致的新悬空引用。未把“原生范围检查无缺失脚本”表述为“整个仓库零缺失 GUID”。
+
+### 最终验收已开始，尚未放行
+
+- 在带完整保留资产的独立工程运行全部原生 EditMode：**922 项，906 通过、16 失败，无跳过或 inconclusive**。不是此前选定 280 项的同一范围，不可继续只报 280 全绿。
+- 16 项分布：ActionMotionItem 2、ActionMotionPolicy 2、ActionPreviewArchitecture 1、LocomotionAnimation 8、LocomotionMatching 3。日志包含 EditMode 强发 Awake 的原生断言、会话／预览失效分类、已销毁 Graph 的状态访问，以及未创建 Playable 的权重写入；最终原因仍须逐项定位，不能全部先归为测试问题，也不删除／忽略来刷绿。
+- **Windows x64 Development Player 构建成功，0 error、4 warning**；输出约 146 MiB。警告包括 KCC 示例旧 Physics API 与无图形设备构建时的环境探针提示，不升级第三方包或改渲染参数来消警。
+- 无图形设备和 D3D11 Player 分别连续运行 75 秒，均记录到真实敌人命中、玩家死亡及重载后再次受击。无图形设备产生 Shader 不支持提示，不作为画面验证；D3D11 确认使用 RTX 3060，没有同类 Shader 错误。
+- **D3D11 运行确认一项真实清理缺陷**：死亡重载时出现两条 `PlayableGraph is invalid`，栈为 `ActorAnimation.OnDestroy → LocomotionAnimationUtility.Destroy → ManualMixerState.Destroy → Disconnect`。该路径与完整测试的部分 Graph 销毁失败相符，但不能据此归并全部 16 项。下一批优先修复状态／Graph 的释放边界，并复跑真实重开；本批不以 Player 仍能重开为由忽略异常。
+- 两次自动冒烟均未模拟玩家操作，75 秒后由验证脚本终止进程；不计为输入、画面构图、连续多轮重开或正常退出验收。
+- 工件：`asset-dependency-audit.json`、`final-import-audit.json`、`final-rebuild-results.txt`、`final-full-editmode-results.xml`、`final-build-summary.txt`、`final-player-*-smoke*`，均为本机 `.git/migration-validation/` 临时记录。
+- **尚未合回 main、尚未推送。** 剩余是关闭这 16 项失败、完成有图形设备的运行与编辑器操作验收，并复核后合回；不再重新开展逐模块框架整理。
+
 ## 后续顺序
 
 1. **系统主链路收尾**：已完成 Action、Motion、Combat / 表现和 Camera / Graph 的本轮定向代码审查；不是整体验收完成。剩余真实接管、清理与生命周期纳入后续场景回归；资源梳理若发现现用链路缺口，再定向修复，不继续为外观重构框架。
-2. **样例／资源瘦身**：在系统职责清楚后，保留足以覆盖核心能力的代表性数据与美术；按实际依赖处理旧场景、草稿配置和未使用资源，不按目录名字盲删。
-3. **最终回归**：保留小型稳定合同测试，完成代表性战斗、运动接管、命中／弹反、相机、中断／禁用清理与连续重开；检查 Player 构建与启动。
+2. **样例／资源瘦身**：本轮已按训练场与动态入口依赖完成；除最终验收发现具体缺口外，不继续扩展资产清理范围。
+3. **最终回归**：定位完整 EditMode 的 16 项失败；完成有图形设备的代表性战斗、运动接管、命中／弹反、相机、中断／禁用清理与连续重开，以及预览、剪贴板、图保存重载。Player 已构建，自动冒烟不替代实际操作验收。
 4. **合回 main**：复核最终代码、数据、文档与项目设置后合回。本阶段只在 main-migration 提交，不推送、不移动 main 或 HyperGraph。

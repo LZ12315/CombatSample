@@ -2,7 +2,7 @@
 
 ## 目标与范围
 
-以下同步范围和测试数字是 HyperGraph 完整工作区交接时的历史记录，不是当前迁移分支的验收结果。当前在 `main-migration` 整理，目标为合回 `main`；最新状态见 [主线迁移记录](Main_Migration.md)。
+以下同步范围和测试数字是 HyperGraph 完整工作区交接时的历史记录，不是当前迁移分支的验收结果。当前在 `main-migration` 整理，目标为合回 `main`；最新状态见 [主线迁移记录](Main_Migration.md)。样例收敛后只保留训练场及其依赖，旧 HyperGraph 场景、Kiana／Jaeger 草稿与对应角色入口已裁剪；下面的资源规模、缺失引用和 515 项测试数字只描述完整 Demo 检查点，不能作为当前恢复／补线清单。新的独立工程已完成空 Library 导入、56 份动画 Rebuild 与 Windows Development Player 构建；完整 EditMode 暂为 906 / 922 通过，16 项仍待定位，不能按历史记录或构建成功直接放行。
 
 本次按用户要求同步**全部已保存的项目开发状态**，而不是只挑选已完成功能。此前暂留的 Action／运动策略、编辑器复制粘贴、NodeCanvas Actor Target、弹反代码与测试、Katana／大剑／Kiana 资源、HyperGraph 场景和合同文档一并纳入版本控制。
 
